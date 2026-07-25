@@ -1,6 +1,4 @@
-
-
-export default function PosPage(){
+export default function PosSlice(){
     return(
         <>
             
