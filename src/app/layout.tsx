@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import {  Google_Sans } from "next/font/google";
 import "./globals.css";
+import StoreProvider from "./StoreProvider";
 
 const geistSans = Google_Sans({
   variable: "--font-googlesans",
@@ -23,7 +24,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable}  h-full antialiased`}
     >
+      <StoreProvider>
       <body className="min-h-full flex flex-col">{children}</body>
+      </StoreProvider>
     </html>
   );
 }

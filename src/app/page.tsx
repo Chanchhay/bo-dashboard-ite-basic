@@ -1,5 +1,6 @@
-import { PinPad } from "@/components/pos/pin-pad";
-import Navbar from "@/components/pos/pos-product-info-nav";
+
+import { OrderTable } from "@/components/pos/order/order-table";
+
 
 
 
@@ -7,7 +8,10 @@ import Navbar from "@/components/pos/pos-product-info-nav";
 export default function Home(){
   return(
     <div className="">
-      <PinPad/>
+      {/* <PinPad/> */}
+      {/* <CashRegister/> */}
+      {/* <PosButton/> */}
+      <OrderTable/>
     </div>
   )
 }
