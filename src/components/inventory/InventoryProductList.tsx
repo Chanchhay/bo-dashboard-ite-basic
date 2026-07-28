@@ -70,7 +70,7 @@ export function InventoryProductList() {
     async function handleDelete(itemId: string, name?: string) {
         if (
             !window.confirm(
-                `Delete ${name || "this product"}? This cannot be undone.`,
+                `Delete ${name || "this item"}? This cannot be undone.`,
             )
         ) {
             return;
@@ -86,8 +86,8 @@ export function InventoryProductList() {
     return (
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
-                title="Products"
-                description="Manage the products and services available to your business."
+                title="Items"
+                description="Manage the items and services available to your business."
                 action={
                     <Button
                         render={<Link href="/inventory/new" />}
@@ -95,7 +95,7 @@ export function InventoryProductList() {
                         className="h-11 gap-2 px-5"
                     >
                         <PackagePlus className="size-4" />
-                        Create product
+                        Create item
                     </Button>
                 }
             />
@@ -129,7 +129,7 @@ export function InventoryProductList() {
                         }
                     >
                         <SelectTrigger
-                            aria-label="Filter products by status"
+                            aria-label="Filter items by status"
                             className={`${inventoryControlClassName} w-full sm:w-44`}
                         >
                             <SelectValue />
@@ -145,12 +145,12 @@ export function InventoryProductList() {
                 </div>
 
                 {isLoading ? (
-                    <InventoryLoading label="Loading products" />
+                    <InventoryLoading label="Loading items" />
                 ) : error ? (
                     <InventoryError
                         message={getApiErrorMessage(
                             error,
-                            "Unable to load products.",
+                            "Unable to load items.",
                         )}
                         retry={refetch}
                     />
@@ -158,13 +158,13 @@ export function InventoryProductList() {
                     <InventoryEmpty
                         title={
                             items?.length
-                                ? "No matching products"
-                                : "No products yet"
+                                ? "No matching items"
+                                : "No items yet"
                         }
                         description={
                             items?.length
                                 ? "Change the search or status filter."
-                                : "Create your first product to begin tracking inventory."
+                                : "Create your first item to begin tracking inventory."
                         }
                     />
                 ) : (
@@ -232,7 +232,7 @@ export function InventoryProductList() {
                                                     render={
                                                         <Link
                                                             href={`/inventory/${item.id}/edit`}
-                                                            aria-label={`Edit ${item.name || "product"}`}
+                                                            aria-label={`Edit ${item.name || "item"}`}
                                                         />
                                                     }
                                                     nativeButton={false}
@@ -243,7 +243,7 @@ export function InventoryProductList() {
                                                     type="button"
                                                     variant="destructive"
                                                     size="icon-sm"
-                                                    aria-label={`Delete ${item.name || "product"}`}
+                                                    aria-label={`Delete ${item.name || "item"}`}
                                                     disabled={
                                                         deleteState.isLoading
                                                     }
@@ -271,7 +271,7 @@ export function InventoryProductList() {
                     >
                         {getApiErrorMessage(
                             deleteState.error,
-                            "Unable to delete the product.",
+                            "Unable to delete the item.",
                         )}
                     </p>
                 ) : null}

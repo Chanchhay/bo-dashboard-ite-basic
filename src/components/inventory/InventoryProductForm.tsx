@@ -260,7 +260,7 @@ function ProductEditor({
 
         if (!result.success) {
             setFieldErrors(fieldErrorsFromIssues(result.error.issues));
-            setStatus("Check the highlighted product information.");
+            setStatus("Check the highlighted item information.");
             return;
         }
 
@@ -280,7 +280,7 @@ function ProductEditor({
             setStatus(
                 getApiErrorMessage(
                     error,
-                    `Unable to ${isEditing ? "update" : "create"} the product.`,
+                    `Unable to ${isEditing ? "update" : "create"} the item.`,
                 ),
             );
         }
@@ -288,7 +288,7 @@ function ProductEditor({
 
     if (groupsError || unitsError) {
         return (
-            <InventoryError message="Unable to load the product form options." />
+            <InventoryError message="Unable to load the item form options." />
         );
     }
 
@@ -299,8 +299,8 @@ function ProductEditor({
             className="flex flex-col gap-6"
         >
             <InventoryPageHeader
-                title={isEditing ? "Edit product" : "Create product"}
-                description="Define the product before it can be sold or tracked."
+                title={isEditing ? "Edit item" : "Create item"}
+                description="Define the item before it can be sold or tracked."
                 action={
                     <Button
                         variant="outline"
@@ -309,19 +309,19 @@ function ProductEditor({
                         className="h-10 gap-2"
                     >
                         <ArrowLeft />
-                        Back to products
+                        Back to items
                     </Button>
                 }
             />
 
             <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
                 <SectionHeading
-                    title="Product information"
+                    title="Item information"
                     description="Core identifiers, pricing and sale configuration."
                 />
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                     <Field
-                        label="Product name *"
+                        label="Item name *"
                         name="name"
                         error={fieldErrors.name}
                     >
@@ -441,7 +441,7 @@ function ProductEditor({
                         </Select>
                     </Field>
                     <Field
-                        label="Product type *"
+                        label="Item type *"
                         name="itemType"
                         error={fieldErrors.itemType}
                     >
@@ -546,7 +546,7 @@ function ProductEditor({
                             id="imageUrl"
                             name="imageUrl"
                             defaultValue={initialItem?.imageUrl}
-                            placeholder="https://example.com/product.jpg"
+                            placeholder="https://example.com/item.jpg"
                             aria-invalid={Boolean(fieldErrors.imageUrl)}
                             className={inventoryControlClassName}
                         />
@@ -573,7 +573,7 @@ function ProductEditor({
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Attributes"
-                        description="Add flexible product details as key and value pairs."
+                        description="Add flexible item details as key and value pairs."
                     />
                     <Button
                         type="button"
@@ -646,7 +646,7 @@ function ProductEditor({
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Variants"
-                        description="Define alternate names and prices for this product."
+                        description="Define alternate names and prices for this item."
                     />
                     <Button
                         type="button"
@@ -751,7 +751,7 @@ function ProductEditor({
                     ) : (
                         <Save />
                     )}
-                    {isEditing ? "Save changes" : "Create product"}
+                    {isEditing ? "Save changes" : "Create item"}
                 </Button>
             </div>
         </form>
@@ -767,7 +767,7 @@ export function EditInventoryProduct({ itemId }: { itemId: string }) {
         useGetInventoryItemQuery(itemId);
 
     if (isLoading) {
-        return <InventoryLoading label="Loading product" />;
+        return <InventoryLoading label="Loading item" />;
     }
 
     if (error || !data) {
@@ -775,7 +775,7 @@ export function EditInventoryProduct({ itemId }: { itemId: string }) {
             <InventoryError
                 message={getApiErrorMessage(
                     error,
-                    "Unable to load the product.",
+                    "Unable to load the item.",
                 )}
                 retry={refetch}
             />

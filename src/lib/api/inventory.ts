@@ -112,8 +112,8 @@ export const inventoryItemSchema = z.object({
     name: z
         .string()
         .trim()
-        .min(1, "Product name is required.")
-        .max(200, "Product name must be 200 characters or fewer."),
+        .min(1, "Item name is required.")
+        .max(200, "Item name must be 200 characters or fewer."),
     sku: optionalText(100, "SKU must be 100 characters or fewer."),
     code: optionalText(100, "Code must be 100 characters or fewer."),
     description: z.string().trim(),
@@ -151,7 +151,7 @@ export const itemGroupSchema = z.object({
 export type ItemGroupInput = z.infer<typeof itemGroupSchema>;
 
 export const stockEntrySchema = z.object({
-    itemId: z.uuid("Select a product."),
+    itemId: z.uuid("Select an item."),
     entryType: z.enum(stockEntryTypes),
     quantityChange: z.number(),
     unitCost: z

@@ -100,7 +100,7 @@ export function StockAdjustmentForm() {
             <InventoryError
                 message={getApiErrorMessage(
                     itemsQuery.error,
-                    "Unable to load products for stock adjustment.",
+                    "Unable to load items for stock adjustment.",
                 )}
                 retry={itemsQuery.refetch}
             />
@@ -223,12 +223,12 @@ export function StockAdjustmentForm() {
 
                 {items.length === 0 ? (
                     <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-[#6d5600]">
-                        Create a product before adding stock.
+                        Create an item before adding stock.
                     </div>
                 ) : (
                     <div className="mt-6 grid gap-5 md:grid-cols-2">
                         <Field
-                            label="Product *"
+                            label="Item *"
                             name="itemId"
                             error={fieldErrors.itemId}
                         >
@@ -240,7 +240,7 @@ export function StockAdjustmentForm() {
                                         fieldErrors.itemId,
                                     )}
                                 >
-                                    <SelectValue placeholder="Choose a product" />
+                                    <SelectValue placeholder="Choose an item" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {items.map((item) => (
@@ -248,7 +248,7 @@ export function StockAdjustmentForm() {
                                             key={item.id}
                                             value={item.id}
                                         >
-                                            {item.name || "Unnamed product"}
+                                            {item.name || "Unnamed item"}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

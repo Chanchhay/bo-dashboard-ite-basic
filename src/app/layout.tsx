@@ -5,9 +5,10 @@ import StoreProvider from "@/app/StoreProvider";
 
 import "./globals.css";
 
-const geistSans = Google_Sans({
-    variable: "--font-googlesans",
+const googleSans = Google_Sans({
+    variable: "--font-google-sans",
     subsets: ["latin"],
+    display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -21,7 +22,10 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className={`${geistSans.variable}  h-full antialiased`}>
+        <html
+            lang="en"
+            className={`${googleSans.variable} h-full antialiased`}
+        >
             <body className="min-h-full flex flex-col">
                 <StoreProvider>{children}</StoreProvider>
             </body>

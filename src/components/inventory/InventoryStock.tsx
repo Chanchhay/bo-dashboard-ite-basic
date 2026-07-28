@@ -116,7 +116,7 @@ export function InventoryStock() {
         0,
     );
     const itemNames = new Map(
-        items.map((item) => [item.id, item.name || "Unnamed product"]),
+        items.map((item) => [item.id, item.name || "Unnamed item"]),
     );
     const recentEntries = [...(entriesQuery.data || [])]
         .sort(
@@ -145,7 +145,7 @@ export function InventoryStock() {
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {metricCard(
-                    "Total products",
+                    "Total items",
                     String(items.length),
                     Boxes,
                     "bg-primary/10 text-primary",
@@ -177,7 +177,7 @@ export function InventoryStock() {
                             Current stock
                         </h2>
                         <p className="mt-1 text-sm text-[#657064]">
-                            Quantity on hand for each configured product.
+                            Quantity on hand for each configured item.
                         </p>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
@@ -189,7 +189,7 @@ export function InventoryStock() {
                                     setStockSearch(event.target.value),
                                 )
                             }
-                            placeholder="Search products"
+                            placeholder="Search items"
                             className={`${inventoryControlClassName} pl-10`}
                         />
                     </div>
@@ -199,13 +199,13 @@ export function InventoryStock() {
                     <InventoryEmpty
                         title={
                             items.length
-                                ? "No matching products"
+                                ? "No matching items"
                                 : "No stock to display"
                         }
                         description={
                             items.length
                                 ? "Change the stock search."
-                                : "Create a product before recording stock."
+                                : "Create an item before recording stock."
                         }
                     />
                 ) : (
@@ -213,7 +213,7 @@ export function InventoryStock() {
                         <table className="w-full min-w-[760px] text-left text-sm">
                             <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
                                 <tr>
-                                    <th className="px-5 py-3">Product</th>
+                                    <th className="px-5 py-3">Item</th>
                                     <th className="px-5 py-3">Category</th>
                                     <th className="px-5 py-3">
                                         Quantity
@@ -331,7 +331,7 @@ export function InventoryStock() {
                                     <p className="font-semibold text-[#1a222b]">
                                         {itemNames.get(
                                             entry.itemId || "",
-                                        ) || "Unknown product"}
+                                        ) || "Unknown item"}
                                     </p>
                                     <p className="mt-1 text-xs text-[#7b857a]">
                                         {entry.entryType

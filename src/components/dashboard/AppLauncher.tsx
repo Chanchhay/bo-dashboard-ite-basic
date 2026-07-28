@@ -1,0 +1,214 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import ViewModeToggle from "@/components/layout/ViewModeToggle";
+import {
+    launcherApps,
+    sectionEntryHref,
+    type NavSection,
+} from "@/components/layout/navigation";
+import type { Permission } from "@/lib/permissions";
+
+/** How long the icon grows before the route actually changes. */
+const OPEN_MS = 620;
+
+type Opening = {
+    section: NavSection;
+    cx: number;
+    cy: number;
+    size: number;
+};
+
+export default function AppLauncher({
+    managerName,
+    permissions,
+}: {
+    managerName: string;
+    permissions: Permission[];
+}) {
+    const router = useRouter();
+    const [opening, setOpening] = useState<Opening | null>(null);
+
+    const apps = launcherApps(permissions);
+
+    useEffect(() => {
+        if (!opening) return;
+        const go = setTimeout(
+            () => router.push(sectionEntryHref(opening.section)),
+            OPEN_MS - 80,
+        );
+        return () => clearTimeout(go);
+    }, [opening, router]);
+
+    return (
+        <div className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
+            <header className="mb-10 flex flex-wrap items-center justify-between gap-5">
+                <div>
+                    <h1 className="text-[32px] leading-tight text-[#16181c]">
+                        <span className="font-semibold">Hello,</span>{" "}
+                        {managerName.split(" ")[0]}
+                    </h1>
+                    <p className="mt-1.5 text-[16px] text-[#5c6660]">
+                        Choose an app to open.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <ViewModeToggle current="apps" />
+                    <Link
+                        href="/profile"
+                        className="flex items-center gap-2.5 rounded-full border border-[#e2e2de] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                    >
+                        <span
+                            aria-hidden="true"
+                            className="grid size-8 place-items-center rounded-full bg-[#00932a] text-[13px] font-medium text-white"
+                        >
+                            {managerName
+                                .split(" ")
+                                .map((word) => word[0])
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase() || "?"}
+                        </span>
+                        <span className="hidden text-[14px] text-[#16181c] sm:block">
+                            {managerName}
+                        </span>
+                    </Link>
+                </div>
+            </header>
+
+            {apps.length > 0 ? (
+                <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {apps.map((section) => (
+                        <li key={section.id}>
+                            <AppTile
+                                section={section}
+                                onOpen={setOpening}
+                                busy={opening !== null}
+                            />
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="rounded-[24px] bg-white px-6 py-10 text-center text-[15px] text-[#5c6660]">
+                    No apps are available for your role yet. Ask an
+                    administrator to review your permissions.
+                </p>
+            )}
+
+            {opening && <AppOpen {...opening} />}
+        </div>
+    );
+}
+
+function AppTile({
+    section,
+    onOpen,
+    busy,
+}: {
+    section: NavSection;
+    onOpen: (opening: Opening) => void;
+    busy: boolean;
+}) {
+    const badgeRef = useRef<HTMLSpanElement>(null);
+    const Icon = section.icon;
+    const app = section.app!;
+
+    return (
+        <Link
+            href={sectionEntryHref(section)}
+            onClick={(event) => {
+                const badge = badgeRef.current?.getBoundingClientRect();
+                const reduced = window.matchMedia(
+                    "(prefers-reduced-motion: reduce)",
+                ).matches;
+                if (reduced || busy || !badge) return;
+
+                event.preventDefault();
+                onOpen({
+                    section,
+                    cx: badge.left + badge.width / 2,
+                    cy: badge.top + badge.height / 2,
+                    size: badge.width,
+                });
+            }}
+            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] bg-white px-7 pt-10 pb-9 text-center outline-none transition-colors hover:bg-[#fcfcfb] focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
+        >
+            <span
+                ref={badgeRef}
+                aria-hidden="true"
+                className="grid size-24 place-items-center rounded-[26px] transition-transform duration-200 ease-out group-hover:scale-110"
+                style={{ background: app.fill, color: app.ink }}
+            >
+                <Icon className="size-11" strokeWidth={1.8} />
+            </span>
+            <span className="text-[21px] leading-tight text-[#16181c]">
+                {app.label}
+            </span>
+            <span className="-mt-2 text-[15px] text-[#8a8f89]">{app.hint}</span>
+        </Link>
+    );
+}
+
+/*
+ * A pure `transform: scale()` on a circle seeded at the icon's own position.
+ * Growing the real rectangle instead would mean animating width/height, which
+ * relayouts every frame; scaling a fixed-size layer stays on the compositor.
+ */
+function AppOpen({ section, cx, cy, size }: Opening) {
+    const [grown, setGrown] = useState(false);
+    const Icon = section.icon;
+    const app = section.app!;
+
+    useEffect(() => {
+        const raf = requestAnimationFrame(() => setGrown(true));
+        return () => cancelAnimationFrame(raf);
+    }, []);
+
+    // Reach the furthest corner from wherever the icon happens to sit.
+    const reach = Math.hypot(
+        Math.max(cx, window.innerWidth - cx),
+        Math.max(cy, window.innerHeight - cy),
+    );
+    const scale = ((reach * 2) / size) * 1.05;
+
+    return (
+        <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-50 overflow-hidden"
+        >
+            <div
+                className="absolute rounded-full"
+                style={{
+                    left: cx - size / 2,
+                    top: cy - size / 2,
+                    width: size,
+                    height: size,
+                    background: app.fill,
+                    transform: `scale(${grown ? scale : 1})`,
+                    transition: `transform ${OPEN_MS}ms cubic-bezier(.5,0,.2,1)`,
+                    willChange: "transform",
+                }}
+            />
+            <div
+                className="absolute grid place-items-center"
+                style={{
+                    left: cx - size / 2,
+                    top: cy - size / 2,
+                    width: size,
+                    height: size,
+                    color: app.ink,
+                    opacity: grown ? 0 : 1,
+                    transform: `scale(${grown ? 1.6 : 1})`,
+                    transition: `transform ${OPEN_MS}ms cubic-bezier(.5,0,.2,1), opacity ${OPEN_MS * 0.7}ms linear`,
+                    willChange: "transform, opacity",
+                }}
+            >
+                <Icon className="size-11" strokeWidth={1.8} />
+            </div>
+        </div>
+    );
+}

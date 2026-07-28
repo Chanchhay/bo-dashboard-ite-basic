@@ -161,7 +161,7 @@ export function InventoryCategories() {
     async function handleDelete(id: string, name: string) {
         if (
             !window.confirm(
-                `Delete ${name}? Products assigned to it may need to be updated.`,
+                `Delete ${name}? Items assigned to it may need to be updated.`,
             )
         ) {
             return;
@@ -197,7 +197,7 @@ export function InventoryCategories() {
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Categories"
-                description="Organize products with categories and subcategories."
+                description="Organize items with categories and subcategories."
             />
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
@@ -215,7 +215,7 @@ export function InventoryCategories() {
                     {rows.length === 0 ? (
                         <InventoryEmpty
                             title="No categories yet"
-                            description="Use the form to add the first product category."
+                            description="Use the form to add the first item category."
                         />
                     ) : (
                         <div className="divide-y divide-[#edf0ec]">
@@ -354,7 +354,7 @@ export function InventoryCategories() {
                                     : "subcategory"}
                             </h2>
                             <p className="mt-1 text-sm text-[#657064]">
-                                Define how products are grouped.
+                                Define how items are grouped.
                             </p>
                         </div>
                         {editing ? (
