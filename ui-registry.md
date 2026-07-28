@@ -84,3 +84,25 @@ actions, and 12px form controls. Server data stays in the shared RTK Query
 cache, while persistent product and stock filters use the inventory Redux
 slice. Stock state badges consistently distinguish in-stock, low-stock, and
 out-of-stock conditions with brand, warning, and accent colors.
+
+### Dashboard Module Tile
+
+File: src/components/dashboard/DasboardShell.tsx
+Last updated: 2026-07-28
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white` |
+| Border           | `border` with `rgba(15,26,18,.07)` |
+| Border radius    | `rounded-[24px]` |
+| Text — primary   | `text-[15.5px] font-bold` |
+| Text — secondary | `text-[12.5px] text-[#6b7a6e]` |
+| Spacing          | `gap-4 px-[22px] pb-[26px] pt-[30px]` |
+| Hover state      | `hover:-translate-y-[3px]` |
+| Shadow           | `0 8px 20px -18px rgba(9,40,20,.3)` |
+| Accent usage     | Per-module brand gradients with `focus-visible:outline-[#00932a]` |
+
+**Pattern notes:**
+Dashboard module tiles are draggable Next.js links. Keep the white surface,
+subtle border and shadow, 24px radius, centered brand-gradient icon, and visible
+green keyboard focus treatment consistent across future dashboard launchers.
