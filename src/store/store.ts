@@ -1,22 +1,24 @@
+import { configureStore } from "@reduxjs/toolkit";
+import { setupListeners } from "@reduxjs/toolkit/query";
 
+import { baseApi } from "@/lib/baseApi";
+import inventoryUiReducer from "@/store/inventoryUiSlice";
 
-import { authApi } from '@/services/authApi'
-import {configureStore} from '@reduxjs/toolkit'
-
-// set up the store
 export const makeStore = () => {
-  return configureStore({
-    reducer: {
-      [authApi.reducerPath]: authApi.reducer
-    },
-    middleware: (getDefaultMiddleware) => 
-      getDefaultMiddleware().concat(authApi.middleware)
-    
-  }) 
-}
+    const store = configureStore({
+        reducer: {
+            [baseApi.reducerPath]: baseApi.reducer,
+            inventoryUi: inventoryUiReducer,
+        },
+        middleware: (getDefaultMiddleware) =>
+            getDefaultMiddleware().concat(baseApi.middleware),
+    });
 
-// Infer the type of makeStore
-export type AppStore = ReturnType<typeof makeStore>
-// Infer the `RootState` and `AppDispatch` types from the store itself
-export type RootState = ReturnType<AppStore['getState']>
-export type AppDispatch = AppStore['dispatch']
+    setupListeners(store.dispatch);
+
+    return store;
+};
+
+export type AppStore = ReturnType<typeof makeStore>;
+export type RootState = ReturnType<AppStore["getState"]>;
+export type AppDispatch = AppStore["dispatch"];
