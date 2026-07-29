@@ -4,18 +4,29 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     useMemo,
+    useRef,
     useState,
-    type FormEvent,
     type ReactNode,
+    type SubmitEvent,
 } from "react";
 import {
     ArrowLeft,
+    Eye,
     LoaderCircle,
+    Pencil,
     Plus,
     Save,
     Trash2,
 } from "lucide-react";
 
+import {
+    ItemAttributeDialog,
+    type AttributeDraft,
+} from "@/components/inventory/ItemAttributeDialog";
+import {
+    ItemPreviewDialog,
+    type PreviewItem,
+} from "@/components/inventory/ItemPreviewDialog";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -37,9 +48,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
     inventoryItemSchema,
+    itemAttributeTypeLabels,
     itemStatuses,
     itemTypes,
     type InventoryItem,
+    type ItemAttribute,
     type ItemVariant,
 } from "@/lib/api/inventory";
 import {
@@ -49,12 +62,6 @@ import {
     useGetItemGroupsQuery,
     useUpdateInventoryItemMutation,
 } from "@/services/inventoryApi";
-
-type AttributeRow = {
-    id: string;
-    name: string;
-    value: string;
-};
 
 type VariantRow = {
     id: string;
@@ -111,21 +118,25 @@ function createRowId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function toAttributeRows(
-    attributes: Record<string, unknown> | undefined,
-): AttributeRow[] {
-    const rows = Object.entries(attributes || {}).map(([name, value]) => ({
+function toAttributeDrafts(
+    attributes: ItemAttribute[] | undefined,
+): AttributeDraft[] {
+    return (attributes || []).map((attribute) => ({
         id: createRowId(),
-        name,
-        value:
-            typeof value === "string"
-                ? value
-                : JSON.stringify(value),
+        name: attribute.name || "",
+        type: attribute.type || "TEXT",
+        values: attribute.values || [],
     }));
+}
 
-    return rows.length
-        ? rows
-        : [{ id: createRowId(), name: "", value: "" }];
+function describeAttribute(attribute: AttributeDraft) {
+    if (attribute.type === "TOGGLE") {
+        return "On or off";
+    }
+
+    return attribute.values.length
+        ? attribute.values.join(", ")
+        : "No values";
 }
 
 function toVariantRows(variants: ItemVariant[] | undefined): VariantRow[] {
@@ -169,8 +180,12 @@ function ProductEditor({
     const [updateItem, updateState] =
         useUpdateInventoryItemMutation();
     const [attributes, setAttributes] = useState(() =>
-        toAttributeRows(initialItem?.attributes),
+        toAttributeDrafts(initialItem?.attributes),
     );
+    const [attributeDialogOpen, setAttributeDialogOpen] = useState(false);
+    const [editingAttributeId, setEditingAttributeId] = useState<
+        string | null
+    >(null);
     const [variants, setVariants] = useState(() =>
         toVariantRows(initialItem?.variants),
     );
@@ -178,6 +193,8 @@ function ProductEditor({
         Record<string, string>
     >({});
     const [status, setStatus] = useState<string | null>(null);
+    const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+    const formRef = useRef<HTMLFormElement>(null);
     const isEditing = Boolean(initialItem);
     const isSaving = createState.isLoading || updateState.isLoading;
 
@@ -196,15 +213,71 @@ function ProductEditor({
         [groups],
     );
 
-    function updateAttribute(
-        id: string,
-        patch: Partial<AttributeRow>,
-    ) {
+    const editingAttribute = attributes.find(
+        (attribute) => attribute.id === editingAttributeId,
+    );
+
+    function openAttributeDialog(id: string | null) {
+        setEditingAttributeId(id);
+        setAttributeDialogOpen(true);
+    }
+
+    function saveAttribute(draft: AttributeDraft) {
         setAttributes((current) =>
-            current.map((row) =>
-                row.id === id ? { ...row, ...patch } : row,
-            ),
+            draft.id
+                ? current.map((attribute) =>
+                      attribute.id === draft.id ? draft : attribute,
+                  )
+                : [...current, { ...draft, id: createRowId() }],
         );
+    }
+
+    /**
+     * The fields are uncontrolled, so the preview reads them straight off the
+     * form element. That keeps the preview showing unsaved edits without
+     * turning every input into controlled state.
+     */
+    function openPreview() {
+        const form = formRef.current;
+
+        if (!form) {
+            return;
+        }
+
+        const formData = new FormData(form);
+        const read = (field: string) => String(formData.get(field) || "");
+        const categoryId = read("itemGroupId");
+        const unitId = read("unitId");
+
+        setPreviewItem({
+            name: read("name"),
+            description: read("description"),
+            imageUrl: read("imageUrl"),
+            price: Number(formData.get("price") || 0),
+            sku: read("sku"),
+            categoryName:
+                categoryOptions.find((option) => option.id === categoryId)
+                    ?.label || "",
+            unitName:
+                (units || []).find((unit) => unit.id === unitId)?.name || "",
+            itemType: (read("itemType") ||
+                "PHYSICAL") as (typeof itemTypes)[number],
+            status: (read("status") ||
+                "ACTIVE") as (typeof itemStatuses)[number],
+            attributes: attributes.map((attribute) => ({
+                name: attribute.name,
+                type: attribute.type,
+                values: attribute.values,
+            })),
+            variants: variants
+                .filter((row) => row.name.trim())
+                .map((row) => ({
+                    name: row.name.trim(),
+                    ...(row.price === ""
+                        ? {}
+                        : { price: Number(row.price) }),
+                })),
+        });
     }
 
     function updateVariant(id: string, patch: Partial<VariantRow>) {
@@ -215,16 +288,16 @@ function ProductEditor({
         );
     }
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
         setStatus(null);
 
         const formData = new FormData(event.currentTarget);
-        const attributeValues = Object.fromEntries(
-            attributes
-                .filter((row) => row.name.trim())
-                .map((row) => [row.name.trim(), row.value.trim()]),
-        );
+        const attributeValues = attributes.map((attribute) => ({
+            name: attribute.name,
+            type: attribute.type,
+            values: attribute.values,
+        }));
         const variantValues = variants
             .filter((row) => row.name.trim())
             .map((row) => ({
@@ -294,6 +367,7 @@ function ProductEditor({
 
     return (
         <form
+            ref={formRef}
             onSubmit={handleSubmit}
             noValidate
             className="flex flex-col gap-6"
@@ -302,15 +376,26 @@ function ProductEditor({
                 title={isEditing ? "Edit item" : "Create item"}
                 description="Define the item before it can be sold or tracked."
                 action={
-                    <Button
-                        variant="outline"
-                        render={<Link href="/inventory" />}
-                        nativeButton={false}
-                        className="h-10 gap-2"
-                    >
-                        <ArrowLeft />
-                        Back to items
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={openPreview}
+                            className="h-10 gap-2"
+                        >
+                            <Eye />
+                            Preview
+                        </Button>
+                        <Button
+                            variant="outline"
+                            render={<Link href="/inventory" />}
+                            nativeButton={false}
+                            className="h-10 gap-2"
+                        >
+                            <ArrowLeft />
+                            Back to items
+                        </Button>
+                    </div>
                 }
             />
 
@@ -386,6 +471,15 @@ function ProductEditor({
                             defaultValue={
                                 initialItem?.itemGroup?.id || "__none"
                             }
+                            items={{
+                                __none: "No category",
+                                ...Object.fromEntries(
+                                    categoryOptions.map((option) => [
+                                        option.id,
+                                        option.label,
+                                    ]),
+                                ),
+                            }}
                         >
                             <SelectTrigger
                                 id="itemGroupId"
@@ -418,6 +512,15 @@ function ProductEditor({
                             defaultValue={
                                 initialItem?.unit?.id || "__none"
                             }
+                            items={{
+                                __none: "No unit",
+                                ...Object.fromEntries(
+                                    (units || []).map((unit) => [
+                                        unit.id,
+                                        unit.name || "Unnamed unit",
+                                    ]),
+                                ),
+                            }}
                         >
                             <SelectTrigger
                                 id="unitId"
@@ -450,6 +553,11 @@ function ProductEditor({
                             defaultValue={
                                 initialItem?.itemType || "PHYSICAL"
                             }
+                            items={{
+                                PHYSICAL: "Physical",
+                                DIGITAL: "Digital",
+                                SERVICE: "Service",
+                            }}
                         >
                             <SelectTrigger
                                 id="itemType"
@@ -480,6 +588,7 @@ function ProductEditor({
                             defaultValue={
                                 initialItem?.status || "ACTIVE"
                             }
+                            items={{ ACTIVE: "Active", INACTIVE: "Inactive" }}
                         >
                             <SelectTrigger
                                 id="status"
@@ -573,73 +682,94 @@ function ProductEditor({
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Attributes"
-                        description="Add flexible item details as key and value pairs."
+                        description="Define typed attributes such as size, colour or status."
                     />
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                            setAttributes((current) => [
-                                ...current,
-                                {
-                                    id: createRowId(),
-                                    name: "",
-                                    value: "",
-                                },
-                            ])
-                        }
+                        onClick={() => openAttributeDialog(null)}
                     >
                         <Plus />
                         Add attribute
                     </Button>
                 </div>
                 <div className="mt-5 flex flex-col gap-3">
-                    {attributes.map((attribute) => (
-                        <div
-                            key={attribute.id}
-                            className="grid gap-3 sm:grid-cols-[1fr_1.5fr_auto]"
-                        >
-                            <Input
-                                value={attribute.name}
-                                onChange={(event) =>
-                                    updateAttribute(attribute.id, {
-                                        name: event.target.value,
-                                    })
-                                }
-                                aria-label="Attribute name"
-                                placeholder="Attribute name"
-                                className={inventoryControlClassName}
-                            />
-                            <Input
-                                value={attribute.value}
-                                onChange={(event) =>
-                                    updateAttribute(attribute.id, {
-                                        value: event.target.value,
-                                    })
-                                }
-                                aria-label="Attribute value"
-                                placeholder="Attribute value"
-                                className={inventoryControlClassName}
-                            />
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                aria-label="Remove attribute"
-                                onClick={() =>
-                                    setAttributes((current) =>
-                                        current.filter(
-                                            (row) =>
-                                                row.id !== attribute.id,
-                                        ),
-                                    )
-                                }
+                    {attributes.length ? (
+                        attributes.map((attribute) => (
+                            <div
+                                key={attribute.id}
+                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] px-4 py-3"
                             >
-                                <Trash2 />
-                            </Button>
-                        </div>
-                    ))}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-medium text-[#1a222b]">
+                                            {attribute.name}
+                                        </p>
+                                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                            {
+                                                itemAttributeTypeLabels[
+                                                    attribute.type
+                                                ]
+                                            }
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 truncate text-sm text-[#657064]">
+                                        {describeAttribute(attribute)}
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Edit ${attribute.name}`}
+                                    onClick={() =>
+                                        openAttributeDialog(attribute.id)
+                                    }
+                                >
+                                    <Pencil />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon-sm"
+                                    aria-label={`Remove ${attribute.name}`}
+                                    onClick={() =>
+                                        setAttributes((current) =>
+                                            current.filter(
+                                                (row) =>
+                                                    row.id !== attribute.id,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <Trash2 />
+                                </Button>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="rounded-xl border border-dashed border-[#e8e8e8] px-4 py-6 text-center text-sm text-[#657064]">
+                            No attributes yet. Add one to describe this item.
+                        </p>
+                    )}
+                    {fieldErrors.attributes ? (
+                        <p className="text-xs text-accent" role="alert">
+                            {fieldErrors.attributes}
+                        </p>
+                    ) : null}
                 </div>
+
+                <ItemAttributeDialog
+                    open={attributeDialogOpen}
+                    onOpenChange={setAttributeDialogOpen}
+                    initialAttribute={editingAttribute}
+                    existingNames={attributes
+                        .filter(
+                            (attribute) =>
+                                attribute.id !== editingAttributeId,
+                        )
+                        .map((attribute) => attribute.name.toLowerCase())}
+                    onSubmit={saveAttribute}
+                />
             </section>
 
             <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
@@ -744,7 +874,7 @@ function ProductEditor({
                 <Button
                     type="submit"
                     disabled={isSaving}
-                    className="h-11 gap-2 px-6"
+                    size="lg"
                 >
                     {isSaving ? (
                         <LoaderCircle className="animate-spin" />
@@ -754,6 +884,16 @@ function ProductEditor({
                     {isEditing ? "Save changes" : "Create item"}
                 </Button>
             </div>
+
+            <ItemPreviewDialog
+                open={Boolean(previewItem)}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPreviewItem(null);
+                    }
+                }}
+                item={previewItem}
+            />
         </form>
     );
 }

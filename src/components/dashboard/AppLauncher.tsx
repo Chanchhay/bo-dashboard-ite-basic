@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import ViewModeToggle from "@/components/layout/ViewModeToggle";
 import {
     launcherApps,
     sectionEntryHref,
     type NavSection,
 } from "@/components/layout/navigation";
+import UserMenu from "@/components/layout/UserMenu";
 import type { Permission } from "@/lib/permissions";
 
 /** How long the icon grows before the route actually changes. */
@@ -57,26 +57,7 @@ export default function AppLauncher({
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <ViewModeToggle current="apps" />
-                    <Link
-                        href="/profile"
-                        className="flex items-center gap-2.5 rounded-full border border-[#e2e2de] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#00932a]"
-                    >
-                        <span
-                            aria-hidden="true"
-                            className="grid size-8 place-items-center rounded-full bg-[#00932a] text-[13px] font-medium text-white"
-                        >
-                            {managerName
-                                .split(" ")
-                                .map((word) => word[0])
-                                .join("")
-                                .slice(0, 2)
-                                .toUpperCase() || "?"}
-                        </span>
-                        <span className="hidden text-[14px] text-[#16181c] sm:block">
-                            {managerName}
-                        </span>
-                    </Link>
+                    <UserMenu name={managerName} />
                 </div>
             </header>
 

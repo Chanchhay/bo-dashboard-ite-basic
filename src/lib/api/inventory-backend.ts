@@ -1,25 +1,15 @@
 import { z } from "zod";
 
-import { backendRequest } from "@/lib/api/backend";
+import {
+    getCurrentBusinessId,
+    validationErrorResponse,
+} from "@/lib/api/business-backend";
 
-type CurrentBusiness = {
-    id: string;
-};
-
-export async function getInventoryBusinessId() {
-    const business = await backendRequest<CurrentBusiness>(
-        "/api/v1/businesses/me",
-    );
-
-    return encodeURIComponent(business.id);
-}
+export const getInventoryBusinessId = getCurrentBusinessId;
 
 export function inventoryValidationError(error: z.ZodError) {
-    return Response.json(
-        {
-            message: "Check the submitted inventory information.",
-            fieldErrors: z.flattenError(error).fieldErrors,
-        },
-        { status: 400 },
+    return validationErrorResponse(
+        error,
+        "Check the submitted inventory information.",
     );
 }

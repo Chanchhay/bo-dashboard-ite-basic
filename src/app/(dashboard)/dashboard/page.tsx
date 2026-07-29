@@ -1,4 +1,3 @@
-import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import {
     Boxes,
@@ -10,14 +9,10 @@ import {
     type LucideIcon,
 } from "lucide-react";
 
-import AppLauncher from "@/components/dashboard/AppLauncher";
-import WelcomeIntro from "@/components/dashboard/WelcomeIntro";
-import { auth } from "@/lib/auth/auth";
+import { buttonVariants } from "@/components/ui/button";
 import { backendRequest } from "@/lib/api/backend";
 import { getInventoryBusinessId } from "@/lib/api/inventory-backend";
 import type { InventoryItem, StockSummary } from "@/lib/api/inventory";
-import { getUserPermissions } from "@/lib/permissions-server";
-import { VIEW_MODE_COOKIE, parseViewMode } from "@/lib/view-mode";
 
 type Overview = {
     items: InventoryItem[];
@@ -60,28 +55,6 @@ function compact(value: number) {
 }
 
 export default async function DashboardPage() {
-    const cookieStore = await cookies();
-    const showWelcome = cookieStore.get("ipos_welcome")?.value === "1";
-    const mode = parseViewMode(cookieStore.get(VIEW_MODE_COOKIE)?.value);
-
-    // App view: this route is the launcher. Dashboard view: it's the overview.
-    if (mode === "apps") {
-        const [session, permissions] = await Promise.all([
-            auth.api.getSession({ headers: await headers() }),
-            getUserPermissions(),
-        ]);
-
-        return (
-            <>
-                {showWelcome && <WelcomeIntro />}
-                <AppLauncher
-                    managerName={session?.user.name || "Manager"}
-                    permissions={permissions}
-                />
-            </>
-        );
-    }
-
     const { items, stock, error } = await loadOverview();
 
     const quantityByItem = new Map(
@@ -111,10 +84,7 @@ export default async function DashboardPage() {
         .slice(0, 6);
 
     return (
-        <>
-            {showWelcome && <WelcomeIntro />}
-
-            <div className="flex flex-col gap-5 pb-4">
+        <div className="flex flex-col gap-5 pb-4">
                 {error && (
                     <p
                         role="status"
@@ -198,7 +168,9 @@ export default async function DashboardPage() {
 
                         <Link
                             href="/inventory/stock"
-                            className="rounded-xl border border-[#e2e2de] px-4 py-2.5 text-[14px] text-[#16181c] outline-none transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                            className={buttonVariants({
+                                variant: "outline",
+                            })}
                         >
                             View all stock
                         </Link>
@@ -238,9 +210,8 @@ export default async function DashboardPage() {
                     ) : (
                         <EmptyState hasItems={items.length > 0} />
                     )}
-                </section>
-            </div>
-        </>
+            </section>
+        </div>
     );
 }
 
@@ -298,7 +269,8 @@ function EmptyState({ hasItems }: { hasItems: boolean }) {
             </p>
             <Link
                 href={hasItems ? "/inventory/stock/adjust" : "/inventory/new"}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#00932a] px-4 py-2.5 text-[14px] font-medium text-white outline-none transition-colors hover:bg-[#007822] focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
+                /* A link that acts as a button borrows the same variants. */
+                className={buttonVariants({ className: "mt-5" })}
             >
                 <Plus className="size-4" aria-hidden="true" />
                 {hasItems ? "Record stock" : "Create item"}

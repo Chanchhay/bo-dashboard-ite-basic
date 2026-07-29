@@ -7,14 +7,16 @@ export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        // Arms the one-shot dashboard intro. The dashboard reads this cookie
+        // Arms the one-shot welcome intro. The launcher reads this cookie
         // server-side and clears it, so the animation plays once per sign-in.
         document.cookie = "ipos_welcome=1; path=/; max-age=600; samesite=lax";
 
         void authClient.signIn
             .oauth2({
+                // Signing in lands on the launcher — that is where the welcome
+                // intro lives, and where you pick an app to open.
                 providerId: "keycloak",
-                callbackURL: "/dashboard",
+                callbackURL: "/apps",
                 errorCallbackURL: "/login",
             })
             .then(({ error }) => {

@@ -2,6 +2,21 @@ import { z } from "zod";
 
 export const itemTypes = ["DIGITAL", "SERVICE", "PHYSICAL"] as const;
 export const itemStatuses = ["ACTIVE", "INACTIVE"] as const;
+export const itemAttributeTypes = [
+    "TEXT",
+    "SELECTION",
+    "TOGGLE",
+    "NUMBER",
+] as const;
+
+export type ItemAttributeType = (typeof itemAttributeTypes)[number];
+
+export const itemAttributeTypeLabels: Record<ItemAttributeType, string> = {
+    TEXT: "Text",
+    SELECTION: "Selection",
+    TOGGLE: "Toggle",
+    NUMBER: "Number",
+};
 export const stockEntryTypes = [
     "OPENING_STOCK",
     "STOCK_IN",
@@ -34,6 +49,12 @@ export type ItemGroup = {
     subGroups?: ItemSubGroup[];
 };
 
+export type ItemAttribute = {
+    name?: string;
+    type?: ItemAttributeType;
+    values?: string[];
+};
+
 export type ItemVariant = {
     id?: string;
     slug?: string;
@@ -55,7 +76,7 @@ export type InventoryItem = {
     barcode?: string;
     price?: number;
     itemType?: (typeof itemTypes)[number];
-    attributes?: Record<string, unknown>;
+    attributes?: ItemAttribute[];
     variants?: ItemVariant[];
     lowStockDefault?: number;
     status?: (typeof itemStatuses)[number];
@@ -106,6 +127,27 @@ export const itemVariantSchema = z.object({
     price: z.number().min(0, "Variant price cannot be negative.").optional(),
 });
 
+export const itemAttributeSchema = z
+    .object({
+        name: z
+            .string()
+            .trim()
+            .min(1, "Attribute name is required.")
+            .max(150, "Attribute name must be 150 characters or fewer."),
+        type: z.enum(itemAttributeTypes),
+        values: z.array(z.string().trim().min(1)),
+    })
+    .refine(
+        (attribute) =>
+            attribute.type !== "SELECTION" || attribute.values.length > 0,
+        {
+            path: ["values"],
+            error: "Add at least one option for a selection attribute.",
+        },
+    );
+
+export type ItemAttributeInput = z.infer<typeof itemAttributeSchema>;
+
 export const inventoryItemSchema = z.object({
     itemGroupId: optionalUuidSchema,
     unitId: optionalUuidSchema,
@@ -127,7 +169,17 @@ export const inventoryItemSchema = z.object({
     ),
     price: z.number().min(0, "Price cannot be negative."),
     itemType: z.enum(itemTypes),
-    attributes: z.record(z.string(), z.unknown()),
+    attributes: z
+        .array(itemAttributeSchema)
+        .refine(
+            (attributes) =>
+                new Set(
+                    attributes.map((attribute) =>
+                        attribute.name.toLowerCase(),
+                    ),
+                ).size === attributes.length,
+            "Attribute names must be unique.",
+        ),
     variants: z.array(itemVariantSchema),
     lowStockDefault: z
         .number()

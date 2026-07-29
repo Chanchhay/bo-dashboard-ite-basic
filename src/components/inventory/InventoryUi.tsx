@@ -2,30 +2,18 @@ import type { ReactNode } from "react";
 
 import { AlertCircle, LoaderCircle, PackageOpen } from "lucide-react";
 
-export const inventoryControlClassName =
-    "h-11 rounded-xl border border-[#e4eae2] bg-white px-4 text-sm text-[#1a222b] shadow-none placeholder:text-[#7b857a] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15";
+import { Button } from "@/components/ui/button";
 
-export const inventoryTextareaClassName =
-    "min-h-24 rounded-xl border border-[#e4eae2] bg-white px-4 py-3 text-sm text-[#1a222b] shadow-none placeholder:text-[#7b857a] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15";
+import {
+    controlClassName,
+    textareaClassName,
+} from "@/components/ui/form-controls";
 
-export function getApiErrorMessage(
-    error: unknown,
-    fallback: string,
-) {
-    if (
-        typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof error.data === "object" &&
-        error.data !== null &&
-        "message" in error.data &&
-        typeof error.data.message === "string"
-    ) {
-        return error.data.message;
-    }
+/** Kept as aliases so inventory forms share the app-wide control styling. */
+export const inventoryControlClassName = controlClassName;
+export const inventoryTextareaClassName = textareaClassName;
 
-    return fallback;
-}
+export { getApiErrorMessage } from "@/lib/api-error";
 
 export function formatMoney(value: number | undefined) {
     return new Intl.NumberFormat("en-US", {
@@ -87,13 +75,9 @@ export function InventoryError({
             </span>
             <p className="max-w-md text-sm text-[#657064]">{message}</p>
             {retry ? (
-                <button
-                    type="button"
-                    onClick={retry}
-                    className="text-sm font-semibold text-primary hover:underline"
-                >
+                <Button type="button" variant="link" onClick={retry}>
                     Try again
-                </button>
+                </Button>
             ) : null}
         </div>
     );

@@ -12,6 +12,10 @@ import Image from "next/image";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import {
+    controlClassName,
+    textareaClassName as sharedTextareaClassName,
+} from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -143,11 +147,10 @@ function getBusinessTypes(
     return businessTypes;
 }
 
-const inputClassName =
-    "h-12 rounded-xl border-[#e8e8e8] bg-white px-4 py-3 text-base leading-6 text-[#1a222b] placeholder:text-[#6b7280] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 md:text-base";
-
-const textareaClassName =
-    "rounded-xl border-[#e8e8e8] bg-white px-4 py-3 text-base leading-6 text-[#1a222b] placeholder:text-[#6b7280] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 md:text-base";
+// This form's styling is the app-wide reference; both names stay as local
+// aliases so the rest of the file reads unchanged.
+const inputClassName = controlClassName;
+const textareaClassName = sharedTextareaClassName;
 
 function BusinessProfileEditor({
     business,
@@ -328,6 +331,13 @@ function BusinessProfileEditor({
                             <Select
                                 name="categoryId"
                                 defaultValue={business.category?.id || ""}
+                                /* Without this the trigger shows the raw id. */
+                                items={Object.fromEntries(
+                                    businessTypes.map((businessType) => [
+                                        businessType.id,
+                                        businessType.name,
+                                    ]),
+                                )}
                             >
                                 <SelectTrigger
                                     id="categoryId"
@@ -338,15 +348,11 @@ function BusinessProfileEditor({
                                 >
                                     <SelectValue placeholder="Select business type" />
                                 </SelectTrigger>
-                                <SelectContent
-                                    align="start"
-                                    className="rounded-xl bg-white text-[#1a222b]"
-                                >
+                                <SelectContent align="start">
                                     {businessTypes.map((businessType) => (
                                         <SelectItem
                                             key={businessType.id}
                                             value={businessType.id || ""}
-                                            className="rounded-lg focus:bg-primary/10 focus:text-primary"
                                         >
                                             {businessType.name}
                                         </SelectItem>
@@ -488,14 +494,16 @@ function BusinessProfileEditor({
                     type="button"
                     onClick={handleCancel}
                     disabled={isLoading}
-                    className="h-12 rounded-full border-accent bg-accent px-8 text-base font-bold text-white hover:bg-accent/90"
+                    variant="outline"
+                    size="lg"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={isLoading}
-                    className="h-12 min-w-[121px] rounded-full border-primary bg-primary px-8 text-base font-bold text-white shadow-[0_10px_15px_-3px_rgba(67,103,70,0.3),0_4px_6px_-4px_rgba(67,103,70,0.3)] hover:bg-primary/90"
+                    size="lg"
+                    className="min-w-[121px]"
                 >
                     {isLoading ? "Saving…" : "Save"}
                 </Button>
@@ -525,7 +533,7 @@ function ProfileQueryError({
             <Button
                 type="button"
                 onClick={onRetry}
-                className="mt-5 rounded-full bg-primary px-6 text-white hover:bg-primary/90"
+                className="mt-5"
             >
                 Try again
             </Button>

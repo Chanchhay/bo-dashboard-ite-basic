@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default function CallbackPage() {
-    redirect("/dashboard");
+export default async function CallbackPage() {
+    // Signing in always lands on the launcher.
+    redirect("/apps");
 }

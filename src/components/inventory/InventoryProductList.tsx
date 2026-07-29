@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
     Edit3,
+    Eye,
     PackagePlus,
     Search,
     Trash2,
 } from "lucide-react";
 
+import {
+    ItemPreviewDialog,
+    toPreviewItem,
+    type PreviewItem,
+} from "@/components/inventory/ItemPreviewDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,6 +58,7 @@ export function InventoryProductList() {
         useGetInventoryItemsQuery();
     const [deleteItem, deleteState] =
         useDeleteInventoryItemMutation();
+    const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
 
     const search = productSearch.trim().toLowerCase();
     const filteredItems = (items || []).filter((item) => {
@@ -92,7 +100,7 @@ export function InventoryProductList() {
                     <Button
                         render={<Link href="/inventory/new" />}
                         nativeButton={false}
-                        className="h-11 gap-2 px-5"
+                        size="lg"
                     >
                         <PackagePlus className="size-4" />
                         Create item
@@ -227,6 +235,21 @@ export function InventoryProductList() {
                                         <td className="px-5 py-4">
                                             <div className="flex justify-end gap-2">
                                                 <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    aria-label={`Preview ${item.name || "item"} in the store`}
+                                                    onClick={() =>
+                                                        setPreviewItem(
+                                                            toPreviewItem(
+                                                                item,
+                                                            ),
+                                                        )
+                                                    }
+                                                >
+                                                    <Eye />
+                                                </Button>
+                                                <Button
                                                     variant="outline"
                                                     size="icon-sm"
                                                     render={
@@ -276,6 +299,16 @@ export function InventoryProductList() {
                     </p>
                 ) : null}
             </section>
+
+            <ItemPreviewDialog
+                open={Boolean(previewItem)}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPreviewItem(null);
+                    }
+                }}
+                item={previewItem}
+            />
         </div>
     );
 }

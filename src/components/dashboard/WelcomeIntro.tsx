@@ -23,8 +23,10 @@ const KEYFRAMES = `
   100% { opacity: 0; transform: scale(2.1);  filter: blur(10px); }
 }
 .ipos-welcome-text { animation: iposWelcomeIn ${ZOOM_MS}ms both; }
+/* Reduced motion still gets the greeting — just held still, and carried out
+   by the veil's own fade rather than a zoom. */
 @media (prefers-reduced-motion: reduce) {
-  .ipos-welcome-text { animation: none; opacity: 0; }
+  .ipos-welcome-text { animation: none; }
 }
 `;
 

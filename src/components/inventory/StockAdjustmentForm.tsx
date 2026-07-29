@@ -232,7 +232,15 @@ export function StockAdjustmentForm() {
                             name="itemId"
                             error={fieldErrors.itemId}
                         >
-                            <Select name="itemId">
+                            <Select
+                                name="itemId"
+                                items={Object.fromEntries(
+                                    items.map((item) => [
+                                        item.id,
+                                        item.name || "Unnamed item",
+                                    ]),
+                                )}
+                            >
                                 <SelectTrigger
                                     id="itemId"
                                     className={`${inventoryControlClassName} w-full`}
@@ -426,7 +434,7 @@ export function StockAdjustmentForm() {
                 <Button
                     type="submit"
                     disabled={createState.isLoading || items.length === 0}
-                    className="h-11 gap-2 px-6"
+                    size="lg"
                 >
                     {createState.isLoading ? (
                         <LoaderCircle className="animate-spin" />

@@ -12,13 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import {
     businessCurrencyConfigurationSchema,
     normalizeCurrencyConfiguration,
@@ -34,9 +28,6 @@ type Status = {
     type: "error" | "success";
     message: string;
 };
-
-const controlClassName =
-    "h-[52px] rounded-xl border-2 border-[#f5f5f5] bg-white px-[18px] text-base text-[#1a1c19] shadow-none focus-visible:border-primary focus-visible:ring-primary/15";
 
 function getApiErrorMessage(error: unknown, fallback: string) {
     if (
@@ -291,27 +282,15 @@ function CurrencyEditor({
                         >
                             Base Currency
                         </Label>
-                        <Select
+                        <SelectField
+                            id="base-currency"
                             value={baseCurrency}
                             onValueChange={changeBaseCurrency}
-                        >
-                            <SelectTrigger
-                                id="base-currency"
-                                className={`${controlClassName} w-full`}
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="start">
-                                {currencies.map((currency) => (
-                                    <SelectItem
-                                        key={currency.code}
-                                        value={currency.code}
-                                    >
-                                        {currency.name} ({currency.code})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            options={currencies.map((currency) => ({
+                                value: currency.code,
+                                label: `${currency.name} (${currency.code})`,
+                            }))}
+                        />
                     </div>
 
                     <div>
@@ -321,7 +300,8 @@ function CurrencyEditor({
                         >
                             Decimal Places
                         </Label>
-                        <Select
+                        <SelectField
+                            id="decimal-places"
                             value={String(base?.decimalPlaces ?? 2)}
                             onValueChange={(value) => {
                                 if (value && base) {
@@ -330,22 +310,13 @@ function CurrencyEditor({
                                     });
                                 }
                             }}
-                        >
-                            <SelectTrigger
-                                id="decimal-places"
-                                className={`${controlClassName} w-full`}
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="start">
-                                <SelectItem value="0">0</SelectItem>
-                                <SelectItem value="1">1</SelectItem>
-                                <SelectItem value="2">
-                                    2 (Standard)
-                                </SelectItem>
-                                <SelectItem value="3">3</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            options={[
+                                { value: "0", label: "0" },
+                                { value: "1", label: "1" },
+                                { value: "2", label: "2 (Standard)" },
+                                { value: "3", label: "3" },
+                            ]}
+                        />
                     </div>
                 </div>
 
@@ -419,10 +390,9 @@ function CurrencyEditor({
                         <Button
                             type="button"
                             variant="ghost"
-                            size="icon"
+                            size="icon-sm"
                             onClick={addCurrency}
                             aria-label="Add currency"
-                            className="size-9 rounded-lg"
                         >
                             <Plus className="size-5" />
                         </Button>
@@ -463,43 +433,24 @@ function CurrencyEditor({
                                         >
                                             Exchange Value
                                         </Label>
-                                        <Select
+                                        <SelectField
+                                            id="exchange-value"
                                             value={target.code}
-                                            onValueChange={(value) => {
-                                                if (value) {
-                                                    setSelectedTarget(
-                                                        value,
-                                                    );
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger
-                                                aria-label="Exchange currency"
-                                                className="h-7 w-auto rounded-lg border-[#e4e9e2] bg-white px-2 text-xs"
-                                            >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {currencies
-                                                    .filter(
-                                                        (currency) =>
-                                                            currency.code !==
-                                                            baseCurrency,
-                                                    )
-                                                    .map((currency) => (
-                                                        <SelectItem
-                                                            key={
-                                                                currency.code
-                                                            }
-                                                            value={
-                                                                currency.code
-                                                            }
-                                                        >
-                                                            {currency.code}
-                                                        </SelectItem>
-                                                    ))}
-                                            </SelectContent>
-                                        </Select>
+                                            onValueChange={setSelectedTarget}
+                                            /* Sits inline beside its label, so
+                                               it keeps a compact trigger. */
+                                            className="h-9 w-auto rounded-lg px-3 text-sm"
+                                            options={currencies
+                                                .filter(
+                                                    (currency) =>
+                                                        currency.code !==
+                                                        baseCurrency,
+                                                )
+                                                .map((currency) => ({
+                                                    value: currency.code,
+                                                    label: currency.code,
+                                                }))}
+                                        />
                                     </div>
                                     <div className="flex h-[54px] items-center gap-1 rounded-xl px-3 shadow-[0_0_0_2px_rgba(67,103,70,0.05)]">
                                         <span className="text-base font-bold text-[#436746]">
@@ -564,14 +515,16 @@ function CurrencyEditor({
                     variant="outline"
                     onClick={resetForm}
                     disabled={updateState.isLoading}
-                    className="h-12 min-w-[124px] rounded-full border-accent bg-accent px-6 font-bold text-white shadow-lg hover:bg-accent/90 hover:text-white"
+                    size="lg"
+                        className="min-w-[124px]"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={updateState.isLoading}
-                    className="h-12 min-w-[124px] rounded-full bg-primary px-6 font-bold text-white shadow-lg hover:bg-primary/90"
+                    size="lg"
+                        className="min-w-[124px]"
                 >
                     {updateState.isLoading ? (
                         <>
@@ -606,7 +559,7 @@ function CurrencyQueryError({
             <Button
                 type="button"
                 onClick={onRetry}
-                className="mt-5 rounded-full px-6 text-white"
+                className="mt-5"
             >
                 Try again
             </Button>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
 const protectedRoutes = [
+    "/apps",
     "/dashboard",
     "/business",
     "/inventory",
@@ -31,6 +32,7 @@ export const config = {
         "/",
         "/login",
         "/callback",
+        "/apps/:path*",
         "/dashboard/:path*",
         "/business/:path*",
         "/inventory/:path*",

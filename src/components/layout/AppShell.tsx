@@ -6,26 +6,22 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import type { Permission } from "@/lib/permissions";
-import type { ViewMode } from "@/lib/view-mode";
 
 export default function AppShell({
     managerName,
-    mode,
     permissions,
     children,
 }: {
     managerName: string;
-    mode: ViewMode;
     permissions: Permission[];
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
     const [navOpen, setNavOpen] = useState(false);
 
-    // In app view, /dashboard is the launcher and owns the whole viewport —
-    // no sidebar, no top bar. Every other route still gets the shell, scoped
-    // to whichever app it belongs to.
-    const chromeless = mode === "apps" && pathname === "/dashboard";
+    // The launcher owns the whole viewport — no sidebar, no top bar. Every
+    // other route gets the shell, scoped to whichever app it belongs to.
+    const chromeless = pathname === "/apps";
 
     // Following a link inside the mobile drawer should close it.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -65,14 +61,12 @@ export default function AppShell({
                 <Sidebar
                     open={navOpen}
                     onClose={() => setNavOpen(false)}
-                    mode={mode}
                     permissions={permissions}
                 />
 
                 <div className="flex min-w-0 flex-1 flex-col">
                     <Header
                         managerName={managerName}
-                        mode={mode}
                         onOpenNav={() => setNavOpen(true)}
                     />
 

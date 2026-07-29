@@ -4,7 +4,6 @@ import {
     CreditCard,
     FolderTree,
     LayoutGrid,
-    LineChart,
     Package,
     ScanLine,
     Settings,
@@ -25,6 +24,8 @@ export type NavLeaf = {
     alsoActiveOn?: RegExp[];
     /** Optional count pill. Only ever set from real data. */
     badge?: number;
+    /** Omit to make the page available to everyone who can see the section. */
+    permission?: Permission;
 };
 
 export type NavSection = {
@@ -52,8 +53,20 @@ export const NAVIGATION: NavSection[] = [
         id: "dashboard",
         label: "Dashboard",
         icon: LayoutGrid,
-        href: "/dashboard",
-        exact: true,
+        app: {
+            label: "Overview Dashboard",
+            hint: "Live figures & analytics",
+            fill: "#0f7a3a",
+            ink: "#ffffff",
+        },
+        children: [
+            { label: "Overview", href: "/dashboard", exact: true },
+            {
+                label: "Analytics",
+                href: "/analytics",
+                permission: PERMISSIONS.ANALYTICS_VIEW,
+            },
+        ],
     },
     {
         id: "items",
@@ -61,7 +74,7 @@ export const NAVIGATION: NavSection[] = [
         icon: Package,
         permission: PERMISSIONS.INVENTORY_MANAGE,
         app: {
-            label: "Item Management",
+            label: "Inventory Management",
             hint: "Catalog, categories & stock",
             fill: "#feb90d",
             ink: "#3d2c00",
@@ -123,19 +136,6 @@ export const NAVIGATION: NavSection[] = [
         ],
     },
     {
-        id: "analytics",
-        label: "Analytics",
-        icon: LineChart,
-        href: "/analytics",
-        permission: PERMISSIONS.ANALYTICS_VIEW,
-        app: {
-            label: "Overview Dashboard",
-            hint: "Live analytics",
-            fill: "#0f7a3a",
-            ink: "#ffffff",
-        },
-    },
-    {
         id: "subscription",
         label: "Subscription",
         icon: CreditCard,
@@ -164,8 +164,20 @@ export const LEAF_ICONS = {
     currency: Coins,
 };
 
+/** Sections the user may reach, with unreachable child pages stripped out. */
 export function visibleSections(permissions: readonly Permission[]) {
-    return NAVIGATION.filter((section) => can(permissions, section.permission));
+    return NAVIGATION.filter((section) =>
+        can(permissions, section.permission),
+    ).map((section) =>
+        section.children
+            ? {
+                  ...section,
+                  children: section.children.filter((leaf) =>
+                      can(permissions, leaf.permission),
+                  ),
+              }
+            : section,
+    );
 }
 
 /** The apps shown in the launcher, in navigation order. */
@@ -173,7 +185,7 @@ export function launcherApps(permissions: readonly Permission[]) {
     return visibleSections(permissions).filter((section) => section.app);
 }
 
-/** Where an app tile takes you — its first child, or its own route. */
+/** Where an app tile takes you — its own route, or its first child page. */
 export function sectionEntryHref(section: NavSection) {
     return section.href ?? section.children?.[0]?.href ?? "/dashboard";
 }

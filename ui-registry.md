@@ -85,6 +85,86 @@ cache, while persistent product and stock filters use the inventory Redux
 slice. Stock state badges consistently distinguish in-stock, low-stock, and
 out-of-stock conditions with brand, warning, and accent colors.
 
+### Modal Dialog
+
+Files: `src/components/ui/dialog.tsx`, `src/components/inventory/ItemAttributeDialog.tsx`
+Last updated: 2026-07-29
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white`; backdrop `bg-[#0f1a12]/45` |
+| Border           | `border border-[#e4eae2]` |
+| Border radius    | `rounded-2xl` for the popup; `rounded-xl` for controls; `rounded-full` for footer actions |
+| Text — primary   | `text-xl font-semibold text-[#161d16]` title |
+| Text — secondary | `text-sm text-[#657064]` description |
+| Spacing          | `p-6 sm:p-7`, `gap-5` between field groups, `gap-2` inside one |
+| Hover state      | `hover:bg-primary/90` confirm; `hover:bg-accent/90` cancel |
+| Shadow           | `shadow-[0_24px_60px_rgba(15,26,18,0.22)]` |
+| Accent usage     | `bg-accent text-white` for the cancel pill; `bg-primary text-white` for confirm |
+
+**Pattern notes:**
+Built on Base UI's `Dialog`, so the popup portals to the body and centers with
+`fixed top-1/2 left-1/2 -translate-1/2`. Confirm and cancel are equal-weight
+full pills — green confirm on the right, red cancel on its left — matching the
+supplied attribute screen. A dialog placed inside a page `<form>` must stop
+propagation on its own submit: the portal moves the DOM node, but React still
+bubbles the event through the component tree. Reset dialog state by keying the
+inner form on the record being edited rather than syncing with an effect; this
+React build rejects `setState` inside `useEffect`.
+
+### Storefront Item Preview
+
+File: `src/components/inventory/ItemPreviewDialog.tsx`
+Last updated: 2026-07-29
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-[#f7f8f7]` canvas with `bg-white` panels |
+| Border           | `border border-[#e8e8e8]` on option chips; `border-primary` when selected |
+| Border radius    | `rounded-2xl` panels; `rounded-lg` option chips; `rounded-full` quantity stepper |
+| Text — primary   | `text-2xl font-bold text-[#161d16]` product name |
+| Text — secondary | `text-sm leading-6 text-[#657064]` body copy |
+| Spacing          | `p-6`, `gap-8` two-column split, `gap-4` between option rows |
+| Hover state      | `hover:border-[#cfd6cc]` on unselected chips |
+| Shadow           | Inherits the dialog popup shadow |
+| Accent usage     | `text-accent` price and discount badge; `text-primary` category eyebrow and selected chips |
+
+**Pattern notes:**
+Renders the shopper-facing detail view from the item being edited, so it is a
+preview and never a live control: Add to Cart is an inert `div`, captioned as
+preview-only, so nobody mistakes it for the storefront. Every value is derived
+from item data — a discount badge appears only when a variant undercuts the base
+price, and missing fields render as explicit empty states instead of sample
+copy. Attributes render by shape: more than one value becomes a chip selector,
+a single value becomes a spec row, and `TOGGLE` becomes a switch.
+
+### Account Menu
+
+Files: `src/components/ui/menu.tsx`, `src/components/layout/UserMenu.tsx`
+Last updated: 2026-07-29
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white` popup; `bg-[#f2f5f1]` highlighted item; `bg-[#fdeceb]` highlighted sign-out |
+| Border           | `border border-[#e4eae2]`; `bg-[#edf0ec]` separators |
+| Border radius    | `rounded-2xl` popup; `rounded-xl` items; `rounded-full` trigger chip |
+| Text — primary   | `text-[14px] text-[#161d16]` items |
+| Text — secondary | `text-[12px] text-[#8a8f89]` "Signed in as" label |
+| Spacing          | `p-1.5` popup, `px-3 py-2.5` items, `gap-2.5` icon to label |
+| Hover state      | `data-highlighted:` on items; `data-popup-open:bg-[#f7f7f6]` on the chip |
+| Shadow           | `shadow-[0_18px_44px_rgba(15,26,18,0.16)]` |
+| Accent usage     | `text-[#b3352f]` sign-out, matching the destructive button ink |
+
+**Pattern notes:**
+Built on Base UI's `Menu`, so the popup portals to the body and closes as soon
+as an item is clicked — anything that must outlive that click belongs outside
+`MenuContent`. Sign-out therefore submits a hidden form rendered next to the
+menu rather than a button inside it, because logout is a POST to `/api/logout`
+(a GET logout is firable by any third-party page) and a form unmounted
+mid-click never submits. The avatar chip is the shared trigger for both the
+dashboard header and the app launcher; keep the two in sync through this
+component instead of copying the markup.
+
 ### Dashboard Module Tile
 
 File: src/components/dashboard/DasboardShell.tsx

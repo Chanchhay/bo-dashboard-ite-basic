@@ -397,7 +397,7 @@ export function InventoryCategories() {
 
                     <div className="mt-5 flex flex-col gap-4">
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="category-name">
+                            <Label className="text-black" htmlFor="category-name">
                                 Name *
                             </Label>
                             <Input
@@ -416,7 +416,7 @@ export function InventoryCategories() {
 
                         {mode === "SUBCATEGORY" ? (
                             <div className="flex flex-col gap-2">
-                                <Label htmlFor="parentId">
+                                <Label className="text-black" htmlFor="parentId">
                                     Parent category *
                                 </Label>
                                 <Select
@@ -425,6 +425,12 @@ export function InventoryCategories() {
                                         editing?.parentId ||
                                         groups[0]?.id
                                     }
+                                    items={Object.fromEntries(
+                                        groups.map((group) => [
+                                            group.id,
+                                            group.name || "Unnamed group",
+                                        ]),
+                                    )}
                                 >
                                     <SelectTrigger
                                         id="parentId"
@@ -448,7 +454,7 @@ export function InventoryCategories() {
                         ) : null}
 
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="category-note">Note</Label>
+                            <Label className="text-black" htmlFor="category-note">Note</Label>
                             <Textarea
                                 id="category-note"
                                 name="note"
@@ -471,7 +477,8 @@ export function InventoryCategories() {
                     <Button
                         type="submit"
                         disabled={isSaving}
-                        className="mt-5 h-11 w-full gap-2"
+                        size="lg"
+                                    className="mt-5 w-full"
                     >
                         {isSaving ? (
                             <LoaderCircle className="animate-spin" />

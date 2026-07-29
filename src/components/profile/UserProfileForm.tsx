@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { controlClassName } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,8 +42,7 @@ import {
 type FieldName = keyof UserProfileInput;
 type FieldErrors = Partial<Record<FieldName, string>>;
 
-const inputClassName =
-    "h-12 rounded-xl border-[#e2e8e0] bg-white px-4 text-base text-[#1a222b] placeholder:text-[#7a8478] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 md:text-base";
+const inputClassName = controlClassName;
 
 const genderLabels: Record<(typeof userProfileGenders)[number], string> = {
     MALE: "Male",
@@ -358,7 +358,16 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         name="gender"
                         error={fieldErrors.gender}
                     >
-                        <Select name="gender" defaultValue={initialGender}>
+                        <Select
+                            name="gender"
+                            defaultValue={initialGender}
+                            items={{
+                                MALE: "Male",
+                                FEMALE: "Female",
+                                OTHER: "Other",
+                                UNSPECIFIED: "Unspecified",
+                            }}
+                        >
                             <SelectTrigger
                                 id="gender"
                                 aria-invalid={Boolean(fieldErrors.gender)}
@@ -366,16 +375,9 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                             >
                                 <SelectValue placeholder="Select gender" />
                             </SelectTrigger>
-                            <SelectContent
-                                align="start"
-                                className="rounded-xl bg-white text-[#1a222b]"
-                            >
+                            <SelectContent align="start">
                                 {userProfileGenders.map((gender) => (
-                                    <SelectItem
-                                        key={gender}
-                                        value={gender}
-                                        className="rounded-lg focus:bg-primary/10 focus:text-primary"
-                                    >
+                                    <SelectItem key={gender} value={gender}>
                                         {genderLabels[gender]}
                                     </SelectItem>
                                 ))}
@@ -458,14 +460,15 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         variant="outline"
                         onClick={handleCancel}
                         disabled={isLoading}
-                        className="h-11 rounded-full border-[#cbd5c9] px-6 text-sm font-bold text-[#424841] hover:bg-[#f4f7f3]"
+                        size="lg"
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="h-11 min-w-28 rounded-full bg-primary px-6 text-sm font-bold text-white shadow-[0_8px_18px_rgba(0,147,42,0.2)] hover:bg-primary/90"
+                        size="lg"
+                            className="min-w-28"
                     >
                         {isLoading ? "Saving…" : "Save changes"}
                     </Button>
@@ -492,7 +495,7 @@ function ProfileQueryError({
             <Button
                 type="button"
                 onClick={onRetry}
-                className="mt-5 rounded-full bg-primary px-6 text-white hover:bg-primary/90"
+                className="mt-5"
             >
                 Try again
             </Button>

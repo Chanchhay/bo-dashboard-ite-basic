@@ -96,11 +96,12 @@ export async function backendRequest<T>(
         );
     }
 
-    if (response.status === 204) {
-        return undefined as T;
-    }
+    // Several endpoints answer 200/201 with an empty body (creating or
+    // updating staff and roles, for instance). `response.json()` throws on
+    // those, so read the text first and only parse when there is something.
+    const text = await response.text();
 
-    return (await response.json()) as T;
+    return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export function backendErrorResponse(error: unknown) {

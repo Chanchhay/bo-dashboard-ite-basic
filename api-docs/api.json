@@ -6491,6 +6491,26 @@
                 },
                 "required": ["name"]
             },
+            "ItemAttributeRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["TEXT", "SELECTION", "TOGGLE", "NUMBER"]
+                    },
+                    "values": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": ["name", "type"]
+            },
             "ItemVariantRequest": {
                 "type": "object",
                 "properties": {
@@ -6554,8 +6574,10 @@
                         "enum": ["DIGITAL", "SERVICE", "PHYSICAL"]
                     },
                     "attributes": {
-                        "type": "object",
-                        "additionalProperties": {}
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ItemAttributeRequest"
+                        }
                     },
                     "variants": {
                         "type": "array",
@@ -6571,6 +6593,24 @@
                     "status": {
                         "type": "string",
                         "enum": ["ACTIVE", "INACTIVE"]
+                    }
+                }
+            },
+            "ItemAttributeResponse": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["TEXT", "SELECTION", "TOGGLE", "NUMBER"]
+                    },
+                    "values": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -6620,8 +6660,10 @@
                         "enum": ["DIGITAL", "SERVICE", "PHYSICAL"]
                     },
                     "attributes": {
-                        "type": "object",
-                        "additionalProperties": {}
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ItemAttributeResponse"
+                        }
                     },
                     "variants": {
                         "type": "array",
@@ -7619,8 +7661,10 @@
                         "enum": ["DIGITAL", "SERVICE", "PHYSICAL"]
                     },
                     "attributes": {
-                        "type": "object",
-                        "additionalProperties": {}
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ItemAttributeRequest"
+                        }
                     },
                     "variants": {
                         "type": "array",
