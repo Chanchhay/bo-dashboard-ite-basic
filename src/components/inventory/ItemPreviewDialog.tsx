@@ -12,42 +12,85 @@ import {
 
 import { formatMoney } from "@/components/inventory/InventoryUi";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
-    itemAttributeTypeLabels,
+    type DescriptionBlockType,
     type InventoryItem,
+    type ItemAttributePlacement,
     type ItemAttributeType,
     type itemStatuses,
     type itemTypes,
 } from "@/lib/api/inventory";
 import { cn } from "@/lib/utils";
 
+export type PreviewValue = {
+    value: string;
+    label?: string;
+    colorHex?: string;
+    available?: boolean;
+};
+
 export type PreviewAttribute = {
     name: string;
     type: ItemAttributeType;
-    values: string[];
+    placement: ItemAttributePlacement;
+    icon?: string;
+    values: PreviewValue[];
+};
+
+export type PreviewBlock = {
+    type: DescriptionBlockType;
+    text?: string;
+    items?: string[];
+    url?: string;
+    caption?: string;
+    columns?: { blocks: PreviewBlock[] }[];
 };
 
 export type PreviewItem = {
     name: string;
     description: string;
-    imageUrl: string;
+    images: string[];
+    badge: string;
     price: number;
+    compareAtPrice?: number;
     sku: string;
     categoryName: string;
     unitName: string;
     itemType: (typeof itemTypes)[number];
     status: (typeof itemStatuses)[number];
     attributes: PreviewAttribute[];
-    variants: { name: string; price?: number }[];
+    descriptionBlocks: PreviewBlock[];
+    variants: { name: string; price?: number; available?: boolean }[];
 };
 
 /** Saved item to preview shape, for the items table. */
 export function toPreviewItem(item: InventoryItem): PreviewItem {
+    const gallery = item.images?.length
+        ? item.images
+        : [item.imageUrl || ""];
+
+    const toBlocks = (
+        blocks: NonNullable<InventoryItem["descriptionBlocks"]>,
+    ): PreviewBlock[] =>
+        blocks.map((block) => ({
+            type: block.type || "PARAGRAPH",
+            text: block.text,
+            items: block.items,
+            url: block.url,
+            caption: block.caption,
+            columns: (block.columns || []).map((column) => ({
+                blocks: toBlocks(column.blocks || []),
+            })),
+        }));
+
     return {
         name: item.name || "",
         description: item.description || "",
-        imageUrl: item.imageUrl || "",
+        images: gallery.filter(Boolean),
+        badge: item.badge || "",
         price: item.price || 0,
+        compareAtPrice: item.compareAtPrice,
         sku: item.sku || "",
         categoryName: item.itemGroup?.name || "",
         unitName: item.unit?.name || "",
@@ -56,20 +99,29 @@ export function toPreviewItem(item: InventoryItem): PreviewItem {
         attributes: (item.attributes || []).map((attribute) => ({
             name: attribute.name || "",
             type: attribute.type || "TEXT",
-            values: attribute.values || [],
+            placement: attribute.placement || "OPTION",
+            icon: attribute.icon,
+            values: (attribute.values || []).map((value) => ({
+                value: value.value || "",
+                label: value.label,
+                colorHex: value.colorHex,
+                available: value.available,
+            })),
         })),
+        descriptionBlocks: toBlocks(item.descriptionBlocks || []),
         variants: (item.variants || []).map((variant) => ({
             name: variant.name || "",
             price: variant.price,
+            available: variant.available,
         })),
     };
 }
 
 /**
  * How the item will read on the online store, rendered from whatever the seller
- * has filled in so far. Nothing here is fabricated: every price, option and
- * label comes from the item being edited, so an empty field shows as an empty
- * state rather than sample copy.
+ * has filled in so far. Nothing here is fabricated: every price, option, perk
+ * and spec comes from the item being edited, so an empty field shows as an
+ * empty state rather than sample copy.
  */
 export function ItemPreviewDialog({
     open,
@@ -82,11 +134,20 @@ export function ItemPreviewDialog({
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl overflow-hidden bg-[#f7f8f7] p-0">
-                {item ? <Storefront item={item} onClose={() => onOpenChange(false)} /> : null}
+            <DialogContent className="max-w-5xl overflow-hidden bg-[#f7f8f7] p-0">
+                {item ? (
+                    <Storefront
+                        item={item}
+                        onClose={() => onOpenChange(false)}
+                    />
+                ) : null}
             </DialogContent>
         </Dialog>
     );
+}
+
+function displayOf(value: PreviewValue) {
+    return value.label || value.value;
 }
 
 function Storefront({
@@ -96,44 +157,54 @@ function Storefront({
     item: PreviewItem;
     onClose: () => void;
 }) {
-    // Options a shopper can pick. Selection state starts on the first value of
-    // each attribute, the way a storefront preselects a default.
-    const choosable = item.attributes.filter(
+    // `placement` decides which part of the page each attribute feeds.
+    const options = item.attributes.filter(
         (attribute) =>
-            attribute.type !== "TOGGLE" && attribute.values.length > 1,
+            attribute.placement === "OPTION" &&
+            attribute.type !== "TOGGLE" &&
+            attribute.values.length > 0,
+    );
+    const highlights = item.attributes.filter(
+        (attribute) => attribute.placement === "HIGHLIGHT",
     );
     const specs = item.attributes.filter(
-        (attribute) =>
-            attribute.type !== "TOGGLE" && attribute.values.length <= 1,
+        (attribute) => attribute.placement === "SPECIFICATION",
     );
     const toggles = item.attributes.filter(
-        (attribute) => attribute.type === "TOGGLE",
+        (attribute) =>
+            attribute.placement === "OPTION" && attribute.type === "TOGGLE",
     );
 
+    const [imageIndex, setImageIndex] = useState(0);
     const [selected, setSelected] = useState<Record<string, string>>(() =>
         Object.fromEntries(
-            choosable.map((attribute) => [attribute.name, attribute.values[0]]),
+            options.map((attribute) => [
+                attribute.name,
+                (
+                    attribute.values.find(
+                        (value) => value.available !== false,
+                    ) || attribute.values[0]
+                ).value,
+            ]),
         ),
     );
     const [switched, setSwitched] = useState<Record<string, boolean>>({});
-    const [variantIndex, setVariantIndex] = useState(
-        item.variants.length ? 0 : -1,
+    const [variantIndex, setVariantIndex] = useState(() =>
+        item.variants.findIndex((variant) => variant.available !== false),
     );
     const [quantity, setQuantity] = useState(1);
 
     const variant = item.variants[variantIndex];
     const activePrice =
         variant?.price === undefined ? item.price : variant.price;
-    // Only a variant priced below the base price reads as a discount.
+    // A compare-at price above the live price is what makes it a discount.
+    const compareAt = item.compareAtPrice;
     const discount =
-        activePrice < item.price
-            ? Math.round(((item.price - activePrice) / item.price) * 100)
+        compareAt && compareAt > activePrice
+            ? Math.round(((compareAt - activePrice) / compareAt) * 100)
             : 0;
 
-    const [summary, ...details] = item.description
-        .split("\n")
-        .map((line) => line.trim().replace(/^[-•*]\s*/, ""))
-        .filter(Boolean);
+    const hasBlocks = item.descriptionBlocks.length > 0;
 
     return (
         <div className="max-h-[90vh] overflow-y-auto">
@@ -145,12 +216,18 @@ function Storefront({
             </div>
 
             <div className="grid gap-8 p-6 md:grid-cols-2">
-                <Gallery item={item} />
+                <Gallery
+                    images={item.images}
+                    name={item.name}
+                    index={imageIndex}
+                    onSelect={setImageIndex}
+                />
 
                 <div className="flex flex-col gap-4">
                     <div>
                         <p className="text-xs font-semibold tracking-wide text-primary uppercase">
-                            {item.categoryName ||
+                            {item.badge ||
+                                item.categoryName ||
                                 item.itemType.toLowerCase()}
                             {item.status === "INACTIVE"
                                 ? " · Hidden from store"
@@ -168,7 +245,7 @@ function Storefront({
                         {discount ? (
                             <>
                                 <span className="text-sm text-[#7b857a] line-through">
-                                    {formatMoney(item.price)}
+                                    {formatMoney(compareAt)}
                                 </span>
                                 <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
                                     {discount}% OFF
@@ -182,9 +259,9 @@ function Storefront({
                         ) : null}
                     </div>
 
-                    {summary ? (
+                    {item.description ? (
                         <p className="text-sm leading-6 text-[#657064]">
-                            {summary}
+                            {item.description}
                         </p>
                     ) : (
                         <p className="text-sm text-[#a3aca1] italic">
@@ -196,12 +273,13 @@ function Storefront({
                     {item.variants.length ? (
                         <OptionRow
                             label="Option"
-                            value={variant?.name || ""}
+                            value={variant?.name || "—"}
                         >
                             {item.variants.map((option, index) => (
                                 <Chip
                                     key={`${option.name}-${index}`}
                                     active={index === variantIndex}
+                                    disabled={option.available === false}
                                     onClick={() => setVariantIndex(index)}
                                 >
                                     <span>{option.name}</span>
@@ -215,30 +293,60 @@ function Storefront({
                         </OptionRow>
                     ) : null}
 
-                    {choosable.map((attribute) => (
-                        <OptionRow
-                            key={attribute.name}
-                            label={attribute.name}
-                            value={selected[attribute.name] || ""}
-                        >
-                            {attribute.values.map((value) => (
-                                <Chip
-                                    key={value}
-                                    active={
-                                        selected[attribute.name] === value
-                                    }
-                                    onClick={() =>
-                                        setSelected((current) => ({
-                                            ...current,
-                                            [attribute.name]: value,
-                                        }))
-                                    }
-                                >
-                                    {value}
-                                </Chip>
-                            ))}
-                        </OptionRow>
-                    ))}
+                    {options.map((attribute) => {
+                        const chosen = attribute.values.find(
+                            (value) =>
+                                value.value === selected[attribute.name],
+                        );
+
+                        return (
+                            <OptionRow
+                                key={attribute.name}
+                                label={attribute.name}
+                                value={chosen ? displayOf(chosen) : "—"}
+                            >
+                                {attribute.values.map((value) =>
+                                    attribute.type === "COLOR" ? (
+                                        <Swatch
+                                            key={value.value}
+                                            value={value}
+                                            active={
+                                                selected[attribute.name] ===
+                                                value.value
+                                            }
+                                            onClick={() =>
+                                                setSelected((current) => ({
+                                                    ...current,
+                                                    [attribute.name]:
+                                                        value.value,
+                                                }))
+                                            }
+                                        />
+                                    ) : (
+                                        <Chip
+                                            key={value.value}
+                                            active={
+                                                selected[attribute.name] ===
+                                                value.value
+                                            }
+                                            disabled={
+                                                value.available === false
+                                            }
+                                            onClick={() =>
+                                                setSelected((current) => ({
+                                                    ...current,
+                                                    [attribute.name]:
+                                                        value.value,
+                                                }))
+                                            }
+                                        >
+                                            {displayOf(value)}
+                                        </Chip>
+                                    ),
+                                )}
+                            </OptionRow>
+                        );
+                    })}
 
                     {toggles.map((attribute) => (
                         <label
@@ -266,34 +374,32 @@ function Storefront({
                         </label>
                     ))}
 
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3 rounded-full border border-[#e8e8e8] bg-white px-3 py-1.5">
-                            <button
-                                type="button"
-                                aria-label="Decrease quantity"
-                                onClick={() =>
-                                    setQuantity((current) =>
-                                        Math.max(1, current - 1),
-                                    )
-                                }
-                                className="text-accent"
-                            >
-                                <Minus className="size-4" />
-                            </button>
-                            <span className="min-w-6 text-center text-sm font-medium">
-                                {quantity}
-                            </span>
-                            <button
-                                type="button"
-                                aria-label="Increase quantity"
-                                onClick={() =>
-                                    setQuantity((current) => current + 1)
-                                }
-                                className="text-primary"
-                            >
-                                <Plus className="size-4" />
-                            </button>
-                        </div>
+                    <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] bg-white px-3 py-1.5">
+                        <button
+                            type="button"
+                            aria-label="Decrease quantity"
+                            onClick={() =>
+                                setQuantity((current) =>
+                                    Math.max(1, current - 1),
+                                )
+                            }
+                            className="text-accent"
+                        >
+                            <Minus className="size-4" />
+                        </button>
+                        <span className="min-w-6 text-center text-sm font-medium">
+                            {quantity}
+                        </span>
+                        <button
+                            type="button"
+                            aria-label="Increase quantity"
+                            onClick={() =>
+                                setQuantity((current) => current + 1)
+                            }
+                            className="text-primary"
+                        >
+                            <Plus className="size-4" />
+                        </button>
                     </div>
 
                     {/*
@@ -312,59 +418,56 @@ function Storefront({
                         Preview only — nothing here is live yet.
                     </p>
 
-                    {specs.length || item.sku ? (
-                        <dl className="mt-2 grid gap-2 border-t border-[#e4eae2] pt-4 text-sm">
-                            {item.sku ? (
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-[#7b857a]">SKU</dt>
-                                    <dd className="text-[#1a222b]">
-                                        {item.sku}
-                                    </dd>
-                                </div>
-                            ) : null}
-                            {specs.map((attribute) => (
-                                <div
-                                    key={attribute.name}
-                                    className="flex justify-between gap-4"
-                                >
-                                    <dt className="text-[#7b857a]">
-                                        {attribute.name}
-                                        <span className="ml-1 text-xs">
-                                            (
-                                            {
-                                                itemAttributeTypeLabels[
-                                                    attribute.type
-                                                ]
-                                            }
-                                            )
-                                        </span>
-                                    </dt>
-                                    <dd className="text-[#1a222b]">
-                                        {attribute.values[0] || "—"}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
+                    {highlights.length ? (
+                        <div className="grid gap-4 border-t border-[#e4eae2] pt-4 sm:grid-cols-3">
+                            {highlights.map((attribute) => {
+                                const Glyph = attributeIcon(attribute.icon);
+
+                                return (
+                                    <div
+                                        key={attribute.name}
+                                        className="flex items-start gap-2"
+                                    >
+                                        <Glyph className="mt-0.5 size-4 shrink-0 text-primary" />
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-[#1a222b]">
+                                                {attribute.name}
+                                            </p>
+                                            {attribute.values[0] ? (
+                                                <p className="text-xs text-[#7b857a]">
+                                                    {displayOf(
+                                                        attribute.values[0],
+                                                    )}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : null}
+
+                    {item.sku ? (
+                        <p className="text-xs text-[#7b857a]">
+                            SKU {item.sku}
+                        </p>
                     ) : null}
                 </div>
             </div>
 
-            {details.length ? (
+            {hasBlocks ? (
                 <div className="mx-6 mb-6 rounded-2xl bg-white p-6">
-                    <h3 className="inline-block border-b-2 border-secondary pb-1 text-base font-semibold text-primary">
+                    <h3 className="mb-4 inline-block border-b-2 border-secondary pb-1 text-base font-semibold text-primary">
                         Description
                     </h3>
-                    <ul className="mt-4 grid gap-2">
-                        {details.map((line, index) => (
-                            <li
-                                key={index}
-                                className="flex items-start gap-2 text-sm text-[#657064]"
-                            >
-                                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                                {line}
-                            </li>
-                        ))}
-                    </ul>
+                    <BlockList blocks={item.descriptionBlocks} specs={specs} />
+                </div>
+            ) : specs.length ? (
+                <div className="mx-6 mb-6 rounded-2xl bg-white p-6">
+                    <h3 className="mb-4 inline-block border-b-2 border-secondary pb-1 text-base font-semibold text-primary">
+                        Specifications
+                    </h3>
+                    <SpecGrid specs={specs} />
                 </div>
             ) : null}
 
@@ -381,8 +484,141 @@ function Storefront({
     );
 }
 
-function Gallery({ item }: { item: PreviewItem }) {
-    if (!item.imageUrl) {
+function BlockList({
+    blocks,
+    specs,
+}: {
+    blocks: PreviewBlock[];
+    specs: PreviewAttribute[];
+}) {
+    return (
+        <div className="flex flex-col gap-4">
+            {blocks.map((block, index) => (
+                <Block key={index} block={block} specs={specs} />
+            ))}
+        </div>
+    );
+}
+
+function Block({
+    block,
+    specs,
+}: {
+    block: PreviewBlock;
+    specs: PreviewAttribute[];
+}) {
+    if (block.type === "COLUMNS") {
+        return (
+            <div className="grid gap-6 md:grid-cols-2">
+                {(block.columns || []).map((column, index) => (
+                    <BlockList
+                        key={index}
+                        blocks={column.blocks}
+                        specs={specs}
+                    />
+                ))}
+            </div>
+        );
+    }
+
+    if (block.type === "HEADING") {
+        return (
+            <h4 className="text-base font-semibold text-[#161d16]">
+                {block.text}
+            </h4>
+        );
+    }
+
+    if (block.type === "BULLETS") {
+        return (
+            <ul className="grid gap-2">
+                {(block.items || []).map((line, index) => (
+                    <li
+                        key={index}
+                        className="flex items-start gap-2 text-sm text-[#657064]"
+                    >
+                        <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                        {line}
+                    </li>
+                ))}
+            </ul>
+        );
+    }
+
+    if (block.type === "IMAGE") {
+        return block.url ? (
+            <figure>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src={block.url}
+                    alt={block.caption || ""}
+                    className="w-full rounded-xl object-cover"
+                />
+                {block.caption ? (
+                    <figcaption className="mt-2 text-xs text-[#7b857a]">
+                        {block.caption}
+                    </figcaption>
+                ) : null}
+            </figure>
+        ) : null;
+    }
+
+    if (block.type === "SPEC_GRID") {
+        return <SpecGrid specs={specs} />;
+    }
+
+    return (
+        <p className="text-sm leading-6 text-[#657064]">{block.text}</p>
+    );
+}
+
+function SpecGrid({ specs }: { specs: PreviewAttribute[] }) {
+    if (!specs.length) {
+        return (
+            <p className="text-sm text-[#a3aca1] italic">
+                No specification attributes yet — this grid stays empty.
+            </p>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {specs.map((attribute) => {
+                const Glyph = attributeIcon(attribute.icon);
+
+                return (
+                    <div
+                        key={attribute.name}
+                        className="rounded-xl bg-[#f7f8f7] p-3 text-center"
+                    >
+                        <Glyph className="mx-auto size-4 text-[#657064]" />
+                        <p className="mt-2 text-xs font-semibold text-[#1a222b]">
+                            {attribute.name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#7b857a]">
+                            {attribute.values[0]
+                                ? displayOf(attribute.values[0])
+                                : "Yes"}
+                        </p>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function Gallery({
+    images,
+    name,
+    index,
+    onSelect,
+}: {
+    images: string[];
+    name: string;
+    index: number;
+    onSelect: (index: number) => void;
+}) {
+    if (!images.length) {
         return (
             <div className="flex aspect-square items-center justify-center rounded-2xl bg-white text-center">
                 <div className="flex flex-col items-center gap-2 text-[#a3aca1]">
@@ -393,24 +629,39 @@ function Gallery({ item }: { item: PreviewItem }) {
         );
     }
 
+    const active = images[Math.min(index, images.length - 1)];
+
     return (
         <div className="flex gap-3">
-            {/* One image URL per item today, so the rail holds a single thumb. */}
             <div className="flex flex-col gap-3">
-                <span className="size-16 overflow-hidden rounded-xl border-2 border-primary bg-white">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={item.imageUrl}
-                        alt=""
-                        className="size-full object-cover"
-                    />
-                </span>
+                {images.map((image, position) => (
+                    <button
+                        key={`${image}-${position}`}
+                        type="button"
+                        aria-label={`Show image ${position + 1}`}
+                        aria-pressed={position === index}
+                        onClick={() => onSelect(position)}
+                        className={cn(
+                            "size-16 overflow-hidden rounded-xl border-2 bg-white transition-colors",
+                            position === index
+                                ? "border-primary"
+                                : "border-transparent hover:border-[#cfd6cc]",
+                        )}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={image}
+                            alt=""
+                            className="size-full object-cover"
+                        />
+                    </button>
+                ))}
             </div>
             <div className="flex-1 overflow-hidden rounded-2xl bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    src={item.imageUrl}
-                    alt={item.name || "Item image"}
+                    src={active}
+                    alt={name || "Item image"}
                     className="aspect-square w-full object-contain"
                 />
             </div>
@@ -440,10 +691,12 @@ function OptionRow({
 
 function Chip({
     active,
+    disabled,
     onClick,
     children,
 }: {
     active: boolean;
+    disabled?: boolean;
     onClick: () => void;
     children: React.ReactNode;
 }) {
@@ -451,15 +704,51 @@ function Chip({
         <button
             type="button"
             onClick={onClick}
+            disabled={disabled}
             aria-pressed={active}
             className={cn(
                 "rounded-lg border px-4 py-2 text-center text-sm transition-colors",
-                active
-                    ? "border-primary bg-primary/5 font-medium text-primary"
-                    : "border-[#e8e8e8] bg-white text-[#1a222b] hover:border-[#cfd6cc]",
+                disabled
+                    ? "cursor-not-allowed border-[#f0f1ef] bg-[#fafbfa] text-[#c2c8c0] line-through"
+                    : active
+                      ? "border-primary bg-primary/5 font-medium text-primary"
+                      : "border-[#e8e8e8] bg-white text-[#1a222b] hover:border-[#cfd6cc]",
             )}
         >
             {children}
+        </button>
+    );
+}
+
+function Swatch({
+    value,
+    active,
+    onClick,
+}: {
+    value: PreviewValue;
+    active: boolean;
+    onClick: () => void;
+}) {
+    const disabled = value.available === false;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            aria-pressed={active}
+            aria-label={value.label || value.value}
+            title={value.label || value.value}
+            className={cn(
+                "grid size-9 place-items-center rounded-full border-2 transition-colors",
+                active ? "border-primary" : "border-transparent",
+                disabled && "cursor-not-allowed opacity-40",
+            )}
+        >
+            <span
+                className="size-7 rounded-full ring-1 ring-black/10"
+                style={{ backgroundColor: value.colorHex || "#d9d9d9" }}
+            />
         </button>
     );
 }

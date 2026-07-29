@@ -114,29 +114,47 @@ React build rejects `setState` inside `useEffect`.
 
 ### Storefront Item Preview
 
-File: `src/components/inventory/ItemPreviewDialog.tsx`
+Files: `src/components/inventory/ItemPreviewDialog.tsx`,
+`src/components/inventory/DescriptionBlockEditor.tsx`,
+`src/lib/api/attribute-icons.tsx`
 Last updated: 2026-07-29
 
 | Property         | Class |
 | ---------------- | ----- |
-| Background       | `bg-[#f7f8f7]` canvas with `bg-white` panels |
-| Border           | `border border-[#e8e8e8]` on option chips; `border-primary` when selected |
-| Border radius    | `rounded-2xl` panels; `rounded-lg` option chips; `rounded-full` quantity stepper |
+| Background       | `bg-[#f7f8f7]` canvas with `bg-white` panels; `bg-[#f7f8f7]` spec tiles |
+| Border           | `border border-[#e8e8e8]` on option chips; `border-primary` when selected; `border-2` on gallery thumbs and swatches |
+| Border radius    | `rounded-2xl` panels; `rounded-lg` option chips; `rounded-full` swatches and quantity stepper |
 | Text — primary   | `text-2xl font-bold text-[#161d16]` product name |
 | Text — secondary | `text-sm leading-6 text-[#657064]` body copy |
-| Spacing          | `p-6`, `gap-8` two-column split, `gap-4` between option rows |
-| Hover state      | `hover:border-[#cfd6cc]` on unselected chips |
+| Spacing          | `p-6`, `gap-8` two-column split, `gap-4` between option rows, `gap-3` spec grid |
+| Hover state      | `hover:border-[#cfd6cc]` on unselected chips and thumbs |
 | Shadow           | Inherits the dialog popup shadow |
-| Accent usage     | `text-accent` price and discount badge; `text-primary` category eyebrow and selected chips |
+| Accent usage     | `text-accent` price and discount badge; `text-primary` badge eyebrow, selected chips and highlight icons |
 
 **Pattern notes:**
 Renders the shopper-facing detail view from the item being edited, so it is a
 preview and never a live control: Add to Cart is an inert `div`, captioned as
 preview-only, so nobody mistakes it for the storefront. Every value is derived
-from item data — a discount badge appears only when a variant undercuts the base
-price, and missing fields render as explicit empty states instead of sample
-copy. Attributes render by shape: more than one value becomes a chip selector,
-a single value becomes a spec row, and `TOGGLE` becomes a switch.
+from item data — the discount badge appears only when `compareAtPrice` exceeds
+the live price, and missing fields render as explicit empty states instead of
+sample copy.
+
+An attribute's `placement` decides where it lands, and it is the single concept
+that lets one editor drive three regions: `OPTION` becomes chips (or colour
+swatches when `type` is `COLOR`), `HIGHLIGHT` becomes a perk tile under Add to
+Cart, `SPECIFICATION` feeds the spec grid, and `HIDDEN` never renders. A value
+with `available: false` renders struck-through and disabled rather than being
+hidden, so shoppers still see the size exists.
+
+Description layout comes from `descriptionBlocks`, which nest exactly one level:
+a `COLUMNS` block holds columns of leaf blocks and never another `COLUMNS`. The
+editor enforces that by offering leaf types only inside a column. `SPEC_GRID`
+carries no data of its own — it marks where the item's `SPECIFICATION`
+attributes render, keeping one source of truth for spec tiles.
+
+Icon keys are stored opaquely by the API and mapped to lucide glyphs in
+`attribute-icons.tsx`, falling back to a neutral circle. Adding an icon is a
+frontend-only change; never validate the key against a fixed enum.
 
 ### Account Menu
 

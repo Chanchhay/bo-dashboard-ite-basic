@@ -6491,6 +6491,69 @@
                 },
                 "required": ["name"]
             },
+            "DescriptionBlockRequest": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "PARAGRAPH",
+                            "HEADING",
+                            "BULLETS",
+                            "IMAGE",
+                            "SPEC_GRID",
+                            "COLUMNS"
+                        ]
+                    },
+                    "text": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "minLength": 0
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 300,
+                            "minLength": 0
+                        },
+                        "maxItems": 20,
+                        "minItems": 0
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    },
+                    "caption": {
+                        "type": "string",
+                        "maxLength": 150,
+                        "minLength": 0
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionColumnRequest"
+                        },
+                        "maxItems": 3,
+                        "minItems": 2
+                    }
+                },
+                "required": ["type"]
+            },
+            "DescriptionColumnRequest": {
+                "type": "object",
+                "properties": {
+                    "blocks": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionBlockRequest"
+                        },
+                        "maxItems": 20,
+                        "minItems": 0
+                    }
+                }
+            },
             "ItemAttributeRequest": {
                 "type": "object",
                 "properties": {
@@ -6500,16 +6563,59 @@
                     },
                     "type": {
                         "type": "string",
-                        "enum": ["TEXT", "SELECTION", "TOGGLE", "NUMBER"]
+                        "enum": [
+                            "TEXT",
+                            "SELECTION",
+                            "TOGGLE",
+                            "NUMBER",
+                            "COLOR"
+                        ]
+                    },
+                    "placement": {
+                        "type": "string",
+                        "enum": [
+                            "OPTION",
+                            "HIGHLIGHT",
+                            "SPECIFICATION",
+                            "HIDDEN"
+                        ]
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 40,
+                        "minLength": 0
                     },
                     "values": {
                         "type": "array",
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/ItemAttributeValueRequest"
                         }
                     }
                 },
                 "required": ["name", "type"]
+            },
+            "ItemAttributeValueRequest": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "string",
+                        "maxLength": 150,
+                        "minLength": 1
+                    },
+                    "label": {
+                        "type": "string",
+                        "maxLength": 150,
+                        "minLength": 0
+                    },
+                    "colorHex": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["value"]
             },
             "ItemVariantRequest": {
                 "type": "object",
@@ -6522,6 +6628,9 @@
                     "price": {
                         "type": "number",
                         "minimum": 0
+                    },
+                    "available": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["name"]
@@ -6560,12 +6669,31 @@
                         "maxLength": 255,
                         "minLength": 0
                     },
+                    "images": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 255,
+                            "minLength": 0
+                        },
+                        "maxItems": 8,
+                        "minItems": 0
+                    },
+                    "badge": {
+                        "type": "string",
+                        "maxLength": 40,
+                        "minLength": 0
+                    },
                     "barcode": {
                         "type": "string",
                         "maxLength": 100,
                         "minLength": 0
                     },
                     "price": {
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "compareAtPrice": {
                         "type": "number",
                         "minimum": 0
                     },
@@ -6578,6 +6706,14 @@
                         "items": {
                             "$ref": "#/components/schemas/ItemAttributeRequest"
                         }
+                    },
+                    "descriptionBlocks": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionBlockRequest"
+                        },
+                        "maxItems": 30,
+                        "minItems": 0
                     },
                     "variants": {
                         "type": "array",
@@ -6596,6 +6732,54 @@
                     }
                 }
             },
+            "DescriptionBlockResponse": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "PARAGRAPH",
+                            "HEADING",
+                            "BULLETS",
+                            "IMAGE",
+                            "SPEC_GRID",
+                            "COLUMNS"
+                        ]
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "caption": {
+                        "type": "string"
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionColumnResponse"
+                        }
+                    }
+                }
+            },
+            "DescriptionColumnResponse": {
+                "type": "object",
+                "properties": {
+                    "blocks": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionBlockResponse"
+                        }
+                    }
+                }
+            },
             "ItemAttributeResponse": {
                 "type": "object",
                 "properties": {
@@ -6604,13 +6788,48 @@
                     },
                     "type": {
                         "type": "string",
-                        "enum": ["TEXT", "SELECTION", "TOGGLE", "NUMBER"]
+                        "enum": [
+                            "TEXT",
+                            "SELECTION",
+                            "TOGGLE",
+                            "NUMBER",
+                            "COLOR"
+                        ]
+                    },
+                    "placement": {
+                        "type": "string",
+                        "enum": [
+                            "OPTION",
+                            "HIGHLIGHT",
+                            "SPECIFICATION",
+                            "HIDDEN"
+                        ]
+                    },
+                    "icon": {
+                        "type": "string"
                     },
                     "values": {
                         "type": "array",
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/ItemAttributeValueResponse"
                         }
+                    }
+                }
+            },
+            "ItemAttributeValueResponse": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "colorHex": {
+                        "type": "string"
+                    },
+                    "available": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -6649,10 +6868,22 @@
                     "imageUrl": {
                         "type": "string"
                     },
+                    "images": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "badge": {
+                        "type": "string"
+                    },
                     "barcode": {
                         "type": "string"
                     },
                     "price": {
+                        "type": "number"
+                    },
+                    "compareAtPrice": {
                         "type": "number"
                     },
                     "itemType": {
@@ -6663,6 +6894,12 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ItemAttributeResponse"
+                        }
+                    },
+                    "descriptionBlocks": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionBlockResponse"
                         }
                     },
                     "variants": {
@@ -6718,6 +6955,9 @@
                     },
                     "price": {
                         "type": "number"
+                    },
+                    "available": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -7647,12 +7887,31 @@
                         "maxLength": 255,
                         "minLength": 0
                     },
+                    "images": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 255,
+                            "minLength": 0
+                        },
+                        "maxItems": 8,
+                        "minItems": 0
+                    },
+                    "badge": {
+                        "type": "string",
+                        "maxLength": 40,
+                        "minLength": 0
+                    },
                     "barcode": {
                         "type": "string",
                         "maxLength": 100,
                         "minLength": 0
                     },
                     "price": {
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "compareAtPrice": {
                         "type": "number",
                         "minimum": 0
                     },
@@ -7665,6 +7924,14 @@
                         "items": {
                             "$ref": "#/components/schemas/ItemAttributeRequest"
                         }
+                    },
+                    "descriptionBlocks": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DescriptionBlockRequest"
+                        },
+                        "maxItems": 30,
+                        "minItems": 0
                     },
                     "variants": {
                         "type": "array",

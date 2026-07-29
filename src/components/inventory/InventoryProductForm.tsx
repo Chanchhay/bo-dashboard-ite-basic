@@ -20,6 +20,11 @@ import {
 } from "lucide-react";
 
 import {
+    createBlockId,
+    DescriptionBlockEditor,
+    type BlockDraft,
+} from "@/components/inventory/DescriptionBlockEditor";
+import {
     ItemAttributeDialog,
     type AttributeDraft,
 } from "@/components/inventory/ItemAttributeDialog";
@@ -46,11 +51,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
     inventoryItemSchema,
+    itemAttributePlacementLabels,
     itemAttributeTypeLabels,
     itemStatuses,
     itemTypes,
+    type DescriptionBlock,
     type InventoryItem,
     type ItemAttribute,
     type ItemVariant,
@@ -67,6 +75,7 @@ type VariantRow = {
     id: string;
     name: string;
     price: string;
+    available: boolean;
 };
 
 type FieldProps = {
@@ -125,7 +134,14 @@ function toAttributeDrafts(
         id: createRowId(),
         name: attribute.name || "",
         type: attribute.type || "TEXT",
-        values: attribute.values || [],
+        placement: attribute.placement || "OPTION",
+        icon: attribute.icon || "",
+        values: (attribute.values || []).map((value) => ({
+            value: value.value || "",
+            label: value.label || "",
+            colorHex: value.colorHex || "",
+            available: value.available !== false,
+        })),
     }));
 }
 
@@ -135,8 +151,53 @@ function describeAttribute(attribute: AttributeDraft) {
     }
 
     return attribute.values.length
-        ? attribute.values.join(", ")
+        ? attribute.values
+              .map((value) => value.label || value.value)
+              .join(", ")
         : "No values";
+}
+
+function toBlockDrafts(
+    blocks: DescriptionBlock[] | undefined,
+): BlockDraft[] {
+    return (blocks || []).map((block) => ({
+        id: createBlockId(),
+        type: block.type || "PARAGRAPH",
+        text: block.text || "",
+        items: (block.items || []).join("\n"),
+        url: block.url || "",
+        caption: block.caption || "",
+        columns: (block.columns || []).map((column) => ({
+            id: createBlockId(),
+            blocks: toBlockDrafts(column.blocks),
+        })),
+    }));
+}
+
+type BlockPayload = {
+    type: BlockDraft["type"];
+    text: string;
+    items: string[];
+    url: string;
+    caption: string;
+    columns: { blocks: BlockPayload[] }[];
+};
+
+/** Drafts hold bullets as one textarea; the API wants an array of lines. */
+function fromBlockDraft(block: BlockDraft): BlockPayload {
+    return {
+        type: block.type,
+        text: block.text,
+        items: block.items
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean),
+        url: block.url,
+        caption: block.caption,
+        columns: block.columns.map((column) => ({
+            blocks: column.blocks.map(fromBlockDraft),
+        })),
+    };
 }
 
 function toVariantRows(variants: ItemVariant[] | undefined): VariantRow[] {
@@ -145,11 +206,12 @@ function toVariantRows(variants: ItemVariant[] | undefined): VariantRow[] {
         name: variant.name || "",
         price:
             variant.price === undefined ? "" : String(variant.price),
+        available: variant.available !== false,
     }));
 
     return rows.length
         ? rows
-        : [{ id: createRowId(), name: "", price: "" }];
+        : [{ id: createRowId(), name: "", price: "", available: true }];
 }
 
 function fieldErrorsFromIssues(
@@ -188,6 +250,18 @@ function ProductEditor({
     >(null);
     const [variants, setVariants] = useState(() =>
         toVariantRows(initialItem?.variants),
+    );
+    // Older items carry only `imageUrl`; seed the gallery from it so an edit
+    // does not silently drop the one image they had.
+    const [images, setImages] = useState<string[]>(() => {
+        const gallery = initialItem?.images?.length
+            ? initialItem.images
+            : [initialItem?.imageUrl || ""];
+
+        return gallery.filter(Boolean).length ? gallery : [""];
+    });
+    const [blocks, setBlocks] = useState(() =>
+        toBlockDrafts(initialItem?.descriptionBlocks),
     );
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
@@ -248,12 +322,16 @@ function ProductEditor({
         const read = (field: string) => String(formData.get(field) || "");
         const categoryId = read("itemGroupId");
         const unitId = read("unitId");
+        const compareAtPrice = read("compareAtPrice");
 
         setPreviewItem({
             name: read("name"),
             description: read("description"),
-            imageUrl: read("imageUrl"),
+            images: images.map((image) => image.trim()).filter(Boolean),
+            badge: read("badge"),
             price: Number(formData.get("price") || 0),
+            compareAtPrice:
+                compareAtPrice === "" ? undefined : Number(compareAtPrice),
             sku: read("sku"),
             categoryName:
                 categoryOptions.find((option) => option.id === categoryId)
@@ -267,12 +345,16 @@ function ProductEditor({
             attributes: attributes.map((attribute) => ({
                 name: attribute.name,
                 type: attribute.type,
+                placement: attribute.placement,
+                icon: attribute.icon,
                 values: attribute.values,
             })),
+            descriptionBlocks: blocks.map(fromBlockDraft),
             variants: variants
                 .filter((row) => row.name.trim())
                 .map((row) => ({
                     name: row.name.trim(),
+                    available: row.available,
                     ...(row.price === ""
                         ? {}
                         : { price: Number(row.price) }),
@@ -296,16 +378,25 @@ function ProductEditor({
         const attributeValues = attributes.map((attribute) => ({
             name: attribute.name,
             type: attribute.type,
+            placement: attribute.placement,
+            icon: attribute.icon,
             values: attribute.values,
         }));
         const variantValues = variants
             .filter((row) => row.name.trim())
             .map((row) => ({
                 name: row.name,
+                available: row.available,
                 ...(row.price === ""
                     ? {}
                     : { price: Number(row.price) }),
             }));
+        const galleryImages = images
+            .map((image) => image.trim())
+            .filter(Boolean);
+        const compareAtPrice = String(
+            formData.get("compareAtPrice") || "",
+        );
         const result = inventoryItemSchema.safeParse({
             itemGroupId:
                 String(formData.get("itemGroupId") || "") === "__none"
@@ -319,11 +410,18 @@ function ProductEditor({
             sku: String(formData.get("sku") || ""),
             code: String(formData.get("code") || ""),
             description: String(formData.get("description") || ""),
-            imageUrl: String(formData.get("imageUrl") || ""),
+            // The first gallery image doubles as the thumbnail the items
+            // table and POS read.
+            imageUrl: galleryImages[0] || "",
+            images: galleryImages,
+            badge: String(formData.get("badge") || ""),
             barcode: String(formData.get("barcode") || ""),
             price: Number(formData.get("price") || 0),
+            compareAtPrice:
+                compareAtPrice === "" ? undefined : Number(compareAtPrice),
             itemType: String(formData.get("itemType") || ""),
             attributes: attributeValues,
+            descriptionBlocks: blocks.map(fromBlockDraft),
             variants: variantValues,
             lowStockDefault: Number(
                 formData.get("lowStockDefault") || 0,
@@ -647,16 +745,35 @@ function ProductEditor({
                         />
                     </Field>
                     <Field
-                        label="Image URL"
-                        name="imageUrl"
-                        error={fieldErrors.imageUrl}
+                        label="Compare-at price"
+                        name="compareAtPrice"
+                        error={fieldErrors.compareAtPrice}
                     >
                         <Input
-                            id="imageUrl"
-                            name="imageUrl"
-                            defaultValue={initialItem?.imageUrl}
-                            placeholder="https://example.com/item.jpg"
-                            aria-invalid={Boolean(fieldErrors.imageUrl)}
+                            id="compareAtPrice"
+                            name="compareAtPrice"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            defaultValue={initialItem?.compareAtPrice ?? ""}
+                            placeholder="Original price before discount"
+                            aria-invalid={Boolean(
+                                fieldErrors.compareAtPrice,
+                            )}
+                            className={inventoryControlClassName}
+                        />
+                    </Field>
+                    <Field
+                        label="Store badge"
+                        name="badge"
+                        error={fieldErrors.badge}
+                    >
+                        <Input
+                            id="badge"
+                            name="badge"
+                            defaultValue={initialItem?.badge}
+                            placeholder="NEW ARRIVAL"
+                            aria-invalid={Boolean(fieldErrors.badge)}
                             className={inventoryControlClassName}
                         />
                     </Field>
@@ -675,6 +792,80 @@ function ProductEditor({
                             />
                         </Field>
                     </div>
+                </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                    <SectionHeading
+                        title="Images"
+                        description="The first image is the thumbnail; the rest fill the store gallery."
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={images.length >= 8}
+                        onClick={() => setImages((current) => [...current, ""])}
+                    >
+                        <Plus />
+                        Add image
+                    </Button>
+                </div>
+                <div className="mt-5 flex flex-col gap-3">
+                    {images.map((image, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                            <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#e8e8e8] bg-[#f7f8f7] text-xs text-[#a3aca1]">
+                                {image.trim() ? (
+                                    /* eslint-disable-next-line @next/next/no-img-element */
+                                    <img
+                                        src={image}
+                                        alt=""
+                                        className="size-full object-cover"
+                                    />
+                                ) : (
+                                    index + 1
+                                )}
+                            </span>
+                            <Input
+                                value={image}
+                                onChange={(event) =>
+                                    setImages((current) =>
+                                        current.map((item, position) =>
+                                            position === index
+                                                ? event.target.value
+                                                : item,
+                                        ),
+                                    )
+                                }
+                                placeholder="https://example.com/item.jpg"
+                                aria-label={`Image URL ${index + 1}`}
+                                className={inventoryControlClassName}
+                            />
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon-lg"
+                                aria-label={`Remove image ${index + 1}`}
+                                onClick={() =>
+                                    setImages((current) => {
+                                        const next = current.filter(
+                                            (_, position) =>
+                                                position !== index,
+                                        );
+
+                                        return next.length ? next : [""];
+                                    })
+                                }
+                            >
+                                <Trash2 />
+                            </Button>
+                        </div>
+                    ))}
+                    {fieldErrors.images || fieldErrors.imageUrl ? (
+                        <p className="text-xs text-accent" role="alert">
+                            {fieldErrors.images || fieldErrors.imageUrl}
+                        </p>
+                    ) : null}
                 </div>
             </section>
 
@@ -700,6 +891,19 @@ function ProductEditor({
                                 key={attribute.id}
                                 className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] px-4 py-3"
                             >
+                                {attribute.icon ? (
+                                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                        {(() => {
+                                            const Glyph = attributeIcon(
+                                                attribute.icon,
+                                            );
+
+                                            return (
+                                                <Glyph className="size-4" />
+                                            );
+                                        })()}
+                                    </span>
+                                ) : null}
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <p className="font-medium text-[#1a222b]">
@@ -710,6 +914,13 @@ function ProductEditor({
                                                 itemAttributeTypeLabels[
                                                     attribute.type
                                                 ]
+                                            }
+                                        </span>
+                                        <span className="rounded-full bg-[#f2f3f1] px-2.5 py-0.5 text-xs font-medium text-[#657064]">
+                                            {
+                                                itemAttributePlacementLabels[
+                                                    attribute.placement
+                                                ].label
                                             }
                                         </span>
                                     </div>
@@ -788,6 +999,7 @@ function ProductEditor({
                                     id: createRowId(),
                                     name: "",
                                     price: "",
+                                    available: true,
                                 },
                             ])
                         }
@@ -800,7 +1012,7 @@ function ProductEditor({
                     {variants.map((variant) => (
                         <div
                             key={variant.id}
-                            className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto]"
+                            className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto_auto] sm:items-center"
                         >
                             <Input
                                 value={variant.name}
@@ -827,6 +1039,19 @@ function ProductEditor({
                                 placeholder="Price"
                                 className={inventoryControlClassName}
                             />
+                            <label className="flex items-center gap-2 text-xs whitespace-nowrap text-[#6b7280]">
+                                <input
+                                    type="checkbox"
+                                    checked={!variant.available}
+                                    onChange={(event) =>
+                                        updateVariant(variant.id, {
+                                            available: !event.target.checked,
+                                        })
+                                    }
+                                    className="size-3.5 accent-[#d14341]"
+                                />
+                                Sold out
+                            </label>
                             <Button
                                 type="button"
                                 variant="destructive"
@@ -848,6 +1073,24 @@ function ProductEditor({
                     {fieldErrors.variants ? (
                         <p className="text-xs text-accent" role="alert">
                             {fieldErrors.variants}
+                        </p>
+                    ) : null}
+                </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+                <SectionHeading
+                    title="Store description layout"
+                    description="Lay out the lower half of the store page: text, bullets, images and the spec grid."
+                />
+                <div className="mt-5">
+                    <DescriptionBlockEditor
+                        blocks={blocks}
+                        onChange={setBlocks}
+                    />
+                    {fieldErrors.descriptionBlocks ? (
+                        <p className="mt-3 text-xs text-accent" role="alert">
+                            {fieldErrors.descriptionBlocks}
                         </p>
                     ) : null}
                 </div>

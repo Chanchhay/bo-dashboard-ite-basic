@@ -17,16 +17,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import {
+    attributeIcon,
+    attributeIconKeys,
+} from "@/lib/api/attribute-icons";
+import {
+    itemAttributePlacementLabels,
+    itemAttributePlacements,
     itemAttributeTypeLabels,
     itemAttributeTypes,
+    type ItemAttributePlacement,
     type ItemAttributeType,
 } from "@/lib/api/inventory";
+import { cn } from "@/lib/utils";
+
+export type AttributeValueDraft = {
+    value: string;
+    label: string;
+    colorHex: string;
+    available: boolean;
+};
 
 export type AttributeDraft = {
     id: string;
     name: string;
     type: ItemAttributeType;
-    values: string[];
+    placement: ItemAttributePlacement;
+    icon: string;
+    values: AttributeValueDraft[];
 };
 
 const typeOptions = itemAttributeTypes.map((type) => ({
@@ -34,38 +51,64 @@ const typeOptions = itemAttributeTypes.map((type) => ({
     label: itemAttributeTypeLabels[type],
 }));
 
-/** Copy for the repeating value editor, per attribute type. */
-const valueCopy: Record<
-    ItemAttributeType,
-    { label: string; placeholder: string; addMore: string } | null
-> = {
-    TEXT: {
-        label: "Attribute value",
-        placeholder: "Add a value",
-        addMore: "Add more",
-    },
-    SELECTION: {
-        label: "Attribute value",
-        placeholder: "Add an option",
-        addMore: "Add more",
-    },
-    NUMBER: {
-        label: "Attribute value",
-        placeholder: "Add a number",
-        addMore: "Add more",
-    },
-    // A toggle is on or off — the API carries no values for it.
-    TOGGLE: null,
-};
+const placementOptions = itemAttributePlacements.map((placement) => ({
+    value: placement,
+    label: itemAttributePlacementLabels[placement].label,
+}));
+
+export function emptyValue(): AttributeValueDraft {
+    return { value: "", label: "", colorHex: "", available: true };
+}
 
 function emptyDraft(): AttributeDraft {
-    return { id: "", name: "", type: "TEXT", values: [""] };
+    return {
+        id: "",
+        name: "",
+        type: "TEXT",
+        placement: "OPTION",
+        icon: "",
+        values: [emptyValue()],
+    };
+}
+
+/** Placements that show one value, so the editor collapses to a single row. */
+function isSingleValue(placement: ItemAttributePlacement) {
+    return placement === "HIGHLIGHT" || placement === "SPECIFICATION";
+}
+
+function valueCopy(
+    type: ItemAttributeType,
+    placement: ItemAttributePlacement,
+) {
+    if (isSingleValue(placement)) {
+        return {
+            label: placement === "HIGHLIGHT" ? "Subtitle" : "Value",
+            placeholder:
+                placement === "HIGHLIGHT"
+                    ? "On orders over $50"
+                    : '6.7" Super Retina XDR',
+        };
+    }
+
+    if (type === "COLOR") {
+        return { label: "Colours", placeholder: "Charcoal Gray" };
+    }
+
+    if (type === "NUMBER") {
+        return { label: "Attribute value", placeholder: "Add a number" };
+    }
+
+    return {
+        label: "Attribute value",
+        placeholder:
+            type === "SELECTION" ? "Add an option" : "Add a value",
+    };
 }
 
 /**
- * Add or edit one item attribute. Values are edited as a repeating list so a
- * selection can carry its options; text and number attributes use the same
- * list, which is how a "Size: S, M, L" style attribute is entered.
+ * Add or edit one item attribute. `placement` is what makes this one editor
+ * cover three parts of the storefront — a selectable option, a perk tile under
+ * Add to Cart, or a specification tile — so the fields below reshape around it.
  */
 export function ItemAttributeDialog({
     open,
@@ -84,7 +127,7 @@ export function ItemAttributeDialog({
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg">
                 {/*
                  * Keyed so the fields re-initialise from the attribute being
                  * edited: the draft lives in mount-time state rather than being
@@ -118,17 +161,28 @@ function AttributeForm({
     const isEditing = Boolean(initialAttribute);
     const [name, setName] = useState(draft.name);
     const [type, setType] = useState<ItemAttributeType>(draft.type);
-    const [values, setValues] = useState<string[]>(
-        draft.values.length ? draft.values : [""],
+    const [placement, setPlacement] = useState<ItemAttributePlacement>(
+        draft.placement,
+    );
+    const [icon, setIcon] = useState(draft.icon);
+    const [values, setValues] = useState<AttributeValueDraft[]>(
+        draft.values.length ? draft.values : [emptyValue()],
     );
     const [error, setError] = useState<string | null>(null);
 
-    const copy = valueCopy[type];
+    const takesValues = type !== "TOGGLE";
+    const single = isSingleValue(placement);
+    const showsIcon = placement === "HIGHLIGHT" || placement === "SPECIFICATION";
+    const copy = valueCopy(type, placement);
+    const visibleValues = single ? values.slice(0, 1) : values;
 
-    function updateValue(index: number, next: string) {
+    function updateValue(
+        index: number,
+        patch: Partial<AttributeValueDraft>,
+    ) {
         setValues((current) =>
             current.map((value, position) =>
-                position === index ? next : value,
+                position === index ? { ...value, ...patch } : value,
             ),
         );
     }
@@ -139,7 +193,7 @@ function AttributeForm({
                 (_, position) => position !== index,
             );
 
-            return remaining.length ? remaining : [""];
+            return remaining.length ? remaining : [emptyValue()];
         });
     }
 
@@ -161,12 +215,36 @@ function AttributeForm({
             return;
         }
 
-        const trimmedValues = copy
-            ? values.map((value) => value.trim()).filter(Boolean)
+        const cleaned = takesValues
+            ? visibleValues
+                  .map((value) => ({
+                      value: value.value.trim(),
+                      label: value.label.trim(),
+                      colorHex: value.colorHex.trim(),
+                      available: value.available,
+                  }))
+                  .filter((value) => value.value)
             : [];
 
-        if (type === "SELECTION" && !trimmedValues.length) {
-            setError("Add at least one option for a selection attribute.");
+        if (
+            placement === "OPTION" &&
+            (type === "SELECTION" || type === "COLOR") &&
+            !cleaned.length
+        ) {
+            setError("Add at least one option for shoppers to choose from.");
+            return;
+        }
+
+        if (type === "COLOR" && cleaned.some((value) => !value.colorHex)) {
+            setError("Every colour needs a hex value such as #3a3a3c.");
+            return;
+        }
+
+        if (
+            type === "NUMBER" &&
+            cleaned.some((value) => Number.isNaN(Number(value.value)))
+        ) {
+            setError("Number attributes only accept numeric values.");
             return;
         }
 
@@ -174,7 +252,9 @@ function AttributeForm({
             id: initialAttribute?.id || "",
             name: trimmedName,
             type,
-            values: trimmedValues,
+            placement,
+            icon: showsIcon ? icon : "",
+            values: cleaned,
         });
         onClose();
     }
@@ -212,81 +292,173 @@ function AttributeForm({
                 />
             </div>
 
-            <div className="flex flex-col gap-2">
-                <Label
-                    htmlFor="attribute-type"
-                    className="text-sm font-semibold text-[#424841]"
-                >
-                    Attribute type
-                </Label>
-                <SelectField
-                    id="attribute-type"
-                    options={typeOptions}
-                    value={type}
-                    onValueChange={(next) => {
-                        setType(next as ItemAttributeType);
-                        setError(null);
-                    }}
-                />
+            <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                    <Label
+                        htmlFor="attribute-type"
+                        className="text-sm font-semibold text-[#424841]"
+                    >
+                        Attribute type
+                    </Label>
+                    <SelectField
+                        id="attribute-type"
+                        options={typeOptions}
+                        value={type}
+                        onValueChange={(next) => {
+                            setType(next as ItemAttributeType);
+                            setError(null);
+                        }}
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label
+                        htmlFor="attribute-placement"
+                        className="text-sm font-semibold text-[#424841]"
+                    >
+                        Show as
+                    </Label>
+                    <SelectField
+                        id="attribute-placement"
+                        options={placementOptions}
+                        value={placement}
+                        onValueChange={(next) => {
+                            setPlacement(next as ItemAttributePlacement);
+                            setError(null);
+                        }}
+                    />
+                </div>
             </div>
+            <p className="-mt-3 text-xs text-[#6b7280]">
+                {itemAttributePlacementLabels[placement].hint}
+            </p>
 
-            {copy ? (
+            {showsIcon ? (
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-[#424841]">
+                        Icon
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                        {attributeIconKeys.map((key) => {
+                            const Glyph = attributeIcon(key);
+
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    title={key}
+                                    aria-label={key}
+                                    aria-pressed={icon === key}
+                                    onClick={() =>
+                                        setIcon(icon === key ? "" : key)
+                                    }
+                                    className={cn(
+                                        "grid size-9 place-items-center rounded-lg border transition-colors",
+                                        icon === key
+                                            ? "border-primary bg-primary/10 text-primary"
+                                            : "border-[#e8e8e8] bg-white text-[#657064] hover:border-[#cfd6cc]",
+                                    )}
+                                >
+                                    <Glyph className="size-4" />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : null}
+
+            {takesValues ? (
                 <div className="flex flex-col gap-2">
                     <Label className="text-sm font-semibold text-[#424841]">
                         {copy.label}
                     </Label>
                     <div className="flex flex-col gap-2">
-                        {values.map((value, index) => (
-                            <div
-                                key={index}
-                                className="relative flex items-center"
-                            >
-                                <Input
-                                    value={value}
-                                    onChange={(event) =>
-                                        updateValue(
-                                            index,
-                                            event.target.value,
-                                        )
-                                    }
-                                    type={
-                                        type === "NUMBER"
-                                            ? "number"
-                                            : "text"
-                                    }
-                                    step={
-                                        type === "NUMBER"
-                                            ? "any"
-                                            : undefined
-                                    }
-                                    placeholder={copy.placeholder}
-                                    aria-label={`${copy.label} ${index + 1}`}
-                                    className={`${inventoryControlClassName} pr-12`}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`Remove value ${index + 1}`}
-                                    onClick={() => removeValue(index)}
-                                    className="absolute right-1.5 text-[#657064] hover:text-accent"
-                                >
-                                    <Trash2 />
-                                </Button>
+                        {visibleValues.map((value, index) => (
+                            <div key={index} className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                    {type === "COLOR" ? (
+                                        <input
+                                            type="color"
+                                            value={value.colorHex || "#00932a"}
+                                            onChange={(event) =>
+                                                updateValue(index, {
+                                                    colorHex:
+                                                        event.target.value,
+                                                })
+                                            }
+                                            aria-label={`Colour ${index + 1}`}
+                                            className="size-12 shrink-0 cursor-pointer rounded-xl border border-[#e8e8e8] bg-white p-1"
+                                        />
+                                    ) : null}
+                                    <Input
+                                        value={value.value}
+                                        onChange={(event) =>
+                                            updateValue(index, {
+                                                value: event.target.value,
+                                            })
+                                        }
+                                        type={
+                                            type === "NUMBER"
+                                                ? "number"
+                                                : "text"
+                                        }
+                                        step={
+                                            type === "NUMBER"
+                                                ? "any"
+                                                : undefined
+                                        }
+                                        placeholder={copy.placeholder}
+                                        aria-label={`${copy.label} ${index + 1}`}
+                                        className={inventoryControlClassName}
+                                    />
+                                    {single ? null : (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-lg"
+                                            aria-label={`Remove value ${index + 1}`}
+                                            onClick={() => removeValue(index)}
+                                            className="shrink-0 text-[#657064] hover:text-accent"
+                                        >
+                                            <Trash2 />
+                                        </Button>
+                                    )}
+                                </div>
+                                {single ? null : (
+                                    <label className="flex items-center gap-2 pl-1 text-xs text-[#6b7280]">
+                                        <input
+                                            type="checkbox"
+                                            checked={!value.available}
+                                            onChange={(event) =>
+                                                updateValue(index, {
+                                                    available:
+                                                        !event.target.checked,
+                                                })
+                                            }
+                                            className="size-3.5 accent-[#d14341]"
+                                        />
+                                        Sold out — show but do not allow
+                                        selecting
+                                    </label>
+                                )}
                             </div>
                         ))}
                     </div>
-                    <Button
-                        type="button"
-                        variant="link"
-                        size="xs"
-                        onClick={() =>
-                            setValues((current) => [...current, ""])
-                        }
-                        className="self-start px-0 text-[#657064] no-underline hover:text-primary hover:underline"
-                    >
-                        + {copy.addMore}
-                    </Button>
+                    {single ? null : (
+                        <Button
+                            type="button"
+                            variant="link"
+                            size="xs"
+                            onClick={() =>
+                                setValues((current) => [
+                                    ...current,
+                                    emptyValue(),
+                                ])
+                            }
+                            className="self-start px-0 text-[#657064] no-underline hover:text-primary hover:underline"
+                        >
+                            + Add more
+                        </Button>
+                    )}
                 </div>
             ) : (
                 <p className="rounded-xl bg-[#f7f8f7] px-4 py-3 text-sm text-[#657064]">
