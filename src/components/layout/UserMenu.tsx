@@ -40,23 +40,23 @@ export default function UserMenu({ name }: { name: string }) {
             <Menu>
                 <MenuTrigger
                     aria-label={`Account menu for ${name}`}
-                    className="flex items-center gap-2.5 rounded-full border border-[#e2e2de] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#00932a] data-popup-open:bg-[#f7f7f6]"
+                    className="flex items-center gap-2.5 rounded-full border border-[#bccab8] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] data-popup-open:bg-[#f5f8f4]"
                 >
                     <span
                         aria-hidden="true"
-                        className="grid size-8 place-items-center rounded-full bg-[#00932a] text-[13px] font-medium text-white"
+                        className="grid size-8 place-items-center rounded-full border border-[#006b26] bg-[#00932a] text-[13px] font-medium text-white"
                     >
                         {initialsOf(name)}
                     </span>
-                    <span className="hidden text-[14px] text-[#16181c] sm:block">
+                    <span className="hidden text-[14px] text-[#161d16] sm:block">
                         {name}
                     </span>
                 </MenuTrigger>
 
                 <MenuContent>
-                    <p className="px-3 pt-1.5 pb-1 text-[12px] text-[#8a8f89]">
+                    <p className="px-3 pt-1.5 pb-1 text-[12px] text-[#3d4a3c]">
                         Signed in as
-                        <span className="mt-0.5 block truncate text-[14px] text-[#16181c]">
+                        <span className="mt-0.5 block truncate text-[14px] text-[#161d16]">
                             {name}
                         </span>
                     </p>

@@ -40,7 +40,7 @@ pills to match the established dashboard controls.
 ### Business Currency Settings
 
 File: src/components/business/BusinessCurrencyForm.tsx
-Last updated: 2026-07-28
+Last updated: 2026-07-30
 
 | Property         | Class |
 | ---------------- | ----- |
@@ -60,10 +60,22 @@ section titles. Configuration controls keep a 12px radius and low-contrast
 borders. Currency selections use pale-green pill chips, while footer actions
 use full pill buttons with the shared primary and accent colors.
 
+Currency addition uses the Base UI Autocomplete pattern: keep the input
+free-form for API-valid three-letter codes while filtering suggestions by
+currency name or code. Its popup matches the shared select styling with
+`rounded-xl bg-white shadow-lg ring-1 ring-[#e8e8e8]`; highlighted options use
+`bg-primary/10 text-primary`.
+
+Base currency, decimal places, and exchange currency all use the shared
+`SelectField` dropdown with a visible chevron. In the exchange calculator, the
+base amount and editable rate use matching `rounded-xl`, `border-[#e8e8e8]`,
+and `bg-white` surfaces; the compact currency dropdown stays beside the
+Exchange label and uses `rounded-lg`.
+
 ### Inventory Management
 
 Files: `src/components/inventory/*.tsx`
-Last updated: 2026-07-28
+Last updated: 2026-07-30
 
 | Property         | Class |
 | ---------------- | ----- |
@@ -84,6 +96,12 @@ actions, and 12px form controls. Server data stays in the shared RTK Query
 cache, while persistent product and stock filters use the inventory Redux
 slice. Stock state badges consistently distinguish in-stock, low-stock, and
 out-of-stock conditions with brand, warning, and accent colors.
+
+Optional structured metadata should use a guided nested panel rather than a
+raw JSON textarea. The stock batch panel uses `rounded-xl`,
+`border-[#e4eae2]`, `bg-[#f8faf7]`, and `p-4`, plus a primary-tinted icon,
+plain-language guidance, and standard inputs; the form assembles the API object
+internally.
 
 ### Modal Dialog
 

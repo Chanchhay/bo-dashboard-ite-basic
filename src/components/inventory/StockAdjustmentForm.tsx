@@ -6,6 +6,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import {
     ArrowLeft,
     LoaderCircle,
+    PackageOpen,
     Save,
     SlidersHorizontal,
 } from "lucide-react";
@@ -16,7 +17,6 @@ import {
     InventoryLoading,
     InventoryPageHeader,
     inventoryControlClassName,
-    inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
     stockEntrySchema,
     stockEntryTypes,
@@ -81,6 +80,10 @@ function issueMap(
     return errors;
 }
 
+function getOptionalFormValue(formData: FormData, name: string) {
+    return String(formData.get(name) || "").trim();
+}
+
 export function StockAdjustmentForm() {
     const router = useRouter();
     const itemsQuery = useGetInventoryItemsQuery();
@@ -114,33 +117,24 @@ export function StockAdjustmentForm() {
         setStatus(null);
 
         const formData = new FormData(event.currentTarget);
-        const batchText = String(formData.get("batchData") || "").trim();
-        let batchData: Record<string, unknown> = {};
+        const batchData: Record<string, string> = {};
+        const batchFields = [
+            ["lot", "batchLot"],
+            ["manufacturedAt", "batchManufacturedAt"],
+            ["expiresAt", "batchExpiresAt"],
+        ] as const;
 
-        if (batchText) {
-            try {
-                const parsed: unknown = JSON.parse(batchText);
-                if (
-                    typeof parsed !== "object" ||
-                    parsed === null ||
-                    Array.isArray(parsed)
-                ) {
-                    throw new Error("Batch data must be an object.");
-                }
-                batchData = parsed as Record<string, unknown>;
-            } catch {
-                setFieldErrors({
-                    batchData:
-                        "Batch data must be a valid JSON object.",
-                });
-                setStatus("Check the highlighted stock information.");
-                return;
+        for (const [apiKey, fieldName] of batchFields) {
+            const value = getOptionalFormValue(formData, fieldName);
+            if (value) {
+                batchData[apiKey] = value;
             }
         }
 
-        const unitCostValue = String(
-            formData.get("unitCost") || "",
-        ).trim();
+        const unitCostValue = getOptionalFormValue(
+            formData,
+            "unitCost",
+        );
         const result = stockEntrySchema.safeParse({
             itemId: String(formData.get("itemId") || ""),
             entryType: String(formData.get("entryType") || ""),
@@ -215,8 +209,8 @@ export function StockAdjustmentForm() {
                             Stock entry information
                         </h2>
                         <p className="mt-1 text-sm text-[#657064]">
-                            Required fields and optional reference metadata
-                            mirror CreateStockEntryRequest.
+                            Enter the quantity and any tracking details for
+                            this stock change.
                         </p>
                     </div>
                 </div>
@@ -391,23 +385,65 @@ export function StockAdjustmentForm() {
                                 className={inventoryControlClassName}
                             />
                         </Field>
-                        <div className="md:col-span-2">
-                            <Field
-                                label="Batch data"
-                                name="batchData"
-                                hint='Optional JSON object, for example {"lot":"LOT-01","expiresAt":"2026-12-31"}.'
-                                error={fieldErrors.batchData}
-                            >
-                                <Textarea
-                                    id="batchData"
-                                    name="batchData"
-                                    placeholder='{"lot":"LOT-01"}'
-                                    aria-invalid={Boolean(
-                                        fieldErrors.batchData,
-                                    )}
-                                    className={`${inventoryTextareaClassName} font-mono`}
-                                />
-                            </Field>
+                        <div className="rounded-xl border border-[#e4eae2] bg-transparent p-4 md:col-span-2 sm:p-5">
+                            <div className="flex items-start gap-3">
+                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                    <PackageOpen className="size-5" />
+                                </span>
+                                <div>
+                                    <h3 className="font-semibold text-[#161d16]">
+                                        Batch details
+                                    </h3>
+                                    <p className="mt-1 text-sm text-[#657064]">
+                                        Optional. Use these fields when stock
+                                        is tracked by lot or expiration date.
+                                        No JSON is required.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 grid gap-4 md:grid-cols-3">
+                                <Field
+                                    label="Batch / lot number"
+                                    name="batchLot"
+                                    hint="For example, LOT-01."
+                                >
+                                    <Input
+                                        id="batchLot"
+                                        name="batchLot"
+                                        placeholder="LOT-01"
+                                        className={
+                                            inventoryControlClassName
+                                        }
+                                    />
+                                </Field>
+                                <Field
+                                    label="Manufactured date"
+                                    name="batchManufacturedAt"
+                                >
+                                    <Input
+                                        id="batchManufacturedAt"
+                                        name="batchManufacturedAt"
+                                        type="date"
+                                        className={
+                                            inventoryControlClassName
+                                        }
+                                    />
+                                </Field>
+                                <Field
+                                    label="Expiration date"
+                                    name="batchExpiresAt"
+                                >
+                                    <Input
+                                        id="batchExpiresAt"
+                                        name="batchExpiresAt"
+                                        type="date"
+                                        className={
+                                            inventoryControlClassName
+                                        }
+                                    />
+                                </Field>
+                            </div>
                         </div>
                     </div>
                 )}

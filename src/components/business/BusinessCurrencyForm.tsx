@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useState } from "react";
+import { Autocomplete } from "@base-ui/react/autocomplete";
+import { FormEvent, useState } from "react";
 import {
     ArrowLeftRight,
-    Info,
+    ChevronDown,
     LoaderCircle,
     Plus,
     X,
@@ -46,7 +47,11 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 }
 
 function getCurrencyDetails(code: string) {
-    const normalizedCode = code.trim().toUpperCase();
+    const normalizedInput = code.trim().toUpperCase();
+    const normalizedCode =
+        normalizedInput.match(/^[A-Z]{3}$/)?.[0] ||
+        normalizedInput.match(/\(([A-Z]{3})\)$/)?.[1] ||
+        "";
 
     if (!/^[A-Z]{3}$/.test(normalizedCode)) {
         return null;
@@ -71,6 +76,86 @@ function getCurrencyDetails(code: string) {
     } catch {
         return null;
     }
+}
+
+const supportedCurrencyOptions = Intl.supportedValuesOf("currency").flatMap(
+    (code) => {
+        const currency = getCurrencyDetails(code);
+
+        return currency
+            ? [
+                  {
+                      value: currency.code,
+                      label: `${currency.name} (${currency.code})`,
+                  },
+              ]
+            : [];
+    },
+);
+
+type CurrencyOption = (typeof supportedCurrencyOptions)[number];
+
+function CurrencyAutocomplete({
+    value,
+    onValueChange,
+    options,
+}: {
+    value: string;
+    onValueChange: (value: string) => void;
+    options: CurrencyOption[];
+}) {
+    return (
+        <Autocomplete.Root
+            items={options}
+            value={value}
+            onValueChange={onValueChange}
+            itemToStringValue={(option) => option.label}
+            openOnInputClick
+            autoHighlight
+        >
+            <Autocomplete.InputGroup className="relative h-[38px] min-w-[240px] flex-1">
+                <Autocomplete.Input
+                    id="add-currency"
+                    aria-label="Search or enter a three-letter currency code"
+                    placeholder="Search or enter a currency..."
+                    className="h-full w-full rounded-lg border-0 bg-transparent px-3 pr-10 text-base text-[#1a222b] outline-none placeholder:text-[#9ca3af] focus-visible:ring-0"
+                />
+                <Autocomplete.Trigger
+                    type="button"
+                    aria-label="Show currency options"
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-lg text-[#6b7280] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                    <ChevronDown className="size-4" />
+                </Autocomplete.Trigger>
+            </Autocomplete.InputGroup>
+
+            <Autocomplete.Portal>
+                <Autocomplete.Positioner
+                    sideOffset={4}
+                    align="start"
+                    className="isolate z-50 outline-none"
+                >
+                    <Autocomplete.Popup className="w-(--anchor-width) min-w-64 overflow-hidden rounded-xl bg-white p-1.5 text-[#1a222b] shadow-lg ring-1 ring-[#e8e8e8]">
+                        <Autocomplete.Empty className="px-3 py-3 text-sm text-[#6b7280]">
+                            No matching currency. You can enter a custom
+                            three-letter code.
+                        </Autocomplete.Empty>
+                        <Autocomplete.List className="max-h-72 overflow-y-auto overscroll-contain outline-none">
+                            {(option: CurrencyOption) => (
+                                <Autocomplete.Item
+                                    key={option.value}
+                                    value={option}
+                                    className="flex cursor-default items-center rounded-lg px-3 py-2.5 text-base outline-none select-none data-highlighted:bg-primary/10 data-highlighted:text-primary"
+                                >
+                                    <span>{option.label}</span>
+                                </Autocomplete.Item>
+                            )}
+                        </Autocomplete.List>
+                    </Autocomplete.Popup>
+                </Autocomplete.Positioner>
+            </Autocomplete.Portal>
+        </Autocomplete.Root>
+    );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -112,6 +197,12 @@ function CurrencyEditor({
     const target =
         currencies.find((currency) => currency.code === selectedTarget) ||
         currencies.find((currency) => currency.code !== baseCurrency);
+    const configuredCurrencyCodes = new Set(
+        currencies.map((currency) => currency.code),
+    );
+    const availableCurrencyOptions = supportedCurrencyOptions.filter(
+        (option) => !configuredCurrencyCodes.has(option.value),
+    );
 
     function updateCurrency(
         code: string,
@@ -161,13 +252,6 @@ function CurrencyEditor({
         setSelectedTarget(details.code);
         setNewCurrencyCode("");
         setStatus(null);
-    }
-
-    function handleAddKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            addCurrency();
-        }
     }
 
     function removeCurrency(code: string) {
@@ -286,6 +370,7 @@ function CurrencyEditor({
                             id="base-currency"
                             value={baseCurrency}
                             onValueChange={changeBaseCurrency}
+                            className="rounded-xl border-[#e8e8e8] bg-white px-4 text-base shadow-none data-[size=default]:h-14"
                             options={currencies.map((currency) => ({
                                 value: currency.code,
                                 label: `${currency.name} (${currency.code})`,
@@ -310,11 +395,15 @@ function CurrencyEditor({
                                     });
                                 }
                             }}
+                            className="rounded-xl border-[#e8e8e8] bg-white px-4 text-base shadow-none data-[size=default]:h-14"
                             options={[
-                                { value: "0", label: "0" },
-                                { value: "1", label: "1" },
-                                { value: "2", label: "2 (Standard)" },
-                                { value: "3", label: "3" },
+                                { value: "0", label: "0 decimals" },
+                                { value: "1", label: "1 decimal" },
+                                {
+                                    value: "2",
+                                    label: "2 decimals (Standard)",
+                                },
+                                { value: "3", label: "3 decimals" },
                             ]}
                         />
                     </div>
@@ -372,26 +461,17 @@ function CurrencyEditor({
                                 </div>
                             );
                         })}
-                        <Input
-                            id="add-currency"
+                        <CurrencyAutocomplete
                             value={newCurrencyCode}
-                            onChange={(event) =>
-                                setNewCurrencyCode(
-                                    event.target.value
-                                        .toUpperCase()
-                                        .slice(0, 3),
-                                )
-                            }
-                            onKeyDown={handleAddKeyDown}
-                            placeholder="Add currency..."
-                            aria-label="Three-letter currency code"
-                            className="h-[38px] min-w-[150px] flex-1 rounded-lg border-0 bg-transparent px-3 text-base shadow-none focus-visible:ring-0"
+                            onValueChange={setNewCurrencyCode}
+                            options={availableCurrencyOptions}
                         />
                         <Button
                             type="button"
                             variant="ghost"
                             size="icon-sm"
                             onClick={addCurrency}
+                            disabled={!newCurrencyCode.trim()}
                             aria-label="Add currency"
                         >
                             <Plus className="size-5" />
@@ -406,12 +486,12 @@ function CurrencyEditor({
                 <div className="mt-5 max-w-[630px] rounded-2xl border border-[#f5f5f5] p-4 sm:p-6">
                     {base && target ? (
                         <>
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                                <div className="w-full sm:w-[150px]">
+                            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+                                <div className="min-w-0">
                                     <p className="mb-3 text-lg font-semibold text-[#020409]/70">
-                                        1 {base.code} Equals
+                                        1 {base.code}
                                     </p>
-                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[rgba(194,200,190,0.3)] px-3">
+                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[#e8e8e8] bg-white px-4">
                                         <span className="text-base font-bold text-[#436746]">
                                             {base.symbol}
                                         </span>
@@ -421,25 +501,23 @@ function CurrencyEditor({
                                     </div>
                                 </div>
 
-                                <span className="mb-2 flex size-8 shrink-0 items-center justify-center self-center rounded-full bg-[#f6e2a1] text-[#826b14] sm:self-auto">
+                                <span className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] text-[#826b14] sm:mb-[11px]">
                                     <ArrowLeftRight className="size-4" />
                                 </span>
 
-                                <div className="w-full sm:w-[210px]">
+                                <div className="min-w-0">
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <Label
-                                            htmlFor="exchange-value"
+                                            htmlFor="exchange-currency"
                                             className="text-lg font-semibold text-[#020409]/70"
                                         >
-                                            Exchange Value
+                                            Exchange
                                         </Label>
                                         <SelectField
-                                            id="exchange-value"
+                                            id="exchange-currency"
                                             value={target.code}
                                             onValueChange={setSelectedTarget}
-                                            /* Sits inline beside its label, so
-                                               it keeps a compact trigger. */
-                                            className="h-9 w-auto rounded-lg px-3 text-sm"
+                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] bg-white px-3 text-sm shadow-none data-[size=default]:h-9"
                                             options={currencies
                                                 .filter(
                                                     (currency) =>
@@ -452,12 +530,13 @@ function CurrencyEditor({
                                                 }))}
                                         />
                                     </div>
-                                    <div className="flex h-[54px] items-center gap-1 rounded-xl px-3 shadow-[0_0_0_2px_rgba(67,103,70,0.05)]">
+                                    <div className="flex h-[54px] items-center gap-1 rounded-xl border border-[#e8e8e8] bg-white px-4">
                                         <span className="text-base font-bold text-[#436746]">
                                             {target.symbol}
                                         </span>
                                         <Input
-                                            id="exchange-value"
+                                            id="exchange-rate"
+                                            aria-label={`Exchange rate for ${target.code}`}
                                             type="number"
                                             min="0"
                                             step="any"
@@ -477,15 +556,6 @@ function CurrencyEditor({
                                         />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="mt-4 flex gap-4 rounded-xl border border-[rgba(171,168,186,0.2)] bg-[#f5f5f5] p-4 text-sm leading-[22px] text-[#424841]">
-                                <Info className="mt-0.5 size-5 shrink-0 text-[#636b74]" />
-                                <p>
-                                    Automated exchange rates sync every 4
-                                    hours from the central bank. Manual
-                                    overrides will lock the rate for 24 hours.
-                                </p>
                             </div>
                         </>
                     ) : (
