@@ -5,7 +5,7 @@ import {
     backendRequest,
 } from "@/lib/api/backend";
 import {
-    getProfilePictureError,
+    profilePictureRules,
     toUserProfileFormData,
     userProfileSchema,
     type UserProfile,
@@ -48,7 +48,7 @@ export async function PATCH(request: Request) {
             picture instanceof File && picture.size > 0 ? picture : null;
 
         if (file) {
-            const fileError = getProfilePictureError(file);
+            const fileError = profilePictureRules.validate(file);
 
             if (fileError) {
                 return Response.json(

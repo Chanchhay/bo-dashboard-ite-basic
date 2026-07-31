@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { imageUploadRules } from "@/lib/api/image-upload";
+
 export type BusinessSubCategory = {
     id?: string;
     name?: string;
@@ -80,21 +82,20 @@ export const businessProfileSchema = z.object({
 });
 
 /** Matches the backend's upload limits for `POST /businesses/{id}/logo`. */
-export const businessLogoMaxBytes = 5 * 1024 * 1024;
-export const businessLogoAccept = "image/png,image/jpeg,image/webp,image/svg+xml";
+export const businessLogoRules = imageUploadRules({
+    accept: "image/png,image/jpeg,image/webp,image/svg+xml",
+    maxBytes: 5 * 1024 * 1024,
+    subject: "the logo",
+    formats: "PNG, JPG, WebP or SVG",
+});
 
-/** Shared by the logo picker and the route handler that forwards the file. */
-export function getBusinessLogoError(file: File) {
-    if (!file.type.startsWith("image/")) {
-        return "Choose an image file for the logo.";
-    }
-
-    if (file.size > businessLogoMaxBytes) {
-        return "The logo must be 5 MB or smaller.";
-    }
-
-    return undefined;
-}
+/** The storefront cover, behind `POST /businesses/{id}/thumbnail`. */
+export const businessThumbnailRules = imageUploadRules({
+    accept: "image/png,image/jpeg,image/webp",
+    maxBytes: 5 * 1024 * 1024,
+    subject: "the cover image",
+    formats: "PNG, JPG or WebP",
+});
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 

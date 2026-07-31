@@ -14,14 +14,26 @@ import {
 } from "lucide-react";
 
 import {
+    getApiErrorMessage,
     inventoryControlClassName,
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
+import {
+    ImagePicker,
+    useObjectUrls,
+} from "@/components/ui/image-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { DescriptionBlockType } from "@/lib/api/inventory";
+import {
+    blockImageRules,
+    type DescriptionBlockType,
+} from "@/lib/api/inventory";
+import {
+    useDeleteAssetMutation,
+    useUploadAssetMutation,
+} from "@/services/assetApi";
 
 export type BlockDraft = {
     id: string;
@@ -29,9 +41,17 @@ export type BlockDraft = {
     text: string;
     /** One bullet per line while editing; split on save. */
     items: string;
+    /** The stored image, once its upload has come back. */
     url: string;
     caption: string;
     columns: { id: string; blocks: BlockDraft[] }[];
+    // Transient, never sent: the picture is uploaded on pick, and these carry
+    // the local preview and outcome until `url` is filled in.
+    previewUrl?: string;
+    uploading?: boolean;
+    uploadError?: string;
+    /** The storage key of a picture uploaded here, so it can be cleaned up. */
+    assetKey?: string;
 };
 
 const leafTypes = [
@@ -81,10 +101,12 @@ export function DescriptionBlockEditor({
     blocks: BlockDraft[];
     onChange: (blocks: BlockDraft[]) => void;
 }) {
-    function updateAt(index: number, patch: Partial<BlockDraft>) {
+    // Patched by id, not position: a block image finishes uploading after the
+    // pick, and by then the block may have moved or a sibling may be gone.
+    function update(id: string, patch: Partial<BlockDraft>) {
         onChange(
-            blocks.map((block, position) =>
-                position === index ? { ...block, ...patch } : block,
+            blocks.map((block) =>
+                block.id === id ? { ...block, ...patch } : block,
             ),
         );
     }
@@ -161,7 +183,7 @@ export function DescriptionBlockEditor({
                                         key={column.id}
                                         column={column}
                                         onChange={(nextBlocks) =>
-                                            updateAt(index, {
+                                            update(block.id, {
                                                 columns: block.columns.map(
                                                     (item, position) =>
                                                         position ===
@@ -180,7 +202,7 @@ export function DescriptionBlockEditor({
                         ) : (
                             <BlockFields
                                 block={block}
-                                onChange={(patch) => updateAt(index, patch)}
+                                onChange={(patch) => update(block.id, patch)}
                             />
                         )}
                     </div>
@@ -243,8 +265,8 @@ function ColumnEditor({
                             block={block}
                             onChange={(patch) =>
                                 onChange(
-                                    column.blocks.map((item, position) =>
-                                        position === index
+                                    column.blocks.map((item) =>
+                                        item.id === block.id
                                             ? { ...item, ...patch }
                                             : item,
                                     ),
@@ -285,13 +307,7 @@ function BlockFields({
     if (block.type === "IMAGE") {
         return (
             <div className="flex flex-col gap-2">
-                <Input
-                    value={block.url}
-                    onChange={(event) => onChange({ url: event.target.value })}
-                    placeholder="https://example.com/detail.jpg"
-                    aria-label="Image URL"
-                    className={inventoryControlClassName}
-                />
+                <BlockImageField block={block} onChange={onChange} />
                 <Input
                     value={block.caption}
                     onChange={(event) =>
@@ -341,6 +357,125 @@ function BlockFields({
             placeholder="Crafted from high-quality materials…"
             aria-label="Paragraph text"
             className={inventoryTextareaClassName}
+        />
+    );
+}
+
+/**
+ * The picture inside a description block. It uploads the moment it is picked —
+ * the block stores a URL, so there is nothing to send with the item save — and
+ * shows the local file until that URL comes back.
+ */
+function BlockImageField({
+    block,
+    onChange,
+}: {
+    block: BlockDraft;
+    onChange: (patch: Partial<BlockDraft>) => void;
+}) {
+    const [uploadAsset] = useUploadAssetMutation();
+    const [deleteAsset] = useDeleteAssetMutation();
+    const { create, release } = useObjectUrls();
+    const preview = block.previewUrl || block.url;
+
+    /**
+     * Drops a picture this editor uploaded and the block no longer points at.
+     * Only pictures picked in this session have a key to delete; ones loaded
+     * with the item are left to the server, since the block may not be saved.
+     */
+    function discardUploaded(key: string | undefined) {
+        if (key) {
+            void deleteAsset(key);
+        }
+    }
+
+    async function handlePick(file: File) {
+        release(block.previewUrl);
+        const replaced = block.assetKey;
+        const previewUrl = create(file);
+        onChange({ previewUrl, uploading: true, uploadError: undefined });
+
+        try {
+            const asset = await uploadAsset(file).unwrap();
+
+            if (!asset.url) {
+                throw new Error("The upload returned no URL.");
+            }
+
+            onChange({
+                url: asset.url,
+                assetKey: asset.key,
+                previewUrl: undefined,
+                uploading: false,
+            });
+            release(previewUrl);
+            discardUploaded(replaced);
+        } catch (error) {
+            release(previewUrl);
+            onChange({
+                previewUrl: undefined,
+                uploading: false,
+                uploadError: getApiErrorMessage(
+                    error,
+                    "Unable to upload that image.",
+                ),
+            });
+        }
+    }
+
+    function handleRemove() {
+        release(block.previewUrl);
+        discardUploaded(block.assetKey);
+        onChange({
+            url: "",
+            assetKey: undefined,
+            previewUrl: undefined,
+            uploading: false,
+            uploadError: undefined,
+        });
+    }
+
+    return (
+        <ImagePicker
+            rules={blockImageRules}
+            disabled={block.uploading}
+            busy={block.uploading}
+            error={block.uploadError}
+            label={block.url ? "Replace image" : "Block image"}
+            onPick={handlePick}
+            onError={(message) => onChange({ uploadError: message })}
+            preview={
+                <span className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg bg-[#f0f1f0]">
+                    {preview ? (
+                        // Uploaded images come back as URLs; a pick previews as
+                        // a blob until then.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={preview}
+                            alt=""
+                            className="size-full object-cover"
+                        />
+                    ) : (
+                        <ImageIcon
+                            className="size-6 text-[#a3aca1]"
+                            aria-hidden="true"
+                        />
+                    )}
+                </span>
+            }
+            actions={
+                block.url ? (
+                    <Button
+                        type="button"
+                        variant="link"
+                        size="xs"
+                        onClick={handleRemove}
+                        className="h-auto px-0 text-xs text-[#6b7280]"
+                    >
+                        Remove image
+                    </Button>
+                ) : null
+            }
         />
     );
 }

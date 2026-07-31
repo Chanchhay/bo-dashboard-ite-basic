@@ -4,13 +4,9 @@ import {
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
-    inventoryValidationError,
+    readItemSave,
 } from "@/lib/api/inventory-backend";
-import {
-    inventoryItemSchema,
-    toItemRequest,
-    type InventoryItem,
-} from "@/lib/api/inventory";
+import { type InventoryItem } from "@/lib/api/inventory";
 
 export async function GET() {
     try {
@@ -27,21 +23,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const result = inventoryItemSchema.safeParse(
-            await request.json(),
-        );
+        const { body, error } = await readItemSave(request);
 
-        if (!result.success) {
-            return inventoryValidationError(result.error);
+        if (error) {
+            return error;
         }
 
         const businessId = await getInventoryBusinessId();
         const item = await backendRequest<InventoryItem>(
             `/api/v1/businesses/${businessId}/items`,
-            {
-                method: "POST",
-                body: JSON.stringify(toItemRequest(result.data)),
-            },
+            { method: "POST", body },
         );
 
         return Response.json(item, { status: 201 });

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { imageUploadRules } from "@/lib/api/image-upload";
+
 export const userProfileGenders = [
     "MALE",
     "FEMALE",
@@ -35,21 +37,12 @@ const optionalPhoneSchema = z
     );
 
 /** The `413` on the profile update is the server's own upload ceiling. */
-export const profilePictureMaxBytes = 5 * 1024 * 1024;
-export const profilePictureAccept = "image/png,image/jpeg,image/webp";
-
-/** Shared by the avatar picker and the route handler that forwards the file. */
-export function getProfilePictureError(file: File) {
-    if (!file.type.startsWith("image/")) {
-        return "Choose an image file for your profile picture.";
-    }
-
-    if (file.size > profilePictureMaxBytes) {
-        return "The picture must be 5 MB or smaller.";
-    }
-
-    return undefined;
-}
+export const profilePictureRules = imageUploadRules({
+    accept: "image/png,image/jpeg,image/webp",
+    maxBytes: 5 * 1024 * 1024,
+    subject: "your profile picture",
+    formats: "PNG, JPG or WebP",
+});
 
 // The text half of `UpdateUserProfileRequest`. The picture rides along as the
 // request's `file` part, so it is not a field here.

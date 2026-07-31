@@ -4,13 +4,9 @@ import {
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
-    inventoryValidationError,
+    readItemSave,
 } from "@/lib/api/inventory-backend";
-import {
-    inventoryItemSchema,
-    toItemRequest,
-    type InventoryItem,
-} from "@/lib/api/inventory";
+import { type InventoryItem } from "@/lib/api/inventory";
 
 type ItemRouteContext = {
     params: Promise<{ itemId: string }>;
@@ -40,12 +36,10 @@ export async function PUT(
     context: ItemRouteContext,
 ) {
     try {
-        const result = inventoryItemSchema.safeParse(
-            await request.json(),
-        );
+        const { body, error } = await readItemSave(request);
 
-        if (!result.success) {
-            return inventoryValidationError(result.error);
+        if (error) {
+            return error;
         }
 
         const [{ itemId }, businessId] = await Promise.all([
@@ -54,10 +48,7 @@ export async function PUT(
         ]);
         const item = await backendRequest<InventoryItem>(
             `/api/v1/businesses/${businessId}/items/${encodeURIComponent(itemId)}`,
-            {
-                method: "PUT",
-                body: JSON.stringify(toItemRequest(result.data)),
-            },
+            { method: "PUT", body },
         );
 
         return Response.json(item);

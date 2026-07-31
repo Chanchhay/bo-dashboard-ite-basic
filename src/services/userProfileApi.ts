@@ -26,10 +26,19 @@ export const userProfileApi = baseApi.injectEndpoints({
                 body: toUserProfileFormData(fields, file),
             }),
         }),
+        // Answers 204, so there is nothing to publish: the form patches the
+        // cached profile itself once the picture is gone.
+        deleteProfilePicture: builder.mutation<void, void>({
+            query: () => ({
+                url: "/user-profile/picture",
+                method: "DELETE",
+            }),
+        }),
     }),
 });
 
 export const {
     useGetUserProfileQuery,
     useUpdateUserProfileMutation,
+    useDeleteProfilePictureMutation,
 } = userProfileApi;

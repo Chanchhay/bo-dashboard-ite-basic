@@ -1,10 +1,8 @@
 "use client";
 
 import {
-    useEffect,
     useRef,
     useState,
-    type ChangeEvent,
     type FormEvent,
     type ReactNode,
 } from "react";
@@ -21,6 +19,10 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { controlClassName } from "@/components/ui/form-controls";
+import {
+    ImagePicker,
+    useStagedImage,
+} from "@/components/ui/image-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,14 +34,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-    getProfilePictureError,
-    profilePictureAccept,
+    profilePictureRules,
     userProfileGenders,
     userProfileSchema,
     type UserProfile,
     type UserProfileInput,
 } from "@/lib/api/user-profile";
 import {
+    useDeleteProfilePictureMutation,
     useGetUserProfileQuery,
     useUpdateUserProfileMutation,
     userProfileApi,
@@ -194,8 +196,6 @@ function AccountDetail({
 function UserProfileEditor({ profile }: { profile: UserProfile }) {
     const dispatch = useAppDispatch();
     const formRef = useRef<HTMLFormElement>(null);
-    const pictureInputRef = useRef<HTMLInputElement>(null);
-    const objectUrlRef = useRef<string | null>(null);
     const storedPicture = profile.profilePicture || "";
     const initialGender = userProfileGenders.includes(
         profile.gender as (typeof userProfileGenders)[number],
@@ -206,16 +206,12 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     // two fields this form keeps in state.
     const [firstName, setFirstName] = useState(profile.firstName || "");
     const [lastName, setLastName] = useState(profile.lastName || "");
-    // The picked file travels with the rest of the form, so it is held here
-    // alongside the blob URL that previews it until then.
-    const [pictureFile, setPictureFile] = useState<File | null>(null);
-    const [pendingPicture, setPendingPicture] = useState("");
+    // The picked file travels with the rest of the form, so it stays staged
+    // until the save carries it up.
+    const picture = useStagedImage(profilePictureRules, storedPicture);
     // Picture feedback sits under the avatar, next to the control it belongs
     // to, rather than in the form's status line.
-    const [pictureStatus, setPictureStatus] = useState<{
-        type: "success" | "error";
-        message: string;
-    } | null>(null);
+    const [pictureNote, setPictureNote] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [status, setStatus] = useState<{
         type: "success" | "error";
@@ -223,23 +219,9 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     } | null>(null);
     const [updateUserProfile, { isLoading: isSaving }] =
         useUpdateUserProfileMutation();
-    const profilePicture = pendingPicture || storedPicture;
+    const [deleteProfilePicture, { isLoading: isRemovingPicture }] =
+        useDeleteProfilePictureMutation();
     const profileName = getProfileName(firstName, lastName, profile.username);
-
-    useEffect(() => {
-        return () => {
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-            }
-        };
-    }, []);
-
-    function releaseObjectUrl() {
-        if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current);
-            objectUrlRef.current = null;
-        }
-    }
 
     /**
      * Publishes a mutation's answer to every reader of the profile — this form
@@ -255,47 +237,37 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         );
     }
 
-    function handlePictureChange(event: ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0];
-
-        if (!file) {
-            return;
-        }
-
-        // Let the same file be picked again after an error or an undo.
-        event.target.value = "";
-
-        const fileError = getProfilePictureError(file);
-
-        if (fileError) {
-            setPictureStatus({ type: "error", message: fileError });
-            return;
-        }
-
-        releaseObjectUrl();
-        objectUrlRef.current = URL.createObjectURL(file);
-        setPendingPicture(objectUrlRef.current);
-        setPictureFile(file);
-        setPictureStatus({
-            type: "success",
-            message: "New picture ready — save to apply it.",
-        });
+    function handlePicturePick(file: File) {
+        picture.pick(file);
+        setPictureNote("New picture ready — save to apply it.");
     }
 
-    /** Drops a picked picture and puts the stored one back on screen. */
-    function clearPictureChoice() {
-        releaseObjectUrl();
-        setPendingPicture("");
-        setPictureFile(null);
+    /** Clearing the avatar has its own endpoint, so it applies immediately. */
+    async function handlePictureRemove() {
+        setPictureNote(null);
+
+        try {
+            await deleteProfilePicture().unwrap();
+            picture.reset();
+            publishProfile({ ...profile, profilePicture: "" });
+            setPictureNote("Profile picture removed.");
+        } catch (error) {
+            picture.setError(
+                getApiErrorMessage(
+                    error,
+                    "Unable to remove your profile picture.",
+                ),
+            );
+        }
     }
 
     function handleCancel() {
         formRef.current?.reset();
         setFirstName(profile.firstName || "");
         setLastName(profile.lastName || "");
-        clearPictureChoice();
+        picture.reset();
         setFieldErrors({});
-        setPictureStatus(null);
+        setPictureNote(null);
         setStatus(null);
     }
 
@@ -328,16 +300,16 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             // picked, the new picture.
             const updated = await updateUserProfile({
                 ...result.data,
-                file: pictureFile,
+                file: picture.file,
             }).unwrap();
 
             publishProfile(
-                pictureFile
+                picture.file
                     ? withFreshPicture(updated, storedPicture)
                     : updated,
             );
-            clearPictureChoice();
-            setPictureStatus(null);
+            picture.reset();
+            setPictureNote(null);
             setStatus({
                 type: "success",
                 message: "Your profile was saved successfully.",
@@ -357,45 +329,72 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="flex flex-col gap-5">
                 <section className="rounded-2xl border border-[#e4eae2] bg-white p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)]">
-                    <Label
-                        className="group relative mx-auto block size-28 cursor-pointer rounded-full outline-none focus-within:ring-2 focus-within:ring-primary/40 focus-within:ring-offset-2"
-                        aria-label="Upload a profile picture"
-                    >
-                        <Input
-                            ref={pictureInputRef}
-                            type="file"
-                            accept={profilePictureAccept}
-                            className="sr-only"
-                            disabled={isSaving}
-                            onChange={handlePictureChange}
-                        />
-                        <span className="flex size-full items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
-                            {profilePicture ? (
-                                // The API supplies this URL dynamically and the
-                                // in-flight preview uses a blob URL.
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={profilePicture}
-                                    alt={`${profileName} profile`}
-                                    className="size-full object-cover"
-                                />
-                            ) : (
-                                getInitials(
-                                    firstName,
-                                    lastName,
-                                    profile.username,
-                                )
-                            )}
-                        </span>
-                        <span className="absolute right-0 bottom-0 grid size-9 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-[0_4px_12px_rgba(0,147,42,0.35)] transition-transform group-hover:scale-105">
-                            <Camera className="size-4" aria-hidden="true" />
-                        </span>
-                        {isSaving && pictureFile ? (
-                            <span className="absolute inset-0 grid place-items-center rounded-full bg-white/70 text-xs font-semibold text-primary">
-                                Uploading…
+                    <ImagePicker
+                        rules={profilePictureRules}
+                        disabled={isSaving}
+                        error={picture.error}
+                        busy={isSaving && Boolean(picture.file)}
+                        previewShape="circle"
+                        label="Profile picture"
+                        onPick={handlePicturePick}
+                        onError={picture.setError}
+                        preview={
+                            <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
+                                {picture.preview ? (
+                                    // The API supplies this URL dynamically and
+                                    // the staged preview uses a blob URL.
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={picture.preview}
+                                        alt={`${profileName} profile`}
+                                        className="size-full object-cover"
+                                    />
+                                ) : (
+                                    getInitials(
+                                        firstName,
+                                        lastName,
+                                        profile.username,
+                                    )
+                                )}
+                                <span className="absolute right-0 bottom-0 grid size-9 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-[0_4px_12px_rgba(0,147,42,0.35)]">
+                                    <Camera
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </span>
                             </span>
-                        ) : null}
-                    </Label>
+                        }
+                        actions={
+                            picture.file ? (
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    size="xs"
+                                    disabled={isSaving}
+                                    onClick={() => {
+                                        picture.reset();
+                                        setPictureNote(null);
+                                    }}
+                                    className="h-auto px-0 text-xs text-[#6b7569]"
+                                >
+                                    Undo
+                                </Button>
+                            ) : storedPicture ? (
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    size="xs"
+                                    disabled={isSaving || isRemovingPicture}
+                                    onClick={handlePictureRemove}
+                                    className="h-auto px-0 text-xs text-[#6b7569]"
+                                >
+                                    {isRemovingPicture
+                                        ? "Removing…"
+                                        : "Remove photo"}
+                                </Button>
+                            ) : null
+                        }
+                    />
 
                     <h2 className="mt-4 text-xl font-bold text-[#161d16]">
                         {profileName}
@@ -403,52 +402,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     <p className="mt-1 text-sm text-[#657064]">
                         {profile.role || "Team member"}
                     </p>
-
-                    <div className="mt-3 flex items-center justify-center gap-3">
-                        <Button
-                            type="button"
-                            variant="link"
-                            size="xs"
-                            disabled={isSaving}
-                            onClick={() => pictureInputRef.current?.click()}
-                            className="h-auto px-0 text-xs"
-                        >
-                            {storedPicture ? "Change photo" : "Upload photo"}
-                        </Button>
-                        {pictureFile ? (
-                            <Button
-                                type="button"
-                                variant="link"
-                                size="xs"
-                                disabled={isSaving}
-                                onClick={() => {
-                                    clearPictureChoice();
-                                    setPictureStatus(null);
-                                }}
-                                className="h-auto px-0 text-xs text-[#6b7569]"
-                            >
-                                Undo
-                            </Button>
-                        ) : null}
-                    </div>
-                    <p className="mt-2 text-[11px] leading-4 text-[#7a8478]">
-                        PNG, JPG or WebP up to 5&nbsp;MB. Applied when you save.
-                    </p>
                     <div className="min-h-4" aria-live="polite">
-                        {pictureStatus ? (
-                            <p
-                                className={`mt-2 text-xs ${
-                                    pictureStatus.type === "success"
-                                        ? "text-primary"
-                                        : "text-accent"
-                                }`}
-                                role={
-                                    pictureStatus.type === "error"
-                                        ? "alert"
-                                        : "status"
-                                }
-                            >
-                                {pictureStatus.message}
+                        {pictureNote ? (
+                            <p className="mt-2 text-xs text-primary" role="status">
+                                {pictureNote}
                             </p>
                         ) : null}
                     </div>
