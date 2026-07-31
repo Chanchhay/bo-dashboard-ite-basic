@@ -7,7 +7,7 @@ import inventoryUiReducer from "@/store/inventoryUiSlice";
 import { orderApi } from '@/features/order/order-api'
 import { cashRegisterApi } from '@/features/pin/cash-register-api'
 import { pinAuthApi } from '@/features/pin/pin-api'
-import { authApi } from '@/service/authApi'
+import { authApi } from '@/services/authApi'
 import sessionReducer from "@/features/sessionSlice";
 import { closeRegisterApi } from '@/features/pin/close-cash-register-api'
 import { receiptApi } from '@/features/order/receipt-api'
