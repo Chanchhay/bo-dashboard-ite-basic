@@ -163,7 +163,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
             type="button"
             onClick={handleOpenRegister}
             disabled={isLoading}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#16a34a] text-sm font-bold text-white transition-transform active:scale-[0.98] active:bg-[#15803d] disabled:opacity-40"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-bold text-white transition-transform active:scale-[0.98] active:bg-[#15803d] disabled:opacity-40"
           >
             <Calculator className="h-4 w-4" />
             {isLoading ? "Opening..." : "Open Register"}

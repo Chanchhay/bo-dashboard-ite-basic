@@ -4,6 +4,9 @@ import { pinAuthApi } from '@/features/pin/pin-api'
 import { authApi } from '@/service/authApi'
 import {configureStore} from '@reduxjs/toolkit'
 import sessionReducer from "@/features/sessionSlice";
+import { closeRegisterApi } from '@/features/pin/close-cash-register-api'
+import { receiptApi } from '@/features/order/receipt-api'
+
 
 // set up the store
 export const makeStore = () => {
@@ -15,10 +18,13 @@ export const makeStore = () => {
       [pinAuthApi.reducerPath] : pinAuthApi.reducer,
       [cashRegisterApi.reducerPath] : cashRegisterApi.reducer,
       session: sessionReducer, 
+      [closeRegisterApi.reducerPath]: closeRegisterApi.reducer,
+      [receiptApi.reducerPath] : receiptApi.reducer
     },
     middleware: (getDefaultMiddleware) => 
       getDefaultMiddleware().concat(authApi.middleware,orderApi.middleware, pinAuthApi.middleware,
-        cashRegisterApi.middleware
+        cashRegisterApi.middleware, closeRegisterApi.middleware, receiptApi.middleware
+
       )
     
   }) 

@@ -50,7 +50,7 @@ export function NewOrder({
             <ClipboardList className="h-5 w-5 text-primary" />
           </div>
           <div className="text-left">
-            <h2 className="text-lg font-bold text-gray-900">New order</h2>
+            <h2 className="text-lg font-bold">New order</h2>
             <p className="text-sm text-gray-500">
               Name this order to find it easily later
             </p>
@@ -59,8 +59,8 @@ export function NewOrder({
 
         <div className="flex flex-col gap-4 pt-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-800">
-              Order name <span className="text-red-500">*</span>
+            <label className="text-sm font-semibold">
+              Order name <span className="text-accent">*</span>
             </label>
             <input
               value={name}
@@ -69,13 +69,13 @@ export function NewOrder({
                 setError("");
               }}
               placeholder="Ex: John, Order 5, Table 2..."
-              className="w-full rounded-xl border-0 bg-gray-100 px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full rounded-xl border-0 bg-gray-100 px-4 py-3 text-sm  placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-primary"
             />
             {error && <p className="text-xs text-accent">{error}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-800">
+            <label className="text-sm font-semibold ">
               Comment (optional)
             </label>
             <textarea
@@ -83,11 +83,11 @@ export function NewOrder({
               onChange={(e) => setComment(e.target.value)}
               placeholder="Notes, instructions..."
               rows={4}
-              className="w-full resize-none rounded-xl border-0 bg-gray-100 px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full resize-none rounded-xl border-0 bg-gray-100 px-4 py-3 text-sm  placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
-          <div className="rounded-xl bg-gray-100 px-4 py-3 text-sm text-gray-600">
+          <div className="rounded-xl bg-gray-100 px-4 py-3 text-sm text-gray-500">
             {itemCount} {itemCount === 1 ? "item" : "items"} in cart
           </div>
 
@@ -103,7 +103,7 @@ export function NewOrder({
               type="button"
               onClick={handleCreate}
               disabled={isCreating}
-              className="flex-1 rounded-xl bg-green-600 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
             >
               {isCreating ? "Creating..." : "Create order"}
             </button>

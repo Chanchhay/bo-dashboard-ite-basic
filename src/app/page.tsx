@@ -1,18 +1,8 @@
-
+import { OrdersList } from "@/components/pos/order/order-list";
 import { OrderTable } from "@/components/pos/order/order-table";
 
-
-
-
-
-export default function Home(){
-  return(
-    <div className="">
-      {/* <PinPad/> */}
-      {/* <CashRegister/> */}
-      {/* <PosButton/> */}
-      <OrderTable/>
-    </div>
-  )
+export default function HomePage(){
+  return(<div>
+    <OrdersList/>
+  </div>)
 }
-
