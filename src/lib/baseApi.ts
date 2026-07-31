@@ -19,6 +19,8 @@ export const baseApi = createApi({
         "Staff",
         "BusinessRoles",
         "AuditLogs",
+        "SalesChannels",
+        "ItemChannels",
     ],
     endpoints: () => ({}),
 });
