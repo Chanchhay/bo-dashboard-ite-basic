@@ -1,0 +1,739 @@
+"use client";
+
+import { Autocomplete } from "@base-ui/react/autocomplete";
+import { FormEvent, useState } from "react";
+import {
+    ArrowLeftRight,
+    ChevronDown,
+    LoaderCircle,
+    Plus,
+    X,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
+import {
+    businessCurrencyConfigurationSchema,
+    normalizeCurrencyConfiguration,
+    type BusinessCurrency,
+    type BusinessCurrencyConfiguration,
+} from "@/lib/api/currency";
+import {
+    useGetBusinessCurrenciesQuery,
+    useUpdateBusinessCurrenciesMutation,
+} from "@/services/currencyApi";
+
+type Status = {
+    type: "error" | "success";
+    message: string;
+};
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
+    ) {
+        return error.data.message;
+    }
+
+    return fallback;
+}
+
+function getCurrencyDetails(code: string) {
+    const normalizedInput = code.trim().toUpperCase();
+    const normalizedCode =
+        normalizedInput.match(/^[A-Z]{3}$/)?.[0] ||
+        normalizedInput.match(/\(([A-Z]{3})\)$/)?.[1] ||
+        "";
+
+    if (!/^[A-Z]{3}$/.test(normalizedCode)) {
+        return null;
+    }
+
+    try {
+        const name =
+            new Intl.DisplayNames(["en"], { type: "currency" }).of(
+                normalizedCode,
+            ) || normalizedCode;
+        const symbol =
+            new Intl.NumberFormat("en", {
+                style: "currency",
+                currency: normalizedCode,
+                currencyDisplay: "narrowSymbol",
+            })
+                .formatToParts(0)
+                .find((part) => part.type === "currency")?.value ||
+            normalizedCode;
+
+        return { code: normalizedCode, name, symbol };
+    } catch {
+        return null;
+    }
+}
+
+const supportedCurrencyOptions = Intl.supportedValuesOf("currency").flatMap(
+    (code) => {
+        const currency = getCurrencyDetails(code);
+
+        return currency
+            ? [
+                  {
+                      value: currency.code,
+                      label: `${currency.name} (${currency.code})`,
+                  },
+              ]
+            : [];
+    },
+);
+
+type CurrencyOption = (typeof supportedCurrencyOptions)[number];
+
+function CurrencyAutocomplete({
+    value,
+    onValueChange,
+    options,
+}: {
+    value: string;
+    onValueChange: (value: string) => void;
+    options: CurrencyOption[];
+}) {
+    return (
+        <Autocomplete.Root
+            items={options}
+            value={value}
+            onValueChange={onValueChange}
+            itemToStringValue={(option) => option.label}
+            openOnInputClick
+            autoHighlight
+        >
+            <Autocomplete.InputGroup className="relative h-[38px] min-w-[240px] flex-1">
+                <Autocomplete.Input
+                    id="add-currency"
+                    aria-label="Search or enter a three-letter currency code"
+                    placeholder="Search or enter a currency..."
+                    className="h-full w-full rounded-lg border-0 bg-transparent px-3 pr-10 text-base text-[#1a222b] outline-none placeholder:text-[#9ca3af] focus-visible:ring-0"
+                />
+                <Autocomplete.Trigger
+                    type="button"
+                    aria-label="Show currency options"
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-lg text-[#6b7280] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                    <ChevronDown className="size-4" />
+                </Autocomplete.Trigger>
+            </Autocomplete.InputGroup>
+
+            <Autocomplete.Portal>
+                <Autocomplete.Positioner
+                    sideOffset={4}
+                    align="start"
+                    className="isolate z-50 outline-none"
+                >
+                    <Autocomplete.Popup className="w-(--anchor-width) min-w-64 overflow-hidden rounded-xl bg-white p-1.5 text-[#1a222b] shadow-lg ring-1 ring-[#e8e8e8]">
+                        <Autocomplete.Empty className="px-3 py-3 text-sm text-[#6b7280]">
+                            No matching currency. You can enter a custom
+                            three-letter code.
+                        </Autocomplete.Empty>
+                        <Autocomplete.List className="max-h-72 overflow-y-auto overscroll-contain outline-none">
+                            {(option: CurrencyOption) => (
+                                <Autocomplete.Item
+                                    key={option.value}
+                                    value={option}
+                                    className="flex cursor-default items-center rounded-lg px-3 py-2.5 text-base outline-none select-none data-highlighted:bg-primary/10 data-highlighted:text-primary"
+                                >
+                                    <span>{option.label}</span>
+                                </Autocomplete.Item>
+                            )}
+                        </Autocomplete.List>
+                    </Autocomplete.Popup>
+                </Autocomplete.Positioner>
+            </Autocomplete.Portal>
+        </Autocomplete.Root>
+    );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="flex items-center gap-3">
+            <span className="h-6 w-1.5 rounded-full bg-[#436746]" />
+            <h2 className="text-xl leading-5 font-semibold tracking-[0.5px] text-primary uppercase">
+                {children}
+            </h2>
+        </div>
+    );
+}
+
+function CurrencyEditor({
+    initialConfiguration,
+}: {
+    initialConfiguration: BusinessCurrencyConfiguration;
+}) {
+    const normalized = normalizeCurrencyConfiguration(
+        initialConfiguration,
+    );
+    const [currencies, setCurrencies] = useState(normalized.currencies);
+    const [baseCurrency, setBaseCurrency] = useState(
+        normalized.baseCurrency,
+    );
+    const [selectedTarget, setSelectedTarget] = useState(
+        normalized.currencies.find(
+            (currency) => currency.code !== normalized.baseCurrency,
+        )?.code || "",
+    );
+    const [newCurrencyCode, setNewCurrencyCode] = useState("");
+    const [status, setStatus] = useState<Status | null>(null);
+    const [updateCurrencies, updateState] =
+        useUpdateBusinessCurrenciesMutation();
+
+    const base =
+        currencies.find((currency) => currency.code === baseCurrency) ||
+        currencies[0];
+    const target =
+        currencies.find((currency) => currency.code === selectedTarget) ||
+        currencies.find((currency) => currency.code !== baseCurrency);
+    const configuredCurrencyCodes = new Set(
+        currencies.map((currency) => currency.code),
+    );
+    const availableCurrencyOptions = supportedCurrencyOptions.filter(
+        (option) => !configuredCurrencyCodes.has(option.value),
+    );
+
+    function updateCurrency(
+        code: string,
+        patch: Partial<BusinessCurrency>,
+    ) {
+        setCurrencies((current) =>
+            current.map((currency) =>
+                currency.code === code
+                    ? { ...currency, ...patch }
+                    : currency,
+            ),
+        );
+        setStatus(null);
+    }
+
+    function addCurrency() {
+        const details = getCurrencyDetails(newCurrencyCode);
+
+        if (!details) {
+            setStatus({
+                type: "error",
+                message: "Enter a valid three-letter currency code.",
+            });
+            return;
+        }
+
+        if (
+            currencies.some(
+                (currency) => currency.code === details.code,
+            )
+        ) {
+            setStatus({
+                type: "error",
+                message: `${details.code} is already configured.`,
+            });
+            return;
+        }
+
+        setCurrencies((current) => [
+            ...current,
+            {
+                ...details,
+                exchangeRate: 1,
+                decimalPlaces: 2,
+            },
+        ]);
+        setSelectedTarget(details.code);
+        setNewCurrencyCode("");
+        setStatus(null);
+    }
+
+    function removeCurrency(code: string) {
+        if (code === baseCurrency) {
+            setStatus({
+                type: "error",
+                message: "Choose another base currency before removing this one.",
+            });
+            return;
+        }
+
+        const remaining = currencies.filter(
+            (currency) => currency.code !== code,
+        );
+        setCurrencies(remaining);
+        if (selectedTarget === code) {
+            setSelectedTarget(
+                remaining.find(
+                    (currency) => currency.code !== baseCurrency,
+                )?.code || "",
+            );
+        }
+        setStatus(null);
+    }
+
+    function changeBaseCurrency(code: string | null) {
+        if (!code || code === baseCurrency) {
+            return;
+        }
+
+        const nextBase = currencies.find(
+            (currency) => currency.code === code,
+        );
+
+        if (!nextBase || nextBase.exchangeRate <= 0) {
+            setStatus({
+                type: "error",
+                message: "Set a positive exchange rate before using this as the base currency.",
+            });
+            return;
+        }
+
+        setCurrencies((current) =>
+            current.map((currency) => ({
+                ...currency,
+                exchangeRate:
+                    currency.code === code
+                        ? 1
+                        : currency.exchangeRate / nextBase.exchangeRate,
+            })),
+        );
+        setBaseCurrency(code);
+        if (selectedTarget === code) {
+            setSelectedTarget(baseCurrency);
+        }
+        setStatus(null);
+    }
+
+    function swapCalculatorCurrencies() {
+        if (!target) {
+            return;
+        }
+
+        changeBaseCurrency(target.code);
+    }
+
+    function resetForm() {
+        setCurrencies(normalized.currencies);
+        setBaseCurrency(normalized.baseCurrency);
+        setSelectedTarget(
+            normalized.currencies.find(
+                (currency) =>
+                    currency.code !== normalized.baseCurrency,
+            )?.code || "",
+        );
+        setNewCurrencyCode("");
+        setStatus(null);
+    }
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setStatus(null);
+
+        const result = businessCurrencyConfigurationSchema.safeParse({
+            baseCurrency,
+            currencies,
+        });
+
+        if (!result.success) {
+            setStatus({
+                type: "error",
+                message:
+                    result.error.issues[0]?.message ||
+                    "Check the currency configuration.",
+            });
+            return;
+        }
+
+        try {
+            const updated = await updateCurrencies(result.data).unwrap();
+            const next = normalizeCurrencyConfiguration(updated);
+            setCurrencies(next.currencies);
+            setBaseCurrency(next.baseCurrency);
+            setSelectedTarget(
+                next.currencies.find(
+                    (currency) => currency.code !== next.baseCurrency,
+                )?.code || "",
+            );
+            setStatus({
+                type: "success",
+                message: "Currency configuration saved successfully.",
+            });
+        } catch (error) {
+            setStatus({
+                type: "error",
+                message: getApiErrorMessage(
+                    error,
+                    "Unable to save the currency configuration.",
+                ),
+            });
+        }
+    }
+
+    return (
+        <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="flex min-h-[795px] flex-col"
+        >
+            <section className="rounded-2xl bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]">
+                <SectionTitle>General Configuration</SectionTitle>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <Label
+                            htmlFor="base-currency"
+                            className="mb-3 ml-1 block text-base font-medium text-[#424841]"
+                        >
+                            Base Currency
+                        </Label>
+                        <SelectField
+                            id="base-currency"
+                            value={baseCurrency}
+                            onValueChange={changeBaseCurrency}
+                            className="rounded-xl border-[#e8e8e8] bg-white px-4 text-base shadow-none data-[size=default]:h-14"
+                            options={currencies.map((currency) => ({
+                                value: currency.code,
+                                label: `${currency.name} (${currency.code})`,
+                            }))}
+                        />
+                    </div>
+
+                    <div>
+                        <Label
+                            htmlFor="decimal-places"
+                            className="mb-3 ml-1 block text-base font-medium text-[#424841]"
+                        >
+                            Decimal Places
+                        </Label>
+                        <SelectField
+                            id="decimal-places"
+                            value={String(base?.decimalPlaces ?? 2)}
+                            onValueChange={(value) => {
+                                if (value && base) {
+                                    updateCurrency(base.code, {
+                                        decimalPlaces: Number(value),
+                                    });
+                                }
+                            }}
+                            className="rounded-xl border-[#e8e8e8] bg-white px-4 text-base shadow-none data-[size=default]:h-14"
+                            options={[
+                                { value: "0", label: "0 decimals" },
+                                { value: "1", label: "1 decimal" },
+                                {
+                                    value: "2",
+                                    label: "2 decimals (Standard)",
+                                },
+                                { value: "3", label: "3 decimals" },
+                            ]}
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-7">
+                    <Label
+                        htmlFor="add-currency"
+                        className="mb-3 ml-1 block text-base font-medium text-[#424841]"
+                    >
+                        Currencies
+                    </Label>
+                    <div className="flex min-h-[56px] flex-wrap items-center gap-2 rounded-xl border border-[#e8e8e8] bg-white p-2">
+                        {currencies.map((currency) => {
+                            const isSelected =
+                                currency.code === selectedTarget;
+                            return (
+                                <div
+                                    key={currency.code}
+                                    className={`flex h-[38px] items-center gap-2 rounded-full px-3 text-sm font-medium tracking-[0.14px] text-[#2b4e30] outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                                        isSelected
+                                            ? "bg-[#aee0b1] ring-1 ring-primary/25"
+                                            : "bg-[#c4edc4]"
+                                    }`}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (
+                                                currency.code !==
+                                                baseCurrency
+                                            ) {
+                                                setSelectedTarget(
+                                                    currency.code,
+                                                );
+                                            }
+                                        }}
+                                        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    >
+                                        {currency.code}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={`Remove ${currency.code}`}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            removeCurrency(
+                                                currency.code,
+                                            );
+                                        }}
+                                        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    >
+                                        <X className="size-3" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                        <CurrencyAutocomplete
+                            value={newCurrencyCode}
+                            onValueChange={setNewCurrencyCode}
+                            options={availableCurrencyOptions}
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={addCurrency}
+                            disabled={!newCurrencyCode.trim()}
+                            aria-label="Add currency"
+                        >
+                            <Plus className="size-5" />
+                        </Button>
+                    </div>
+                </div>
+            </section>
+
+            <section className="mt-4 rounded-2xl bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]">
+                <SectionTitle>Exchange Rate &amp; Calculator</SectionTitle>
+
+                <div className="mt-5 max-w-[630px] rounded-2xl border border-[#f5f5f5] p-4 sm:p-6">
+                    {base && target ? (
+                        <>
+                            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+                                <div className="min-w-0">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <Label
+                                            htmlFor="calculator-base-currency"
+                                            className="text-lg font-semibold text-[#020409]/70"
+                                        >
+                                            Base
+                                        </Label>
+                                        <SelectField
+                                            id="calculator-base-currency"
+                                            value={base.code}
+                                            onValueChange={(code) => {
+                                                if (
+                                                    code === target.code
+                                                ) {
+                                                    swapCalculatorCurrencies();
+                                                } else {
+                                                    changeBaseCurrency(code);
+                                                }
+                                            }}
+                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] bg-white px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            options={currencies.map(
+                                                (currency) => ({
+                                                    value: currency.code,
+                                                    label: currency.code,
+                                                }),
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[#e8e8e8] bg-white px-4">
+                                        <span className="text-base font-bold text-[#436746]">
+                                            {base.symbol}
+                                        </span>
+                                        <span className="px-3 text-2xl font-bold text-[#1a1c19]">
+                                            1
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={swapCalculatorCurrencies}
+                                    aria-label={`Switch ${base.code} and ${target.code}`}
+                                    className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] text-[#826b14] outline-none transition-colors hover:bg-[#efd276] focus-visible:ring-2 focus-visible:ring-[#826b14]/40 sm:mb-[11px]"
+                                >
+                                    <ArrowLeftRight className="size-4" />
+                                </button>
+
+                                <div className="min-w-0">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <Label
+                                            htmlFor="exchange-currency"
+                                            className="text-lg font-semibold text-[#020409]/70"
+                                        >
+                                            Exchange
+                                        </Label>
+                                        <SelectField
+                                            id="exchange-currency"
+                                            value={target.code}
+                                            onValueChange={setSelectedTarget}
+                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] bg-white px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            options={currencies
+                                                .filter(
+                                                    (currency) =>
+                                                        currency.code !==
+                                                        baseCurrency,
+                                                )
+                                                .map((currency) => ({
+                                                    value: currency.code,
+                                                    label: currency.code,
+                                                }))}
+                                        />
+                                    </div>
+                                    <div className="flex h-[54px] items-center gap-1 rounded-xl border border-[#e8e8e8] bg-white px-4">
+                                        <span className="text-base font-bold text-[#436746]">
+                                            {target.symbol}
+                                        </span>
+                                        <Input
+                                            id="exchange-rate"
+                                            aria-label={`Exchange rate for ${target.code}`}
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            value={target.exchangeRate}
+                                            onChange={(event) =>
+                                                updateCurrency(
+                                                    target.code,
+                                                    {
+                                                        exchangeRate: Number(
+                                                            event.target
+                                                                .value,
+                                                        ),
+                                                    },
+                                                )
+                                            }
+                                            className="h-12 rounded-none border-0 bg-transparent px-3 text-2xl font-bold text-[#1a1c19] shadow-none focus-visible:ring-0"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex min-h-36 items-center justify-center rounded-xl bg-[#f8f9f8] px-6 text-center text-sm text-[#636b74]">
+                            Add a second currency to configure an exchange
+                            rate.
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-6">
+                {status ? (
+                    <p
+                        role={status.type === "error" ? "alert" : "status"}
+                        className={`mr-auto text-sm font-medium ${
+                            status.type === "error"
+                                ? "text-accent"
+                                : "text-primary"
+                        }`}
+                    >
+                        {status.message}
+                    </p>
+                ) : null}
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetForm}
+                    disabled={updateState.isLoading}
+                    size="lg"
+                        className="min-w-[124px]"
+                >
+                    Cancel
+                </Button>
+                <Button
+                    type="submit"
+                    disabled={updateState.isLoading}
+                    size="lg"
+                        className="min-w-[124px]"
+                >
+                    {updateState.isLoading ? (
+                        <>
+                            <LoaderCircle className="animate-spin" />
+                            Saving…
+                        </>
+                    ) : (
+                        "Save"
+                    )}
+                </Button>
+            </div>
+        </form>
+    );
+}
+
+function CurrencyQueryError({
+    message,
+    onRetry,
+}: {
+    message: string;
+    onRetry: () => void;
+}) {
+    return (
+        <div
+            role="alert"
+            className="rounded-2xl border border-accent/20 bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]"
+        >
+            <h2 className="text-lg font-bold text-[#161d16]">
+                Unable to load currencies
+            </h2>
+            <p className="mt-2 text-sm text-[#636b74]">{message}</p>
+            <Button
+                type="button"
+                onClick={onRetry}
+                className="mt-5"
+            >
+                Try again
+            </Button>
+        </div>
+    );
+}
+
+export default function BusinessCurrencyForm() {
+    const query = useGetBusinessCurrenciesQuery();
+
+    if (query.isLoading) {
+        return (
+            <div
+                aria-label="Loading currency configuration"
+                className="min-h-[795px] animate-pulse rounded-2xl bg-[#f7f8f7]"
+            />
+        );
+    }
+
+    if (query.error || !query.data) {
+        return (
+            <CurrencyQueryError
+                message={getApiErrorMessage(
+                    query.error,
+                    "The business currency API could not be reached.",
+                )}
+                onRetry={() => void query.refetch()}
+            />
+        );
+    }
+
+    const configuration = normalizeCurrencyConfiguration(query.data);
+    const editorKey = [
+        configuration.baseCurrency,
+        configuration.displayCurrency,
+        ...configuration.currencies.flatMap((currency) => [
+            currency.code,
+            currency.name,
+            currency.symbol,
+            currency.exchangeRate,
+            currency.decimalPlaces,
+        ]),
+    ].join("|");
+
+    return (
+        <CurrencyEditor
+            key={editorKey}
+            initialConfiguration={configuration}
+        />
+    );
+}

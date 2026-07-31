@@ -1,8 +1,5 @@
-import { OrdersList } from "@/components/pos/order/order-list";
-import { OrderTable } from "@/components/pos/order/order-table";
+import { redirect } from "next/navigation";
 
-export default function HomePage(){
-  return(<div>
-    <OrdersList/>
-  </div>)
+export default function Home() {
+    redirect("/login");
 }
