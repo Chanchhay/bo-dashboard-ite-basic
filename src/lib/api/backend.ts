@@ -83,7 +83,12 @@ export async function backendRequest<T>(
         headers: {
             Accept: "application/json",
             Authorization: `Bearer ${accessToken}`,
-            ...(init?.body ? { "Content-Type": "application/json" } : {}),
+            // `FormData` bodies must keep the boundary `fetch` generates for
+            // them, so only JSON payloads (always sent as strings) get a
+            // content type here.
+            ...(typeof init?.body === "string"
+                ? { "Content-Type": "application/json" }
+                : {}),
             ...init?.headers,
         },
     });

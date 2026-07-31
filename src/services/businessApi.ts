@@ -26,6 +26,28 @@ export const businessApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["Business"],
         }),
+        // The two logo endpoints deliberately skip `invalidatesTags`: the
+        // profile form runs them as one step of a save and the `PUT` that
+        // follows refreshes the cached business once, instead of remounting
+        // the form on top of a half-saved profile.
+        uploadBusinessLogo: builder.mutation<Business, File>({
+            query: (file) => {
+                const body = new FormData();
+                body.append("file", file);
+
+                return {
+                    url: "/business-profile/logo",
+                    method: "POST",
+                    body,
+                };
+            },
+        }),
+        deleteBusinessLogo: builder.mutation<Business, void>({
+            query: () => ({
+                url: "/business-profile/logo",
+                method: "DELETE",
+            }),
+        }),
     }),
 });
 
@@ -33,4 +55,6 @@ export const {
     useGetBusinessProfileQuery,
     useGetBusinessCategoriesQuery,
     useUpdateBusinessProfileMutation,
+    useUploadBusinessLogoMutation,
+    useDeleteBusinessLogoMutation,
 } = businessApi;

@@ -77,17 +77,34 @@ export const businessProfileSchema = z.object({
         .string()
         .trim()
         .max(255, "Google Map URL must be 255 characters or fewer."),
-    logo: z.string().trim().max(255),
 });
+
+/** Matches the backend's upload limits for `POST /businesses/{id}/logo`. */
+export const businessLogoMaxBytes = 5 * 1024 * 1024;
+export const businessLogoAccept = "image/png,image/jpeg,image/webp,image/svg+xml";
+
+/** Shared by the logo picker and the route handler that forwards the file. */
+export function getBusinessLogoError(file: File) {
+    if (!file.type.startsWith("image/")) {
+        return "Choose an image file for the logo.";
+    }
+
+    if (file.size > businessLogoMaxBytes) {
+        return "The logo must be 5 MB or smaller.";
+    }
+
+    return undefined;
+}
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 
+// `UpdateBusinessRequest` carries no logo: the image is owned by the
+// `/logo` upload and delete endpoints instead.
 export type UpdateBusinessInput = {
     name: string;
     categoryId?: string;
     email?: string;
     address: string;
-    logo?: string;
     about: string;
     phoneNumber?: string;
     googleMap: string;
@@ -106,6 +123,5 @@ export function toUpdateBusinessInput(
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         ...(input.email ? { email: input.email } : {}),
         ...(input.phoneNumber ? { phoneNumber: input.phoneNumber } : {}),
-        ...(input.logo ? { logo: input.logo } : {}),
     };
 }

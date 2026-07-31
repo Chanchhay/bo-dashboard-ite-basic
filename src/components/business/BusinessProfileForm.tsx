@@ -27,17 +27,23 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    businessLogoAccept,
     businessProfileSchema,
+    getBusinessLogoError,
     type Business,
     type BusinessCategory,
     type BusinessProfileInput,
     type BusinessSubCategory,
 } from "@/lib/api/business";
 import {
+    businessApi,
+    useDeleteBusinessLogoMutation,
     useGetBusinessCategoriesQuery,
     useGetBusinessProfileQuery,
     useUpdateBusinessProfileMutation,
+    useUploadBusinessLogoMutation,
 } from "@/services/businessApi";
+import { useAppDispatch } from "@/store/hooks";
 
 const asset = (name: string) => `/business-profile-assets/${name}`;
 
@@ -159,13 +165,24 @@ function BusinessProfileEditor({
     business: Business;
     businessTypes: BusinessSubCategory[];
 }) {
-    const [updateBusinessProfile, { isLoading }] =
+    const dispatch = useAppDispatch();
+    const [updateBusinessProfile, { isLoading: isSaving }] =
         useUpdateBusinessProfileMutation();
+    const [uploadBusinessLogo, { isLoading: isUploadingLogo }] =
+        useUploadBusinessLogoMutation();
+    const [deleteBusinessLogo, { isLoading: isDeletingLogo }] =
+        useDeleteBusinessLogoMutation();
+    const isLoading = isSaving || isUploadingLogo || isDeletingLogo;
     const formRef = useRef<HTMLFormElement>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
     const objectUrlRef = useRef<string | null>(null);
     const initialLogo = business.logo || "";
     const [logoPreview, setLogoPreview] = useState(initialLogo);
-    const [hasLocalPreview, setHasLocalPreview] = useState(false);
+    // The picked file and the "remove" intent are both applied on save, so a
+    // cancelled edit never touches the stored logo.
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoRemoved, setLogoRemoved] = useState(false);
+    const [logoError, setLogoError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [status, setStatus] = useState<{
         type: "success" | "error";
@@ -180,6 +197,13 @@ function BusinessProfileEditor({
         };
     }, []);
 
+    function releaseObjectUrl() {
+        if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
+        }
+    }
+
     function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
 
@@ -187,25 +211,56 @@ function BusinessProfileEditor({
             return;
         }
 
-        if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current);
+        const fileError = getBusinessLogoError(file);
+
+        if (fileError) {
+            setLogoError(fileError);
+            event.target.value = "";
+            return;
         }
 
+        releaseObjectUrl();
         objectUrlRef.current = URL.createObjectURL(file);
         setLogoPreview(objectUrlRef.current);
-        setHasLocalPreview(true);
+        setLogoFile(file);
+        setLogoRemoved(false);
+        setLogoError(null);
+    }
+
+    function handleLogoRemove() {
+        releaseObjectUrl();
+
+        if (logoInputRef.current) {
+            logoInputRef.current.value = "";
+        }
+
+        setLogoPreview("");
+        setLogoFile(null);
+        setLogoRemoved(Boolean(initialLogo));
+        setLogoError(null);
+    }
+
+    /** Drops a staged upload or removal and restores the stored logo. */
+    function handleCancelLogoChange() {
+        releaseObjectUrl();
+
+        if (logoInputRef.current) {
+            logoInputRef.current.value = "";
+        }
+
+        setLogoPreview(initialLogo);
+        setLogoFile(null);
+        setLogoRemoved(false);
+        setLogoError(null);
     }
 
     function handleCancel() {
         formRef.current?.reset();
-
-        if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current);
-            objectUrlRef.current = null;
-        }
-
+        releaseObjectUrl();
         setLogoPreview(initialLogo);
-        setHasLocalPreview(false);
+        setLogoFile(null);
+        setLogoRemoved(false);
+        setLogoError(null);
         setFieldErrors({});
         setStatus(null);
     }
@@ -224,7 +279,6 @@ function BusinessProfileEditor({
             phoneNumber: String(formData.get("phoneNumber") || ""),
             address: String(formData.get("address") || ""),
             googleMap: String(formData.get("googleMap") || ""),
-            logo: String(formData.get("logo") || ""),
         });
 
         if (!result.success) {
@@ -238,13 +292,31 @@ function BusinessProfileEditor({
 
         setFieldErrors({});
 
+        let logoChanged = false;
+
         try {
+            // The logo lives behind its own endpoints, so it is sent first and
+            // the profile update below refreshes the cached business for both.
+            if (logoFile) {
+                await uploadBusinessLogo(logoFile).unwrap();
+                logoChanged = true;
+            } else if (logoRemoved) {
+                await deleteBusinessLogo().unwrap();
+                logoChanged = true;
+            }
+
             await updateBusinessProfile(result.data).unwrap();
             setStatus({
                 type: "success",
                 message: "Business profile saved successfully.",
             });
         } catch (error) {
+            if (logoChanged) {
+                // The logo already changed on the server; pull the business
+                // back so the form is not left showing a stale image.
+                dispatch(businessApi.util.invalidateTags(["Business"]));
+            }
+
             setStatus({
                 type: "error",
                 message: getApiErrorMessage(
@@ -262,47 +334,84 @@ function BusinessProfileEditor({
             noValidate
             className="flex min-h-[847px] flex-col gap-6 rounded-xl bg-white p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
         >
-            <Input type="hidden" name="logo" value={initialLogo} />
-
             <div className="grid gap-[30px] xl:grid-cols-[303px_minmax(0,1fr)]">
-                <Label className="group flex min-h-[281px] cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-[rgba(194,200,190,0.3)] bg-white px-5 pt-9 pb-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] outline-none focus-within:border-primary">
-                    <Input
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={handleLogoChange}
-                    />
-                    <span className="relative flex size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8]">
-                        {logoPreview ? (
-                            // The API supplies this URL dynamically and the local preview uses a blob URL.
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={logoPreview}
-                                alt="Business logo preview"
-                                className="size-full object-cover"
-                            />
-                        ) : (
-                            <Image
-                                src={asset("camera.svg")}
-                                alt=""
-                                width={33}
-                                height={30}
-                                className="h-[30px] w-[33px]"
-                            />
-                        )}
-                    </span>
-                    <span className="mt-4 text-base leading-6 font-bold text-[#1a222b]">
-                        Business Logo
-                    </span>
-                    <span className="mt-1 max-w-[210px] text-center text-[11px] leading-[16.5px] font-normal text-[#424841]">
-                        Drag and drop your logo or click to browse files.
-                    </span>
-                    {hasLocalPreview ? (
-                        <span className="mt-2 text-center text-[10px] leading-4 font-normal text-[#6b7280]">
-                            Preview only — the API has no file-upload endpoint.
+                <div className="flex min-h-[281px] flex-col items-center rounded-2xl border-2 border-dashed border-[rgba(194,200,190,0.3)] bg-white px-5 pt-9 pb-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] focus-within:border-primary">
+                    <Label className="flex cursor-pointer flex-col items-center outline-none">
+                        <Input
+                            ref={logoInputRef}
+                            type="file"
+                            accept={businessLogoAccept}
+                            className="sr-only"
+                            disabled={isLoading}
+                            onChange={handleLogoChange}
+                        />
+                        <span className="relative flex size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8]">
+                            {logoPreview ? (
+                                // The API supplies this URL dynamically and the local preview uses a blob URL.
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={logoPreview}
+                                    alt="Business logo preview"
+                                    className="size-full object-cover"
+                                />
+                            ) : (
+                                <Image
+                                    src={asset("camera.svg")}
+                                    alt=""
+                                    width={33}
+                                    height={30}
+                                    className="h-[30px] w-[33px]"
+                                />
+                            )}
                         </span>
-                    ) : null}
-                </Label>
+                        <span className="mt-4 text-base leading-6 font-bold text-[#1a222b]">
+                            Business Logo
+                        </span>
+                        <span className="mt-1 max-w-[210px] text-center text-[11px] leading-[16.5px] font-normal text-[#424841]">
+                            Click to browse files. PNG, JPG, WebP or SVG up to
+                            5&nbsp;MB.
+                        </span>
+                    </Label>
+
+                    <div className="mt-2 flex min-h-8 flex-col items-center gap-1">
+                        {logoError ? (
+                            <p
+                                className="text-center text-[11px] leading-4 text-accent"
+                                role="alert"
+                            >
+                                {logoError}
+                            </p>
+                        ) : null}
+                        {logoFile ? (
+                            <p className="text-center text-[10px] leading-4 text-[#6b7280]">
+                                {logoFile.name} — uploads when you save.
+                            </p>
+                        ) : null}
+                        {logoRemoved ? (
+                            <p className="text-center text-[10px] leading-4 text-[#6b7280]">
+                                Logo removed — applies when you save.
+                            </p>
+                        ) : null}
+                        {logoPreview || logoRemoved ? (
+                            <Button
+                                type="button"
+                                variant="link"
+                                size="xs"
+                                disabled={isLoading}
+                                onClick={
+                                    logoFile || logoRemoved
+                                        ? handleCancelLogoChange
+                                        : handleLogoRemove
+                                }
+                                className="h-auto px-0 text-[11px] text-[#6b7280]"
+                            >
+                                {logoFile || logoRemoved
+                                    ? "Undo logo change"
+                                    : "Remove logo"}
+                            </Button>
+                        ) : null}
+                    </div>
+                </div>
 
                 <section className="rounded-2xl bg-white/90 px-6">
                     <SectionTitle>Business Identity</SectionTitle>
