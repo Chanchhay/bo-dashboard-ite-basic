@@ -4694,6 +4694,14 @@
                             "type": "string",
                             "format": "uuid"
                         }
+                    },
+                    {
+                        "name": "pageable",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/Pageable"
+                        }
                     }
                 ],
                 "responses": {
@@ -4702,10 +4710,7 @@
                         "content": {
                             "*/*": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/ItemResponse"
-                                    }
+                                    "$ref": "#/components/schemas/PagedModelItemResponse"
                                 }
                             }
                         }
@@ -4849,6 +4854,83 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Content Too Large",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/businesses/{businessId}/items/filter": {
+            "post": {
+                "tags": ["item-controller"],
+                "operationId": "filterItemsDynamic",
+                "parameters": [
+                    {
+                        "name": "businessId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "pageable",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/Pageable"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestDto"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PagedModelItemResponse"
                                 }
                             }
                         }
@@ -9284,6 +9366,168 @@
                 }
             }
         },
+        "/api/v1/businesses/{businessId}/items/{itemId}/barcode/image": {
+            "get": {
+                "tags": ["item-controller"],
+                "operationId": "generateItemBarcodeImage",
+                "parameters": [
+                    {
+                        "name": "businessId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "itemId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "width",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "height",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "image/png": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Content Too Large",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/businesses/{businessId}/items/search": {
+            "get": {
+                "tags": ["item-controller"],
+                "operationId": "searchItems",
+                "parameters": [
+                    {
+                        "name": "businessId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ItemSearchFilter"
+                        }
+                    },
+                    {
+                        "name": "pageable",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/Pageable"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PagedModelItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Content Too Large",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/businesses/{businessId}/items/barcode/{barcode}": {
             "get": {
                 "tags": ["item-controller"],
@@ -9314,6 +9558,83 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Content Too Large",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/businesses/{businessId}/items/barcode/image": {
+            "get": {
+                "tags": ["item-controller"],
+                "operationId": "generateBarcodeImageByText",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "width",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "height",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "image/png": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
                                 }
                             }
                         }
@@ -12761,6 +13082,116 @@
                     }
                 }
             },
+            "RequestDto": {
+                "type": "object",
+                "properties": {
+                    "searchRequestDto": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SearchRequestDto"
+                        }
+                    },
+                    "globalOperator": {
+                        "type": "string",
+                        "enum": ["AND", "OR"]
+                    }
+                }
+            },
+            "SearchRequestDto": {
+                "type": "object",
+                "properties": {
+                    "column": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    },
+                    "operation": {
+                        "type": "string",
+                        "enum": [
+                            "EQUAL",
+                            "NOT_EQUAL",
+                            "LIKE",
+                            "NOT_LIKE",
+                            "STARTS_WITH",
+                            "ENDS_WITH",
+                            "IN",
+                            "NOT_IN",
+                            "GREATER_THAN",
+                            "GREATER_THAN_EQUAL",
+                            "LESS_THAN",
+                            "LESS_THAN_EQUAL",
+                            "BETWEEN",
+                            "NOT_BETWEEN",
+                            "IS_NULL",
+                            "IS_NOT_NULL",
+                            "TRUE",
+                            "FALSE",
+                            "IS_FALSE",
+                            "JOIN"
+                        ]
+                    },
+                    "joinTable": {
+                        "type": "string"
+                    }
+                }
+            },
+            "Pageable": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 0
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 1
+                    },
+                    "sort": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "PageMetadata": {
+                "type": "object",
+                "properties": {
+                    "size": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "number": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalElements": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "PagedModelItemResponse": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ItemResponse"
+                        }
+                    },
+                    "page": {
+                        "$ref": "#/components/schemas/PageMetadata"
+                    }
+                }
+            },
             "CreateItemGroupRequest": {
                 "type": "object",
                 "properties": {
@@ -13567,48 +13998,6 @@
                     }
                 }
             },
-            "Pageable": {
-                "type": "object",
-                "properties": {
-                    "page": {
-                        "type": "integer",
-                        "format": "int32",
-                        "minimum": 0
-                    },
-                    "size": {
-                        "type": "integer",
-                        "format": "int32",
-                        "minimum": 1
-                    },
-                    "sort": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "PageMetadata": {
-                "type": "object",
-                "properties": {
-                    "size": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "number": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "totalElements": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int64"
-                    }
-                }
-            },
             "PagedModelPublicStoreResponse": {
                 "type": "object",
                 "properties": {
@@ -13926,6 +14315,42 @@
                     "paidAt": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                }
+            },
+            "ItemSearchFilter": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ACTIVE", "INACTIVE"]
+                    },
+                    "itemGroupId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "unitId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "itemType": {
+                        "type": "string",
+                        "enum": ["DIGITAL", "SERVICE", "PHYSICAL"]
+                    },
+                    "minPrice": {
+                        "type": "number"
+                    },
+                    "maxPrice": {
+                        "type": "number"
+                    },
+                    "barcode": {
+                        "type": "string"
+                    },
+                    "sku": {
+                        "type": "string"
+                    },
+                    "keyword": {
+                        "type": "string"
                     }
                 }
             },

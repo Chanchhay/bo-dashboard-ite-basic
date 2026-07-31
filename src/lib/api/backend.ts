@@ -72,25 +72,31 @@ async function readErrorMessage(response: Response) {
     }
 }
 
-export async function backendRequest<T>(
+export async function backendResponse(
     path: string,
     init?: RequestInit,
 ) {
     const accessToken = await getKeycloakAccessToken();
+    const requestHeaders = new Headers(init?.headers);
+
+    if (!requestHeaders.has("Accept")) {
+        requestHeaders.set("Accept", "application/json");
+    }
+
+    requestHeaders.set("Authorization", `Bearer ${accessToken}`);
+
+    // `FormData` bodies must keep the boundary `fetch` generates for them.
+    if (
+        typeof init?.body === "string" &&
+        !requestHeaders.has("Content-Type")
+    ) {
+        requestHeaders.set("Content-Type", "application/json");
+    }
+
     const response = await fetch(`${getApiBaseUrl()}${path}`, {
         ...init,
         cache: "no-store",
-        headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${accessToken}`,
-            // `FormData` bodies must keep the boundary `fetch` generates for
-            // them, so only JSON payloads (always sent as strings) get a
-            // content type here.
-            ...(typeof init?.body === "string"
-                ? { "Content-Type": "application/json" }
-                : {}),
-            ...init?.headers,
-        },
+        headers: requestHeaders,
     });
 
     if (!response.ok) {
@@ -100,6 +106,15 @@ export async function backendRequest<T>(
             response.status,
         );
     }
+
+    return response;
+}
+
+export async function backendRequest<T>(
+    path: string,
+    init?: RequestInit,
+) {
+    const response = await backendResponse(path, init);
 
     // Several endpoints answer 200/201 with an empty body (creating or
     // updating staff and roles, for instance). `response.json()` throws on

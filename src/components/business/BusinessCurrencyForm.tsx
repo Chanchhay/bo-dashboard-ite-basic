@@ -278,18 +278,44 @@ function CurrencyEditor({
     }
 
     function changeBaseCurrency(code: string | null) {
-        if (!code) {
+        if (!code || code === baseCurrency) {
             return;
         }
 
+        const nextBase = currencies.find(
+            (currency) => currency.code === code,
+        );
+
+        if (!nextBase || nextBase.exchangeRate <= 0) {
+            setStatus({
+                type: "error",
+                message: "Set a positive exchange rate before using this as the base currency.",
+            });
+            return;
+        }
+
+        setCurrencies((current) =>
+            current.map((currency) => ({
+                ...currency,
+                exchangeRate:
+                    currency.code === code
+                        ? 1
+                        : currency.exchangeRate / nextBase.exchangeRate,
+            })),
+        );
         setBaseCurrency(code);
         if (selectedTarget === code) {
-            setSelectedTarget(
-                currencies.find((currency) => currency.code !== code)
-                    ?.code || "",
-            );
+            setSelectedTarget(baseCurrency);
         }
         setStatus(null);
+    }
+
+    function swapCalculatorCurrencies() {
+        if (!target) {
+            return;
+        }
+
+        changeBaseCurrency(target.code);
     }
 
     function resetForm() {
@@ -488,22 +514,52 @@ function CurrencyEditor({
                         <>
                             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
                                 <div className="min-w-0">
-                                    <p className="mb-3 text-lg font-semibold text-[#020409]/70">
-                                        1 {base.code}
-                                    </p>
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <Label
+                                            htmlFor="calculator-base-currency"
+                                            className="text-lg font-semibold text-[#020409]/70"
+                                        >
+                                            Base
+                                        </Label>
+                                        <SelectField
+                                            id="calculator-base-currency"
+                                            value={base.code}
+                                            onValueChange={(code) => {
+                                                if (
+                                                    code === target.code
+                                                ) {
+                                                    swapCalculatorCurrencies();
+                                                } else {
+                                                    changeBaseCurrency(code);
+                                                }
+                                            }}
+                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] bg-white px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            options={currencies.map(
+                                                (currency) => ({
+                                                    value: currency.code,
+                                                    label: currency.code,
+                                                }),
+                                            )}
+                                        />
+                                    </div>
                                     <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[#e8e8e8] bg-white px-4">
                                         <span className="text-base font-bold text-[#436746]">
                                             {base.symbol}
                                         </span>
-                                        <span className="text-2xl font-bold text-[#1a1c19]">
+                                        <span className="px-3 text-2xl font-bold text-[#1a1c19]">
                                             1
                                         </span>
                                     </div>
                                 </div>
 
-                                <span className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] text-[#826b14] sm:mb-[11px]">
+                                <button
+                                    type="button"
+                                    onClick={swapCalculatorCurrencies}
+                                    aria-label={`Switch ${base.code} and ${target.code}`}
+                                    className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] text-[#826b14] outline-none transition-colors hover:bg-[#efd276] focus-visible:ring-2 focus-visible:ring-[#826b14]/40 sm:mb-[11px]"
+                                >
                                     <ArrowLeftRight className="size-4" />
-                                </span>
+                                </button>
 
                                 <div className="min-w-0">
                                     <div className="mb-3 flex items-center justify-between gap-3">
