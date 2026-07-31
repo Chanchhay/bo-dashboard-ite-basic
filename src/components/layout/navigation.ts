@@ -104,6 +104,7 @@ export const NAVIGATION: NavSection[] = [
         children: [
             { label: "Orders", href: "/sales", exact: true },
             { label: "Point of sale", href: "/sales/pos" },
+            { label: "Product Selling", href: "/sales/product-selling"}
         ],
     },
     {

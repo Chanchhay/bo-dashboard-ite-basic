@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import AppShell from "@/components/layout/AppShell";
 import { auth } from "@/lib/auth/auth";
 import { getUserPermissions } from "@/lib/permissions-server";
+import "@/app/globals.css";
+
 
 export default async function DashboardLayout({
     children,
