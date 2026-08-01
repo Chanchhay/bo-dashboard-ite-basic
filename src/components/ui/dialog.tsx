@@ -1,28 +1,50 @@
 "use client";
 
+import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { XIcon } from "lucide-react";
 
 /*
  * Modal surface for the app, built on Base UI's Dialog. Radius, border and
  * shadow follow the card treatment in `ui-registry.md` so a dialog reads as the
  * same material as the surfaces behind it, lifted.
- *
- * `DialogContent` portals to the body, so placing a dialog inside a `<form>` is
- * valid HTML — but React still bubbles events through the component tree, so a
- * nested form must stop propagation on submit.
  */
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogClose = DialogPrimitive.Close;
 
+function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
+
+function DialogOverlay({
+  className,
+  ...props
+}: DialogPrimitive.Backdrop.Props) {
+  return (
+    <DialogPrimitive.Backdrop
+      data-slot="dialog-overlay"
+      className={cn(
+        "fixed inset-0 z-50 bg-[#0f1a12]/45 backdrop-blur-[1px] transition-opacity duration-150 data-closed:opacity-0 data-open:opacity-100",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 function DialogContent({
     className,
     children,
+    showCloseButton = true,
     ...props
-}: DialogPrimitive.Popup.Props) {
+}: DialogPrimitive.Popup.Props & {
+    showCloseButton?: boolean
+}) {
     return (
         <DialogPrimitive.Portal>
             <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-[#0f1a12]/45 backdrop-blur-[1px] transition-opacity duration-150 data-closed:opacity-0 data-open:opacity-100" />
@@ -35,6 +57,21 @@ function DialogContent({
                 {...props}
             >
                 {children}
+                {showCloseButton && (
+                  <DialogPrimitive.Close
+                    data-slot="dialog-close"
+                    render={
+                      <Button
+                        variant="ghost"
+                        className="absolute top-5 right-5 text-gray-500"
+                        size="icon-sm"
+                      />
+                    }
+                  >
+                    <XIcon />
+                    <span className="sr-only">Close</span>
+                  </DialogPrimitive.Close>
+                )}
             </DialogPrimitive.Popup>
         </DialogPrimitive.Portal>
     );
@@ -81,8 +118,10 @@ function DialogDescription({
 
 function DialogFooter({
     className,
+    showCloseButton = false,
+    children,
     ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { showCloseButton?: boolean }) {
     return (
         <div
             data-slot="dialog-footer"
@@ -91,7 +130,14 @@ function DialogFooter({
                 className,
             )}
             {...props}
-        />
+        >
+            {children}
+            {showCloseButton && (
+              <DialogPrimitive.Close render={<Button variant="outline" />}>
+                Close
+              </DialogPrimitive.Close>
+            )}
+        </div>
     );
 }
 
@@ -104,4 +150,6 @@ export {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogOverlay,
+    DialogPortal,
 };
