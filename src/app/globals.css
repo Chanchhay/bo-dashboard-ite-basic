@@ -11,6 +11,17 @@
     --foreground: #161d16;
 }
 
+html,
+body {
+  height: 100%;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -24,6 +35,13 @@
     /* `--font-google-sans` is injected by next/font in app/layout.tsx. */
     /* --font-sans: var(--font-google-sans);
     --font-googlesans: var(--font-google-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 
 body {
@@ -136,4 +154,12 @@ body {
         @apply bg-background text-foreground;
         font-family: var(--font-google-sans), sans-serif;
     }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

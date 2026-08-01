@@ -1,0 +1,5 @@
+[
+  { "id": "101", "business_owner_id": "1", "name": "Beef Steak", "price": "50.00", "image_url": "https://i.pinimg.com/1200x/3c/a9/9a/3ca99a55d718100b7dc154093d704410.jpg", "is_available": "ACTIVE" },
+  { "id": "102", "business_owner_id": "1", "name": "Shoulder Bag", "price": "70.00", "image_url": "https://i.pinimg.com/1200x/3c/a9/9a/3ca99a55d718100b7dc154093d704410.jpg", "is_available": "ACTIVE" },
+  { "id": "103", "business_owner_id": "1", "name": "Cold Drink", "price": "3.00", "image_url": "https://i.pinimg.com/1200x/3c/a9/9a/3ca99a55d718100b7dc154093d704410.jpg", "is_available": "ACTIVE" }
+]

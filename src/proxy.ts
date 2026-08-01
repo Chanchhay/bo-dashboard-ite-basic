@@ -6,6 +6,8 @@ const protectedRoutes = [
     "/dashboard",
     "/business",
     "/inventory",
+    "/sales",
+    "/pos",
     "/profile",
 ];
 const authRoutes = ["/login", "/callback"];
@@ -37,6 +39,8 @@ export const config = {
         "/dashboard/:path*",
         "/business/:path*",
         "/inventory/:path*",
+        "/sales/:path*",
+        "/pos/:path*",
         "/profile/:path*",
     ],
 };

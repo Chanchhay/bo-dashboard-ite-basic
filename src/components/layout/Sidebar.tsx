@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
     isLeafActive,
+    isNavGroup,
     isSectionActive,
     visibleSections,
     type NavSection,
@@ -169,6 +170,48 @@ function SectionItem({
             >
                 {section.children.map((leaf) => {
                     const leafActive = isLeafActive(leaf, pathname);
+
+                    if (isNavGroup(leaf)) {
+                        return (
+                            <li key={leaf.label}>
+                                <details
+                                    className="group/pos"
+                                    open={leafActive || undefined}
+                                >
+                                    <summary
+                                        className={cn(
+                                            "flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-[14px] outline-none transition-colors marker:hidden focus-visible:ring-2 focus-visible:ring-[#00932a] [&::-webkit-details-marker]:hidden",
+                                            leafActive
+                                                ? "bg-white text-[#16181c] shadow-[0_1px_2px_rgba(22,24,28,.08)]"
+                                                : "text-[#8a8f89] hover:text-[#16181c]",
+                                        )}
+                                    >
+                                        <span className="flex-1">
+                                            {leaf.label}
+                                        </span>
+                                        <ChevronDown
+                                            className="size-4 transition-transform group-open/pos:rotate-180"
+                                            aria-hidden="true"
+                                        />
+                                    </summary>
+
+                                    <ul className="mt-1 ml-3 flex flex-col gap-1 border-l border-[#dcdcd8] pl-3">
+                                        {leaf.children.map((child) => (
+                                            <li key={child.href}>
+                                                <Link
+                                                    href={child.href}
+                                                    onClick={onNavigate}
+                                                    className="flex items-center justify-center rounded-full bg-primary px-3 py-2 text-[13px] font-semibold text-white outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                                >
+                                                    {child.label}
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </details>
+                            </li>
+                        );
+                    }
 
                     return (
                         <li key={leaf.href}>

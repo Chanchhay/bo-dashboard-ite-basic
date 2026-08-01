@@ -1,0 +1,7 @@
+[
+  { "id": "r2", "ticket_number": "#2", "sold_at": "2026-07-20T14:13:00", "cashier_id": "1", "cashier_name": "Sok Sok", "item_count": 2, "method_type": "CASH", "amount": "115.00", "status": "PAID" },
+  { "id": "r1", "ticket_number": "#1", "sold_at": "2026-07-20T14:01:00", "cashier_id": "1", "cashier_name": "Sok Sok", "item_count": 2, "method_type": "CASH", "amount": "45.00", "status": "PAID" },
+  { "id": "r4", "ticket_number": "#4", "sold_at": "2026-07-20T06:45:00", "cashier_id": "1", "cashier_name": "Sok Sok", "item_count": 3, "method_type": "CASH", "amount": "60.00", "status": "PAID" },
+  { "id": "r5", "ticket_number": "#5", "sold_at": "2026-07-19T11:20:00", "cashier_id": "2", "cashier_name": "Nita Sok", "item_count": 1, "method_type": "DIGITAL", "amount": "70.00", "status": "PAID" },
+  { "id": "r6", "ticket_number": "#6", "sold_at": "2026-07-19T15:40:00", "cashier_id": "2", "cashier_name": "Nita Sok", "item_count": 3, "method_type": "CASH", "amount": "30.00", "status": "PAID" }
+]
