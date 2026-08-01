@@ -166,6 +166,11 @@ export const NAVIGATION: NavSection[] = [
         },
         children: [
             {
+                label: "Product Selling",
+                href: "/sales/product-selling",
+                permission: PERMISSIONS.SALES_POS,
+            },
+            {
                 label: "Orders",
                 href: "/sales",
                 exact: true,
