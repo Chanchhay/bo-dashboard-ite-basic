@@ -4,12 +4,10 @@ import { Building2, Delete, X, Calculator } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-
+import { SALES_HOME } from "@/lib/pos-routes";
 
 export function CashRegister({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
-  const cashierId = "cashier_1";
-  const businessOwnerId = "1";
 
   const [amount, setAmount] = useState("0.00");
   const [notes, setNotes] = useState("");
@@ -34,19 +32,17 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
     setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0.00"));
   };
 
-  const handleOpenRegister = async () => {
-    if (!cashierId || !businessOwnerId) {
-      setError("Session expired — please log in again");
+  const handleOpenRegister = () => {
+    setError("Register API is not connected yet");
+  };
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
       return;
     }
 
-    try {
-      const registerSessionId = "mock_session_123";
-      // dispatch(setRegisterSession(registerSessionId));
-      router.replace("/sales/pos"); // next step in the flow
-    } catch (e) {
-      setError(typeof e === "string" ? e : "Failed to open register");
-    }
+    router.replace(SALES_HOME);
   };
 
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -64,7 +60,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 transition-colors hover:text-gray-600"
           >
             <X className="h-5 w-5" />

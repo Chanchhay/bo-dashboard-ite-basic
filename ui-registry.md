@@ -291,3 +291,26 @@ Last updated: 2026-07-28
 Dashboard module tiles are draggable Next.js links. Keep the white surface,
 subtle border and shadow, 24px radius, centered brand-gradient icon, and visible
 green keyboard focus treatment consistent across future dashboard launchers.
+
+### Sidebar Nested Action
+
+File: src/components/layout/Sidebar.tsx
+Last updated: 2026-08-01
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | Transparent disclosure row; `bg-primary` nested action |
+| Border           | `border-l border-[#dcdcd8]` nested rail |
+| Border radius    | `rounded-lg` disclosure row; `rounded-full` primary action |
+| Text — primary   | `text-[#16181c]` active disclosure |
+| Text — secondary | `text-[14px] text-[#8a8f89]` inactive disclosure |
+| Spacing          | `px-3 py-2`, `mt-1 ml-3`, and `pl-3` |
+| Hover state      | `hover:text-[#16181c]`; `hover:bg-primary/90` primary action |
+| Shadow           | `shadow-[0_1px_2px_rgba(22,24,28,.08)]` when active |
+| Accent usage     | `bg-primary text-white` for the nested action |
+
+**Pattern notes:**
+Use a native `details` disclosure for a sidebar item that owns actions rather
+than a page. Keep the nested rail consistent with normal sidebar children, and
+render the single entry action as the shared full-pill primary button. The
+parent toggles disclosure only; navigation belongs to its child link.

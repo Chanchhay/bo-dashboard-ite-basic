@@ -1,8 +1,15 @@
-import { OrdersList } from "@/components/pos/order/order-list";
-import { OrderTable } from "@/components/pos/order/order-table";
+import { Navbar } from "@/components/pos/navbar-pos/navbar";
+import { PosScreen } from "@/components/pos/pos-screen";
 
 export default function PosPage(){
-  return(<div>
-    <OrdersList/>
-  </div>)
+  return (
+    <section className="flex h-dvh flex-col overflow-hidden">
+      <div className="shrink-0">
+        <Navbar />
+      </div>
+      <main className="min-h-0 flex-1 overflow-hidden">
+        <PosScreen />
+      </main>
+    </section>
+  );
 }
