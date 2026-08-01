@@ -159,6 +159,94 @@ export type InventoryItem = {
     status?: (typeof itemStatuses)[number];
 };
 
+export type InventoryPageMetadata = {
+    size?: number;
+    number?: number;
+    totalElements?: number;
+    totalPages?: number;
+};
+
+export type InventoryItemPage = {
+    content?: InventoryItem[];
+    page?: InventoryPageMetadata;
+};
+
+export const inventoryItemSorts = [
+    "name,asc",
+    "name,desc",
+    "price,asc",
+    "price,desc",
+] as const;
+
+export type InventoryItemSort = (typeof inventoryItemSorts)[number];
+
+const emptyQueryValueToUndefined = (value: unknown) =>
+    value === "" || value === null ? undefined : value;
+
+const optionalQueryText = (maximum: number, message: string) =>
+    z.preprocess(
+        emptyQueryValueToUndefined,
+        z.string().trim().max(maximum, message).optional(),
+    );
+
+const optionalQueryUuid = z.preprocess(
+    emptyQueryValueToUndefined,
+    z.uuid("Select a valid option.").optional(),
+);
+
+const optionalQueryNumber = z.preprocess(
+    emptyQueryValueToUndefined,
+    z.coerce.number().finite().min(0, "Price cannot be negative.").optional(),
+);
+
+/**
+ * The item search and pageable contracts exposed by the inventory API. This
+ * schema is shared by the browser-facing BFF and the filter UI so malformed
+ * values never reach the backend.
+ */
+export const inventoryItemQuerySchema = z
+    .object({
+        page: z.coerce.number().int().min(0).default(0),
+        size: z.coerce.number().int().min(1).max(100).default(20),
+        sort: z.enum(inventoryItemSorts).default("name,asc"),
+        keyword: optionalQueryText(
+            200,
+            "Search must be 200 characters or fewer.",
+        ),
+        status: z.preprocess(
+            emptyQueryValueToUndefined,
+            z.enum(itemStatuses).optional(),
+        ),
+        itemGroupId: optionalQueryUuid,
+        unitId: optionalQueryUuid,
+        itemType: z.preprocess(
+            emptyQueryValueToUndefined,
+            z.enum(itemTypes).optional(),
+        ),
+        minPrice: optionalQueryNumber,
+        maxPrice: optionalQueryNumber,
+        sku: optionalQueryText(100, "SKU must be 100 characters or fewer."),
+        barcode: optionalQueryText(
+            100,
+            "Barcode must be 100 characters or fewer.",
+        ),
+    })
+    .superRefine((query, context) => {
+        if (
+            query.minPrice !== undefined &&
+            query.maxPrice !== undefined &&
+            query.minPrice > query.maxPrice
+        ) {
+            context.addIssue({
+                code: "custom",
+                message: "Maximum price must be at least the minimum price.",
+                path: ["maxPrice"],
+            });
+        }
+    });
+
+export type InventoryItemQuery = z.infer<typeof inventoryItemQuerySchema>;
+
 export type StockSummary = {
     itemId: string;
     quantityOnHand?: number;

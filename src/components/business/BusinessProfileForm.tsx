@@ -383,31 +383,6 @@ function BusinessProfileEditor({
                             </span>
                         }
                     />
-
-                    <StagedImageField
-                        staged={thumbnail}
-                        rules={businessThumbnailRules}
-                        disabled={isLoading}
-                        label="Storefront Cover"
-                        noun="Cover"
-                        preview={
-                            <span className="flex h-24 w-full max-w-[220px] items-center justify-center overflow-hidden rounded-xl bg-[#e8e8e8]">
-                                {thumbnail.preview ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={thumbnail.preview}
-                                        alt="Storefront cover preview"
-                                        className="size-full object-cover"
-                                    />
-                                ) : (
-                                    <ImageIcon
-                                        className="size-7 text-[#a3aca1]"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                            </span>
-                        }
-                    />
                 </div>
 
                 <section className="rounded-2xl bg-white/90 px-6">

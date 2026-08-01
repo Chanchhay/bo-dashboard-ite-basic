@@ -2,6 +2,8 @@ import { baseApi } from "@/lib/baseApi";
 import type {
     InventoryItem,
     InventoryItemInput,
+    InventoryItemPage,
+    InventoryItemQuery,
     ItemGroup,
     ItemGroupInput,
     StockEntry,
@@ -27,8 +29,24 @@ function toItemBody(body: InventoryItemInput, files?: readonly File[]) {
 
 export const inventoryApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
-        getInventoryItems: builder.query<InventoryItem[], void>({
-            query: () => "/inventory/items",
+        getInventoryItems: builder.query<
+            InventoryItemPage,
+            InventoryItemQuery
+        >({
+            query: (params) => ({
+                url: "/inventory/items",
+                params,
+            }),
+            providesTags: (result) => [
+                "InventoryItems",
+                ...(result?.content || []).map((item) => ({
+                    type: "InventoryItems" as const,
+                    id: item.id,
+                })),
+            ],
+        }),
+        getInventoryItemOptions: builder.query<InventoryItem[], void>({
+            query: () => "/inventory/items/options",
             providesTags: (result) => [
                 "InventoryItems",
                 ...(result || []).map((item) => ({
@@ -43,6 +61,23 @@ export const inventoryApi = baseApi.injectEndpoints({
             providesTags: (_result, _error, itemId) => [
                 { type: "InventoryItems", id: itemId },
             ],
+        }),
+        findInventoryItemByBarcode: builder.query<InventoryItem, string>({
+            query: (barcode) =>
+                `/inventory/items/barcode/${encodeURIComponent(barcode)}`,
+            providesTags: (result) =>
+                result
+                    ? [{ type: "InventoryItems" as const, id: result.id }]
+                    : [],
+        }),
+        generateInventoryBarcode: builder.mutation<
+            { barcode: string },
+            void
+        >({
+            query: () => ({
+                url: "/inventory/items/barcode/generate",
+                method: "POST",
+            }),
         }),
         createInventoryItem: builder.mutation<
             InventoryItem,
@@ -193,7 +228,10 @@ export const inventoryApi = baseApi.injectEndpoints({
 
 export const {
     useGetInventoryItemsQuery,
+    useGetInventoryItemOptionsQuery,
     useGetInventoryItemQuery,
+    useLazyFindInventoryItemByBarcodeQuery,
+    useGenerateInventoryBarcodeMutation,
     useCreateInventoryItemMutation,
     useUpdateInventoryItemMutation,
     useDeleteInventoryItemMutation,

@@ -25,7 +25,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setStockSearch } from "@/store/inventoryUiSlice";
 import {
     useGetCurrentStockQuery,
-    useGetInventoryItemsQuery,
+    useGetInventoryItemOptionsQuery,
     useGetStockEntriesQuery,
 } from "@/services/inventoryApi";
 
@@ -57,7 +57,7 @@ export function InventoryStock() {
     const stockSearch = useAppSelector(
         (state) => state.inventoryUi.stockSearch,
     );
-    const itemsQuery = useGetInventoryItemsQuery();
+    const itemsQuery = useGetInventoryItemOptionsQuery();
     const stockQuery = useGetCurrentStockQuery();
     const entriesQuery = useGetStockEntriesQuery();
 

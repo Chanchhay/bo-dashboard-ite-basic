@@ -45,8 +45,8 @@ export default function AppLauncher({
     }, [opening, router]);
 
     return (
-        <div className="min-h-dvh bg-white">
-            <header className="flex h-[88px] items-center justify-between border-b border-[#bccab8]/10 px-5 lg:px-8">
+        <div className="min-h-dvh bg-[#f5f5f5]">
+            <header className="flex h-[88px] items-center justify-between border-b border-[#bccab8]/10 px-5 lg:px-8 bg-white">
                 <Link
                     href="/apps"
                     aria-label="iPOS home"
@@ -135,7 +135,7 @@ function AppTile({
                     size: badge.width,
                 });
             }}
-            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] bg-white px-7 pt-10 pb-9 text-center outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] px-7 pt-10 pb-9 text-center outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
         >
             <span
                 ref={badgeRef}

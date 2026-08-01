@@ -130,12 +130,9 @@ export const NAVIGATION: NavSection[] = [
             ink: "#ffffff",
         },
         children: [
-            { label: "Overview", href: "/dashboard", exact: true },
-            {
-                label: "Analytics",
-                href: "/analytics",
-                permission: PERMISSIONS.ANALYTICS_VIEW,
-            },
+            { label: "Orders", href: "/sales", exact: true },
+            { label: "Point of sale", href: "/sales/pos" },
+            { label: "Product Selling", href: "/sales/product-selling"}
         ],
     },
     {
