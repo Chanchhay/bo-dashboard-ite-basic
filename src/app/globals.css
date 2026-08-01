@@ -1,4 +1,4 @@
-@import "tailwindcss";
+/* @import "tailwindcss";
 
 :root {
     --background: #ffffff;
@@ -19,10 +19,10 @@
     --color-accent: var(--accent);
     --color-description: var(--description);
     --color-text: var(--text);
-    --color-input: var(--input);
+    --color-input: var(--input); */
 
     /* `--font-google-sans` is injected by next/font in app/layout.tsx. */
-    --font-sans: var(--font-google-sans);
+    /* --font-sans: var(--font-google-sans);
     --font-googlesans: var(--font-google-sans);
 }
 
@@ -30,4 +30,110 @@ body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-google-sans), sans-serif;
+} */
+
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+    --radius: 0.625rem;
+
+    /* your brand colors — use as bg-brand-green, text-brand-red, etc. */
+    --brand-green: #00932a;
+    --brand-yellow: #feb90d;
+    --brand-red: #d14341;
+    --description: #e8e8e8;
+    --text: #030712;
+
+    /* shadcn semantic tokens */
+    --background: #f5f5f5;
+    --foreground: #030712;
+    --card: #ffffff;
+    --card-foreground: #030712;
+    --popover: #ffffff;
+    --popover-foreground: #030712;
+    --primary: #00932a;
+    --primary-foreground: #ffffff;
+    --secondary: #f0f0f0;
+    --secondary-foreground: #030712;
+    --muted: #f0f0f0;
+    --muted-foreground: #6b7280;
+    --accent: #f0f0f0;
+    --accent-foreground: #030712;
+    --destructive: #d14341;
+    --destructive-foreground: #ffffff;
+    --border: #e4e4e7;
+    --input: #d9d9d9;
+    --ring: #00932a;
+}
+
+.dark {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --card: #171717;
+    --card-foreground: #ededed;
+    --popover: #171717;
+    --popover-foreground: #ededed;
+    --primary: #00932a;
+    --primary-foreground: #ffffff;
+    --secondary: #262626;
+    --secondary-foreground: #ededed;
+    --muted: #262626;
+    --muted-foreground: #a1a1aa;
+    --accent: #262626;
+    --accent-foreground: #ededed;
+    --destructive: #d14341;
+    --destructive-foreground: #ffffff;
+    --border: #262626;
+    --input: #333333;
+    --ring: #00932a;
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-brand-green: var(--brand-green);
+    --color-brand-yellow: var(--brand-yellow);
+    --color-brand-red: var(--brand-red);
+    --color-description: var(--description);
+    --color-text: var(--text);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    /* `--font-google-sans` is injected by next/font in app/layout.tsx. */
+    --font-sans: var(--font-google-sans);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+        font-family: var(--font-google-sans), sans-serif;
+    }
 }

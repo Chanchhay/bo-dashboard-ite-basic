@@ -13,6 +13,7 @@ const authRoutes = ["/login", "/callback"];
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const sessionCookie = getSessionCookie(request);
+    console.log(`===============>, `, sessionCookie)
 
     if (protectedRoutes.some((route) => pathname.startsWith(route))) {
         if (!sessionCookie) {

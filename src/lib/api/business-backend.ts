@@ -13,8 +13,9 @@ export async function getCurrentBusinessId() {
     const business = await backendRequest<CurrentBusiness>(
         "/api/v1/businesses/me",
     );
-
-    return encodeURIComponent(business.id);
+    console.log("BussinessID: ", business?.id)
+    
+    return encodeURIComponent(business?.id);
 }
 
 /**
