@@ -12,6 +12,7 @@ import {
     MenuSeparator,
     MenuTrigger,
 } from "@/components/ui/menu";
+import { useGetUserProfileQuery } from "@/services/userProfileApi";
 
 function initialsOf(name: string) {
     return (
@@ -27,6 +28,10 @@ function initialsOf(name: string) {
 /**
  * The avatar chip in the header, and the account actions behind it.
  *
+ * The name and picture come from the user-profile query rather than the
+ * session, so editing the profile updates this chip in the same tick; the
+ * session name from the server stays as the fallback until the query lands.
+ *
  * Signing out has to be a POST — it ends the session and hands the browser to
  * Keycloak — so it goes through a real form rather than a link. The form lives
  * outside the popup because clicking an item closes the menu, and a form
@@ -34,30 +39,50 @@ function initialsOf(name: string) {
  */
 export default function UserMenu({ name }: { name: string }) {
     const signOutForm = useRef<HTMLFormElement>(null);
+    const { data: profile } = useGetUserProfileQuery();
+
+    const profileName =
+        [profile?.firstName, profile?.lastName]
+            .map((part) => part?.trim())
+            .filter(Boolean)
+            .join(" ") ||
+        profile?.username ||
+        name;
+    const picture = profile?.profilePicture;
 
     return (
         <>
             <Menu>
                 <MenuTrigger
-                    aria-label={`Account menu for ${name}`}
-                    className="flex items-center gap-2.5 rounded-full border border-[#e2e2de] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#00932a] data-popup-open:bg-[#f7f7f6]"
+                    aria-label={`Account menu for ${profileName}`}
+                    className="flex items-center gap-2.5 rounded-full border border-[#bccab8] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] data-popup-open:bg-[#f5f8f4]"
                 >
                     <span
                         aria-hidden="true"
-                        className="grid size-8 place-items-center rounded-full bg-[#00932a] text-[13px] font-medium text-white"
+                        className="grid size-8 place-items-center overflow-hidden rounded-full border border-[#006b26] bg-[#00932a] text-[13px] font-medium text-white"
                     >
-                        {initialsOf(name)}
+                        {picture ? (
+                            // The profile picture URL is supplied by the API.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={picture}
+                                alt=""
+                                className="size-full object-cover"
+                            />
+                        ) : (
+                            initialsOf(profileName)
+                        )}
                     </span>
-                    <span className="hidden text-[14px] text-[#16181c] sm:block">
-                        {name}
+                    <span className="hidden text-[14px] text-[#161d16] sm:block">
+                        {profileName}
                     </span>
                 </MenuTrigger>
 
                 <MenuContent>
-                    <p className="px-3 pt-1.5 pb-1 text-[12px] text-[#8a8f89]">
+                    <p className="px-3 pt-1.5 pb-1 text-[12px] text-[#3d4a3c]">
                         Signed in as
-                        <span className="mt-0.5 block truncate text-[14px] text-[#16181c]">
-                            {name}
+                        <span className="mt-0.5 block truncate text-[14px] text-[#161d16]">
+                            {profileName}
                         </span>
                     </p>
 

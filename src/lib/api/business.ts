@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { imageUploadRules } from "@/lib/api/image-upload";
+
 export type BusinessSubCategory = {
     id?: string;
     name?: string;
@@ -77,17 +79,33 @@ export const businessProfileSchema = z.object({
         .string()
         .trim()
         .max(255, "Google Map URL must be 255 characters or fewer."),
-    logo: z.string().trim().max(255),
+});
+
+/** Matches the backend's upload limits for `POST /businesses/{id}/logo`. */
+export const businessLogoRules = imageUploadRules({
+    accept: "image/png,image/jpeg,image/webp,image/svg+xml",
+    maxBytes: 5 * 1024 * 1024,
+    subject: "the logo",
+    formats: "PNG, JPG, WebP or SVG",
+});
+
+/** The storefront cover, behind `POST /businesses/{id}/thumbnail`. */
+export const businessThumbnailRules = imageUploadRules({
+    accept: "image/png,image/jpeg,image/webp",
+    maxBytes: 5 * 1024 * 1024,
+    subject: "the cover image",
+    formats: "PNG, JPG or WebP",
 });
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 
+// `UpdateBusinessRequest` carries no logo: the image is owned by the
+// `/logo` upload and delete endpoints instead.
 export type UpdateBusinessInput = {
     name: string;
     categoryId?: string;
     email?: string;
     address: string;
-    logo?: string;
     about: string;
     phoneNumber?: string;
     googleMap: string;
@@ -106,6 +124,5 @@ export function toUpdateBusinessInput(
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         ...(input.email ? { email: input.email } : {}),
         ...(input.phoneNumber ? { phoneNumber: input.phoneNumber } : {}),
-        ...(input.logo ? { logo: input.logo } : {}),
     };
 }

@@ -9,6 +9,7 @@ import {
 import {
     AtSign,
     BadgeCheck,
+    Camera,
     Mail,
     MapPin,
     Phone,
@@ -18,6 +19,10 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { controlClassName } from "@/components/ui/form-controls";
+import {
+    ImagePicker,
+    useStagedImage,
+} from "@/components/ui/image-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,15 +34,19 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    profilePictureRules,
     userProfileGenders,
     userProfileSchema,
     type UserProfile,
     type UserProfileInput,
 } from "@/lib/api/user-profile";
 import {
+    useDeleteProfilePictureMutation,
     useGetUserProfileQuery,
     useUpdateUserProfileMutation,
+    userProfileApi,
 } from "@/services/userProfileApi";
+import { useAppDispatch } from "@/store/hooks";
 
 type FieldName = keyof UserProfileInput;
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -84,21 +93,47 @@ function getFieldErrors(
     return fieldErrors;
 }
 
-function getInitials(profile: UserProfile) {
-    const initials = [profile.firstName, profile.lastName]
-        .filter(Boolean)
-        .map((name) => name?.trim().charAt(0))
+/**
+ * A backend that keeps one path per user answers a save with the URL the
+ * browser already has cached, and the old picture would stay on screen. Tagging
+ * the unchanged URL forces the new bytes to be fetched.
+ */
+function withFreshPicture(updated: UserProfile, previous: string) {
+    const picture = updated.profilePicture;
+
+    if (!picture || picture !== previous) {
+        return updated;
+    }
+
+    return {
+        ...updated,
+        profilePicture: `${picture}${picture.includes("?") ? "&" : "?"}v=${Date.now()}`,
+    };
+}
+
+// Both helpers read the names being typed rather than the stored profile, so
+// the summary card tracks the form as it is edited.
+function getInitials(firstName: string, lastName: string, username?: string) {
+    const initials = [firstName, lastName]
+        .map((name) => name.trim().charAt(0))
         .join("")
         .slice(0, 2)
         .toUpperCase();
 
-    return initials || profile.username?.slice(0, 2).toUpperCase() || "UP";
+    return initials || username?.slice(0, 2).toUpperCase() || "UP";
 }
 
-function getProfileName(profile: UserProfile) {
+function getProfileName(
+    firstName: string,
+    lastName: string,
+    username?: string,
+) {
     return (
-        [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() ||
-        profile.username ||
+        [firstName, lastName]
+            .map((name) => name.trim())
+            .filter(Boolean)
+            .join(" ") ||
+        username ||
         "User profile"
     );
 }
@@ -159,28 +194,80 @@ function AccountDetail({
 }
 
 function UserProfileEditor({ profile }: { profile: UserProfile }) {
+    const dispatch = useAppDispatch();
     const formRef = useRef<HTMLFormElement>(null);
-    const initialProfilePicture = profile.profilePicture || "";
+    const storedPicture = profile.profilePicture || "";
     const initialGender = userProfileGenders.includes(
         profile.gender as (typeof userProfileGenders)[number],
     )
         ? (profile.gender as (typeof userProfileGenders)[number])
         : "UNSPECIFIED";
-    const [profilePicture, setProfilePicture] = useState(
-        initialProfilePicture,
-    );
+    // The names drive the summary card while they are typed, so they are the
+    // two fields this form keeps in state.
+    const [firstName, setFirstName] = useState(profile.firstName || "");
+    const [lastName, setLastName] = useState(profile.lastName || "");
+    // The picked file travels with the rest of the form, so it stays staged
+    // until the save carries it up.
+    const picture = useStagedImage(profilePictureRules, storedPicture);
+    // Picture feedback sits under the avatar, next to the control it belongs
+    // to, rather than in the form's status line.
+    const [pictureNote, setPictureNote] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [status, setStatus] = useState<{
         type: "success" | "error";
         message: string;
     } | null>(null);
-    const [updateUserProfile, { isLoading }] =
+    const [updateUserProfile, { isLoading: isSaving }] =
         useUpdateUserProfileMutation();
+    const [deleteProfilePicture, { isLoading: isRemovingPicture }] =
+        useDeleteProfilePictureMutation();
+    const profileName = getProfileName(firstName, lastName, profile.username);
+
+    /**
+     * Publishes a mutation's answer to every reader of the profile — this form
+     * and the account menu in the header — without waiting for a refetch.
+     */
+    function publishProfile(updated: UserProfile) {
+        dispatch(
+            userProfileApi.util.upsertQueryData(
+                "getUserProfile",
+                undefined,
+                updated,
+            ),
+        );
+    }
+
+    function handlePicturePick(file: File) {
+        picture.pick(file);
+        setPictureNote("New picture ready — save to apply it.");
+    }
+
+    /** Clearing the avatar has its own endpoint, so it applies immediately. */
+    async function handlePictureRemove() {
+        setPictureNote(null);
+
+        try {
+            await deleteProfilePicture().unwrap();
+            picture.reset();
+            publishProfile({ ...profile, profilePicture: "" });
+            setPictureNote("Profile picture removed.");
+        } catch (error) {
+            picture.setError(
+                getApiErrorMessage(
+                    error,
+                    "Unable to remove your profile picture.",
+                ),
+            );
+        }
+    }
 
     function handleCancel() {
         formRef.current?.reset();
-        setProfilePicture(initialProfilePicture);
+        setFirstName(profile.firstName || "");
+        setLastName(profile.lastName || "");
+        picture.reset();
         setFieldErrors({});
+        setPictureNote(null);
         setStatus(null);
     }
 
@@ -190,12 +277,11 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
         const formData = new FormData(event.currentTarget);
         const result = userProfileSchema.safeParse({
-            firstName: String(formData.get("firstName") || ""),
-            lastName: String(formData.get("lastName") || ""),
+            firstName,
+            lastName,
             phoneNumber: String(formData.get("phoneNumber") || ""),
             gender: String(formData.get("gender") || "UNSPECIFIED"),
             address: String(formData.get("address") || ""),
-            profilePicture: String(formData.get("profilePicture") || ""),
         });
 
         if (!result.success) {
@@ -210,7 +296,20 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         setFieldErrors({});
 
         try {
-            await updateUserProfile(result.data).unwrap();
+            // One multipart request carries the fields and, when one was
+            // picked, the new picture.
+            const updated = await updateUserProfile({
+                ...result.data,
+                file: picture.file,
+            }).unwrap();
+
+            publishProfile(
+                picture.file
+                    ? withFreshPicture(updated, storedPicture)
+                    : updated,
+            );
+            picture.reset();
+            setPictureNote(null);
             setStatus({
                 type: "success",
                 message: "Your profile was saved successfully.",
@@ -230,25 +329,86 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="flex flex-col gap-5">
                 <section className="rounded-2xl border border-[#e4eae2] bg-white p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)]">
-                    <div className="mx-auto flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
-                        {profilePicture ? (
-                            // The profile image URL is supplied by the user-profile API.
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={profilePicture}
-                                alt={`${getProfileName(profile)} profile`}
-                                className="size-full object-cover"
-                            />
-                        ) : (
-                            getInitials(profile)
-                        )}
-                    </div>
+                    <ImagePicker
+                        rules={profilePictureRules}
+                        disabled={isSaving}
+                        error={picture.error}
+                        busy={isSaving && Boolean(picture.file)}
+                        previewShape="circle"
+                        label="Profile picture"
+                        onPick={handlePicturePick}
+                        onError={picture.setError}
+                        preview={
+                            <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
+                                {picture.preview ? (
+                                    // The API supplies this URL dynamically and
+                                    // the staged preview uses a blob URL.
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={picture.preview}
+                                        alt={`${profileName} profile`}
+                                        className="size-full object-cover"
+                                    />
+                                ) : (
+                                    getInitials(
+                                        firstName,
+                                        lastName,
+                                        profile.username,
+                                    )
+                                )}
+                                <span className="absolute right-0 bottom-0 grid size-9 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-[0_4px_12px_rgba(0,147,42,0.35)]">
+                                    <Camera
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </span>
+                            </span>
+                        }
+                        actions={
+                            picture.file ? (
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    size="xs"
+                                    disabled={isSaving}
+                                    onClick={() => {
+                                        picture.reset();
+                                        setPictureNote(null);
+                                    }}
+                                    className="h-auto px-0 text-xs text-[#6b7569]"
+                                >
+                                    Undo
+                                </Button>
+                            ) : storedPicture ? (
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    size="xs"
+                                    disabled={isSaving || isRemovingPicture}
+                                    onClick={handlePictureRemove}
+                                    className="h-auto px-0 text-xs text-[#6b7569]"
+                                >
+                                    {isRemovingPicture
+                                        ? "Removing…"
+                                        : "Remove photo"}
+                                </Button>
+                            ) : null
+                        }
+                    />
+
                     <h2 className="mt-4 text-xl font-bold text-[#161d16]">
-                        {getProfileName(profile)}
+                        {profileName}
                     </h2>
                     <p className="mt-1 text-sm text-[#657064]">
                         {profile.role || "Team member"}
                     </p>
+                    <div className="min-h-4" aria-live="polite">
+                        {pictureNote ? (
+                            <p className="mt-2 text-xs text-primary" role="status">
+                                {pictureNote}
+                            </p>
+                        ) : null}
+                    </div>
                 </section>
 
                 <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)]">
@@ -307,7 +467,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         <Input
                             id="firstName"
                             name="firstName"
-                            defaultValue={profile.firstName || ""}
+                            value={firstName}
+                            onChange={(event) =>
+                                setFirstName(event.target.value)
+                            }
                             maxLength={255}
                             autoComplete="given-name"
                             aria-invalid={Boolean(fieldErrors.firstName)}
@@ -323,7 +486,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         <Input
                             id="lastName"
                             name="lastName"
-                            defaultValue={profile.lastName || ""}
+                            value={lastName}
+                            onChange={(event) =>
+                                setLastName(event.target.value)
+                            }
                             maxLength={255}
                             autoComplete="family-name"
                             aria-invalid={Boolean(fieldErrors.lastName)}
@@ -408,29 +574,6 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         </Field>
                     </div>
 
-                    <div className="md:col-span-2">
-                        <Field
-                            label="Profile picture URL"
-                            name="profilePicture"
-                            error={fieldErrors.profilePicture}
-                        >
-                            <Input
-                                id="profilePicture"
-                                name="profilePicture"
-                                type="url"
-                                inputMode="url"
-                                value={profilePicture}
-                                onChange={(event) =>
-                                    setProfilePicture(event.target.value)
-                                }
-                                placeholder="https://example.com/profile.jpg"
-                                aria-invalid={Boolean(
-                                    fieldErrors.profilePicture,
-                                )}
-                                className={inputClassName}
-                            />
-                        </Field>
-                    </div>
                 </div>
 
                 <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] pt-6 sm:flex-row sm:items-center">
@@ -459,18 +602,18 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         type="button"
                         variant="outline"
                         onClick={handleCancel}
-                        disabled={isLoading}
+                        disabled={isSaving}
                         size="lg"
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isSaving}
                         size="lg"
                             className="min-w-28"
                     >
-                        {isLoading ? "Saving…" : "Save changes"}
+                        {isSaving ? "Saving…" : "Save changes"}
                     </Button>
                 </div>
             </form>
@@ -528,18 +671,14 @@ export default function UserProfileForm() {
     }
 
     const profile = profileQuery.data;
-    const profileKey = [
-        profile.userId,
-        profile.username,
-        profile.email,
-        profile.firstName,
-        profile.lastName,
-        profile.phoneNumber,
-        profile.gender,
-        profile.role,
-        profile.address,
-        profile.profilePicture,
-    ].join("|");
 
-    return <UserProfileEditor key={profileKey} profile={profile} />;
+    // Keyed on the account only: the editor holds live edits, and every save
+    // pushes its answer back into this query, so remounting on each change
+    // would throw away what the user is typing.
+    return (
+        <UserProfileEditor
+            key={profile.userId || "user-profile"}
+            profile={profile}
+        />
+    );
 }

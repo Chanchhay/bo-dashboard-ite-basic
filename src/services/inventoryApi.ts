@@ -2,6 +2,8 @@ import { baseApi } from "@/lib/baseApi";
 import type {
     InventoryItem,
     InventoryItemInput,
+    InventoryItemPage,
+    InventoryItemQuery,
     ItemGroup,
     ItemGroupInput,
     StockEntry,
@@ -10,10 +12,41 @@ import type {
     Unit,
 } from "@/lib/api/inventory";
 
+/**
+ * Item saves are multipart now, so the fields travel as one JSON part and the
+ * newly picked pictures as `files` parts beside them.
+ */
+function toItemBody(body: InventoryItemInput, files?: readonly File[]) {
+    const formData = new FormData();
+    formData.append("item", JSON.stringify(body));
+
+    for (const file of files || []) {
+        formData.append("files", file, file.name);
+    }
+
+    return formData;
+}
+
 export const inventoryApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
-        getInventoryItems: builder.query<InventoryItem[], void>({
-            query: () => "/inventory/items",
+        getInventoryItems: builder.query<
+            InventoryItemPage,
+            InventoryItemQuery
+        >({
+            query: (params) => ({
+                url: "/inventory/items",
+                params,
+            }),
+            providesTags: (result) => [
+                "InventoryItems",
+                ...(result?.content || []).map((item) => ({
+                    type: "InventoryItems" as const,
+                    id: item.id,
+                })),
+            ],
+        }),
+        getInventoryItemOptions: builder.query<InventoryItem[], void>({
+            query: () => "/inventory/items/options",
             providesTags: (result) => [
                 "InventoryItems",
                 ...(result || []).map((item) => ({
@@ -29,29 +62,101 @@ export const inventoryApi = baseApi.injectEndpoints({
                 { type: "InventoryItems", id: itemId },
             ],
         }),
+        findInventoryItemByBarcode: builder.query<InventoryItem, string>({
+            query: (barcode) =>
+                `/inventory/items/barcode/${encodeURIComponent(barcode)}`,
+            providesTags: (result) =>
+                result
+                    ? [{ type: "InventoryItems" as const, id: result.id }]
+                    : [],
+        }),
+        generateInventoryBarcode: builder.mutation<
+            { barcode: string },
+            void
+        >({
+            query: () => ({
+                url: "/inventory/items/barcode/generate",
+                method: "POST",
+            }),
+        }),
         createInventoryItem: builder.mutation<
             InventoryItem,
-            InventoryItemInput
+            { body: InventoryItemInput; files?: readonly File[] }
         >({
-            query: (body) => ({
+            query: ({ body, files }) => ({
                 url: "/inventory/items",
                 method: "POST",
-                body,
+                body: toItemBody(body, files),
             }),
             invalidatesTags: ["InventoryItems"],
         }),
         updateInventoryItem: builder.mutation<
             InventoryItem,
-            { itemId: string; body: InventoryItemInput }
+            {
+                itemId: string;
+                body: InventoryItemInput;
+                files?: readonly File[];
+            }
         >({
-            query: ({ itemId, body }) => ({
+            query: ({ itemId, body, files }) => ({
                 url: `/inventory/items/${encodeURIComponent(itemId)}`,
                 method: "PUT",
-                body,
+                body: toItemBody(body, files),
             }),
             invalidatesTags: (_result, _error, { itemId }) => [
                 "InventoryItems",
                 "InventoryStock",
+                { type: "InventoryItems", id: itemId },
+            ],
+        }),
+        uploadItemImages: builder.mutation<
+            InventoryItem,
+            { itemId: string; files: readonly File[] }
+        >({
+            query: ({ itemId, files }) => {
+                const body = new FormData();
+
+                for (const file of files) {
+                    body.append("files", file, file.name);
+                }
+
+                return {
+                    url: `/inventory/items/${encodeURIComponent(itemId)}/images`,
+                    method: "POST",
+                    body,
+                };
+            },
+            invalidatesTags: (_result, _error, { itemId }) => [
+                "InventoryItems",
+                { type: "InventoryItems", id: itemId },
+            ],
+        }),
+        reorderItemImages: builder.mutation<
+            InventoryItem,
+            { itemId: string; imageIds: string[] }
+        >({
+            query: ({ itemId, imageIds }) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/images/order`,
+                method: "PUT",
+                body: { imageIds },
+            }),
+            invalidatesTags: (_result, _error, { itemId }) => [
+                "InventoryItems",
+                { type: "InventoryItems", id: itemId },
+            ],
+        }),
+        deleteItemImage: builder.mutation<
+            InventoryItem,
+            { itemId: string; imageId: string }
+        >({
+            query: ({ itemId, imageId }) => ({
+                url:
+                    `/inventory/items/${encodeURIComponent(itemId)}` +
+                    `/images/${encodeURIComponent(imageId)}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: (_result, _error, { itemId }) => [
+                "InventoryItems",
                 { type: "InventoryItems", id: itemId },
             ],
         }),
@@ -123,10 +228,16 @@ export const inventoryApi = baseApi.injectEndpoints({
 
 export const {
     useGetInventoryItemsQuery,
+    useGetInventoryItemOptionsQuery,
     useGetInventoryItemQuery,
+    useLazyFindInventoryItemByBarcodeQuery,
+    useGenerateInventoryBarcodeMutation,
     useCreateInventoryItemMutation,
     useUpdateInventoryItemMutation,
     useDeleteInventoryItemMutation,
+    useUploadItemImagesMutation,
+    useReorderItemImagesMutation,
+    useDeleteItemImageMutation,
     useGetItemGroupsQuery,
     useCreateItemGroupMutation,
     useUpdateItemGroupMutation,

@@ -66,9 +66,11 @@ export type PreviewItem = {
 
 /** Saved item to preview shape, for the items table. */
 export function toPreviewItem(item: InventoryItem): PreviewItem {
-    const gallery = item.images?.length
-        ? item.images
-        : [item.imageUrl || ""];
+    // Images arrive as records; the preview only needs their URLs, in the
+    // order the server assigned.
+    const gallery = [...(item.images || [])]
+        .sort((a, b) => (a.position || 0) - (b.position || 0))
+        .map((image) => image.url || "");
 
     const toBlocks = (
         blocks: NonNullable<InventoryItem["descriptionBlocks"]>,

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import {
+    ChevronDown,
     FolderPlus,
     LoaderCircle,
     Pencil,
@@ -81,12 +82,29 @@ export function InventoryCategories() {
         "CATEGORY",
     );
     const [editing, setEditing] = useState<EditingGroup | null>(null);
+    const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
+        () => new Set(),
+    );
     const [formKey, setFormKey] = useState(0);
     const [status, setStatus] = useState<string | null>(null);
     const [fieldError, setFieldError] = useState<string | null>(null);
     const groups = data || [];
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
+
+    function toggleGroup(groupId: string) {
+        setCollapsedGroupIds((current) => {
+            const next = new Set(current);
+
+            if (next.has(groupId)) {
+                next.delete(groupId);
+            } else {
+                next.add(groupId);
+            }
+
+            return next;
+        });
+    }
 
     function resetForm() {
         setEditing(null);
@@ -236,6 +254,27 @@ export function InventoryCategories() {
                                             </p>
                                         </div>
                                         <div className="flex gap-2">
+                                            {(group.subGroups?.length || 0) >
+                                            0 ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    aria-label={`${collapsedGroupIds.has(group.id) ? "Expand" : "Collapse"} ${group.name || "category"}`}
+                                                    aria-expanded={
+                                                        !collapsedGroupIds.has(
+                                                            group.id,
+                                                        )
+                                                    }
+                                                    onClick={() =>
+                                                        toggleGroup(group.id)
+                                                    }
+                                                >
+                                                    <ChevronDown
+                                                        className={`transition-transform ${collapsedGroupIds.has(group.id) ? "-rotate-90" : ""}`}
+                                                    />
+                                                </Button>
+                                            ) : null}
                                             <Button
                                                 type="button"
                                                 variant="outline"
@@ -272,7 +311,7 @@ export function InventoryCategories() {
                                         (subGroup) => (
                                             <div
                                                 key={subGroup.id}
-                                                className="ml-10 flex items-center gap-4 border-t border-[#f2f4f1] px-5 py-3"
+                                                className={`${collapsedGroupIds.has(group.id) ? "hidden" : "flex"} ml-10 items-center gap-4 border-t border-[#f2f4f1] px-5 py-3`}
                                             >
                                                 <span className="h-7 w-1 rounded-full bg-[#c9d7c6]" />
                                                 <div className="min-w-0 flex-1">

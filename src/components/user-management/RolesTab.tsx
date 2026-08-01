@@ -262,7 +262,7 @@ export default function RolesTab() {
                                                 onClick={() =>
                                                     toggleGroup(values, allOn)
                                                 }
-                                                className="mb-3 rounded-lg text-[12px] text-[#006b26] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                                                className="mb-3 rounded-lg text-[12px] text-white outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#00932a]"
                                             >
                                                 {allOn
                                                     ? "Clear all"
@@ -314,7 +314,7 @@ export default function RolesTab() {
                             <Button
                                 type="submit"
                                 disabled={saving}
-                                
+
                             >
                                 {saving
                                     ? "Saving…"
@@ -342,7 +342,7 @@ export default function RolesTab() {
                         <Button
                             type="button"
                             onClick={() => openEditor({ mode: "create" })}
-                            
+
                         >
                             <Plus className="size-4" aria-hidden="true" />
                             Create role

@@ -1,29 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+    ChevronLeft,
+    ChevronRight,
     Edit3,
     Eye,
+    LoaderCircle,
     PackagePlus,
+    ScanBarcode,
     Search,
+    SlidersHorizontal,
     Trash2,
+    X,
 } from "lucide-react";
 
+import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
 import {
     ItemPreviewDialog,
     toPreviewItem,
     type PreviewItem,
 } from "@/components/inventory/ItemPreviewDialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import {
     formatMoney,
     getApiErrorMessage,
@@ -33,15 +31,51 @@ import {
     InventoryPageHeader,
     inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-    setProductSearch,
-    setProductStatus,
-} from "@/store/inventoryUiSlice";
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    inventoryItemQuerySchema,
+    itemTypes,
+    type InventoryItemQuery,
+    type InventoryItemSort,
+} from "@/lib/api/inventory";
 import {
     useDeleteInventoryItemMutation,
     useGetInventoryItemsQuery,
+    useGetInventoryUnitsQuery,
+    useGetItemGroupsQuery,
 } from "@/services/inventoryApi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+    applyProductFilters,
+    clearAllProductFilters,
+    clearProductFilter,
+    resetProductDraftFilters,
+    setProductDraftFilter,
+    setProductPage,
+    setProductPageSize,
+    setProductSearch,
+    setProductSort,
+    setProductStatus,
+    type ProductAdvancedFilterKey,
+} from "@/store/inventoryUiSlice";
+
+const pageSizes = [10, 20, 50] as const;
+
+const sortLabels: Record<InventoryItemSort, string> = {
+    "name,asc": "Name: A to Z",
+    "name,desc": "Name: Z to A",
+    "price,asc": "Price: low to high",
+    "price,desc": "Price: high to low",
+};
 
 function statusClassName(status: string | undefined) {
     return status === "ACTIVE"
@@ -49,31 +83,197 @@ function statusClassName(status: string | undefined) {
         : "bg-[#ecefec] text-[#657064]";
 }
 
+function titleCase(value: string) {
+    return value
+        .toLowerCase()
+        .replace(/_/g, " ")
+        .replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function FilterChip({
+    label,
+    onRemove,
+}: {
+    label: string;
+    onRemove: () => void;
+}) {
+    return (
+        <span className="inline-flex h-8 items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 text-xs font-medium text-[#31593b]">
+            {label}
+            <button
+                type="button"
+                onClick={onRemove}
+                className="-mr-1 grid size-6 place-items-center rounded-full text-[#657064] outline-none hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+                aria-label={`Remove ${label} filter`}
+            >
+                <X className="size-3.5" />
+            </button>
+        </span>
+    );
+}
+
 export function InventoryProductList() {
     const dispatch = useAppDispatch();
-    const { productSearch, productStatus } = useAppSelector(
-        (state) => state.inventoryUi,
-    );
-    const { data: items, error, isLoading, refetch } =
-        useGetInventoryItemsQuery();
-    const [deleteItem, deleteState] =
-        useDeleteInventoryItemMutation();
+    const {
+        productSearch,
+        productStatus,
+        productDraftFilters,
+        productFilters,
+        productSort,
+        productPage,
+        productPageSize,
+    } = useAppSelector((state) => state.inventoryUi);
+    const [debouncedSearch, setDebouncedSearch] = useState(productSearch);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [filterErrors, setFilterErrors] = useState<
+        Record<string, string>
+    >({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+    const [scannerOpen, setScannerOpen] = useState(false);
 
-    const search = productSearch.trim().toLowerCase();
-    const filteredItems = (items || []).filter((item) => {
-        const matchesStatus =
-            productStatus === "ALL" || item.status === productStatus;
-        const matchesSearch =
-            !search ||
-            [item.name, item.sku, item.barcode, item.itemGroup?.name]
-                .filter(Boolean)
-                .some((value) =>
-                    String(value).toLowerCase().includes(search),
-                );
+    useEffect(() => {
+        const timer = window.setTimeout(
+            () => setDebouncedSearch(productSearch),
+            350,
+        );
 
-        return matchesStatus && matchesSearch;
-    });
+        return () => window.clearTimeout(timer);
+    }, [productSearch]);
+
+    const query: InventoryItemQuery = {
+        page: productPage,
+        size: productPageSize,
+        sort: productSort,
+        ...(debouncedSearch.trim()
+            ? { keyword: debouncedSearch.trim() }
+            : {}),
+        ...(productStatus === "ALL" ? {} : { status: productStatus }),
+        ...(productFilters.itemGroupId
+            ? { itemGroupId: productFilters.itemGroupId }
+            : {}),
+        ...(productFilters.unitId
+            ? { unitId: productFilters.unitId }
+            : {}),
+        ...(productFilters.itemType === "ALL"
+            ? {}
+            : {
+                  itemType: productFilters.itemType as
+                      | "DIGITAL"
+                      | "SERVICE"
+                      | "PHYSICAL",
+              }),
+        ...(productFilters.minPrice
+            ? { minPrice: Number(productFilters.minPrice) }
+            : {}),
+        ...(productFilters.maxPrice
+            ? { maxPrice: Number(productFilters.maxPrice) }
+            : {}),
+        ...(productFilters.sku.trim()
+            ? { sku: productFilters.sku.trim() }
+            : {}),
+        ...(productFilters.barcode.trim()
+            ? { barcode: productFilters.barcode.trim() }
+            : {}),
+    };
+
+    const { data, error, isFetching, isLoading, refetch } =
+        useGetInventoryItemsQuery(query);
+    const groupsQuery = useGetItemGroupsQuery();
+    const unitsQuery = useGetInventoryUnitsQuery();
+    const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
+
+    const items = data?.content ?? [];
+    const currentPage = data?.page?.number ?? productPage;
+    const totalElements = data?.page?.totalElements ?? items.length;
+    const totalPages = data?.page?.totalPages ?? (items.length ? 1 : 0);
+    const responsePageSize = data?.page?.size ?? productPageSize;
+    const firstResult = totalElements ? currentPage * responsePageSize + 1 : 0;
+    const lastResult = totalElements
+        ? Math.min(firstResult + items.length - 1, totalElements)
+        : 0;
+
+    const categoryOptions = (groupsQuery.data ?? []).flatMap((group) => [
+        {
+            id: group.id,
+            label: group.name || "Unnamed category",
+        },
+        ...(group.subGroups ?? []).map((subGroup) => ({
+            id: subGroup.id,
+            label: `${group.name || "Category"} / ${subGroup.name || "Unnamed"}`,
+        })),
+    ]);
+    const categoryName = new Map(
+        categoryOptions.map((option) => [option.id, option.label]),
+    );
+    const unitName = new Map(
+        (unitsQuery.data ?? []).map((unit) => [
+            unit.id,
+            unit.name || "Unnamed unit",
+        ]),
+    );
+
+    const advancedFilterCount = Object.entries(productFilters).filter(
+        ([key, value]) => key === "itemType" ? value !== "ALL" : Boolean(value),
+    ).length;
+    const hasFilters = Boolean(
+        debouncedSearch.trim() ||
+            productStatus !== "ALL" ||
+            advancedFilterCount,
+    );
+
+    function updateDraftFilter(
+        key: ProductAdvancedFilterKey,
+        value: string,
+    ) {
+        dispatch(setProductDraftFilter({ key, value }));
+        setFilterErrors((current) => {
+            if (!current[key]) {
+                return current;
+            }
+
+            const next = { ...current };
+            delete next[key];
+            return next;
+        });
+    }
+
+    function handleApplyFilters() {
+        const result = inventoryItemQuerySchema.safeParse({
+            page: 0,
+            size: productPageSize,
+            sort: productSort,
+            itemGroupId: productDraftFilters.itemGroupId || undefined,
+            unitId: productDraftFilters.unitId || undefined,
+            itemType:
+                productDraftFilters.itemType === "ALL"
+                    ? undefined
+                    : productDraftFilters.itemType,
+            minPrice: productDraftFilters.minPrice || undefined,
+            maxPrice: productDraftFilters.maxPrice || undefined,
+            sku: productDraftFilters.sku || undefined,
+            barcode: productDraftFilters.barcode || undefined,
+        });
+
+        if (!result.success) {
+            const nextErrors: Record<string, string> = {};
+
+            for (const issue of result.error.issues) {
+                nextErrors[String(issue.path[0] || "filters")] ||= issue.message;
+            }
+
+            setFilterErrors(nextErrors);
+            return;
+        }
+
+        setFilterErrors({});
+        dispatch(applyProductFilters());
+        setFilterPanelOpen(false);
+    }
+
+    function resetDraftFilters() {
+        setFilterErrors({});
+        dispatch(resetProductDraftFilters());
+    }
 
     async function handleDelete(itemId: string, name?: string) {
         if (
@@ -86,6 +286,10 @@ export function InventoryProductList() {
 
         try {
             await deleteItem(itemId).unwrap();
+
+            if (items.length === 1 && productPage > 0) {
+                dispatch(setProductPage(productPage - 1));
+            }
         } catch {
             // RTK Query exposes the request error below.
         }
@@ -109,47 +313,500 @@ export function InventoryProductList() {
             />
 
             <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative w-full sm:max-w-sm">
-                        <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
-                        <Input
-                            value={productSearch}
-                            onChange={(event) =>
-                                dispatch(
-                                    setProductSearch(event.target.value),
-                                )
-                            }
-                            placeholder="Search name, SKU or barcode"
-                            className={`${inventoryControlClassName} pl-10`}
-                        />
+                <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="relative w-full xl:max-w-md">
+                            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
+                            <Input
+                                value={productSearch}
+                                onChange={(event) =>
+                                    dispatch(
+                                        setProductSearch(event.target.value),
+                                    )
+                                }
+                                placeholder="Search name, SKU, barcode or category"
+                                className={`${inventoryControlClassName} pl-10`}
+                                aria-label="Search items"
+                            />
+                        </div>
+
+                        <div className="grid w-full gap-3 sm:grid-cols-2 xl:flex xl:w-auto">
+                            <Select
+                                value={productStatus}
+                                onValueChange={(value) =>
+                                    dispatch(
+                                        setProductStatus(
+                                            (value || "ALL") as
+                                                | "ALL"
+                                                | "ACTIVE"
+                                                | "INACTIVE",
+                                        ),
+                                    )
+                                }
+                            >
+                                <SelectTrigger
+                                    aria-label="Filter items by status"
+                                    className={`${inventoryControlClassName} w-full xl:w-44`}
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">
+                                        All statuses
+                                    </SelectItem>
+                                    <SelectItem value="ACTIVE">
+                                        Active
+                                    </SelectItem>
+                                    <SelectItem value="INACTIVE">
+                                        Inactive
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                aria-expanded={filterPanelOpen}
+                                aria-controls="inventory-advanced-filters"
+                                onClick={() =>
+                                    setFilterPanelOpen((open) => !open)
+                                }
+                            >
+                                <SlidersHorizontal />
+                                Advanced filters
+                                {advancedFilterCount ? (
+                                    <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-semibold text-white">
+                                        {advancedFilterCount}
+                                    </span>
+                                ) : null}
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                onClick={() => setScannerOpen(true)}
+                            >
+                                <ScanBarcode />
+                                Scan barcode
+                            </Button>
+                        </div>
                     </div>
-                    <Select
-                        value={productStatus}
-                        onValueChange={(value) =>
-                            dispatch(
-                                setProductStatus(
-                                    (value || "ALL") as
-                                        | "ALL"
-                                        | "ACTIVE"
-                                        | "INACTIVE",
-                                ),
-                            )
-                        }
-                    >
-                        <SelectTrigger
-                            aria-label="Filter items by status"
-                            className={`${inventoryControlClassName} w-full sm:w-44`}
+
+                    {filterPanelOpen ? (
+                        <div
+                            id="inventory-advanced-filters"
+                            className="rounded-2xl border border-[#e4eae2] bg-[#f8faf7] p-4 sm:p-5"
                         >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">All statuses</SelectItem>
-                            <SelectItem value="ACTIVE">Active</SelectItem>
-                            <SelectItem value="INACTIVE">
-                                Inactive
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                            <div className="flex flex-col gap-1">
+                                <h2 className="font-semibold text-[#161d16]">
+                                    Advanced filters
+                                </h2>
+                                <p className="text-sm text-[#657064]">
+                                    Narrow the catalogue, then apply all fields
+                                    together.
+                                </p>
+                            </div>
+
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-category">
+                                        Category
+                                    </Label>
+                                    <Select
+                                        value={
+                                            productDraftFilters.itemGroupId ||
+                                            "ALL"
+                                        }
+                                        items={{
+                                            ALL: "All categories",
+                                            ...Object.fromEntries(
+                                                categoryOptions.map(
+                                                    (option) => [
+                                                        option.id,
+                                                        option.label,
+                                                    ],
+                                                ),
+                                            ),
+                                        }}
+                                        onValueChange={(value) =>
+                                            updateDraftFilter(
+                                                "itemGroupId",
+                                                value === "ALL"
+                                                    ? ""
+                                                    : value || "",
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger id="item-filter-category">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">
+                                                All categories
+                                            </SelectItem>
+                                            {categoryOptions.map((option) => (
+                                                <SelectItem
+                                                    key={option.id}
+                                                    value={option.id}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {filterErrors.itemGroupId ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.itemGroupId}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-unit">
+                                        Unit
+                                    </Label>
+                                    <Select
+                                        value={
+                                            productDraftFilters.unitId || "ALL"
+                                        }
+                                        onValueChange={(value) =>
+                                            updateDraftFilter(
+                                                "unitId",
+                                                value === "ALL"
+                                                    ? ""
+                                                    : value || "",
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger id="item-filter-unit">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">
+                                                All units
+                                            </SelectItem>
+                                            {(unitsQuery.data ?? []).map(
+                                                (unit) => (
+                                                    <SelectItem
+                                                        key={unit.id}
+                                                        value={unit.id}
+                                                    >
+                                                        {unit.name ||
+                                                            "Unnamed unit"}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    {filterErrors.unitId ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.unitId}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-type">
+                                        Item type
+                                    </Label>
+                                    <Select
+                                        value={productDraftFilters.itemType}
+                                        onValueChange={(value) =>
+                                            updateDraftFilter(
+                                                "itemType",
+                                                value || "ALL",
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger id="item-filter-type">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">
+                                                All item types
+                                            </SelectItem>
+                                            {itemTypes.map((type) => (
+                                                <SelectItem
+                                                    key={type}
+                                                    value={type}
+                                                >
+                                                    {titleCase(type)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {filterErrors.itemType ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.itemType}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-sort">
+                                        Sort by
+                                    </Label>
+                                    <Select
+                                        value={productSort}
+                                        onValueChange={(value) =>
+                                            dispatch(
+                                                setProductSort(
+                                                    (value ||
+                                                        "name,asc") as InventoryItemSort,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger id="item-filter-sort">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Object.entries(sortLabels).map(
+                                                ([value, label]) => (
+                                                    <SelectItem
+                                                        key={value}
+                                                        value={value}
+                                                    >
+                                                        {label}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-min-price">
+                                        Minimum price
+                                    </Label>
+                                    <Input
+                                        id="item-filter-min-price"
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={productDraftFilters.minPrice}
+                                        aria-invalid={Boolean(
+                                            filterErrors.minPrice,
+                                        )}
+                                        onChange={(event) =>
+                                            updateDraftFilter(
+                                                "minPrice",
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {filterErrors.minPrice ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.minPrice}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-max-price">
+                                        Maximum price
+                                    </Label>
+                                    <Input
+                                        id="item-filter-max-price"
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="No maximum"
+                                        value={productDraftFilters.maxPrice}
+                                        aria-invalid={Boolean(
+                                            filterErrors.maxPrice,
+                                        )}
+                                        onChange={(event) =>
+                                            updateDraftFilter(
+                                                "maxPrice",
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {filterErrors.maxPrice ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.maxPrice}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-sku">SKU</Label>
+                                    <Input
+                                        id="item-filter-sku"
+                                        placeholder="Exact SKU"
+                                        value={productDraftFilters.sku}
+                                        aria-invalid={Boolean(filterErrors.sku)}
+                                        onChange={(event) =>
+                                            updateDraftFilter(
+                                                "sku",
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {filterErrors.sku ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.sku}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="item-filter-barcode">
+                                        Barcode
+                                    </Label>
+                                    <Input
+                                        id="item-filter-barcode"
+                                        placeholder="Exact barcode"
+                                        value={productDraftFilters.barcode}
+                                        aria-invalid={Boolean(
+                                            filterErrors.barcode,
+                                        )}
+                                        onChange={(event) =>
+                                            updateDraftFilter(
+                                                "barcode",
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {filterErrors.barcode ? (
+                                        <p className="text-xs text-accent">
+                                            {filterErrors.barcode}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={resetDraftFilters}
+                                >
+                                    Reset fields
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={handleApplyFilters}
+                                >
+                                    Apply filters
+                                </Button>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {hasFilters ? (
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <span className="text-xs font-semibold text-[#657064]">
+                                Active filters
+                            </span>
+                            {debouncedSearch.trim() ? (
+                                <FilterChip
+                                    label={`Search: ${debouncedSearch.trim()}`}
+                                    onRemove={() =>
+                                        dispatch(setProductSearch(""))
+                                    }
+                                />
+                            ) : null}
+                            {productStatus !== "ALL" ? (
+                                <FilterChip
+                                    label={`Status: ${titleCase(productStatus)}`}
+                                    onRemove={() =>
+                                        dispatch(setProductStatus("ALL"))
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.itemGroupId ? (
+                                <FilterChip
+                                    label={`Category: ${categoryName.get(productFilters.itemGroupId) || "Selected"}`}
+                                    onRemove={() =>
+                                        dispatch(
+                                            clearProductFilter("itemGroupId"),
+                                        )
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.unitId ? (
+                                <FilterChip
+                                    label={`Unit: ${unitName.get(productFilters.unitId) || "Selected"}`}
+                                    onRemove={() =>
+                                        dispatch(clearProductFilter("unitId"))
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.itemType !== "ALL" ? (
+                                <FilterChip
+                                    label={`Type: ${titleCase(productFilters.itemType)}`}
+                                    onRemove={() =>
+                                        dispatch(clearProductFilter("itemType"))
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.minPrice ? (
+                                <FilterChip
+                                    label={`Min: ${formatMoney(Number(productFilters.minPrice))}`}
+                                    onRemove={() =>
+                                        dispatch(clearProductFilter("minPrice"))
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.maxPrice ? (
+                                <FilterChip
+                                    label={`Max: ${formatMoney(Number(productFilters.maxPrice))}`}
+                                    onRemove={() =>
+                                        dispatch(clearProductFilter("maxPrice"))
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.sku ? (
+                                <FilterChip
+                                    label={`SKU: ${productFilters.sku}`}
+                                    onRemove={() =>
+                                        dispatch(clearProductFilter("sku"))
+                                    }
+                                />
+                            ) : null}
+                            {productFilters.barcode ? (
+                                <FilterChip
+                                    label={`Barcode: ${productFilters.barcode}`}
+                                    onRemove={() =>
+                                        dispatch(clearProductFilter("barcode"))
+                                    }
+                                />
+                            ) : null}
+                            <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                onClick={() =>
+                                    dispatch(clearAllProductFilters())
+                                }
+                            >
+                                Clear all
+                            </Button>
+                        </div>
+                    ) : null}
+                </div>
+
+                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[#edf0ec] bg-[#fbfcfa] px-5 py-2.5 text-sm text-[#657064]">
+                    <p aria-live="polite">
+                        {isFetching ? (
+                            <span className="inline-flex items-center gap-2">
+                                <LoaderCircle className="size-4 animate-spin text-primary" />
+                                Updating items
+                            </span>
+                        ) : totalElements ? (
+                            `Showing ${firstResult}–${lastResult} of ${totalElements} items`
+                        ) : (
+                            "0 items"
+                        )}
+                    </p>
+                    <p>Sorted by {sortLabels[productSort].toLowerCase()}</p>
                 </div>
 
                 {isLoading ? (
@@ -162,16 +819,12 @@ export function InventoryProductList() {
                         )}
                         retry={refetch}
                     />
-                ) : filteredItems.length === 0 ? (
+                ) : items.length === 0 ? (
                     <InventoryEmpty
-                        title={
-                            items?.length
-                                ? "No matching items"
-                                : "No items yet"
-                        }
+                        title={hasFilters ? "No matching items" : "No items yet"}
                         description={
-                            items?.length
-                                ? "Change the search or status filter."
+                            hasFilters
+                                ? "Change or clear some filters to broaden the results."
                                 : "Create your first item to begin tracking inventory."
                         }
                     />
@@ -181,9 +834,7 @@ export function InventoryProductList() {
                             <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
                                 <tr>
                                     <th className="px-5 py-3">Name</th>
-                                    <th className="px-5 py-3">
-                                        Category
-                                    </th>
+                                    <th className="px-5 py-3">Category</th>
                                     <th className="px-5 py-3">Type</th>
                                     <th className="px-5 py-3">Price</th>
                                     <th className="px-5 py-3">Unit</th>
@@ -194,7 +845,7 @@ export function InventoryProductList() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#edf0ec]">
-                                {filteredItems.map((item) => (
+                                {items.map((item) => (
                                     <tr
                                         key={item.id}
                                         className="text-[#1a222b] hover:bg-[#fbfcfa]"
@@ -214,10 +865,8 @@ export function InventoryProductList() {
                                         </td>
                                         <td className="px-5 py-4 text-[#657064]">
                                             {item.itemType
-                                                ?.toLowerCase()
-                                                .replace(/^\w/, (letter) =>
-                                                    letter.toUpperCase(),
-                                                ) || "—"}
+                                                ? titleCase(item.itemType)
+                                                : "—"}
                                         </td>
                                         <td className="px-5 py-4 font-semibold">
                                             {formatMoney(item.price)}
@@ -241,9 +890,7 @@ export function InventoryProductList() {
                                                     aria-label={`Preview ${item.name || "item"} in the store`}
                                                     onClick={() =>
                                                         setPreviewItem(
-                                                            toPreviewItem(
-                                                                item,
-                                                            ),
+                                                            toPreviewItem(item),
                                                         )
                                                     }
                                                 >
@@ -267,9 +914,7 @@ export function InventoryProductList() {
                                                     variant="destructive"
                                                     size="icon-sm"
                                                     aria-label={`Delete ${item.name || "item"}`}
-                                                    disabled={
-                                                        deleteState.isLoading
-                                                    }
+                                                    disabled={deleteState.isLoading}
                                                     onClick={() =>
                                                         handleDelete(
                                                             item.id,
@@ -287,6 +932,90 @@ export function InventoryProductList() {
                         </table>
                     </div>
                 )}
+
+                {!error && totalElements ? (
+                    <nav
+                        aria-label="Item pages"
+                        className="flex flex-col gap-3 border-t border-[#edf0ec] px-5 py-4 md:flex-row md:items-center md:justify-between"
+                    >
+                        <div className="flex items-center gap-3 text-sm text-[#657064]">
+                            <Label
+                                htmlFor="item-page-size"
+                                className="whitespace-nowrap text-sm font-normal"
+                            >
+                                Items per page
+                            </Label>
+                            <Select
+                                value={String(productPageSize)}
+                                onValueChange={(value) =>
+                                    dispatch(
+                                        setProductPageSize(
+                                            Number(value || 20),
+                                        ),
+                                    )
+                                }
+                            >
+                                <SelectTrigger
+                                    id="item-page-size"
+                                    size="sm"
+                                    className="w-20"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {pageSizes.map((size) => (
+                                        <SelectItem
+                                            key={size}
+                                            value={String(size)}
+                                        >
+                                            {size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+                            <p className="text-sm text-[#657064]">
+                                Page {currentPage + 1} of {Math.max(totalPages, 1)}
+                            </p>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === 0 || isFetching}
+                                    onClick={() =>
+                                        dispatch(
+                                            setProductPage(currentPage - 1),
+                                        )
+                                    }
+                                >
+                                    <ChevronLeft />
+                                    Previous
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={
+                                        currentPage + 1 >= totalPages ||
+                                        isFetching
+                                    }
+                                    onClick={() =>
+                                        dispatch(
+                                            setProductPage(currentPage + 1),
+                                        )
+                                    }
+                                >
+                                    Next
+                                    <ChevronRight />
+                                </Button>
+                            </div>
+                        </div>
+                    </nav>
+                ) : null}
+
                 {deleteState.error ? (
                     <p
                         className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-accent"
@@ -308,6 +1037,10 @@ export function InventoryProductList() {
                     }
                 }}
                 item={previewItem}
+            />
+            <BarcodeScannerDialog
+                open={scannerOpen}
+                onOpenChange={setScannerOpen}
             />
         </div>
     );

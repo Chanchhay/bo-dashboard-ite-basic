@@ -40,7 +40,7 @@ pills to match the established dashboard controls.
 ### Business Currency Settings
 
 File: src/components/business/BusinessCurrencyForm.tsx
-Last updated: 2026-07-28
+Last updated: 2026-08-01
 
 | Property         | Class |
 | ---------------- | ----- |
@@ -60,10 +60,25 @@ section titles. Configuration controls keep a 12px radius and low-contrast
 borders. Currency selections use pale-green pill chips, while footer actions
 use full pill buttons with the shared primary and accent colors.
 
+Currency addition uses the Base UI Autocomplete pattern: keep the input
+free-form for API-valid three-letter codes while filtering suggestions by
+currency name or code. Its popup matches the shared select styling with
+`rounded-xl bg-white shadow-lg ring-1 ring-[#e8e8e8]`; highlighted options use
+`bg-primary/10 text-primary`.
+
+Base currency, decimal places, and calculator currencies all use the shared
+`SelectField` dropdown with a visible chevron. In the exchange calculator, both
+rate surfaces use matching `rounded-xl`, `border-[#e8e8e8]`, and `bg-white`;
+the base rate stays fixed at `1`, while the exchange rate uses a borderless
+`Input`. Both compact currency dropdowns stay beside their labels and use
+`rounded-lg`. The circular amber control rebases the selected currencies on
+switch, with an amber hover and focus state so it reads as an interactive
+action.
+
 ### Inventory Management
 
 Files: `src/components/inventory/*.tsx`
-Last updated: 2026-07-28
+Last updated: 2026-08-01
 
 | Property         | Class |
 | ---------------- | ----- |
@@ -84,6 +99,45 @@ actions, and 12px form controls. Server data stays in the shared RTK Query
 cache, while persistent product and stock filters use the inventory Redux
 slice. Stock state badges consistently distinguish in-stock, low-stock, and
 out-of-stock conditions with brand, warning, and accent colors.
+
+Optional structured metadata should use a guided nested panel rather than a
+raw JSON textarea. The stock batch panel uses `rounded-xl`,
+`border-[#e4eae2]`, `bg-[#f8faf7]`, and `p-4`, plus a primary-tinted icon,
+plain-language guidance, and standard inputs; the form assembles the API object
+internally.
+
+Category rows with subcategories use a ghost icon button as their disclosure
+control. Keep the list expanded by default, expose `aria-expanded`, update the
+accessible label between expand and collapse, and rotate the down chevron when
+the nested rows are collapsed.
+
+### Inventory Item Filters
+
+File: `src/components/inventory/InventoryProductList.tsx`
+Last updated: 2026-08-01
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white` toolbar; `bg-[#f8faf7]` advanced panel; `bg-primary/5` active chips |
+| Border           | `border border-[#e4eae2]`; `border-primary/20` active chips |
+| Border radius    | `rounded-2xl` for the panel; `rounded-xl` for controls; `rounded-full` for chips |
+| Text — primary   | `font-semibold text-[#161d16]` |
+| Text — secondary | `text-sm text-[#657064]`; `text-xs font-medium text-[#31593b]` chips |
+| Spacing          | `p-4 sm:p-5` panel; `gap-4` filter grid; `gap-2` chip row |
+| Hover state      | `hover:bg-primary/10 hover:text-primary` chip removal; shared shadcn button variants |
+| Shadow           | Inherits the inventory card shadow; none inside the filter panel |
+| Accent usage     | `bg-primary text-white` applied-count badge; `bg-primary/5` active chips |
+
+**Pattern notes:**
+Keep the keyword, status, advanced-filter trigger, and barcode action in the
+primary toolbar. Advanced fields belong in one responsive tinted panel and are
+staged until **Apply filters**; sorting remains immediate. Applied values render
+as individually removable chips followed by a low-emphasis **Clear all**
+action. Pagination uses the API's zero-based page metadata but presents
+one-based page numbers, a compact page-size select, and outlined Previous/Next
+buttons. Result totals and the updating state remain in a quiet secondary bar
+above the table. ID-backed filter selects must provide Base UI's `items` label
+map so the closed trigger shows the human-readable name, never the stored ID.
 
 ### Modal Dialog
 
@@ -111,6 +165,39 @@ propagation on its own submit: the portal moves the DOM node, but React still
 bubbles the event through the component tree. Reset dialog state by keying the
 inner form on the record being edited rather than syncing with an effect; this
 React build rejects `setState` inside `useEffect`.
+
+### Inventory Barcode Tools
+
+Files: `src/components/inventory/BarcodePreview.tsx`,
+`src/components/inventory/BarcodeScannerDialog.tsx`,
+`src/components/inventory/InventoryProductForm.tsx`,
+`src/components/inventory/StockAdjustmentForm.tsx`
+Last updated: 2026-08-01
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white` for the barcode; `bg-[#f8faf7]` for the result panel |
+| Border           | `border border-[#e4eae2]` |
+| Border radius    | `rounded-xl` for barcode/control panels; `rounded-2xl` for the result surface |
+| Text — primary   | `text-lg font-semibold text-[#161d16]` |
+| Text — secondary | `text-sm text-[#657064]` |
+| Spacing          | `p-3` around barcode previews; `p-4` for lookup results; `gap-3` between controls |
+| Hover state      | Shared shadcn button variants |
+| Shadow           | Inherits the shared dialog popup shadow |
+| Accent usage     | `bg-primary/10 text-primary` for the scanner icon; `bg-accent/5 text-accent` for lookup errors |
+
+**Pattern notes:**
+Barcode tools separate instant client feedback from authoritative backend
+output: `react-barcode` renders a responsive CODE128 preview, while download
+actions use the authenticated API-generated PNG. Scanner dialogs keep one
+auto-focused, monospaced input so handheld USB and Bluetooth scanners can send
+their usual keystrokes and Enter without camera permissions; manual entry is
+the accessible fallback. On item creation, the barcode input and small outlined
+icon-only generator stay together as one compact control group; retain its
+accessible label and tooltip. The server generates a valid EAN-13 value and
+verifies it against saved items. Stock-entry item selectors pair the existing
+dropdown with an aligned scan icon; a successful lookup selects the item and
+closes the scanner immediately so quantity entry can continue.
 
 ### Storefront Item Preview
 

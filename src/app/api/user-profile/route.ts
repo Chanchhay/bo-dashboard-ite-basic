@@ -5,6 +5,8 @@ import {
     backendRequest,
 } from "@/lib/api/backend";
 import {
+    profilePictureRules,
+    toUserProfileFormData,
     userProfileSchema,
     type UserProfile,
 } from "@/lib/api/user-profile";
@@ -22,7 +24,14 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
     try {
-        const result = userProfileSchema.safeParse(await request.json());
+        const formData = await request.formData();
+        const result = userProfileSchema.safeParse({
+            firstName: String(formData.get("firstName") || ""),
+            lastName: String(formData.get("lastName") || ""),
+            phoneNumber: String(formData.get("phoneNumber") || ""),
+            gender: String(formData.get("gender") || "UNSPECIFIED"),
+            address: String(formData.get("address") || ""),
+        });
 
         if (!result.success) {
             return Response.json(
@@ -34,9 +43,26 @@ export async function PATCH(request: Request) {
             );
         }
 
+        const picture = formData.get("file");
+        const file =
+            picture instanceof File && picture.size > 0 ? picture : null;
+
+        if (file) {
+            const fileError = profilePictureRules.validate(file);
+
+            if (fileError) {
+                return Response.json(
+                    { message: fileError, fieldErrors: { file: [fileError] } },
+                    { status: 400 },
+                );
+            }
+        }
+
+        // Rebuild the payload so only the parts the backend declares are
+        // forwarded, whatever else the browser sent.
         const profile = await backendRequest<UserProfile>(userProfilePath, {
             method: "PATCH",
-            body: JSON.stringify(result.data),
+            body: toUserProfileFormData(result.data, file),
         });
 
         return Response.json(profile);

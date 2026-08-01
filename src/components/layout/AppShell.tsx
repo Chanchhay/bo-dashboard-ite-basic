@@ -45,7 +45,7 @@ export default function AppShell({
     }, [navOpen]);
 
     if (chromeless) {
-        return <div className="min-h-dvh bg-[#e8e8e6]">{children}</div>;
+        return <div className="min-h-dvh bg-white">{children}</div>;
     }
 
     return (

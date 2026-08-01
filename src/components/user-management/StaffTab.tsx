@@ -64,7 +64,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 onClick={() => setVisible((value) => !value)}
                 aria-label={visible ? "Hide password" : "Show password"}
                 aria-pressed={visible}
-                className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                className="bg-transparent absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a]"
             >
                 {visible ? (
                     <EyeOff className="size-4" aria-hidden="true" />
@@ -443,7 +443,7 @@ export default function StaffTab() {
                             <Button
                                 type="submit"
                                 disabled={saving}
-                                
+
                             >
                                 {saving
                                     ? "Saving…"
@@ -475,7 +475,7 @@ export default function StaffTab() {
                                 setFieldErrors({});
                                 setFormError(null);
                             }}
-                            
+
                         >
                             <Plus className="size-4" aria-hidden="true" />
                             Add user

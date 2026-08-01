@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Bell } from "lucide-react";
 
 import {
     launcherApps,
@@ -44,41 +45,59 @@ export default function AppLauncher({
     }, [opening, router]);
 
     return (
-        <div className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
-            <header className="mb-10 flex flex-wrap items-center justify-between gap-5">
-                <div>
-                    <h1 className="text-[32px] leading-tight text-[#16181c]">
-                        <span className="font-semibold">Hello,</span>{" "}
-                        {managerName.split(" ")[0]}
-                    </h1>
-                    <p className="mt-1.5 text-[16px] text-[#5c6660]">
-                        Choose an app to open.
-                    </p>
-                </div>
+        <div className="min-h-dvh bg-[#f5f5f5]">
+            <header className="flex h-[88px] items-center justify-between border-b border-[#bccab8]/10 px-5 lg:px-8 bg-white">
+                <Link
+                    href="/apps"
+                    aria-label="iPOS home"
+                    className="grid size-11 place-items-center text-4xl text-black outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+                >
+                    Logo
+                </Link>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-6">
+                    <button
+                        type="button"
+                        aria-label="Notifications"
+                        className="relative grid size-8 place-items-center text-[#161d16] outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+                    >
+                        <Bell className="size-5" aria-hidden="true" />
+                        <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-[#006b26]" />
+                    </button>
                     <UserMenu name={managerName} />
                 </div>
             </header>
 
-            {apps.length > 0 ? (
-                <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {apps.map((section) => (
-                        <li key={section.id}>
-                            <AppTile
-                                section={section}
-                                onOpen={setOpening}
-                                busy={opening !== null}
-                            />
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p className="rounded-[24px] bg-white px-6 py-10 text-center text-[15px] text-[#5c6660]">
-                    No apps are available for your role yet. Ask an
-                    administrator to review your permissions.
-                </p>
-            )}
+            <main className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
+                <header className="mb-10">
+                    <h1 className="text-[32px] leading-tight text-[#161d16]">
+                        <span className="font-semibold">Hello,</span>{" "}
+                        {managerName.split(" ")[0]}
+                    </h1>
+                    <p className="mt-1.5 text-[16px] text-[#3d4a3c]">
+                        Choose an app to open.
+                    </p>
+                </header>
+
+                {apps.length > 0 ? (
+                    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                        {apps.map((section) => (
+                            <li key={section.id}>
+                                <AppTile
+                                    section={section}
+                                    onOpen={setOpening}
+                                    busy={opening !== null}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="rounded-[24px] bg-white px-6 py-10 text-center text-[15px] text-[#3d4a3c]">
+                        No apps are available for your role yet. Ask an
+                        administrator to review your permissions.
+                    </p>
+                )}
+            </main>
 
             {opening && <AppOpen {...opening} />}
         </div>
@@ -116,7 +135,7 @@ function AppTile({
                     size: badge.width,
                 });
             }}
-            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] bg-white px-7 pt-10 pb-9 text-center outline-none transition-colors hover:bg-[#fcfcfb] focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
+            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] px-7 pt-10 pb-9 text-center outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
         >
             <span
                 ref={badgeRef}
@@ -126,10 +145,13 @@ function AppTile({
             >
                 <Icon className="size-11" strokeWidth={1.8} />
             </span>
-            <span className="text-[21px] leading-tight text-[#16181c]">
-                {app.label}
+            <span className="text-[21px] leading-[30px] text-[#161d16]">
+                {app.label.split(" ").map((word) => (
+                    <span key={word} className="block">
+                        {word}
+                    </span>
+                ))}
             </span>
-            <span className="-mt-2 text-[15px] text-[#8a8f89]">{app.hint}</span>
         </Link>
     );
 }

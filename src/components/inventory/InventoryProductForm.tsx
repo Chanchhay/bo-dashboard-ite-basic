@@ -11,6 +11,10 @@ import {
 } from "react";
 import {
     ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    Dices,
+    Download,
     Eye,
     LoaderCircle,
     Pencil,
@@ -19,6 +23,7 @@ import {
     Trash2,
 } from "lucide-react";
 
+import { BarcodePreview } from "@/components/inventory/BarcodePreview";
 import {
     createBlockId,
     DescriptionBlockEditor,
@@ -41,6 +46,10 @@ import {
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
+import {
+    ImageDropzone,
+    useObjectUrls,
+} from "@/components/ui/image-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -56,8 +65,10 @@ import {
     inventoryItemSchema,
     itemAttributePlacementLabels,
     itemAttributeTypeLabels,
+    itemImageRules,
     itemStatuses,
     itemTypes,
+    maxItemImages,
     type DescriptionBlock,
     type InventoryItem,
     type ItemAttribute,
@@ -65,9 +76,12 @@ import {
 } from "@/lib/api/inventory";
 import {
     useCreateInventoryItemMutation,
+    useDeleteItemImageMutation,
+    useGenerateInventoryBarcodeMutation,
     useGetInventoryItemQuery,
     useGetInventoryUnitsQuery,
     useGetItemGroupsQuery,
+    useReorderItemImagesMutation,
     useUpdateInventoryItemMutation,
 } from "@/services/inventoryApi";
 
@@ -76,6 +90,13 @@ type VariantRow = {
     name: string;
     price: string;
     available: boolean;
+};
+
+/** A file waiting to be uploaded, with the blob URL previewing it. */
+type PickedImage = {
+    id: string;
+    file: File;
+    previewUrl: string;
 };
 
 type FieldProps = {
@@ -101,6 +122,80 @@ function Field({ label, name, error, children }: FieldProps) {
                 </p>
             ) : null}
         </div>
+    );
+}
+
+/** One picture in the gallery: stored or waiting to be uploaded. */
+function ImageTile({
+    url,
+    label,
+    busy,
+    onRemove,
+    onMoveBack,
+    onMoveForward,
+}: {
+    url: string;
+    label: string;
+    busy: boolean;
+    onRemove: () => void;
+    /** Only stored images can be reordered; picks have no position yet. */
+    onMoveBack?: () => void;
+    onMoveForward?: () => void;
+}) {
+    return (
+        <li className="group relative overflow-hidden rounded-xl border border-[#e4eae2] bg-[#f7f8f7]">
+            <span className="block aspect-square">
+                {/* The API serves these URLs dynamically and picks preview as blobs. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src={url}
+                    alt=""
+                    className="size-full object-cover"
+                />
+            </span>
+            <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-[11px] text-white">
+                {label}
+            </span>
+            <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                {onMoveBack ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={busy}
+                        aria-label={`Move ${label} earlier`}
+                        onClick={onMoveBack}
+                        className="size-8 bg-white/90"
+                    >
+                        <ChevronLeft />
+                    </Button>
+                ) : null}
+                {onMoveForward ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={busy}
+                        aria-label={`Move ${label} later`}
+                        onClick={onMoveForward}
+                        className="size-8 bg-white/90"
+                    >
+                        <ChevronRight />
+                    </Button>
+                ) : null}
+                <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    disabled={busy}
+                    aria-label={`Remove ${label}`}
+                    onClick={onRemove}
+                    className="size-8"
+                >
+                    <Trash2 />
+                </Button>
+            </div>
+        </li>
     );
 }
 
@@ -174,6 +269,15 @@ function toBlockDrafts(
     }));
 }
 
+/** True while any block image — at either depth — is still uploading. */
+function hasUploadingImage(blocks: BlockDraft[]): boolean {
+    return blocks.some(
+        (block) =>
+            block.uploading ||
+            block.columns.some((column) => hasUploadingImage(column.blocks)),
+    );
+}
+
 type BlockPayload = {
     type: BlockDraft["type"];
     text: string;
@@ -241,6 +345,8 @@ function ProductEditor({
         useCreateInventoryItemMutation();
     const [updateItem, updateState] =
         useUpdateInventoryItemMutation();
+    const [generateBarcode, generateBarcodeState] =
+        useGenerateInventoryBarcodeMutation();
     const [attributes, setAttributes] = useState(() =>
         toAttributeDrafts(initialItem?.attributes),
     );
@@ -251,15 +357,29 @@ function ProductEditor({
     const [variants, setVariants] = useState(() =>
         toVariantRows(initialItem?.variants),
     );
-    // Older items carry only `imageUrl`; seed the gallery from it so an edit
-    // does not silently drop the one image they had.
-    const [images, setImages] = useState<string[]>(() => {
-        const gallery = initialItem?.images?.length
-            ? initialItem.images
-            : [initialItem?.imageUrl || ""];
-
-        return gallery.filter(Boolean).length ? gallery : [""];
-    });
+    const [barcodePreview, setBarcodePreview] = useState(
+        initialItem?.barcode || "",
+    );
+    const [barcodeGenerationError, setBarcodeGenerationError] = useState<
+        string | null
+    >(null);
+    // Stored images belong to the server: they arrive with an id and are
+    // deleted through their own endpoint. Picked files are held here until the
+    // save carries them up.
+    const storedImages = useMemo(
+        () =>
+            (initialItem?.images || [])
+                .filter((image) => image.url)
+                .sort((a, b) => (a.position || 0) - (b.position || 0)),
+        [initialItem?.images],
+    );
+    const [pickedImages, setPickedImages] = useState<PickedImage[]>([]);
+    const [imageError, setImageError] = useState<string | null>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const {
+        create: createObjectUrl,
+        release: releaseObjectUrl,
+    } = useObjectUrls();
     const [blocks, setBlocks] = useState(() =>
         toBlockDrafts(initialItem?.descriptionBlocks),
     );
@@ -269,8 +389,113 @@ function ProductEditor({
     const [status, setStatus] = useState<string | null>(null);
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
+    const [deleteImage, deleteImageState] = useDeleteItemImageMutation();
+    const [reorderImages, reorderImagesState] =
+        useReorderItemImagesMutation();
     const isEditing = Boolean(initialItem);
     const isSaving = createState.isLoading || updateState.isLoading;
+    // A block image is uploaded on pick, so saving mid-upload would store the
+    // block without its picture.
+    const isUploadingBlockImage = hasUploadingImage(blocks);
+    const galleryCount = storedImages.length + pickedImages.length;
+    // What the gallery and the preview show: what is stored, then what is
+    // about to be uploaded.
+    const galleryUrls = [
+        ...storedImages.map((image) => image.url || ""),
+        ...pickedImages.map((image) => image.previewUrl),
+    ].filter(Boolean);
+
+    function handleImagesPicked(picked: File[]) {
+        setImageError(null);
+        setPickedImages((current) => [
+            ...current,
+            ...picked.map((file) => ({
+                id: createRowId(),
+                file,
+                previewUrl: createObjectUrl(file),
+            })),
+        ]);
+    }
+
+    async function handleGenerateBarcode() {
+        setBarcodeGenerationError(null);
+
+        try {
+            const result = await generateBarcode().unwrap();
+            setBarcodePreview(result.barcode);
+            setFieldErrors((current) => {
+                if (!current.barcode) {
+                    return current;
+                }
+
+                const next = { ...current };
+                delete next.barcode;
+                return next;
+            });
+        } catch (error) {
+            setBarcodeGenerationError(
+                getApiErrorMessage(
+                    error,
+                    "Unable to generate a unique barcode.",
+                ),
+            );
+        }
+    }
+
+    function removePickedImage(id: string) {
+        setPickedImages((current) => {
+            const removed = current.find((image) => image.id === id);
+            releaseObjectUrl(removed?.previewUrl);
+
+            return current.filter((image) => image.id !== id);
+        });
+        setImageError(null);
+    }
+
+    /**
+     * Position belongs to the server, so a move sends the whole order. The
+     * first image is the thumbnail, which is what makes this worth having.
+     */
+    async function moveStoredImage(index: number, delta: number) {
+        const target = index + delta;
+
+        if (target < 0 || target >= storedImages.length || !initialItem) {
+            return;
+        }
+
+        const order = storedImages.map((image) => image.id || "");
+        [order[index], order[target]] = [order[target], order[index]];
+
+        setImageError(null);
+
+        try {
+            await reorderImages({
+                itemId: initialItem.id,
+                imageIds: order,
+            }).unwrap();
+        } catch (error) {
+            setImageError(
+                getApiErrorMessage(error, "Unable to reorder the images."),
+            );
+        }
+    }
+
+    /** Stored images are deleted on the spot — the endpoint applies at once. */
+    async function removeStoredImage(imageId: string) {
+        if (!initialItem) {
+            return;
+        }
+
+        setImageError(null);
+
+        try {
+            await deleteImage({ itemId: initialItem.id, imageId }).unwrap();
+        } catch (error) {
+            setImageError(
+                getApiErrorMessage(error, "Unable to remove that image."),
+            );
+        }
+    }
 
     const categoryOptions = useMemo(
         () =>
@@ -327,7 +552,7 @@ function ProductEditor({
         setPreviewItem({
             name: read("name"),
             description: read("description"),
-            images: images.map((image) => image.trim()).filter(Boolean),
+            images: galleryUrls,
             badge: read("badge"),
             price: Number(formData.get("price") || 0),
             compareAtPrice:
@@ -391,9 +616,6 @@ function ProductEditor({
                     ? {}
                     : { price: Number(row.price) }),
             }));
-        const galleryImages = images
-            .map((image) => image.trim())
-            .filter(Boolean);
         const compareAtPrice = String(
             formData.get("compareAtPrice") || "",
         );
@@ -410,10 +632,6 @@ function ProductEditor({
             sku: String(formData.get("sku") || ""),
             code: String(formData.get("code") || ""),
             description: String(formData.get("description") || ""),
-            // The first gallery image doubles as the thumbnail the items
-            // table and POS read.
-            imageUrl: galleryImages[0] || "",
-            images: galleryImages,
             badge: String(formData.get("badge") || ""),
             barcode: String(formData.get("barcode") || ""),
             price: Number(formData.get("price") || 0),
@@ -438,13 +656,18 @@ function ProductEditor({
         setFieldErrors({});
 
         try {
+            // The newly picked pictures ride along with the save, so an item
+            // and its gallery land in one request.
+            const files = pickedImages.map((image) => image.file);
+
             if (initialItem) {
                 await updateItem({
                     itemId: initialItem.id,
                     body: result.data,
+                    files,
                 }).unwrap();
             } else {
-                await createItem(result.data).unwrap();
+                await createItem({ body: result.data, files }).unwrap();
             }
             router.push("/inventory");
         } catch (error) {
@@ -550,14 +773,70 @@ function ProductEditor({
                         name="barcode"
                         error={fieldErrors.barcode}
                     >
-                        <Input
-                            id="barcode"
-                            name="barcode"
-                            defaultValue={initialItem?.barcode}
-                            placeholder="3547908987678"
-                            aria-invalid={Boolean(fieldErrors.barcode)}
-                            className={inventoryControlClassName}
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                id="barcode"
+                                name="barcode"
+                                value={barcodePreview}
+                                onChange={(event) => {
+                                    setBarcodePreview(event.target.value);
+                                    setBarcodeGenerationError(null);
+                                }}
+                                placeholder="3547908987678"
+                                aria-invalid={Boolean(fieldErrors.barcode)}
+                                className={`${inventoryControlClassName} flex-1 font-mono`}
+                            />
+                            {!isEditing ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    disabled={generateBarcodeState.isLoading}
+                                    onClick={handleGenerateBarcode}
+                                    aria-label="Generate a unique barcode"
+                                    title="Generate unique barcode"
+                                    className="shrink-0 self-center"
+                                >
+                                    {generateBarcodeState.isLoading ? (
+                                        <LoaderCircle className="animate-spin" />
+                                    ) : (
+                                        <Dices />
+                                    )}
+                                </Button>
+                            ) : null}
+                        </div>
+                        {barcodeGenerationError ? (
+                            <p className="text-xs text-accent" role="alert">
+                                {barcodeGenerationError}
+                            </p>
+                        ) : null}
+                        {barcodePreview.trim() ? (
+                            <div className="rounded-xl border border-[#e4eae2] bg-[#f8faf7] p-3">
+                                <BarcodePreview
+                                    value={barcodePreview}
+                                    compact
+                                />
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-xs text-[#657064]">
+                                        CODE128 preview
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        render={
+                                            <a
+                                                href={`/api/inventory/items/barcode/image?code=${encodeURIComponent(barcodePreview.trim())}`}
+                                                download
+                                            />
+                                        }
+                                        nativeButton={false}
+                                    >
+                                        <Download />
+                                        Download PNG
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : null}
                     </Field>
                     <Field
                         label="Category"
@@ -799,74 +1078,80 @@ function ProductEditor({
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Images"
-                        description="The first image is the thumbnail; the rest fill the store gallery."
+                        description={`The first image is the thumbnail; the rest fill the store gallery. Up to ${maxItemImages}, 10 MB each.`}
                     />
                     <Button
                         type="button"
                         variant="outline"
-                        disabled={images.length >= 8}
-                        onClick={() => setImages((current) => [...current, ""])}
+                        disabled={galleryCount >= maxItemImages || isSaving}
+                        onClick={() => imageInputRef.current?.click()}
                     >
                         <Plus />
-                        Add image
+                        Add images
                     </Button>
                 </div>
-                <div className="mt-5 flex flex-col gap-3">
-                    {images.map((image, index) => (
-                        <div key={index} className="flex items-center gap-3">
-                            <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#e8e8e8] bg-[#f7f8f7] text-xs text-[#a3aca1]">
-                                {image.trim() ? (
-                                    /* eslint-disable-next-line @next/next/no-img-element */
-                                    <img
-                                        src={image}
-                                        alt=""
-                                        className="size-full object-cover"
-                                    />
-                                ) : (
-                                    index + 1
-                                )}
-                            </span>
-                            <Input
-                                value={image}
-                                onChange={(event) =>
-                                    setImages((current) =>
-                                        current.map((item, position) =>
-                                            position === index
-                                                ? event.target.value
-                                                : item,
-                                        ),
-                                    )
-                                }
-                                placeholder="https://example.com/item.jpg"
-                                aria-label={`Image URL ${index + 1}`}
-                                className={inventoryControlClassName}
-                            />
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon-lg"
-                                aria-label={`Remove image ${index + 1}`}
-                                onClick={() =>
-                                    setImages((current) => {
-                                        const next = current.filter(
-                                            (_, position) =>
-                                                position !== index,
-                                        );
 
-                                        return next.length ? next : [""];
-                                    })
-                                }
-                            >
-                                <Trash2 />
-                            </Button>
-                        </div>
-                    ))}
-                    {fieldErrors.images || fieldErrors.imageUrl ? (
-                        <p className="text-xs text-accent" role="alert">
-                            {fieldErrors.images || fieldErrors.imageUrl}
-                        </p>
+                <ImageDropzone
+                    className="mt-5"
+                    rules={itemImageRules}
+                    inputRef={imageInputRef}
+                    disabled={isSaving}
+                    error={imageError}
+                    remaining={maxItemImages - galleryCount}
+                    label="Add images of this item"
+                    onPick={handleImagesPicked}
+                    onError={setImageError}
+                >
+                    {galleryCount ? (
+                        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                            {storedImages.map((image, index) => (
+                                <ImageTile
+                                    key={image.id || image.url}
+                                    url={image.url || ""}
+                                    label={
+                                        index === 0
+                                            ? "Thumbnail"
+                                            : `Image ${index + 1}`
+                                    }
+                                    busy={
+                                        deleteImageState.isLoading ||
+                                        reorderImagesState.isLoading
+                                    }
+                                    onRemove={() =>
+                                        image.id
+                                            ? removeStoredImage(image.id)
+                                            : undefined
+                                    }
+                                    onMoveBack={
+                                        index > 0
+                                            ? () => moveStoredImage(index, -1)
+                                            : undefined
+                                    }
+                                    onMoveForward={
+                                        index < storedImages.length - 1
+                                            ? () => moveStoredImage(index, 1)
+                                            : undefined
+                                    }
+                                />
+                            ))}
+                            {pickedImages.map((image, index) => (
+                                <ImageTile
+                                    key={image.id}
+                                    url={image.previewUrl}
+                                    label={
+                                        storedImages.length + index === 0
+                                            ? "Thumbnail — not saved"
+                                            : "Not saved yet"
+                                    }
+                                    busy={isSaving}
+                                    onRemove={() =>
+                                        removePickedImage(image.id)
+                                    }
+                                />
+                            ))}
+                        </ul>
                     ) : null}
-                </div>
+                </ImageDropzone>
             </section>
 
             <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
@@ -1116,7 +1401,7 @@ function ProductEditor({
                 </Button>
                 <Button
                     type="submit"
-                    disabled={isSaving}
+                    disabled={isSaving || isUploadingBlockImage}
                     size="lg"
                 >
                     {isSaving ? (

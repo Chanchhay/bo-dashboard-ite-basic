@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { imageUploadRules } from "@/lib/api/image-upload";
+
 export const itemTypes = ["DIGITAL", "SERVICE", "PHYSICAL"] as const;
 export const itemStatuses = ["ACTIVE", "INACTIVE"] as const;
 export const itemAttributeTypes = [
@@ -119,6 +121,13 @@ export type DescriptionBlock = {
     columns?: { blocks?: DescriptionBlock[] }[];
 };
 
+/** A stored image: the API owns the URL and the position, we only send files. */
+export type ItemImage = {
+    id?: string;
+    url?: string;
+    position?: number;
+};
+
 export type ItemVariant = {
     id?: string;
     slug?: string;
@@ -137,8 +146,7 @@ export type InventoryItem = {
     sku?: string;
     code?: string;
     description?: string;
-    imageUrl?: string;
-    images?: string[];
+    images?: ItemImage[];
     badge?: string;
     barcode?: string;
     price?: number;
@@ -150,6 +158,94 @@ export type InventoryItem = {
     lowStockDefault?: number;
     status?: (typeof itemStatuses)[number];
 };
+
+export type InventoryPageMetadata = {
+    size?: number;
+    number?: number;
+    totalElements?: number;
+    totalPages?: number;
+};
+
+export type InventoryItemPage = {
+    content?: InventoryItem[];
+    page?: InventoryPageMetadata;
+};
+
+export const inventoryItemSorts = [
+    "name,asc",
+    "name,desc",
+    "price,asc",
+    "price,desc",
+] as const;
+
+export type InventoryItemSort = (typeof inventoryItemSorts)[number];
+
+const emptyQueryValueToUndefined = (value: unknown) =>
+    value === "" || value === null ? undefined : value;
+
+const optionalQueryText = (maximum: number, message: string) =>
+    z.preprocess(
+        emptyQueryValueToUndefined,
+        z.string().trim().max(maximum, message).optional(),
+    );
+
+const optionalQueryUuid = z.preprocess(
+    emptyQueryValueToUndefined,
+    z.uuid("Select a valid option.").optional(),
+);
+
+const optionalQueryNumber = z.preprocess(
+    emptyQueryValueToUndefined,
+    z.coerce.number().finite().min(0, "Price cannot be negative.").optional(),
+);
+
+/**
+ * The item search and pageable contracts exposed by the inventory API. This
+ * schema is shared by the browser-facing BFF and the filter UI so malformed
+ * values never reach the backend.
+ */
+export const inventoryItemQuerySchema = z
+    .object({
+        page: z.coerce.number().int().min(0).default(0),
+        size: z.coerce.number().int().min(1).max(100).default(20),
+        sort: z.enum(inventoryItemSorts).default("name,asc"),
+        keyword: optionalQueryText(
+            200,
+            "Search must be 200 characters or fewer.",
+        ),
+        status: z.preprocess(
+            emptyQueryValueToUndefined,
+            z.enum(itemStatuses).optional(),
+        ),
+        itemGroupId: optionalQueryUuid,
+        unitId: optionalQueryUuid,
+        itemType: z.preprocess(
+            emptyQueryValueToUndefined,
+            z.enum(itemTypes).optional(),
+        ),
+        minPrice: optionalQueryNumber,
+        maxPrice: optionalQueryNumber,
+        sku: optionalQueryText(100, "SKU must be 100 characters or fewer."),
+        barcode: optionalQueryText(
+            100,
+            "Barcode must be 100 characters or fewer.",
+        ),
+    })
+    .superRefine((query, context) => {
+        if (
+            query.minPrice !== undefined &&
+            query.maxPrice !== undefined &&
+            query.minPrice > query.maxPrice
+        ) {
+            context.addIssue({
+                code: "custom",
+                message: "Maximum price must be at least the minimum price.",
+                path: ["maxPrice"],
+            });
+        }
+    });
+
+export type InventoryItemQuery = z.infer<typeof inventoryItemQuerySchema>;
 
 export type StockSummary = {
     itemId: string;
@@ -313,10 +409,13 @@ const blockFields = {
     items: z
         .array(z.string().trim().min(1))
         .max(20, "A list can hold at most 20 bullets."),
+    // Matches `DescriptionBlockRequest.url`. An uploaded picture's URL is the
+    // storage endpoint plus a UUID and the original filename, so the old
+    // 255-character cap could reject a save the user had no way to fix.
     url: z
         .string()
         .trim()
-        .max(255, "An image URL must be 255 characters or fewer."),
+        .max(2048, "An image URL must be 2048 characters or fewer."),
     caption: z
         .string()
         .trim()
@@ -346,7 +445,7 @@ function checkBlockContent(
     }
 
     if (block.type === "IMAGE") {
-        require(Boolean(block.url), "Add an image URL.", "url");
+        require(Boolean(block.url), "Add an image to this block.", "url");
     }
 }
 
@@ -396,19 +495,6 @@ export const inventoryItemSchema = z.object({
     sku: optionalText(100, "SKU must be 100 characters or fewer."),
     code: optionalText(100, "Code must be 100 characters or fewer."),
     description: z.string().trim(),
-    imageUrl: optionalText(
-        255,
-        "Image URL must be 255 characters or fewer.",
-    ),
-    images: z
-        .array(
-            z
-                .string()
-                .trim()
-                .min(1)
-                .max(255, "An image URL must be 255 characters or fewer."),
-        )
-        .max(8, "An item can show at most eight images."),
     badge: optionalText(40, "A badge must be 40 characters or fewer."),
     barcode: optionalText(
         100,
@@ -530,8 +616,6 @@ export function toItemRequest(input: InventoryItemInput) {
         sku: input.sku,
         code: input.code,
         description: input.description,
-        imageUrl: input.imageUrl,
-        images: input.images,
         badge: input.badge,
         barcode: input.barcode,
         price: input.price,
@@ -549,6 +633,83 @@ export function toItemRequest(input: InventoryItemInput) {
             : {}),
         ...(input.unitId ? { unitId: input.unitId } : {}),
     };
+}
+
+// The server caps an item at ten images and each upload at 10 MB, and takes
+// any `image/*` type. Checking here turns those into a message beside the
+// picker instead of a rejected save.
+export const maxItemImages = 10;
+
+export const itemImageRules = imageUploadRules({
+    accept: "image/*",
+    maxBytes: 10 * 1024 * 1024,
+    subject: "each item image",
+    formats: "PNG, JPG or WebP",
+});
+
+/** What `POST /businesses/{id}/assets` answers with. */
+export type UploadedAsset = {
+    key?: string;
+    url?: string;
+};
+
+/** Description-block pictures go through the same ceiling as the gallery. */
+export const blockImageRules = imageUploadRules({
+    accept: "image/*",
+    maxBytes: 10 * 1024 * 1024,
+    subject: "the block image",
+    formats: "PNG, JPG or WebP",
+});
+
+/**
+ * Flattens the item request into multipart parts.
+ *
+ * `POST`/`PUT` items are `multipart/form-data` so the pictures can ride along,
+ * and the backend binds them onto a record constructor. That binder reads
+ * nested values from indexed paths — `attributes[0].values[1].colorHex` — so
+ * arrays and objects are spread into one part per leaf value rather than sent
+ * as JSON.
+ *
+ * Empty strings are sent rather than skipped: an update reads a missing field
+ * as "leave alone" and an empty one as "clear", so dropping them would make
+ * emptying a SKU or a badge impossible.
+ */
+export function toItemFormData(
+    input: InventoryItemInput,
+    files?: readonly File[],
+) {
+    const formData = new FormData();
+
+    const append = (path: string, value: unknown) => {
+        if (value === undefined || value === null) {
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            value.forEach((entry, index) => append(`${path}[${index}]`, entry));
+            return;
+        }
+
+        if (typeof value === "object") {
+            for (const [key, nested] of Object.entries(value)) {
+                append(`${path}.${key}`, nested);
+            }
+            return;
+        }
+
+        formData.append(path, String(value));
+    };
+
+    for (const [name, value] of Object.entries(toItemRequest(input))) {
+        append(name, value);
+    }
+
+    // Repeated parts under one name are what binds to `List<MultipartFile>`.
+    for (const file of files || []) {
+        formData.append("files", file, file.name);
+    }
+
+    return formData;
 }
 
 export function toItemGroupRequest(input: ItemGroupInput) {

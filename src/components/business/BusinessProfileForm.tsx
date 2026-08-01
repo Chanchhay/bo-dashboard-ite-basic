@@ -1,14 +1,13 @@
 "use client";
 
 import {
-    useEffect,
     useRef,
     useState,
-    type ChangeEvent,
     type FormEvent,
     type ReactNode,
 } from "react";
 import Image from "next/image";
+import { Image as ImageIcon } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,10 @@ import {
     controlClassName,
     textareaClassName as sharedTextareaClassName,
 } from "@/components/ui/form-controls";
+import {
+    ImagePicker,
+    useStagedImage,
+} from "@/components/ui/image-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,17 +30,26 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    businessLogoRules,
     businessProfileSchema,
+    businessThumbnailRules,
     type Business,
     type BusinessCategory,
     type BusinessProfileInput,
     type BusinessSubCategory,
 } from "@/lib/api/business";
+import type { ImageUploadRules } from "@/lib/api/image-upload";
 import {
+    businessApi,
+    useDeleteBusinessLogoMutation,
+    useDeleteBusinessThumbnailMutation,
     useGetBusinessCategoriesQuery,
     useGetBusinessProfileQuery,
     useUpdateBusinessProfileMutation,
+    useUploadBusinessLogoMutation,
+    useUploadBusinessThumbnailMutation,
 } from "@/services/businessApi";
+import { useAppDispatch } from "@/store/hooks";
 
 const asset = (name: string) => `/business-profile-assets/${name}`;
 
@@ -152,6 +164,69 @@ function getBusinessTypes(
 const inputClassName = controlClassName;
 const textareaClassName = sharedTextareaClassName;
 
+/** A picker plus the "staged until you save" wording both images share. */
+function StagedImageField({
+    staged,
+    rules,
+    disabled,
+    label,
+    noun,
+    preview,
+    previewShape,
+}: {
+    staged: ReturnType<typeof useStagedImage>;
+    rules: ImageUploadRules;
+    disabled: boolean;
+    label: string;
+    /** Names the image in the buttons: "Logo", "Cover". */
+    noun: string;
+    preview: ReactNode;
+    previewShape?: "circle" | "rect";
+}) {
+    return (
+        <ImagePicker
+            rules={rules}
+            disabled={disabled}
+            error={staged.error}
+            previewShape={previewShape}
+            label={label}
+            preview={preview}
+            onPick={staged.pick}
+            onError={staged.setError}
+            actions={
+                <div className="flex flex-col items-center gap-1">
+                    {staged.file ? (
+                        <p className="text-center text-[10px] leading-4 text-[#6b7280]">
+                            {staged.file.name} — uploads when you save.
+                        </p>
+                    ) : null}
+                    {staged.removed ? (
+                        <p className="text-center text-[10px] leading-4 text-[#6b7280]">
+                            {noun} removed — applies when you save.
+                        </p>
+                    ) : null}
+                    {staged.preview || staged.isDirty ? (
+                        <Button
+                            type="button"
+                            variant="link"
+                            size="xs"
+                            disabled={disabled}
+                            onClick={
+                                staged.isDirty ? staged.reset : staged.remove
+                            }
+                            className="h-auto px-0 text-[11px] text-[#6b7280]"
+                        >
+                            {staged.isDirty
+                                ? `Undo ${noun.toLowerCase()} change`
+                                : `Remove ${noun.toLowerCase()}`}
+                        </Button>
+                    ) : null}
+                </div>
+            }
+        />
+    );
+}
+
 function BusinessProfileEditor({
     business,
     businessTypes,
@@ -159,53 +234,41 @@ function BusinessProfileEditor({
     business: Business;
     businessTypes: BusinessSubCategory[];
 }) {
-    const [updateBusinessProfile, { isLoading }] =
+    const dispatch = useAppDispatch();
+    const [updateBusinessProfile, { isLoading: isSaving }] =
         useUpdateBusinessProfileMutation();
+    const [uploadBusinessLogo, { isLoading: isUploadingLogo }] =
+        useUploadBusinessLogoMutation();
+    const [deleteBusinessLogo, { isLoading: isDeletingLogo }] =
+        useDeleteBusinessLogoMutation();
+    const [uploadBusinessThumbnail, { isLoading: isUploadingThumbnail }] =
+        useUploadBusinessThumbnailMutation();
+    const [deleteBusinessThumbnail, { isLoading: isDeletingThumbnail }] =
+        useDeleteBusinessThumbnailMutation();
+    const isLoading =
+        isSaving ||
+        isUploadingLogo ||
+        isDeletingLogo ||
+        isUploadingThumbnail ||
+        isDeletingThumbnail;
     const formRef = useRef<HTMLFormElement>(null);
-    const objectUrlRef = useRef<string | null>(null);
-    const initialLogo = business.logo || "";
-    const [logoPreview, setLogoPreview] = useState(initialLogo);
-    const [hasLocalPreview, setHasLocalPreview] = useState(false);
+    // Both images stage their pick and their removal until the form is saved,
+    // so a cancelled edit never touches what is stored.
+    const logo = useStagedImage(businessLogoRules, business.logo || "");
+    const thumbnail = useStagedImage(
+        businessThumbnailRules,
+        business.thumbnail || "",
+    );
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [status, setStatus] = useState<{
         type: "success" | "error";
         message: string;
     } | null>(null);
 
-    useEffect(() => {
-        return () => {
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-            }
-        };
-    }, []);
-
-    function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0];
-
-        if (!file) {
-            return;
-        }
-
-        if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current);
-        }
-
-        objectUrlRef.current = URL.createObjectURL(file);
-        setLogoPreview(objectUrlRef.current);
-        setHasLocalPreview(true);
-    }
-
     function handleCancel() {
         formRef.current?.reset();
-
-        if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current);
-            objectUrlRef.current = null;
-        }
-
-        setLogoPreview(initialLogo);
-        setHasLocalPreview(false);
+        logo.reset();
+        thumbnail.reset();
         setFieldErrors({});
         setStatus(null);
     }
@@ -224,7 +287,6 @@ function BusinessProfileEditor({
             phoneNumber: String(formData.get("phoneNumber") || ""),
             address: String(formData.get("address") || ""),
             googleMap: String(formData.get("googleMap") || ""),
-            logo: String(formData.get("logo") || ""),
         });
 
         if (!result.success) {
@@ -238,13 +300,41 @@ function BusinessProfileEditor({
 
         setFieldErrors({});
 
+        let imageChanged = false;
+
         try {
+            // Both images live behind their own endpoints, so they go first and
+            // the profile update below refreshes the cached business for all.
+            if (logo.file) {
+                await uploadBusinessLogo(logo.file).unwrap();
+                imageChanged = true;
+            } else if (logo.removed) {
+                await deleteBusinessLogo().unwrap();
+                imageChanged = true;
+            }
+
+            if (thumbnail.file) {
+                await uploadBusinessThumbnail(thumbnail.file).unwrap();
+                imageChanged = true;
+            } else if (thumbnail.removed) {
+                await deleteBusinessThumbnail().unwrap();
+                imageChanged = true;
+            }
+
             await updateBusinessProfile(result.data).unwrap();
+            logo.reset();
+            thumbnail.reset();
             setStatus({
                 type: "success",
                 message: "Business profile saved successfully.",
             });
         } catch (error) {
+            if (imageChanged) {
+                // An image already changed on the server; pull the business
+                // back so the form is not left showing a stale picture.
+                dispatch(businessApi.util.invalidateTags(["Business"]));
+            }
+
             setStatus({
                 type: "error",
                 message: getApiErrorMessage(
@@ -262,47 +352,38 @@ function BusinessProfileEditor({
             noValidate
             className="flex min-h-[847px] flex-col gap-6 rounded-xl bg-white p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
         >
-            <Input type="hidden" name="logo" value={initialLogo} />
-
             <div className="grid gap-[30px] xl:grid-cols-[303px_minmax(0,1fr)]">
-                <Label className="group flex min-h-[281px] cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-[rgba(194,200,190,0.3)] bg-white px-5 pt-9 pb-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] outline-none focus-within:border-primary">
-                    <Input
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={handleLogoChange}
+                <div className="flex flex-col gap-4">
+                    <StagedImageField
+                        staged={logo}
+                        rules={businessLogoRules}
+                        disabled={isLoading}
+                        label="Business Logo"
+                        noun="Logo"
+                        previewShape="circle"
+                        preview={
+                            <span className="flex size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8]">
+                                {logo.preview ? (
+                                    // The API supplies this URL dynamically and the local preview uses a blob URL.
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={logo.preview}
+                                        alt="Business logo preview"
+                                        className="size-full object-cover"
+                                    />
+                                ) : (
+                                    <Image
+                                        src={asset("camera.svg")}
+                                        alt=""
+                                        width={33}
+                                        height={30}
+                                        className="h-[30px] w-[33px]"
+                                    />
+                                )}
+                            </span>
+                        }
                     />
-                    <span className="relative flex size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8]">
-                        {logoPreview ? (
-                            // The API supplies this URL dynamically and the local preview uses a blob URL.
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={logoPreview}
-                                alt="Business logo preview"
-                                className="size-full object-cover"
-                            />
-                        ) : (
-                            <Image
-                                src={asset("camera.svg")}
-                                alt=""
-                                width={33}
-                                height={30}
-                                className="h-[30px] w-[33px]"
-                            />
-                        )}
-                    </span>
-                    <span className="mt-4 text-base leading-6 font-bold text-[#1a222b]">
-                        Business Logo
-                    </span>
-                    <span className="mt-1 max-w-[210px] text-center text-[11px] leading-[16.5px] font-normal text-[#424841]">
-                        Drag and drop your logo or click to browse files.
-                    </span>
-                    {hasLocalPreview ? (
-                        <span className="mt-2 text-center text-[10px] leading-4 font-normal text-[#6b7280]">
-                            Preview only — the API has no file-upload endpoint.
-                        </span>
-                    ) : null}
-                </Label>
+                </div>
 
                 <section className="rounded-2xl bg-white/90 px-6">
                     <SectionTitle>Business Identity</SectionTitle>
