@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, Delete, X, Calculator } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
@@ -13,37 +13,6 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // Until we know whether a shift is already open, showing the keypad would
-  // invite the cashier to count a float they may not need to enter.
-  const [isChecking, setIsChecking] = useState(true);
-
-  // A drawer left open on this browser means the terminal, not this screen.
-  useEffect(() => {
-    let active = true;
-
-    (async () => {
-      try {
-        const response = await fetch("/api/register/session");
-        const session = response.ok ? await response.json() : null;
-
-        if (!active) return;
-
-        if (session) {
-          router.replace(POS_ROUTES.terminal);
-          return;
-        }
-      } catch {
-        // Offline or the backend is down — fall through to the keypad and let
-        // the open attempt surface the real error.
-      }
-
-      if (active) setIsChecking(false);
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
 
   const handleDigit = (digit: string) => {
     setAmount((prev) => {
@@ -110,14 +79,6 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   };
 
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
-
-  if (isChecking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f4f4f5] p-6">
-        <p className="text-sm text-gray-500">Checking register…</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
