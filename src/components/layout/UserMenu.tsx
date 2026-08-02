@@ -37,7 +37,13 @@ function initialsOf(name: string) {
  * outside the popup because clicking an item closes the menu, and a form
  * unmounted mid-click never submits.
  */
-export default function UserMenu({ name }: { name: string }) {
+export default function UserMenu({
+    name,
+    compact = false,
+}: {
+    name: string;
+    compact?: boolean;
+}) {
     const signOutForm = useRef<HTMLFormElement>(null);
     const { data: profile } = useGetUserProfileQuery();
 
@@ -55,7 +61,7 @@ export default function UserMenu({ name }: { name: string }) {
             <Menu>
                 <MenuTrigger
                     aria-label={`Account menu for ${profileName}`}
-                    className="flex items-center gap-2.5 rounded-full border border-[#bccab8] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] data-popup-open:bg-[#f5f8f4]"
+                    className={`flex items-center rounded-full border border-[#bccab8] bg-white py-1.5 pl-1.5 outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] data-popup-open:bg-[#f5f8f4] ${compact ? "pr-1.5" : "gap-2.5 pr-4"}`}
                 >
                     <span
                         aria-hidden="true"
@@ -73,7 +79,13 @@ export default function UserMenu({ name }: { name: string }) {
                             initialsOf(profileName)
                         )}
                     </span>
-                    <span className="hidden text-[14px] text-[#161d16] sm:block">
+                    <span
+                        className={
+                            compact
+                                ? "sr-only"
+                                : "hidden text-[14px] text-[#161d16] sm:block"
+                        }
+                    >
                         {profileName}
                     </span>
                 </MenuTrigger>

@@ -1,3 +1,5 @@
+import type { ItemSubGroup } from "@/lib/api/inventory";
+
 export type SalesChannelCode = "POS" | "TELEGRAM" | "MESSENGER" | "WEB" | string;
 
 export type SalesChannel = {
@@ -18,6 +20,30 @@ export type ItemChannel = {
     channelCode?: SalesChannelCode;
     enabled: boolean;
     createdAt?: string;
+};
+
+/**
+ * What `GET /sales-channels/{code}/items` answers with: each item on a channel
+ * paired with the id of the link that put it there, so removing one needs no
+ * second lookup.
+ */
+export type ChannelItem = {
+    itemChannelId: string;
+    item: {
+        id: string;
+        name?: string;
+        code?: string;
+        sku?: string;
+        barcode?: string;
+        price?: number;
+        status?: "ACTIVE" | "INACTIVE";
+        itemGroup?: ItemSubGroup;
+        images?: Array<{
+            id?: string;
+            url?: string;
+            position?: number;
+        }>;
+    };
 };
 
 export type CreateItemChannelInput = {

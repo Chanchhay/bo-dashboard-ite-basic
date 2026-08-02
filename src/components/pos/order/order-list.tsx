@@ -1,122 +1,261 @@
 "use client";
 
-import { UserRound, Pencil, MessageSquareOff } from "lucide-react";
+import { useState } from "react";
+import {
+  MessageSquareOff,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+
+import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
+import { getApiErrorMessage } from "@/lib/api-error";
+import type { PosOrder } from "@/lib/api/pos-order";
 import { formatCurrency } from "@/lib/money";
+import {
+  useCancelOpenOrderMutation,
+  useGetOpenOrdersQuery,
+  useLoadOrderForEditMutation,
+} from "@/services/posOrderApi";
+import { useToast } from "@/components/ui/toast";
 
 export interface OrdersListProps {
-  onEdit?: () => void; // called after an order is loaded — parent switches tab back to POS
+  onEdit?: (orderId: string) => void;
+  onCancel?: (orderId: string) => void;
 }
 
-export function OrdersList({ onEdit }: OrdersListProps) {
-  const orders: any[] = [];
-  const isLoading = false;
-  const isLoadingEdit = false;
-  const loadOrderForEdit = async (id: string) => {};
+export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
+  const { toast } = useToast();
+  const [orderToCancel, setOrderToCancel] = useState<PosOrder | null>(null);
+  const {
+    data,
+    error,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetOpenOrdersQuery(undefined, { refetchOnMountOrArgChange: true });
+  const [loadOrderForEdit, { isLoading: isLoadingEdit }] =
+    useLoadOrderForEditMutation();
+  const [cancelOpenOrder, { isLoading: isCancelling }] =
+    useCancelOpenOrderMutation();
+
+  const orders = data?.content ?? [];
 
   async function handleEdit(orderId: string) {
     try {
-      await loadOrderForEdit(orderId);
-      onEdit?.();
-    } catch (e) {
-      console.error("Failed to load order for editing", e);
+      await loadOrderForEdit(orderId).unwrap();
+      onEdit?.(orderId);
+    } catch (cause) {
+      toast({
+        tone: "error",
+        title: "Could not open that order",
+        description: getApiErrorMessage(cause, "Please try again."),
+      });
+    }
+  }
+
+  async function handleCancel() {
+    if (!orderToCancel) return;
+
+    const { id } = orderToCancel;
+    const name = orderToCancel.note?.trim() || "Untitled order";
+
+    try {
+      await cancelOpenOrder(id).unwrap();
+      setOrderToCancel(null);
+      onCancel?.(id);
+      toast({
+        tone: "success",
+        title: "Order cancelled",
+        description: `${name} was removed from open orders.`,
+      });
+    } catch (cause) {
+      toast({
+        tone: "error",
+        title: "Could not cancel that order",
+        description: getApiErrorMessage(cause, "Please try again."),
+      });
     }
   }
 
   return (
-    <div className="flex h-full flex-col px-6 pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex min-h-full flex-col px-4 pb-6 pt-5 sm:px-6 sm:pt-6 min-[1025px]:px-8 min-[1025px]:pt-7">
+      <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-primary">Orders</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-extrabold text-primary sm:text-[28px]">
+            Orders
+          </h1>
+          <p className="mt-0.5 text-sm text-gray-500">
             Manage your active transactions
           </p>
         </div>
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          {orders.length} OPEN {orders.length === 1 ? "ORDER" : "ORDERS"}
+        <div className="flex items-center gap-1.5 self-start rounded-lg border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary min-[480px]:self-auto">
+          <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+          {data?.page.totalElements ?? orders.length} OPEN{" "}
+          {(data?.page.totalElements ?? orders.length) === 1 ? "ORDER" : "ORDERS"}
         </div>
       </div>
 
-      {/* Order cards */}
       {isLoading ? (
-        <div className="pt-6 text-sm text-gray-500">Loading orders...</div>
-      ) : orders.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-gray-400">
-          <MessageSquareOff className="h-8 w-8" />
-          <p className="text-sm">No open orders right now</p>
-        </div>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {orders.map((order) => (
+        <div
+          className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
+          aria-label="Loading open orders"
+        >
+          {Array.from({ length: 4 }).map((_, index) => (
             <div
-              key={order.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleEdit(order.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") handleEdit(order.id);
-              }}
-              className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 text-left transition-shadow hover:shadow-md disabled:opacity-50"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-                    <UserRound className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold ">
-                      {order.note || "Untitled order"}
-                    </p>
-                    <p className="text-xs text-gray-500">CUSTOMER ORDER</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={isLoadingEdit}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEdit(order.id);
-                  }}
-                  className="text-secondary hover:text-secondary disabled:opacity-50"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg bg-gray-50 px-2 py-1.5 text-center">
-                  <p className="text-[10px] font-semibold text-gray-500">
-                    TIME
-                  </p>
-                  <p className="text-xs font-bold text-gray-700">
-                    {new Date(order.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-gray-50 px-2 py-1.5 text-center">
-                  <p className="text-[10px] font-semibold text-gray-500">
-                    ITEMS
-                  </p>
-                  <p className="text-xs font-bold text-primary">
-                    {order.itemCount} items
-                  </p>
-                </div>
-                <div className="rounded-lg bg-gray-50 px-2 py-1.5 text-center">
-                  <p className="text-[10px] font-semibold text-gray-500">
-                    TOTAL
-                  </p>
-                  <p className="text-xs font-bold text-accent">
-                    {formatCurrency(order.total)}
-                  </p>
-                </div>
-              </div>
-            </div>
+              key={index}
+              className="h-36 animate-pulse rounded-2xl border border-gray-100 bg-white/70"
+            />
           ))}
         </div>
+      ) : error ? (
+        <div
+          role="alert"
+          className="flex min-h-64 flex-1 flex-col items-center justify-center gap-3 px-4 text-center"
+        >
+          <p className="font-semibold text-gray-700">Could not load open orders</p>
+          <p className="max-w-sm text-sm text-gray-500">
+            {getApiErrorMessage(error, "Check the connection and try again.")}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-1 inline-flex h-11 items-center gap-2 rounded-xl border border-primary px-4 text-sm font-semibold text-primary outline-none hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/25"
+          >
+            <RefreshCw className="size-4" aria-hidden="true" />
+            Try again
+          </button>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="flex min-h-64 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <MessageSquareOff className="size-9 text-gray-400" aria-hidden="true" />
+          <p className="text-sm font-semibold text-gray-700">No open orders right now</p>
+          <p className="max-w-sm text-xs leading-5 text-gray-500 sm:text-sm">
+            Name the current cart with New order and it will appear here.
+          </p>
+        </div>
+      ) : (
+        <div
+          className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1025px]:gap-5"
+          aria-busy={isFetching || isLoadingEdit || isCancelling}
+        >
+          {orders.map((order) => {
+            const itemCount = order.items.reduce(
+              (total, item) => total + item.quantity,
+              0,
+            );
+            const created = order.createdDate ? new Date(order.createdDate) : null;
+            const name = order.note?.trim() || "Untitled order";
+
+            return (
+              <article
+                key={order.id}
+                className="relative rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <button
+                  type="button"
+                  onClick={() => void handleEdit(order.id)}
+                  disabled={isLoadingEdit || isCancelling}
+                  aria-label={`Edit ${name}`}
+                  className="flex min-h-36 w-full flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:pointer-events-none disabled:opacity-60 sm:p-5"
+                >
+                  <div className="flex w-full items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+                        <UserRound className="size-6" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-bold text-gray-900">
+                          {name}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] font-medium uppercase tracking-[-0.02em] text-gray-400">
+                          Customer order
+                        </span>
+                      </span>
+                    </div>
+                    <Pencil
+                      className="mr-11 size-5 shrink-0 text-brand-yellow"
+                      aria-hidden="true"
+                    />
+                  </div>
+
+                  <div className="grid w-full grid-cols-3 gap-2">
+                    <OrderMetric
+                      label="Time"
+                      value={
+                        created
+                          ? created.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"
+                      }
+                    />
+                    <OrderMetric
+                      label="Items"
+                      value={`${itemCount} ${itemCount === 1 ? "item" : "items"}`}
+                      tone="text-emerald-500"
+                    />
+                    <OrderMetric
+                      label="Total"
+                      value={formatCurrency(order.total)}
+                      tone="text-red-500"
+                      emphasized
+                    />
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderToCancel(order)}
+                  disabled={isLoadingEdit || isCancelling}
+                  aria-label={`Cancel ${name}`}
+                  className="absolute right-4 top-4 grid size-9 place-items-center rounded-xl border border-red-100 bg-red-50 text-brand-red outline-none transition-colors hover:border-red-200 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-brand-red/25 disabled:pointer-events-none disabled:opacity-50 sm:right-5 sm:top-5"
+                >
+                  <Trash2 className="size-4" aria-hidden="true" />
+                </button>
+              </article>
+            );
+          })}
+        </div>
       )}
+
+      <CancelOrderDialog
+        open={Boolean(orderToCancel)}
+        orderName={orderToCancel?.note?.trim() || "Untitled order"}
+        isCancelling={isCancelling}
+        onOpenChange={(open) => {
+          if (!open) setOrderToCancel(null);
+        }}
+        onConfirm={() => void handleCancel()}
+      />
     </div>
+  );
+}
+
+function OrderMetric({
+  label,
+  value,
+  tone = "text-gray-700",
+  emphasized = false,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  emphasized?: boolean;
+}) {
+  return (
+    <span
+      className={`flex min-w-0 flex-col items-center rounded-lg px-1.5 py-2 text-center ${
+        emphasized ? "border border-red-100 bg-red-50" : "bg-gray-50"
+      }`}
+    >
+      <span className={`text-[10px] font-bold uppercase ${emphasized ? "text-red-300" : "text-gray-400"}`}>
+        {label}
+      </span>
+      <span className={`mt-0.5 max-w-full truncate text-xs font-semibold ${tone}`}>
+        {value}
+      </span>
+    </span>
   );
 }

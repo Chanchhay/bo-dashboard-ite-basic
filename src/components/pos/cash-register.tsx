@@ -1,10 +1,10 @@
 "use client";
 
 import { Building2, Delete, X, Calculator } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { SALES_HOME } from "@/lib/pos-routes";
+import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 
 export function CashRegister({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
@@ -12,7 +12,38 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   const [amount, setAmount] = useState("0.00");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
-  const isLoading = false;
+  const [isLoading, setIsLoading] = useState(false);
+  // Until we know whether a shift is already open, showing the keypad would
+  // invite the cashier to count a float they may not need to enter.
+  const [isChecking, setIsChecking] = useState(true);
+
+  // A drawer left open on this browser means the terminal, not this screen.
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const response = await fetch("/api/register/session");
+        const session = response.ok ? await response.json() : null;
+
+        if (!active) return;
+
+        if (session) {
+          router.replace(POS_ROUTES.terminal);
+          return;
+        }
+      } catch {
+        // Offline or the backend is down — fall through to the keypad and let
+        // the open attempt surface the real error.
+      }
+
+      if (active) setIsChecking(false);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const handleDigit = (digit: string) => {
     setAmount((prev) => {
@@ -32,8 +63,41 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
     setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0.00"));
   };
 
-  const handleOpenRegister = () => {
-    setError("Register API is not connected yet");
+  const handleOpenRegister = async () => {
+    const openingBalance = Number.parseFloat(amount);
+
+    if (!Number.isFinite(openingBalance) || openingBalance < 0) {
+      setError("Enter the starting cash amount");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/register/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          openingBalance,
+          note: notes.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        setError(payload?.message ?? "Could not open the register.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Straight to the terminal — the float is counted, the shift has begun.
+      // `replace` so Back can't return to a register that is already open.
+      router.replace(POS_ROUTES.terminal);
+    } catch {
+      setError("Could not reach the server. Check your connection.");
+      setIsLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -46,6 +110,14 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   };
 
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f4f5] p-6">
+        <p className="text-sm text-gray-500">Checking register…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">

@@ -1,40 +1,36 @@
-import { NextResponse } from "next/server";
-import { getDb, recalcOrderTotals } from "@/lib/mock-db";
-import type { OrderItem } from "@/types/pos-type";
+import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { getCurrentBusinessId } from "@/lib/api/business-backend";
+import { addOrderItemSchema, type PosOrder } from "@/lib/api/pos-order";
+import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
 
-export async function POST(req: Request) {
-  const db = getDb();
-  const { productId } = await req.json();
+/**
+ * Rings an item onto the cart, opening one if the sale has just begun.
+ *
+ * Tapping the same item again is left to the backend, which merges it into the
+ * existing line. Deciding that here would race a cashier double-tapping faster
+ * than the response comes back.
+ */
+export async function POST(request: Request) {
+    try {
+        const result = addOrderItemSchema.safeParse(await request.json());
 
-  const product = db.products.find((p) => p.id === productId);
-  if (!product) {
-    return NextResponse.json({ message: "Product not found" }, { status: 404 });
-  }
+        if (!result.success) {
+            return Response.json(
+                { message: result.error.issues[0]?.message },
+                { status: 400 },
+            );
+        }
 
-  const order = db.orders[db.currentOrderId];
-  const existing = order.items.find((i) => i.product_id === productId);
-  const items = existing
-    ? order.items.map((i) =>
-        i.product_id === productId ? { ...i, quantity: i.quantity + 1 } : i
-      )
-    : [
-        ...order.items,
-        {
-          id: crypto.randomUUID(),
-          business_owner_id: order.business_owner_id,
-          order_id: order.id,
-          product_id: product.id,
-          variant_id: null,
-          product_name: product.name,
-          variant_name: null,
-          quantity: 1,
-          unit_price: product.price,
-          unit_cost: "0.00",
-          discount_amount: "0.00",
-          applied_discount: null,
-        } satisfies OrderItem,
-      ];
+        const businessId = await getCurrentBusinessId();
+        const order = await ensureCurrentOrder(businessId);
 
-  db.orders[db.currentOrderId] = recalcOrderTotals({ ...order, items });
-  return NextResponse.json(db.orders[db.currentOrderId]);
+        const updated = await backendRequest<PosOrder>(
+            ordersPath(businessId, `/${encodeURIComponent(order.id)}/items`),
+            { method: "POST", body: JSON.stringify(result.data) },
+        );
+
+        return Response.json(updated);
+    } catch (error) {
+        return backendErrorResponse(error);
+    }
 }

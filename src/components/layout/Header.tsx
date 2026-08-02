@@ -14,8 +14,7 @@ export default function Header({
     onOpenNav: () => void;
 }) {
     const pathname = usePathname();
-    const title = getPageTitle(pathname);
-    const [firstWord, ...rest] = title.split(" ");
+    const { app, page } = getPageTitle(pathname);
 
     return (
         <header className="flex flex-wrap items-center gap-4 px-5 pt-6 pb-8 lg:px-8">
@@ -29,8 +28,18 @@ export default function Header({
             </button>
 
             <h1 className="flex-1 text-[26px] leading-tight text-[#16181c] sm:text-[30px]">
-                <span className="font-semibold">{firstWord}</span>
-                {rest.length > 0 && ` ${rest.join(" ")}`}
+                <span className="font-semibold">{app}</span>
+                {page && (
+                    <>
+                        <span
+                            aria-hidden="true"
+                            className="mx-2 text-[#c4c9c3]"
+                        >
+                            /
+                        </span>
+                        <span className="text-[#5c6660]">{page}</span>
+                    </>
+                )}
             </h1>
 
             <div className="flex items-center gap-3">

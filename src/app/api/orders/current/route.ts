@@ -1,7 +1,16 @@
-import { NextResponse } from "next/server";
-import { getDb } from "@/lib/mock-db";
+import { backendErrorResponse } from "@/lib/api/backend";
+import { getCurrentOrder } from "@/lib/api/pos-order-backend";
 
+/**
+ * The cart this terminal is building, or `null`.
+ *
+ * `null` is an ordinary answer, not an error — a till with nothing rung up yet
+ * is the normal state at the start of every sale.
+ */
 export async function GET() {
-  const db = getDb();
-  return NextResponse.json(db.orders[db.currentOrderId]);
+    try {
+        return Response.json(await getCurrentOrder());
+    } catch (error) {
+        return backendErrorResponse(error);
+    }
 }

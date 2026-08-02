@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth/auth-client";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,6 +30,11 @@ export default function LoginPage() {
     return (
         <main className="flex min-h-screen items-center justify-center px-6">
             <div className="w-full max-w-sm space-y-4 text-center">
+                <BrandLogo
+                    variant="stacked"
+                    className="mx-auto w-40"
+                    preload
+                />
                 <h1 className="text-xl font-semibold">Redirecting to login</h1>
                 <p className="text-sm text-muted-foreground">
                     You are being sent to Keycloak.

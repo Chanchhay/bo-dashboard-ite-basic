@@ -4,6 +4,7 @@ import { ArrowLeft, Delete } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 
 
@@ -47,11 +48,8 @@ export function PinPad() {
     <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
       <div className="flex w-full max-w-110 flex-col items-center gap-5 rounded-3xl bg-white p-12 shadow-sm">
         {/* Logo */}
-        <div className="flex flex-col items-center gap-1 pt-2">
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            <span>Fluxi</span>
-            <span className="text-primary">Biz</span>
-          </h1>
+        <div className="flex flex-col items-center gap-3 pt-2">
+          <BrandLogo variant="stacked" className="w-36" preload />
           <p className="text-sm text-gray-500">Enter your PIN code</p>
         </div>
 
