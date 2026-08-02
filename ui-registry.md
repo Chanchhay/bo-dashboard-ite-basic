@@ -356,9 +356,11 @@ Files: `src/components/pos/order/payment.tsx`,
 `src/components/pos/order/order-list.tsx`,
 `src/components/pos/order/order-table.tsx`,
 `src/components/pos/navbar-pos/navbar.tsx`,
+`src/components/pos/cash-register.tsx`,
 `src/components/pos/pos-terminal.tsx`,
 `src/components/pos/pos-screen.tsx`,
-`src/components/pos/pos-button.tsx`
+`src/components/pos/pos-button.tsx`,
+`src/app/pos/register/page.tsx`
 Last updated: 2026-08-02
 
 | Property         | Class |
@@ -425,6 +427,13 @@ confirmed abandon action may call the cancel endpoint. Track edit mode by the
 edited order ID rather than a boolean; when that same order is cancelled, clear
 edit mode so **Save** returns to **New order** and cannot reappear when the next
 cart item is selected.
+
+Register-entry failures use the existing centered POS card surface:
+`rounded-3xl bg-white p-6 shadow-sm` on the `bg-[#f4f4f5]` canvas. When the
+shared register state is unknown, never show the opening keypad. Explain that
+no new session was opened and provide equal-width full-pill **Back** and
+**Try again** actions; the retry uses `bg-primary` and the standard primary
+focus ring.
 
 ### Business Receipt Ticket
 

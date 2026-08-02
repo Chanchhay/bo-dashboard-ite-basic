@@ -1,15 +1,15 @@
 import { backendErrorResponse } from "@/lib/api/backend";
-import { getCurrentRegisterSession } from "@/lib/api/pos-session-backend";
+import { findCurrentRegisterSession } from "@/lib/api/pos-session-backend";
 
 /**
- * The shift this browser has open, or `null` when there is none.
+ * The store-wide open shift, or `null` when there is none.
  *
- * `null` is a normal answer, not an error — the open-register screen asks this
- * on load precisely to find out whether it should be showing itself at all.
+ * This lookup is authoritative across browsers. The backend's 204 becomes a
+ * JSON `null` for existing client consumers.
  */
 export async function GET() {
     try {
-        return Response.json(await getCurrentRegisterSession());
+        return Response.json(await findCurrentRegisterSession());
     } catch (error) {
         return backendErrorResponse(error);
     }
