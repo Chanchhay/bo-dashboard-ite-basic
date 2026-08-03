@@ -372,7 +372,7 @@ export function Payment({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="h-14 rounded-[25px] border border-brand-red text-brand-red font-semibold outline-none transition-colors hover:bg-accent/5 focus-visible:ring-2 focus-visible:ring-accent/30 sm:h-[58px] sm:text-xl"
+              className="h-14 rounded-[25px] border border-brand-red text-brand-red font-semibold outline-none transition-colors hover:bg-brand-red/5 focus-visible:ring-2 focus-visible:ring-brand-red/30 sm:h-[58px] sm:text-xl"
             >
               Cancel
             </button>

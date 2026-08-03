@@ -63,7 +63,7 @@ function Field({
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-brand-red" role="alert">
                     {error}
                 </p>
             ) : hint ? (
@@ -495,7 +495,7 @@ export function StockAdjustmentForm() {
 
             {status ? (
                 <p
-                    className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
+                    className="rounded-xl border border-brand-red/20 bg-brand-red/5 px-4 py-3 text-sm text-brand-red"
                     role="alert"
                 >
                     {status}

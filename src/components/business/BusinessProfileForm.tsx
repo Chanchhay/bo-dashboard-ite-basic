@@ -29,6 +29,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     businessLogoRules,
     businessProfileSchema,
@@ -74,7 +75,7 @@ function Field({ label, name, error, children }: FieldProps) {
             </Label>
             {children}
             {error ? (
-                <p className="pl-1 text-xs text-accent" role="alert">
+                <p className="pl-1 text-xs text-brand-red" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -183,6 +184,8 @@ function StagedImageField({
     preview: ReactNode;
     previewShape?: "circle" | "rect";
 }) {
+    const { toast } = useToast();
+
     return (
         <ImagePicker
             rules={rules}
@@ -192,7 +195,14 @@ function StagedImageField({
             label={label}
             preview={preview}
             onPick={staged.pick}
-            onError={staged.setError}
+            onError={(message) => {
+                staged.setError(message);
+                toast({
+                    tone: "error",
+                    title: `${noun} not selected`,
+                    description: message,
+                });
+            }}
             actions={
                 <div className="flex flex-col items-center gap-1">
                     {staged.file ? (
@@ -235,6 +245,7 @@ function BusinessProfileEditor({
     businessTypes: BusinessSubCategory[];
 }) {
     const dispatch = useAppDispatch();
+    const { toast } = useToast();
     const [updateBusinessProfile, { isLoading: isSaving }] =
         useUpdateBusinessProfileMutation();
     const [uploadBusinessLogo, { isLoading: isUploadingLogo }] =
@@ -260,22 +271,16 @@ function BusinessProfileEditor({
         business.thumbnail || "",
     );
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-    const [status, setStatus] = useState<{
-        type: "success" | "error";
-        message: string;
-    } | null>(null);
 
     function handleCancel() {
         formRef.current?.reset();
         logo.reset();
         thumbnail.reset();
         setFieldErrors({});
-        setStatus(null);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const result = businessProfileSchema.safeParse({
@@ -291,9 +296,10 @@ function BusinessProfileEditor({
 
         if (!result.success) {
             setFieldErrors(getFieldErrors(result.error));
-            setStatus({
-                type: "error",
-                message: "Check the highlighted fields and try again.",
+            toast({
+                tone: "error",
+                title: "Business profile not saved",
+                description: "Check the highlighted fields and try again.",
             });
             return;
         }
@@ -324,9 +330,10 @@ function BusinessProfileEditor({
             await updateBusinessProfile(result.data).unwrap();
             logo.reset();
             thumbnail.reset();
-            setStatus({
-                type: "success",
-                message: "Business profile saved successfully.",
+            toast({
+                tone: "success",
+                title: "Business profile saved",
+                description: "Your business information is up to date.",
             });
         } catch (error) {
             if (imageChanged) {
@@ -335,9 +342,10 @@ function BusinessProfileEditor({
                 dispatch(businessApi.util.invalidateTags(["Business"]));
             }
 
-            setStatus({
-                type: "error",
-                message: getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Business profile not saved",
+                description: getApiErrorMessage(
                     error,
                     "Unable to save the business profile.",
                 ),
@@ -557,20 +565,6 @@ function BusinessProfileEditor({
             </section>
 
             <div className="mt-auto flex min-h-[105px] flex-col items-end justify-end gap-3 pt-2 sm:flex-row">
-                <div className="mr-auto min-h-6" aria-live="polite">
-                    {status ? (
-                        <p
-                            className={
-                                status.type === "success"
-                                    ? "text-sm text-primary"
-                                    : "text-sm text-accent"
-                            }
-                            role={status.type === "error" ? "alert" : "status"}
-                        >
-                            {status.message}
-                        </p>
-                    ) : null}
-                </div>
                 <Button
                     type="button"
                     onClick={handleCancel}
@@ -602,7 +596,7 @@ function ProfileQueryError({
 }) {
     return (
         <div
-            className="rounded-xl border border-accent/20 bg-accent/5 p-6 text-[#1a222b] shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
+            className="rounded-xl border border-brand-red/20 bg-brand-red/5 p-6 text-[#1a222b] shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
             role="alert"
         >
             <h2 className="text-lg font-bold">Unable to load business profile</h2>

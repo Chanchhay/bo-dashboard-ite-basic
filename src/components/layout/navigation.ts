@@ -94,6 +94,11 @@ export const NAVIGATION: NavSection[] = [
                 href: "/business/currency",
                 permission: PERMISSIONS.BUSINESS_CURRENCY,
             },
+            {
+                label: "Payments",
+                href: "/business/payments",
+                permission: PERMISSIONS.BUSINESS_PAYMENTS,
+            },
         ],
     },
     {

@@ -32,6 +32,7 @@ import {
     inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +42,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/components/ui/toast";
 import {
     inventoryItemQuerySchema,
     itemTypes,
@@ -114,6 +116,7 @@ function FilterChip({
 
 export function InventoryProductList() {
     const dispatch = useAppDispatch();
+    const { toast } = useToast();
     const {
         productSearch,
         productStatus,
@@ -130,6 +133,10 @@ export function InventoryProductList() {
     >({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{
+        id: string;
+        name: string;
+    } | null>(null);
 
     useEffect(() => {
         const timer = window.setTimeout(
@@ -262,6 +269,13 @@ export function InventoryProductList() {
             }
 
             setFilterErrors(nextErrors);
+            toast({
+                tone: "error",
+                title: "Filters not applied",
+                description:
+                    result.error.issues[0]?.message ||
+                    "Check the highlighted filters.",
+            });
             return;
         }
 
@@ -275,23 +289,33 @@ export function InventoryProductList() {
         dispatch(resetProductDraftFilters());
     }
 
-    async function handleDelete(itemId: string, name?: string) {
-        if (
-            !window.confirm(
-                `Delete ${name || "this item"}? This cannot be undone.`,
-            )
-        ) {
+    async function handleDelete() {
+        if (!pendingDelete) {
             return;
         }
 
         try {
-            await deleteItem(itemId).unwrap();
+            await deleteItem(pendingDelete.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Item deleted",
+                description: `${pendingDelete.name} was deleted successfully.`,
+            });
+            setPendingDelete(null);
 
             if (items.length === 1 && productPage > 0) {
                 dispatch(setProductPage(productPage - 1));
             }
-        } catch {
-            // RTK Query exposes the request error below.
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Item not deleted",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to delete the item.",
+                ),
+            });
+            setPendingDelete(null);
         }
     }
 
@@ -457,7 +481,7 @@ export function InventoryProductList() {
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.itemGroupId ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.itemGroupId}
                                         </p>
                                     ) : null}
@@ -501,7 +525,7 @@ export function InventoryProductList() {
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.unitId ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.unitId}
                                         </p>
                                     ) : null}
@@ -538,7 +562,7 @@ export function InventoryProductList() {
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.itemType ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.itemType}
                                         </p>
                                     ) : null}
@@ -600,7 +624,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.minPrice ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.minPrice}
                                         </p>
                                     ) : null}
@@ -629,7 +653,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.maxPrice ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.maxPrice}
                                         </p>
                                     ) : null}
@@ -650,7 +674,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.sku ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.sku}
                                         </p>
                                     ) : null}
@@ -675,7 +699,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.barcode ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-brand-red">
                                             {filterErrors.barcode}
                                         </p>
                                     ) : null}
@@ -916,10 +940,12 @@ export function InventoryProductList() {
                                                     aria-label={`Delete ${item.name || "item"}`}
                                                     disabled={deleteState.isLoading}
                                                     onClick={() =>
-                                                        handleDelete(
-                                                            item.id,
-                                                            item.name,
-                                                        )
+                                                        setPendingDelete({
+                                                            id: item.id,
+                                                            name:
+                                                                item.name ||
+                                                                "This item",
+                                                        })
                                                     }
                                                 >
                                                     <Trash2 />
@@ -1016,17 +1042,6 @@ export function InventoryProductList() {
                     </nav>
                 ) : null}
 
-                {deleteState.error ? (
-                    <p
-                        className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-accent"
-                        role="alert"
-                    >
-                        {getApiErrorMessage(
-                            deleteState.error,
-                            "Unable to delete the item.",
-                        )}
-                    </p>
-                ) : null}
             </section>
 
             <ItemPreviewDialog
@@ -1041,6 +1056,28 @@ export function InventoryProductList() {
             <BarcodeScannerDialog
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
+            />
+            <DestructiveConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Delete item?"
+                description={
+                    <>
+                        <span className="font-semibold text-[#37423b]">
+                            {pendingDelete?.name}
+                        </span>{" "}
+                        will be permanently removed from inventory. This action
+                        cannot be undone.
+                    </>
+                }
+                cancelLabel="Keep item"
+                confirmLabel="Delete item"
+                isPending={deleteState.isLoading}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDelete(null);
+                    }
+                }}
+                onConfirm={() => void handleDelete()}
             />
         </div>
     );

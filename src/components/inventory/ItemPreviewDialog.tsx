@@ -241,7 +241,7 @@ function Storefront({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-2xl font-bold text-accent">
+                        <span className="text-2xl font-bold text-brand-red">
                             {formatMoney(activePrice)}
                         </span>
                         {discount ? (
@@ -249,7 +249,7 @@ function Storefront({
                                 <span className="text-sm text-[#7b857a] line-through">
                                     {formatMoney(compareAt)}
                                 </span>
-                                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+                                <span className="rounded-full bg-brand-red/10 px-2 py-0.5 text-xs font-semibold text-brand-red">
                                     {discount}% OFF
                                 </span>
                             </>
@@ -385,7 +385,7 @@ function Storefront({
                                     Math.max(1, current - 1),
                                 )
                             }
-                            className="text-accent"
+                            className="text-brand-red"
                         >
                             <Minus className="size-4" />
                         </button>
