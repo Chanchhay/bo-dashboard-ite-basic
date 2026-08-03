@@ -37,6 +37,18 @@ export type NavGroup = NavItemBase & {
 
 export type NavLeaf = NavLink | NavGroup;
 
+/**
+ * A separate app this section can hand off to, pinned to the foot of the
+ * sidebar. Not a nav row: it leaves the dashboard shell entirely, so it reads
+ * as launching something rather than moving between pages.
+ */
+export type NavLaunch = {
+    label: string;
+    href: string;
+    icon: LucideIcon;
+    permission?: Permission;
+};
+
 export type NavSection = {
     id: string;
     label: string;
@@ -47,6 +59,8 @@ export type NavSection = {
     children?: NavLeaf[];
     /** Omit to make the section available to everyone. */
     permission?: Permission;
+    /** A separate app launched from this section's sidebar. */
+    launch?: NavLaunch;
     /** Launcher presentation. Sections without this never appear as an app. */
     app?: {
         label: string;
@@ -133,25 +147,16 @@ export const NAVIGATION: NavSection[] = [
         id: "dashboard",
         label: "Dashboard",
         icon: LayoutGrid,
+        // One destination for now. `/analytics` joins this as a child once it
+        // renders something.
+        href: "/dashboard",
+        exact: true,
         app: {
             label: "Overview Dashboard",
             // hint: "Live figures & analytics",
             fill: "linear-gradient(-42.73deg, #008000 14.44%, #36f928 91.63%)",
             ink: "#ffffff",
         },
-        children: [
-            { label: "Orders", href: "/sales", exact: true },
-            {
-                label: "Point of Sale",
-                children: [
-                    {
-                        label: "Open Register",
-                        href: POS_ROUTES.openRegister,
-                    },
-                ],
-            },
-            { label: "Product Selling", href: "/sales/product-selling"}
-        ],
     },
     {
         id: "sales",
@@ -166,28 +171,25 @@ export const NAVIGATION: NavSection[] = [
         },
         children: [
             {
-                label: "Product Selling",
-                href: "/sales/product-selling",
-                permission: PERMISSIONS.SALES_POS,
-            },
-            {
                 label: "Orders",
                 href: "/sales",
                 exact: true,
                 permission: PERMISSIONS.SALES_ORDERS,
             },
             {
-                label: "Point of Sale",
+                label: "Sales Channels",
+                href: "/sales/channels",
                 permission: PERMISSIONS.SALES_POS,
-                children: [
-                    {
-                        label: "Open Register",
-                        href: POS_ROUTES.openRegister,
-                        permission: PERMISSIONS.SALES_POS,
-                    },
-                ],
             },
         ],
+        // The terminal is its own fullscreen app, so it gets a launch button
+        // rather than a nav row that pretends to stay inside the dashboard.
+        launch: {
+            label: "Open Point of Sale",
+            href: POS_ROUTES.openRegister,
+            icon: ScanLine,
+            permission: PERMISSIONS.SALES_POS,
+        },
     },
     {
         id: "settings",
@@ -216,6 +218,11 @@ export function visibleSections(permissions: readonly Permission[]) {
     return NAVIGATION.filter((section) =>
         can(permissions, section.permission),
     )
+        .map((section) =>
+            section.launch && !can(permissions, section.launch.permission)
+                ? { ...section, launch: undefined }
+                : section,
+        )
         .map((section) =>
             section.children
                 ? {
@@ -305,34 +312,51 @@ export function findSectionByPath(pathname: string) {
     return NAVIGATION.find((section) => isSectionActive(section, pathname));
 }
 
+/** What the top bar says: the app you are in, and the page inside it. */
+export type PageTitle = {
+    /** Renders semibold — the app you launched, named as it is in the launcher. */
+    app: string;
+    /** Renders regular after a separator. Absent on an app's entry page. */
+    page?: string;
+};
+
 /**
- * Page title for the top bar. The first word renders semibold and the rest
- * regular, so the heading has hierarchy without a second type size.
+ * Title for the top bar. The app name carries through every page of an app, so
+ * the heading always answers "which app am I in" before "which page" — and it
+ * matches the tile you clicked in the launcher.
  */
-export function getPageTitle(pathname: string) {
+export function getPageTitle(pathname: string): PageTitle {
     for (const section of NAVIGATION) {
+        const app = section.app?.label ?? section.label;
+
         if (section.children) {
             const leaf = section.children.find((child) =>
                 isLeafActive(child, pathname),
             );
-            if (leaf) {
-                if (isNavGroup(leaf)) {
-                    const child = leaf.children.find((item) =>
-                        isLeafActive(item, pathname),
-                    );
-                    if (child) {
-                        return `${leaf.label} ${child.label.toLowerCase()}`;
-                    }
-                }
+            if (!leaf) continue;
 
-                return `${section.label} ${leaf.label.toLowerCase()}`;
+            if (isNavGroup(leaf)) {
+                const child = leaf.children.find((item) =>
+                    isLeafActive(item, pathname),
+                );
+                return {
+                    app,
+                    page: child
+                        ? `${leaf.label} ${child.label.toLowerCase()}`
+                        : leaf.label,
+                };
             }
-        } else if (isSectionActive(section, pathname)) {
-            return section.label;
+
+            // An app's entry page is the app — no need to say it twice.
+            return sectionEntryHref(section) === leaf.href
+                ? { app }
+                : { app, page: leaf.label };
         }
+
+        if (isSectionActive(section, pathname)) return { app };
     }
 
-    if (pathname.startsWith("/profile")) return "Your profile";
+    if (pathname.startsWith("/profile")) return { app: "Your profile" };
 
-    return "Dashboard";
+    return { app: "Dashboard" };
 }

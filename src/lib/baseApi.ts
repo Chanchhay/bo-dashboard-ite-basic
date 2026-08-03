@@ -23,6 +23,9 @@ export const baseApi = createApi({
         "AuditLogs",
         "SalesChannels",
         "ItemChannels",
+        "PosOrder",
+        "PosOpenOrders",
+        "PosReceipts",
     ],
     endpoints: () => ({}),
 });

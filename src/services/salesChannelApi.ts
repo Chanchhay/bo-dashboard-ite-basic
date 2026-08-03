@@ -1,5 +1,6 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
+    ChannelItem,
     CreateItemChannelInput,
     ItemChannel,
     SalesChannel,
@@ -22,6 +23,18 @@ export const salesChannelApi = baseApi.injectEndpoints({
                 body,
             }),
             invalidatesTags: ["ItemChannels"],
+        }),
+
+        // GET /api/v1/sales-channels/{channelCode}/items
+        // The items already published to a channel. Used for membership: the
+        // backend answers with items, not item-channel links, so removing one
+        // still needs its link id looked up by item.
+        getChannelItems: builder.query<ChannelItem[], string>({
+            query: (channelCode) => `/sales-channels/${channelCode}/items`,
+            providesTags: (_result, _error, channelCode) => [
+                { type: "ItemChannels", id: `channel-${channelCode}` },
+                "ItemChannels",
+            ],
         }),
 
         // GET /api/v1/item-channels/items/{itemId}
@@ -55,21 +68,15 @@ export const salesChannelApi = baseApi.injectEndpoints({
             invalidatesTags: ["ItemChannels"],
         }),
 
-        enableItemSale: builder.mutation<void, string>({
-            query: (id) => ({
-                url: `/item-channels/${id}/toggle`, 
-                method: "PATCH",
-            }),
-            invalidatesTags: ["ItemChannels"],
-        }),
     }),
 });
 
 export const {
     useGetSalesChannelsQuery,
+    useGetChannelItemsQuery,
     useCreateItemChannelMutation,
     useGetItemChannelsByItemQuery,
+    useLazyGetItemChannelsByItemQuery,
     useToggleItemChannelMutation,
     useDeleteItemChannelMutation,
-    useEnableItemSaleMutation,
 } = salesChannelApi;

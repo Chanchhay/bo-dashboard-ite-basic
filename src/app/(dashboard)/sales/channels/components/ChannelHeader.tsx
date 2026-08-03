@@ -3,7 +3,7 @@ import { Plus, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 
-interface ProductSellingHeaderProps {
+interface ChannelHeaderProps {
     title: string;
     description: string;
     selectedChannelCode?: string;
@@ -12,14 +12,14 @@ interface ProductSellingHeaderProps {
     disabled?: boolean;
 }
 
-export function ProductSellingHeader({
+export function ChannelHeader({
     title,
     description,
     selectedChannelCode,
     activeChannelCode,
     onOpenDialog,
     disabled,
-}: ProductSellingHeaderProps) {
+}: ChannelHeaderProps) {
     return (
         <InventoryPageHeader
             title={title}
@@ -32,7 +32,7 @@ export function ProductSellingHeader({
                     className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
-                    Post Product to {selectedChannelCode || activeChannelCode}
+                    Add item to {selectedChannelCode || activeChannelCode}
                 </Button>
             }
         />

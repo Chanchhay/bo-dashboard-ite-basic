@@ -10,9 +10,11 @@ import {
     isNavGroup,
     isSectionActive,
     visibleSections,
+    type NavLaunch,
     type NavSection,
 } from "@/components/layout/navigation";
 import type { Permission } from "@/lib/permissions";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function Sidebar({
     open,
@@ -66,10 +68,10 @@ export default function Sidebar({
                     <Link
                         href="/apps"
                         onClick={onClose}
-                        aria-label="iPOS home"
-                        className="grid size-11 place-items-center text-black text-4xl outline-none focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
+                        aria-label="FluxiBiz home"
+                        className="flex h-11 w-32 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
                     >
-                        Logo
+                        <BrandLogo variant="wordmark" alt="" preload />
                     </Link>
 
                     <button
@@ -83,7 +85,7 @@ export default function Sidebar({
                 </div>
 
                 <nav
-                    aria-label={current?.label ?? "App"}
+                    aria-label={current?.app?.label ?? current?.label ?? "App"}
                     className="flex-1 overflow-y-auto px-4 pb-6"
                 >
                     <Link
@@ -107,8 +109,37 @@ export default function Sidebar({
                         ))}
                     </ul>
                 </nav>
+
+                {/* Pinned rather than scrolled with the nav: leaving for another
+                    app is always available, and never mistaken for a page. */}
+                {current?.launch && (
+                    <LaunchButton launch={current.launch} onNavigate={onClose} />
+                )}
             </div>
         </>
+    );
+}
+
+function LaunchButton({
+    launch,
+    onNavigate,
+}: {
+    launch: NavLaunch;
+    onNavigate: () => void;
+}) {
+    const Icon = launch.icon;
+
+    return (
+        <div className="border-t border-[#e2e2de] px-4 pt-4 pb-6">
+            <Link
+                href={launch.href}
+                onClick={onNavigate}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-3 text-[14px] font-semibold text-white outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                {launch.label}
+            </Link>
+        </div>
     );
 }
 
@@ -147,20 +178,22 @@ function SectionItem({
                     )}
                     aria-hidden="true"
                 />
-                {section.label}
+                {section.app?.label ?? section.label}
             </Link>
         );
     }
 
     return (
         <>
-            {/* Not a control — inside an app there is nothing to collapse into. */}
+            {/* Not a control — inside an app there is nothing to collapse into.
+                Named as the launcher names it, so the tile you clicked and the
+                app you land in agree. */}
             <p className={cn(rowClass, "font-medium text-[#16181c]")}>
                 <Icon
                     className="size-[18px] shrink-0 text-[#00932a]"
                     aria-hidden="true"
                 />
-                {section.label}
+                {section.app?.label ?? section.label}
             </p>
 
             <ul

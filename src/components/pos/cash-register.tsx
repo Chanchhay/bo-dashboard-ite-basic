@@ -4,7 +4,7 @@ import { Building2, Delete, X, Calculator } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { SALES_HOME } from "@/lib/pos-routes";
+import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 
 export function CashRegister({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
@@ -12,7 +12,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   const [amount, setAmount] = useState("0.00");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
-  const isLoading = false;
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleDigit = (digit: string) => {
     setAmount((prev) => {
@@ -32,8 +32,41 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
     setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0.00"));
   };
 
-  const handleOpenRegister = () => {
-    setError("Register API is not connected yet");
+  const handleOpenRegister = async () => {
+    const openingBalance = Number.parseFloat(amount);
+
+    if (!Number.isFinite(openingBalance) || openingBalance < 0) {
+      setError("Enter the starting cash amount");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/register/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          openingBalance,
+          note: notes.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        setError(payload?.message ?? "Could not open the register.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Straight to the terminal — the float is counted, the shift has begun.
+      // `replace` so Back can't return to a register that is already open.
+      router.replace(POS_ROUTES.terminal);
+    } catch {
+      setError("Could not reach the server. Check your connection.");
+      setIsLoading(false);
+    }
   };
 
   const handleClose = () => {

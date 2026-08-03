@@ -52,14 +52,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { body, error, item: input } = await readItemSave(request);
+        const { error, save } = await readItemSave(request);
 
         if (error) {
             return error;
         }
 
         const businessId = await getInventoryBusinessId();
-        const barcode = input?.barcode.trim();
+        const barcode = save.item.barcode.trim();
 
         if (barcode) {
             const matches = await getInventoryItemsPage(businessId, {
@@ -85,7 +85,11 @@ export async function POST(request: Request) {
 
         const item = await backendRequest<InventoryItem>(
             `/api/v1/businesses/${businessId}/items`,
-            { method: "POST", body },
+            {
+                method: "POST",
+                body: save.body,
+                headers: { "Content-Type": save.contentType },
+            },
         );
 
         return Response.json(item, { status: 201 });

@@ -11,6 +11,7 @@ import {
 } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
 import type { Permission } from "@/lib/permissions";
+import BrandLogo from "@/components/brand/BrandLogo";
 
 /** How long the icon grows before the route actually changes. */
 const OPEN_MS = 620;
@@ -48,10 +49,10 @@ export default function AppLauncher({
             <header className="flex h-[88px] items-center justify-between border-b border-[#bccab8]/10 px-5 lg:px-8 bg-white">
                 <Link
                     href="/apps"
-                    aria-label="iPOS home"
-                    className="grid size-11 place-items-center text-4xl text-black outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+                    aria-label="FluxiBiz home"
+                    className="flex h-11 w-32 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
                 >
-                    Logo
+                    <BrandLogo variant="wordmark" alt="" preload />
                 </Link>
 
                 <div className="flex items-center gap-4">

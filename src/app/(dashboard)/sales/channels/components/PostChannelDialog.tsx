@@ -23,7 +23,6 @@ interface PostChannelDialogProps {
     open: boolean;
     title: string;
     selectedChannelName?: string;
-    selectedChannelId?: string;
     selectedItemId: string;
     inventoryItems: InventoryItem[];
     inventoryLoading: boolean;
@@ -37,7 +36,6 @@ export function PostChannelDialog({
     open,
     title,
     selectedChannelName,
-    selectedChannelId,
     selectedItemId,
     inventoryItems,
     inventoryLoading,
@@ -55,27 +53,27 @@ export function PostChannelDialog({
                         {title}
                     </DialogTitle>
                     <DialogDescription>
-                        Connect product ID and channel ID using backend endpoint{" "}
-                        <strong className="font-mono text-emerald-700">POST /api/v1/item-channels</strong>.
+                        The item becomes available to sell on this channel
+                        straight away.
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={onSubmit} className="space-y-4 my-2">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#344038]">Target Sales Channel ID</label>
+                        <label className="text-sm font-medium text-[#344038]">Sales channel</label>
                         <Input
-                            value={`${selectedChannelName || "Selected Channel"} (${selectedChannelId || "Selected Channel"})`}
+                            value={selectedChannelName || "Selected channel"}
                             disabled
-                            className="bg-gray-100 font-mono text-xs"
+                            className="bg-gray-100"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#344038]">Select Product</label>
+                        <label className="text-sm font-medium text-[#344038]">Item</label>
                         <Select value={selectedItemId} onValueChange={(value) => onSelectItem(value || "")}>
-                            <SelectTrigger aria-label="Select product">
+                            <SelectTrigger aria-label="Select item">
                                 <SelectValue
-                                    placeholder={inventoryLoading ? "Loading products..." : "Choose a product to link"}
+                                    placeholder={inventoryLoading ? "Loading items…" : "Choose an item"}
                                 />
                             </SelectTrigger>
                             <SelectContent>
@@ -97,7 +95,7 @@ export function PostChannelDialog({
                             disabled={isPosting || !selectedItemId}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
-                            {isPosting ? "Linking Product..." : "Post Item to Channel"}
+                            {isPosting ? "Adding…" : "Add item"}
                         </Button>
                     </DialogFooter>
                 </form>

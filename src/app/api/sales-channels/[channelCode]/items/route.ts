@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
-import type { ItemChannel, PostChannelItemInput } from "@/lib/api/sales-channels";
+import type {
+    ChannelItem,
+    ItemChannel,
+    PostChannelItemInput,
+} from "@/lib/api/sales-channels";
 
 type RouteContext = {
     params: Promise<{ channelCode: string }>;
@@ -18,7 +22,7 @@ export async function GET(
 ) {
     try {
         const { channelCode } = await context.params;
-        const items = await backendRequest<ItemChannel[]>(
+        const items = await backendRequest<ChannelItem[]>(
             `/api/v1/sales-channels/${encodeURIComponent(channelCode)}/items`,
         );
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Delete, Calculator, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/money";
+import { POS_ROUTES } from "@/lib/pos-routes";
 
 export interface CloseRegisterProps {
   cashierName: string;
@@ -13,6 +14,8 @@ export interface CloseRegisterProps {
   orderCount: number;
   onConfirm: (totalCounted: number) => void;
   isProcessing?: boolean;
+  /** Why the close failed. The counted amount is kept so it can be retried. */
+  error?: string;
 }
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
@@ -25,6 +28,7 @@ export function CloseRegister({
   orderCount,
   onConfirm,
   isProcessing,
+  error,
 }: CloseRegisterProps) {
   const router = useRouter();
   const [counted, setCounted] = useState("");
@@ -54,9 +58,13 @@ export function CloseRegister({
             </div>
             <h1 className="text-sm font-bold tracking-wide">CASH REGISTER</h1>
           </div>
+          {/* Explicit destination, not `back()` — arriving here by redirect
+              would otherwise send the cashier somewhere unrelated. Backing out
+              of a count returns to the till with the shift still open. */}
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => router.replace(POS_ROUTES.terminal)}
+            aria-label="Back to the till"
             className="text-gray-400 transition-colors hover:text-gray-600"
           >
             <X className="h-4 w-4" />
@@ -151,10 +159,20 @@ export function CloseRegister({
 
         {/* Action */}
         <div className="shrink-0 px-6 pb-4 pt-1">
+          {error && (
+            <p
+              id="close-register-error"
+              role="alert"
+              className="pb-2 text-center text-xs text-accent"
+            >
+              {error}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => onConfirm(totalCounted)}
             disabled={isProcessing || !counted}
+            aria-describedby={error ? "close-register-error" : undefined}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
           >
             <Calculator className="h-4 w-4" />

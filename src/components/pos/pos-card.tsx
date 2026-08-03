@@ -1,86 +1,63 @@
-// import {
-//   Card,
-//   CardContent,
-//   CardHeader,
-//   CardTitle,
-
-// } from "@/components/ui/card";
-
-// export interface PosCardType {
-//   name: string;
-//   price: number;
-//   image: string;
-// }
-// const PosCard = ({ name, price, image }: PosCardType) => {
-//   return (
-//     <Card className="w-40 pt-0">
-//       <CardContent className="px-0 border border-white rounded-2xl ">
-//         <img
-//           src={image}
-//           alt="Banner"
-//           className="aspect-video h-40 rounded-2xl object-cover"
-//         />
-//       </CardContent>
-//       <CardHeader>
-//         <CardTitle className="text-gray-500 font-semibold line-clamp-1">{name}</CardTitle>
-//         <CardTitle className="text-accent font-bold">${price}</CardTitle>
-//       </CardHeader>
-//     </Card>
-//   );
-// };
-
-// export default PosCard;
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { formatCurrency } from "@/lib/money";
-import { Product } from "@/types/pos-type";
 import { ImageOff } from "lucide-react";
 
+import { formatCurrency } from "@/lib/money";
+import type { Item } from "@/types/pos-type";
+
 export interface PosCardProps {
-  product: Product;
-  onSelect?: (productId: string) => void;
+  item: Item;
+  onSelect?: (itemId: string) => void;
 }
 
-const PosCard = ({ product, onSelect }: PosCardProps) => {
-  const isDisabled = product.is_available !== "ACTIVE" || product.price === null;
+/**
+ * One sellable item in the terminal grid.
+ *
+ * A real `<button>` rather than a clickable card: a cashier working by
+ * keyboard has to be able to reach it, and the disabled state has to actually
+ * refuse the press rather than only look dimmed.
+ *
+ * Sized by its grid cell instead of a fixed width, so the row stays even
+ * however many columns the breakpoint gives it.
+ */
+const PosCard = ({ item, onSelect }: PosCardProps) => {
+  const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
 
   return (
-    <Card
-      onClick={() => !isDisabled && onSelect?.(product.id)}
-      className={`w-40 pt-0 transition-transform ${
+    <button
+      type="button"
+      disabled={isDisabled}
+      aria-label={`${item.name}, ${formatCurrency(item.price)}`}
+      onClick={() => onSelect?.(item.id)}
+      className={`group flex w-full flex-col text-left outline-none transition focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
         isDisabled
-          ? "opacity-50 cursor-not-allowed"
-          : "cursor-pointer hover:scale-[1.02] active:scale-95"
+          ? "cursor-not-allowed opacity-50"
+          : "cursor-pointer active:scale-[0.98]"
       }`}
     >
-      <CardContent className="px-0 border border-white rounded-2xl">
-        {product.image_url ? (
+      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md">
+        {item.image_url ? (
+          /* Decorative — the button's aria-label already names the item. */
+          // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.image_url}
-            alt={product.name}
-            className="aspect-video h-40 rounded-2xl object-cover"
+            src={item.image_url}
+            alt=""
+            className="h-full w-full object-cover opacity-95"
           />
         ) : (
-          <div className="flex aspect-video h-40 items-center justify-center rounded-2xl bg-gray-100">
-            <ImageOff className="h-8 w-8 text-gray-300" />
-          </div>
+          <ImageOff className="h-8 w-8 text-gray-300" aria-hidden="true" />
         )}
-      </CardContent>
-      <CardHeader>
-        <CardTitle className="text-gray-500 font-semibold line-clamp-1">
-          {product.name}
-        </CardTitle>
-        <CardTitle className="text-accent font-bold">
-          {formatCurrency(product.price)}
-        </CardTitle>
-      </CardHeader>
-    </Card>
+      </span>
+
+      <span className="flex w-full flex-col">
+        <span className="truncate text-[15px] font-semibold leading-8 tracking-[-0.24px] text-[#636b74]">
+          {item.name}
+        </span>
+        <span className="text-base font-bold leading-7 text-brand-red">
+          {formatCurrency(item.price)}
+        </span>
+      </span>
+    </button>
   );
 };
 

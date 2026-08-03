@@ -5,15 +5,15 @@
 // import {
 //   Order,
 //   OrderItem,
-//   Product,
+//   Item,
 //   PaymentInput,
 //   OrderListItem,
 // } from "@/types/pos-type";
 
 // const delay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// // Mock Product Menu
-// const mockProducts: Product[] = [
+// // Mock Item Menu
+// const mockProducts: Item[] = [
 //   {
 //     id: "101",
 //     business_owner_id: "1",
@@ -184,7 +184,7 @@
 //   return structuredClone(mockOrder);
 // }
 
-// //Delete Product
+// //Delete Item
 // export async function removeOrderItem(itemId: string): Promise<Order> {
 //   await delay();
 //   mockOrder = recalcOrderTotals({
@@ -198,8 +198,8 @@
 // export async function addProductToOrder(productId: string): Promise<Order> {
 //   await delay();
 //   const product = mockProducts.find((p) => p.id === productId);
-//   if (!product) throw new Error("Product not found");
-//   if (product.price === null) throw new Error("Product has no price set");
+//   if (!product) throw new Error("Item not found");
+//   if (product.price === null) throw new Error("Item has no price set");
 
 //   const existing = mockOrder.items.find((i) => i.product_id === productId);
 //   const items = existing
@@ -264,7 +264,7 @@
 //   return structuredClone(mockOrder);
 // }
 
-// export async function getProducts(): Promise<Product[]> {
+// export async function getProducts(): Promise<Item[]> {
 //   await delay();
 //   return structuredClone(mockProducts);
 // }
@@ -274,15 +274,15 @@ import { toMoneyString, toNumber } from "@/lib/money";
 import {
   Order,
   OrderItem,
-  Product,
+  Item,
   PaymentInput,
   OrderListItem,
 } from "@/types/pos-type";
 
 const delay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Mock Product Menu
-const mockProducts: Product[] = [
+// Mock Item Menu
+const mockProducts: Item[] = [
   {
     id: "101",
     business_owner_id: "1",
@@ -527,7 +527,7 @@ export async function updateOrderItemQty(
   return structuredClone(mockOrders[currentOrderId]);
 }
 
-//Delete Product
+//Delete Item
 export async function removeOrderItem(itemId: string): Promise<Order> {
   await delay();
   const order = mockOrders[currentOrderId];
@@ -542,8 +542,8 @@ export async function removeOrderItem(itemId: string): Promise<Order> {
 export async function addProductToOrder(productId: string): Promise<Order> {
   await delay();
   const product = mockProducts.find((p) => p.id === productId);
-  if (!product) throw new Error("Product not found");
-  if (product.price === null) throw new Error("Product has no price set");
+  if (!product) throw new Error("Item not found");
+  if (product.price === null) throw new Error("Item has no price set");
 
   const order = mockOrders[currentOrderId];
   const existing = order.items.find((i) => i.product_id === productId);
@@ -605,7 +605,7 @@ export async function payOrder(input: PaymentInput): Promise<Order> {
   return structuredClone(mockOrders[currentOrderId]);
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(): Promise<Item[]> {
   await delay();
   return structuredClone(mockProducts);
 }

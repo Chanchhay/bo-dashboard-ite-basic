@@ -1,115 +1,209 @@
 "use client";
 
-import { useState } from "react";
-import { ShoppingCart, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 
-import type { Order, Product } from "@/types/pos-type";
+import type { Item } from "@/types/pos-type";
+import type { PosOrder, Sale } from "@/lib/api/pos-order";
+import type { ChannelItem } from "@/lib/api/sales-channels";
 
-import { formatCurrency, toNumber } from "@/lib/money";
+import { formatCurrency } from "@/lib/money";
 import { PaidReceiptView } from "@/components/pos/order/pain-receipt-view";
 import PosCard from "@/components/pos/pos-card";
 import { ReceiptDetailView } from "@/components/pos/order/receipt-detail-view";
 import { ReceiptsList } from "@/components/pos/order/receipt-list";
 import { OrdersList } from "@/components/pos/order/order-list";
-import PosButton from "@/components/pos/pos-button";
+import PosButton, { type PosTab } from "@/components/pos/pos-button";
 import { OrderTable } from "@/components/pos/order/order-table";
+import { useToast } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
+import {
+  useAddOrderItemMutation,
+  useGetCurrentOrderQuery,
+} from "@/services/posOrderApi";
 
-const TABS_WITH_CART = ["Point of Sale", "Order"];
+const TABS_WITH_CART: PosTab[] = ["Point of Sale", "Order"];
 
 type PaidReceiptState = {
-  order: Order;
-  method: "CASH" | "DIGITAL";
-  receivedAmount?: number;
+  /** The lines that were sold — the sale itself carries only totals. */
+  order: PosOrder;
+  sale: Sale;
 };
 
-export function PosScreen() {
-  const [activeTab, setActiveTab] = useState("Point of Sale");
+export interface PosScreenProps {
+  channelItems: ChannelItem[];
+  isLoading: boolean;
+  searchQuery: string;
+  selectedCategoryId: string;
+  onClearFilters: () => void;
+  currentRegisterUser: { id: string; name: string } | null;
+  registerCashSales?: number;
+}
+
+export function PosScreen({
+  channelItems,
+  isLoading,
+  searchQuery,
+  selectedCategoryId,
+  onClearFilters,
+  currentRegisterUser,
+  registerCashSales,
+}: PosScreenProps) {
+  const [activeTab, setActiveTab] = useState<PosTab>("Point of Sale");
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [paidReceipt, setPaidReceipt] = useState<PaidReceiptState | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
-  const products: Product[] = [];
-  const isLoading = false;
-  const addProduct = async (id: string) => {
-    void id;
+  // The till sells only what is published to the POS channel. Filtering stays
+  // on that API-backed set because the channel endpoint does not accept search
+  // parameters yet.
+  const items = useMemo<Item[]>(() => {
+    const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+
+    return channelItems
+      .filter((entry) => {
+        if (
+          selectedCategoryId !== "ALL" &&
+          entry.item.itemGroup?.id !== selectedCategoryId
+        ) {
+          return false;
+        }
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return [
+          entry.item.name,
+          entry.item.code,
+          entry.item.sku,
+          entry.item.barcode,
+        ].some((value) =>
+          value?.toLocaleLowerCase().includes(normalizedSearch),
+        );
+      })
+      .map((entry) => {
+        const thumbnail = [...(entry.item.images ?? [])]
+          .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
+          .find((image) => image.url)?.url;
+
+        return {
+          id: entry.item.id,
+          business_owner_id: "",
+          name: entry.item.name ?? "Unnamed",
+          image_url: thumbnail ?? null,
+          price: String(entry.item.price ?? 0),
+          is_available:
+            entry.item.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+        };
+      });
+  }, [channelItems, searchQuery, selectedCategoryId]);
+
+  const filtersAreActive =
+    searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
+
+  const [addOrderItem] = useAddOrderItemMutation();
+  const { toast } = useToast();
+
+  const addItem = async (itemId: string) => {
+    try {
+      await addOrderItem({ itemId, quantity: 1 }).unwrap();
+    } catch (error) {
+      // A tap that silently does nothing is worse than one that says why —
+      // the cashier would otherwise keep tapping.
+      toast({
+        tone: "error",
+        title: "Could not add that item",
+        description: getApiErrorMessage(error, "Please try again."),
+      });
+    }
   };
-  const currentOrder: Order = {
-    id: "",
-    business_owner_id: "",
-    invoice_number: null,
-    customer_id: null,
-    cashier_id: null,
-    channel: "POS",
-    status: "PENDING",
-    subtotal: "0",
-    discount_amount: "0",
-    applied_discounts: null,
-    total: "0",
-    currency: "",
-    note: null,
-    comment: null,
-    created_at: "",
-    updated_at: null,
-    items: [],
-  };
-  const clearOrder = async () => ({});
+  // The same cached order the cart panel renders, so the mobile bar can never
+  // disagree with the panel behind it.
+  const { data: currentOrder } = useGetCurrentOrderQuery();
   const showCart = TABS_WITH_CART.includes(activeTab);
   const itemCount =
-    currentOrder.items.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = toNumber(currentOrder?.total);
-  const [isEditingOrder, setIsEditingOrder] = useState(false);
+    currentOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+  const cartTotal = currentOrder?.total ?? 0;
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
-  const handleSaveEdit = async () => {
-    try {
-      await clearOrder();
-      setIsEditingOrder(false);
-      setActiveTab("Order");
-    } catch (e) {
-      console.error("Failed to finish editing order", e);
-    }
-  };
-
-  const handlePaymentSuccess = async (
-    order: Order,
-    method: "CASH" | "DIGITAL",
-    receivedAmount?: number,
-  ) => {
-    setPaidReceipt({ order, method, receivedAmount });
+  const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
+    setPaidReceipt({ order, sale });
     setActiveTab("Point of Sale");
     setMobileCartOpen(false);
-    setIsEditingOrder(false);
+    setEditingOrderId(null);
+    // No clear-up here: paying already closed the order and dropped the cart,
+    // so the next tap starts a fresh one.
+  };
 
-    try {
-      await clearOrder();
-    } catch (e) {
-      console.error("Failed to reset cart after payment", e);
-    }
+  const handleOrderCreated = () => {
+    setActiveTab("Order");
+    setMobileCartOpen(false);
+    setOpenReceiptId(null);
+    setEditingOrderId(null);
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background min-[1025px]:flex-row">
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="scrollbar-none flex-1 overflow-y-auto pb-20 [-ms-overflow-style:none] min-[1025px]:pb-0 [&::-webkit-scrollbar]:hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f5f5f5] min-[1025px]:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-20 [-ms-overflow-style:none] min-[1025px]:pb-0 [&::-webkit-scrollbar]:hidden">
           {activeTab === "Point of Sale" &&
             (paidReceipt ? (
               <PaidReceiptView
                 order={paidReceipt.order}
-                paymentMethod={paidReceipt.method}
-                receivedAmount={paidReceipt.receivedAmount}
+                sale={paidReceipt.sale}
                 onNewOrder={() => setPaidReceipt(null)}
               />
             ) : (
-              <div className="px-3 pt-4 sm:px-6 sm:pt-6">
+              <div className="px-3 pt-4 sm:px-6 sm:pt-6 min-[1025px]:px-[25px] min-[1025px]:pt-8">
                 {isLoading ? (
                   <div className="text-sm text-gray-400">
-                    Loading products...
+                    Loading items…
+                  </div>
+                ) : channelItems.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-20 text-center">
+                    <PackageOpen
+                      className="h-9 w-9 text-gray-300"
+                      aria-hidden="true"
+                    />
+                    <p className="text-sm font-semibold text-gray-700">
+                      No items to sell yet
+                    </p>
+                    <p className="max-w-xs text-sm text-gray-500">
+                      Add items to the Point of Sale channel and they will
+                      appear here.
+                    </p>
+                  </div>
+                ) : items.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 py-20 text-center">
+                    <Search
+                      className="h-9 w-9 text-gray-300"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">
+                        No matching items
+                      </p>
+                      <p className="mt-1 max-w-xs text-sm text-gray-500">
+                        Try another search or category.
+                      </p>
+                    </div>
+                    {filtersAreActive && (
+                      <button
+                        type="button"
+                        onClick={onClearFilters}
+                        className="h-10 rounded-xl border border-primary px-4 text-sm font-semibold text-primary outline-none hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/25"
+                      >
+                        Clear filters
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 place-items-center gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 min-[900px]:grid-cols-5 min-[1025px]:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                    {products.map((product) => (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 min-[900px]:grid-cols-5 min-[1025px]:grid-cols-5 min-[1025px]:gap-x-[13px]">
+                    {items.map((item) => (
                       <PosCard
-                        key={product.id}
-                        product={product}
-                        onSelect={(id) => addProduct(id)}
+                        key={item.id}
+                        item={item}
+                        onSelect={(id) => addItem(id)}
                       />
                     ))}
                   </div>
@@ -119,9 +213,15 @@ export function PosScreen() {
 
           {activeTab === "Order" && (
             <OrdersList
-              onEdit={() => {
-                setIsEditingOrder(true);
+              onEdit={(orderId) => {
+                setEditingOrderId(orderId);
                 setActiveTab("Point of Sale");
+              }}
+              onCancel={(orderId) => {
+                if (editingOrderId === orderId) {
+                  setEditingOrderId(null);
+                  setMobileCartOpen(false);
+                }
               }}
             />
           )}
@@ -133,11 +233,16 @@ export function PosScreen() {
                 onBack={() => setOpenReceiptId(null)}
               />
             ) : (
-              <ReceiptsList onOpenReceipt={setOpenReceiptId} />
+              <ReceiptsList
+                onOpenReceipt={setOpenReceiptId}
+                currentRegisterUser={currentRegisterUser}
+                registerCashSales={registerCashSales}
+              />
             ))}
         </div>
 
         <PosButton
+          active={activeTab}
           onChange={(tab) => {
             setActiveTab(tab);
             setOpenReceiptId(null);
@@ -146,11 +251,11 @@ export function PosScreen() {
       </div>
 
       {showCart && (
-        <div className="scrollbar-hide hidden w-150 shrink-0 overflow-y-auto border-l border-gray-200 bg-white min-[1025px]:flex min-[1025px]:flex-col">
+        <div className="scrollbar-hide hidden w-[43.4vw] max-w-[625px] min-w-[500px] shrink-0 overflow-y-auto border-l border-[#d9d9d9] bg-white/90 min-[1025px]:flex min-[1025px]:flex-col">
           <OrderTable
             onPaymentSuccess={handlePaymentSuccess}
-            isEditingOrder={isEditingOrder}
-            onSaveEdit={handleSaveEdit}
+            onOrderCreated={handleOrderCreated}
+            isEditingOrder={editingOrderId !== null}
           />
         </div>
       )}
@@ -159,7 +264,7 @@ export function PosScreen() {
         <button
           type="button"
           onClick={() => setMobileCartOpen(true)}
-          className="fixed inset-x-3 bottom-20 z-40 flex items-center justify-between rounded-xl bg-green-600 px-4 py-3 text-white shadow-lg active:scale-[0.98] min-[1025px]:hidden"
+          className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex min-h-12 items-center justify-between rounded-xl bg-primary px-4 py-3 text-white shadow-lg outline-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-[1025px]:hidden"
         >
           <span className="flex items-center gap-2 text-sm font-bold">
             <ShoppingCart className="h-4 w-4" />
@@ -170,22 +275,23 @@ export function PosScreen() {
       )}
 
       {showCart && mobileCartOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white min-[1025px]:hidden">
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
-            <h2 className="text-sm font-bold text-gray-900">Current order</h2>
+        <div className="fixed inset-0 z-50 flex h-dvh min-h-0 flex-col bg-white pb-[env(safe-area-inset-bottom)] min-[1025px]:hidden">
+          <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2">
+            <h2 className="text-base font-bold text-gray-900">Current order</h2>
             <button
               type="button"
               onClick={() => setMobileCartOpen(false)}
-              className="text-gray-400 hover:text-gray-600"
+              aria-label="Close current order"
+              className="grid size-11 place-items-center rounded-full text-gray-500 outline-none hover:bg-gray-100 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-primary/30"
             >
-              <X className="h-5 w-5" />
+              <X className="size-5" aria-hidden="true" />
             </button>
           </div>
-          <div className="scrollbar-hide flex-1 overflow-y-auto">
+          <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
             <OrderTable
               onPaymentSuccess={handlePaymentSuccess}
-              isEditingOrder={isEditingOrder}
-              onSaveEdit={handleSaveEdit}
+              onOrderCreated={handleOrderCreated}
+              isEditingOrder={editingOrderId !== null}
             />
           </div>
         </div>
