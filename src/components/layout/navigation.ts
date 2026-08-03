@@ -13,9 +13,15 @@ import {
 } from "lucide-react";
 
 import { PERMISSIONS, can, type Permission } from "@/lib/permissions";
+import { POS_ROUTES } from "@/lib/pos-routes";
 
-export type NavLeaf = {
+type NavItemBase = {
     label: string;
+    /** Omit to make the page available to everyone who can see the section. */
+    permission?: Permission;
+};
+
+export type NavLink = NavItemBase & {
     href: string;
     /** Match the pathname exactly instead of by prefix. */
     exact?: boolean;
@@ -23,9 +29,13 @@ export type NavLeaf = {
     alsoActiveOn?: RegExp[];
     /** Optional count pill. Only ever set from real data. */
     badge?: number;
-    /** Omit to make the page available to everyone who can see the section. */
-    permission?: Permission;
 };
+
+export type NavGroup = NavItemBase & {
+    children: NavLink[];
+};
+
+export type NavLeaf = NavLink | NavGroup;
 
 export type NavSection = {
     id: string;
@@ -130,12 +140,17 @@ export const NAVIGATION: NavSection[] = [
             ink: "#ffffff",
         },
         children: [
-            { label: "Overview", href: "/dashboard", exact: true },
+            { label: "Orders", href: "/sales", exact: true },
             {
-                label: "Analytics",
-                href: "/analytics",
-                permission: PERMISSIONS.ANALYTICS_VIEW,
+                label: "Point of Sale",
+                children: [
+                    {
+                        label: "Open Register",
+                        href: POS_ROUTES.openRegister,
+                    },
+                ],
             },
+            { label: "Product Selling", href: "/sales/product-selling"}
         ],
     },
     {
@@ -162,9 +177,15 @@ export const NAVIGATION: NavSection[] = [
                 permission: PERMISSIONS.SALES_ORDERS,
             },
             {
-                label: "Point of sale",
-                href: "/sales/pos",
+                label: "Point of Sale",
                 permission: PERMISSIONS.SALES_POS,
+                children: [
+                    {
+                        label: "Open Register",
+                        href: POS_ROUTES.openRegister,
+                        permission: PERMISSIONS.SALES_POS,
+                    },
+                ],
             },
         ],
     },
@@ -199,9 +220,29 @@ export function visibleSections(permissions: readonly Permission[]) {
             section.children
                 ? {
                       ...section,
-                      children: section.children.filter((leaf) =>
-                          can(permissions, leaf.permission),
-                      ),
+                      children: section.children
+                          .filter((leaf) =>
+                              can(permissions, leaf.permission),
+                          )
+                          .map((leaf) =>
+                              isNavGroup(leaf)
+                                  ? {
+                                        ...leaf,
+                                        children: leaf.children.filter(
+                                            (child) =>
+                                                can(
+                                                    permissions,
+                                                    child.permission,
+                                                ),
+                                        ),
+                                    }
+                                  : leaf,
+                          )
+                          .filter(
+                              (leaf) =>
+                                  !isNavGroup(leaf) ||
+                                  leaf.children.length > 0,
+                          ),
                   }
                 : section,
         )
@@ -217,10 +258,23 @@ export function launcherApps(permissions: readonly Permission[]) {
 
 /** Where an app tile takes you — its own route, or its first child page. */
 export function sectionEntryHref(section: NavSection) {
-    return section.href ?? section.children?.[0]?.href ?? "/dashboard";
+    const firstChild = section.children?.[0];
+
+    return (
+        section.href ??
+        (firstChild &&
+            (isNavGroup(firstChild)
+                ? firstChild.children[0]?.href
+                : firstChild.href)) ??
+        "/dashboard"
+    );
 }
 
-export function isLeafActive(leaf: NavLeaf, pathname: string) {
+export function isLeafActive(leaf: NavLeaf, pathname: string): boolean {
+    if (isNavGroup(leaf)) {
+        return leaf.children.some((child) => isLeafActive(child, pathname));
+    }
+
     if (leaf.alsoActiveOn?.some((pattern) => pattern.test(pathname))) {
         return true;
     }
@@ -228,6 +282,10 @@ export function isLeafActive(leaf: NavLeaf, pathname: string) {
     return leaf.exact
         ? pathname === leaf.href
         : pathname === leaf.href || pathname.startsWith(`${leaf.href}/`);
+}
+
+export function isNavGroup(leaf: NavLeaf): leaf is NavGroup {
+    return "children" in leaf;
 }
 
 export function isSectionActive(section: NavSection, pathname: string) {
@@ -257,7 +315,18 @@ export function getPageTitle(pathname: string) {
             const leaf = section.children.find((child) =>
                 isLeafActive(child, pathname),
             );
-            if (leaf) return `${section.label} ${leaf.label.toLowerCase()}`;
+            if (leaf) {
+                if (isNavGroup(leaf)) {
+                    const child = leaf.children.find((item) =>
+                        isLeafActive(item, pathname),
+                    );
+                    if (child) {
+                        return `${leaf.label} ${child.label.toLowerCase()}`;
+                    }
+                }
+
+                return `${section.label} ${leaf.label.toLowerCase()}`;
+            }
         } else if (isSectionActive(section, pathname)) {
             return section.label;
         }

@@ -13,6 +13,8 @@ import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
+    Dices,
+    Download,
     Eye,
     LoaderCircle,
     Pencil,
@@ -21,6 +23,7 @@ import {
     Trash2,
 } from "lucide-react";
 
+import { BarcodePreview } from "@/components/inventory/BarcodePreview";
 import {
     createBlockId,
     DescriptionBlockEditor,
@@ -74,6 +77,7 @@ import {
 import {
     useCreateInventoryItemMutation,
     useDeleteItemImageMutation,
+    useGenerateInventoryBarcodeMutation,
     useGetInventoryItemQuery,
     useGetInventoryUnitsQuery,
     useGetItemGroupsQuery,
@@ -341,6 +345,8 @@ function ProductEditor({
         useCreateInventoryItemMutation();
     const [updateItem, updateState] =
         useUpdateInventoryItemMutation();
+    const [generateBarcode, generateBarcodeState] =
+        useGenerateInventoryBarcodeMutation();
     const [attributes, setAttributes] = useState(() =>
         toAttributeDrafts(initialItem?.attributes),
     );
@@ -351,6 +357,12 @@ function ProductEditor({
     const [variants, setVariants] = useState(() =>
         toVariantRows(initialItem?.variants),
     );
+    const [barcodePreview, setBarcodePreview] = useState(
+        initialItem?.barcode || "",
+    );
+    const [barcodeGenerationError, setBarcodeGenerationError] = useState<
+        string | null
+    >(null);
     // Stored images belong to the server: they arrive with an id and are
     // deleted through their own endpoint. Picked files are held here until the
     // save carries them up.
@@ -403,6 +415,31 @@ function ProductEditor({
                 previewUrl: createObjectUrl(file),
             })),
         ]);
+    }
+
+    async function handleGenerateBarcode() {
+        setBarcodeGenerationError(null);
+
+        try {
+            const result = await generateBarcode().unwrap();
+            setBarcodePreview(result.barcode);
+            setFieldErrors((current) => {
+                if (!current.barcode) {
+                    return current;
+                }
+
+                const next = { ...current };
+                delete next.barcode;
+                return next;
+            });
+        } catch (error) {
+            setBarcodeGenerationError(
+                getApiErrorMessage(
+                    error,
+                    "Unable to generate a unique barcode.",
+                ),
+            );
+        }
     }
 
     function removePickedImage(id: string) {
@@ -736,14 +773,70 @@ function ProductEditor({
                         name="barcode"
                         error={fieldErrors.barcode}
                     >
-                        <Input
-                            id="barcode"
-                            name="barcode"
-                            defaultValue={initialItem?.barcode}
-                            placeholder="3547908987678"
-                            aria-invalid={Boolean(fieldErrors.barcode)}
-                            className={inventoryControlClassName}
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                id="barcode"
+                                name="barcode"
+                                value={barcodePreview}
+                                onChange={(event) => {
+                                    setBarcodePreview(event.target.value);
+                                    setBarcodeGenerationError(null);
+                                }}
+                                placeholder="3547908987678"
+                                aria-invalid={Boolean(fieldErrors.barcode)}
+                                className={`${inventoryControlClassName} flex-1 font-mono`}
+                            />
+                            {!isEditing ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    disabled={generateBarcodeState.isLoading}
+                                    onClick={handleGenerateBarcode}
+                                    aria-label="Generate a unique barcode"
+                                    title="Generate unique barcode"
+                                    className="shrink-0 self-center"
+                                >
+                                    {generateBarcodeState.isLoading ? (
+                                        <LoaderCircle className="animate-spin" />
+                                    ) : (
+                                        <Dices />
+                                    )}
+                                </Button>
+                            ) : null}
+                        </div>
+                        {barcodeGenerationError ? (
+                            <p className="text-xs text-accent" role="alert">
+                                {barcodeGenerationError}
+                            </p>
+                        ) : null}
+                        {barcodePreview.trim() ? (
+                            <div className="rounded-xl border border-[#e4eae2] bg-[#f8faf7] p-3">
+                                <BarcodePreview
+                                    value={barcodePreview}
+                                    compact
+                                />
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-xs text-[#657064]">
+                                        CODE128 preview
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        render={
+                                            <a
+                                                href={`/api/inventory/items/barcode/image?code=${encodeURIComponent(barcodePreview.trim())}`}
+                                                download
+                                            />
+                                        }
+                                        nativeButton={false}
+                                    >
+                                        <Download />
+                                        Download PNG
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : null}
                     </Field>
                     <Field
                         label="Category"

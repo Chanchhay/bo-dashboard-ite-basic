@@ -11,7 +11,10 @@ import {
 
 import { buttonVariants } from "@/components/ui/button";
 import { backendRequest } from "@/lib/api/backend";
-import { getInventoryBusinessId } from "@/lib/api/inventory-backend";
+import {
+    getAllInventoryItems,
+    getInventoryBusinessId,
+} from "@/lib/api/inventory-backend";
 import type { InventoryItem, StockSummary } from "@/lib/api/inventory";
 
 type Overview = {
@@ -24,9 +27,7 @@ async function loadOverview(): Promise<Overview> {
     try {
         const businessId = await getInventoryBusinessId();
         const [items, stock] = await Promise.all([
-            backendRequest<InventoryItem[]>(
-                `/api/v1/businesses/${businessId}/items`,
-            ),
+            getAllInventoryItems(businessId),
             backendRequest<StockSummary[]>(
                 `/api/v1/businesses/${businessId}/stock-entries/current`,
             ),

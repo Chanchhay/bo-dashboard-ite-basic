@@ -6,6 +6,8 @@ const protectedRoutes = [
     "/dashboard",
     "/business",
     "/inventory",
+    "/sales",
+    "/pos",
     "/profile",
 ];
 const authRoutes = ["/login", "/callback"];
@@ -13,6 +15,7 @@ const authRoutes = ["/login", "/callback"];
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const sessionCookie = getSessionCookie(request);
+    console.log(`===============>, `, sessionCookie)
 
     if (protectedRoutes.some((route) => pathname.startsWith(route))) {
         if (!sessionCookie) {
@@ -36,6 +39,8 @@ export const config = {
         "/dashboard/:path*",
         "/business/:path*",
         "/inventory/:path*",
+        "/sales/:path*",
+        "/pos/:path*",
         "/profile/:path*",
     ],
 };

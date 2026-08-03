@@ -8,9 +8,11 @@ import {
     LoaderCircle,
     PackageOpen,
     Save,
+    ScanBarcode,
     SlidersHorizontal,
 } from "lucide-react";
 
+import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -31,10 +33,11 @@ import {
 import {
     stockEntrySchema,
     stockEntryTypes,
+    type InventoryItem,
 } from "@/lib/api/inventory";
 import {
     useCreateStockEntryMutation,
-    useGetInventoryItemsQuery,
+    useGetInventoryItemOptionsQuery,
 } from "@/services/inventoryApi";
 
 function Field({
@@ -86,13 +89,16 @@ function getOptionalFormValue(formData: FormData, name: string) {
 
 export function StockAdjustmentForm() {
     const router = useRouter();
-    const itemsQuery = useGetInventoryItemsQuery();
+    const itemsQuery = useGetInventoryItemOptionsQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
     const [status, setStatus] = useState<string | null>(null);
+    const [selectedItemId, setSelectedItemId] = useState("");
+    const [scannerOpen, setScannerOpen] = useState(false);
+    const [scannedItemName, setScannedItemName] = useState<string | null>(null);
 
     if (itemsQuery.isLoading) {
         return <InventoryLoading label="Loading stock form" />;
@@ -111,6 +117,21 @@ export function StockAdjustmentForm() {
     }
 
     const items = itemsQuery.data || [];
+
+    function handleScannedItem(item: InventoryItem) {
+        setSelectedItemId(item.id);
+        setScannedItemName(item.name || "Unnamed item");
+        setStatus(null);
+        setFieldErrors((current) => {
+            if (!current.itemId) {
+                return current;
+            }
+
+            const next = { ...current };
+            delete next.itemId;
+            return next;
+        });
+    }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -178,11 +199,12 @@ export function StockAdjustmentForm() {
     }
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            noValidate
-            className="flex flex-col gap-6"
-        >
+        <>
+            <form
+                onSubmit={handleSubmit}
+                noValidate
+                className="flex flex-col gap-6"
+            >
             <InventoryPageHeader
                 title="Adjust stock"
                 description="Record a stock entry using the backend inventory contract."
@@ -224,37 +246,59 @@ export function StockAdjustmentForm() {
                         <Field
                             label="Item *"
                             name="itemId"
+                            hint={
+                                scannedItemName
+                                    ? `${scannedItemName} selected by barcode.`
+                                    : "Choose an item or scan its barcode."
+                            }
                             error={fieldErrors.itemId}
                         >
-                            <Select
-                                name="itemId"
-                                items={Object.fromEntries(
-                                    items.map((item) => [
-                                        item.id,
-                                        item.name || "Unnamed item",
-                                    ]),
-                                )}
-                            >
-                                <SelectTrigger
-                                    id="itemId"
-                                    className={`${inventoryControlClassName} w-full`}
-                                    aria-invalid={Boolean(
-                                        fieldErrors.itemId,
+                            <div className="flex gap-2">
+                                <Select
+                                    name="itemId"
+                                    value={selectedItemId}
+                                    onValueChange={(value) => {
+                                        setSelectedItemId(value || "");
+                                        setScannedItemName(null);
+                                    }}
+                                    items={Object.fromEntries(
+                                        items.map((item) => [
+                                            item.id,
+                                            item.name || "Unnamed item",
+                                        ]),
                                     )}
                                 >
-                                    <SelectValue placeholder="Choose an item" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {items.map((item) => (
-                                        <SelectItem
-                                            key={item.id}
-                                            value={item.id}
-                                        >
-                                            {item.name || "Unnamed item"}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                    <SelectTrigger
+                                        id="itemId"
+                                        className={`${inventoryControlClassName} w-full flex-1`}
+                                        aria-invalid={Boolean(
+                                            fieldErrors.itemId,
+                                        )}
+                                    >
+                                        <SelectValue placeholder="Choose an item" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {items.map((item) => (
+                                            <SelectItem
+                                                key={item.id}
+                                                value={item.id}
+                                            >
+                                                {item.name || "Unnamed item"}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-lg"
+                                    onClick={() => setScannerOpen(true)}
+                                    aria-label="Scan an item barcode"
+                                    title="Scan item barcode"
+                                >
+                                    <ScanBarcode />
+                                </Button>
+                            </div>
                         </Field>
                         <Field
                             label="Entry type *"
@@ -479,7 +523,13 @@ export function StockAdjustmentForm() {
                     )}
                     Save stock entry
                 </Button>
-            </div>
-        </form>
+                </div>
+            </form>
+            <BarcodeScannerDialog
+                open={scannerOpen}
+                onOpenChange={setScannerOpen}
+                onItemFound={handleScannedItem}
+            />
+        </>
     );
 }
