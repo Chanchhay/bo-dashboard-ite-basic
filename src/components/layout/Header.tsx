@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 
 import { getPageTitle } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
+import { NotificationMenu } from "../profile/Notification";
 
 export default function Header({
     managerName,
@@ -47,13 +48,8 @@ export default function Header({
                     />
                 </label>
 
-                <button
-                    type="button"
-                    aria-label="Notifications"
-                    className="relative grid size-11 place-items-center rounded-xl border border-[#e2e2de] bg-white text-[#16181c] outline-none transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#00932a]"
-                >
-                    <Bell className="size-[18px]" aria-hidden="true" />
-                </button>
+                <NotificationMenu />
+                
 
                 <UserMenu name={managerName} />
             </div>
