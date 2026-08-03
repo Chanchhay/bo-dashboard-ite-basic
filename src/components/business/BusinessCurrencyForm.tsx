@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
+import { useToast } from "@/components/ui/toast";
 import {
     businessCurrencyConfigurationSchema,
     normalizeCurrencyConfiguration,
@@ -24,11 +25,6 @@ import {
     useGetBusinessCurrenciesQuery,
     useUpdateBusinessCurrenciesMutation,
 } from "@/services/currencyApi";
-
-type Status = {
-    type: "error" | "success";
-    message: string;
-};
 
 function getApiErrorMessage(error: unknown, fallback: string) {
     if (
@@ -187,9 +183,9 @@ function CurrencyEditor({
         )?.code || "",
     );
     const [newCurrencyCode, setNewCurrencyCode] = useState("");
-    const [status, setStatus] = useState<Status | null>(null);
     const [updateCurrencies, updateState] =
         useUpdateBusinessCurrenciesMutation();
+    const { toast } = useToast();
 
     const base =
         currencies.find((currency) => currency.code === baseCurrency) ||
@@ -215,16 +211,16 @@ function CurrencyEditor({
                     : currency,
             ),
         );
-        setStatus(null);
     }
 
     function addCurrency() {
         const details = getCurrencyDetails(newCurrencyCode);
 
         if (!details) {
-            setStatus({
-                type: "error",
-                message: "Enter a valid three-letter currency code.",
+            toast({
+                tone: "error",
+                title: "Currency not added",
+                description: "Enter a valid three-letter currency code.",
             });
             return;
         }
@@ -234,9 +230,10 @@ function CurrencyEditor({
                 (currency) => currency.code === details.code,
             )
         ) {
-            setStatus({
-                type: "error",
-                message: `${details.code} is already configured.`,
+            toast({
+                tone: "error",
+                title: "Currency not added",
+                description: `${details.code} is already configured.`,
             });
             return;
         }
@@ -251,14 +248,15 @@ function CurrencyEditor({
         ]);
         setSelectedTarget(details.code);
         setNewCurrencyCode("");
-        setStatus(null);
     }
 
     function removeCurrency(code: string) {
         if (code === baseCurrency) {
-            setStatus({
-                type: "error",
-                message: "Choose another base currency before removing this one.",
+            toast({
+                tone: "error",
+                title: "Currency not removed",
+                description:
+                    "Choose another base currency before removing this one.",
             });
             return;
         }
@@ -274,7 +272,6 @@ function CurrencyEditor({
                 )?.code || "",
             );
         }
-        setStatus(null);
     }
 
     function changeBaseCurrency(code: string | null) {
@@ -287,9 +284,11 @@ function CurrencyEditor({
         );
 
         if (!nextBase || nextBase.exchangeRate <= 0) {
-            setStatus({
-                type: "error",
-                message: "Set a positive exchange rate before using this as the base currency.",
+            toast({
+                tone: "error",
+                title: "Base currency not changed",
+                description:
+                    "Set a positive exchange rate before using this as the base currency.",
             });
             return;
         }
@@ -307,7 +306,6 @@ function CurrencyEditor({
         if (selectedTarget === code) {
             setSelectedTarget(baseCurrency);
         }
-        setStatus(null);
     }
 
     function swapCalculatorCurrencies() {
@@ -328,12 +326,10 @@ function CurrencyEditor({
             )?.code || "",
         );
         setNewCurrencyCode("");
-        setStatus(null);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const result = businessCurrencyConfigurationSchema.safeParse({
             baseCurrency,
@@ -341,9 +337,10 @@ function CurrencyEditor({
         });
 
         if (!result.success) {
-            setStatus({
-                type: "error",
-                message:
+            toast({
+                tone: "error",
+                title: "Currency settings not saved",
+                description:
                     result.error.issues[0]?.message ||
                     "Check the currency configuration.",
             });
@@ -360,14 +357,17 @@ function CurrencyEditor({
                     (currency) => currency.code !== next.baseCurrency,
                 )?.code || "",
             );
-            setStatus({
-                type: "success",
-                message: "Currency configuration saved successfully.",
+            toast({
+                tone: "success",
+                title: "Currency settings saved",
+                description:
+                    "Your business currency configuration is up to date.",
             });
         } catch (error) {
-            setStatus({
-                type: "error",
-                message: getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Currency settings not saved",
+                description: getApiErrorMessage(
                     error,
                     "Unable to save the currency configuration.",
                 ),
@@ -624,18 +624,6 @@ function CurrencyEditor({
             </section>
 
             <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-6">
-                {status ? (
-                    <p
-                        role={status.type === "error" ? "alert" : "status"}
-                        className={`mr-auto text-sm font-medium ${
-                            status.type === "error"
-                                ? "text-accent"
-                                : "text-primary"
-                        }`}
-                    >
-                        {status.message}
-                    </p>
-                ) : null}
                 <Button
                     type="button"
                     variant="outline"
@@ -676,7 +664,7 @@ function CurrencyQueryError({
     return (
         <div
             role="alert"
-            className="rounded-2xl border border-accent/20 bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]"
+            className="rounded-2xl border border-brand-red/20 bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]"
         >
             <h2 className="text-lg font-bold text-[#161d16]">
                 Unable to load currencies

@@ -134,7 +134,7 @@ export function BarcodeScannerDialog({
 
                     {message ? (
                         <p
-                            className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
+                            className="rounded-xl border border-brand-red/20 bg-brand-red/5 px-4 py-3 text-sm text-brand-red"
                             role="alert"
                         >
                             {message}

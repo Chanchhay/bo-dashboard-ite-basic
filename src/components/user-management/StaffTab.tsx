@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -83,12 +84,13 @@ export default function StaffTab() {
     const [createStaff, createState] = useCreateStaffMutation();
     const [updateStaff, updateState] = useUpdateStaffMutation();
     const [updateStatus] = useUpdateStaffStatusMutation();
-    const [deleteStaff] = useDeleteStaffMutation();
+    const [deleteStaff, deleteState] = useDeleteStaffMutation();
 
     const [search, setSearch] = useState("");
     const [editor, setEditor] = useState<Editor>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [formError, setFormError] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<Staff | null>(null);
 
     const roles = useMemo(() => rolesQuery.data || [], [rolesQuery.data]);
     const roleNames = useMemo(
@@ -211,21 +213,18 @@ export default function StaffTab() {
         }
     }
 
-    async function remove(member: Staff) {
-        if (
-            !window.confirm(
-                `Remove ${staffFullName(member)}? This cannot be undone.`,
-            )
-        ) {
+    async function remove() {
+        if (!pendingDelete) {
             return;
         }
 
         try {
-            await deleteStaff(member.id).unwrap();
+            await deleteStaff(pendingDelete.id).unwrap();
             toast({
                 title: "User removed",
-                description: staffFullName(member),
+                description: staffFullName(pendingDelete),
             });
+            setPendingDelete(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -235,6 +234,7 @@ export default function StaffTab() {
                     "Unable to remove the user.",
                 ),
             });
+            setPendingDelete(null);
         }
     }
 
@@ -632,11 +632,14 @@ export default function StaffTab() {
                                                 <Button
                                                     type="button"
                                                     onClick={() =>
-                                                        remove(member)
+                                                        setPendingDelete(member)
                                                     }
                                                     aria-label={`Remove ${staffFullName(member)}`}
                                                     variant="destructive"
                                                     size="icon-sm"
+                                                    disabled={
+                                                        deleteState.isLoading
+                                                    }
                                                 >
                                                     <Trash2
                                                         className="size-4"
@@ -652,6 +655,31 @@ export default function StaffTab() {
                     </div>
                 )}
             </Panel>
+            <DestructiveConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Remove user?"
+                description={
+                    <>
+                        <span className="font-semibold text-[#37423b]">
+                            {pendingDelete
+                                ? staffFullName(pendingDelete)
+                                : "This user"}
+                        </span>{" "}
+                        will lose access to this business. This action cannot be
+                        undone.
+                    </>
+                }
+                cancelLabel="Keep user"
+                confirmLabel="Remove user"
+                pendingLabel="Removing…"
+                isPending={deleteState.isLoading}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDelete(null);
+                    }
+                }}
+                onConfirm={() => void remove()}
+            />
         </div>
     );
 }

@@ -1,0 +1,458 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { CircleCheck, KeyRound, LoaderCircle, QrCode } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
+import {
+    bakongSettingsSchema,
+    type BakongSettings,
+    type BakongSettingsInput,
+} from "@/lib/api/bakong";
+import type { Khqr } from "@/lib/api/pos-order";
+import {
+    useGetBakongSettingsQuery,
+    usePreviewKhqrMutation,
+    useSaveBakongSettingsMutation,
+    useSetBakongActiveMutation,
+} from "@/services/bakongApi";
+
+type Fields = Record<string, string>;
+
+const BLANK: Fields = {
+    accountType: "INDIVIDUAL",
+    bakongAccountId: "",
+    merchantName: "",
+    merchantCity: "",
+    merchantId: "",
+    acquiringBank: "",
+    mobileNumber: "",
+    storeLabel: "",
+};
+
+/**
+ * Where a merchant connects their Bakong account so the till can take KHQR.
+ *
+ * The API token is write-only: the backend only ever reports whether one
+ * exists. Nothing here renders a masked stand-in, because a row of dots that
+ * isn't the real secret invites someone to "confirm" a token they cannot see.
+ */
+export function BusinessPaymentsForm() {
+    const { toast } = useToast();
+    const { data, isLoading } = useGetBakongSettingsQuery();
+    const [save, { isLoading: isSaving }] = useSaveBakongSettingsMutation();
+    const [setActive, { isLoading: isToggling }] = useSetBakongActiveMutation();
+    const [preview, { isLoading: isPreviewing }] = usePreviewKhqrMutation();
+
+    const [previewQr, setPreviewQr] = useState<Khqr | null>(null);
+
+    const settings = data?.settings;
+    const hasToken = Boolean(settings?.apiTokenConfigured);
+
+    async function handleToggle(next: boolean) {
+        try {
+            await setActive(next).unwrap();
+            toast({
+                tone: "success",
+                title: next ? "KHQR is now on" : "KHQR is now off",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not change KHQR",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        }
+    }
+
+    async function handlePreview() {
+        setPreviewQr(null);
+
+        try {
+            setPreviewQr(await preview({ amount: 1 }).unwrap());
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not create a test code",
+                description: getApiErrorMessage(
+                    cause,
+                    "Check the details above and save first.",
+                ),
+            });
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <p className="p-6 text-sm text-[#657064]">
+                Loading payment settings…
+            </p>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-6">
+            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-semibold text-[#161d16]">
+                            Accept KHQR at the till
+                        </h2>
+                        <p className="mt-1 text-sm text-[#657064]">
+                            {data?.configured
+                                ? "Customers can scan to pay when this is on."
+                                : "Add your Bakong account below to turn this on."}
+                        </p>
+                    </div>
+
+                    <Switch
+                        checked={Boolean(data?.active)}
+                        disabled={!data?.configured || isToggling}
+                        onCheckedChange={handleToggle}
+                        aria-label="Accept KHQR at the till"
+                    />
+                </div>
+
+                {data?.configured && !hasToken && (
+                    /* Generating a code and confirming payment are different
+                       credentials. Without the token a QR can appear and never
+                       settle, which looks like the customer's fault. */
+                    <p className="mt-4 flex items-start gap-2 rounded-xl bg-[#fff4d6] px-3 py-2 text-sm text-[#7a5600]">
+                        <KeyRound
+                            className="mt-0.5 size-4 shrink-0"
+                            aria-hidden="true"
+                        />
+                        No API token saved. Codes may generate but payments will
+                        never be confirmed.
+                    </p>
+                )}
+            </section>
+
+            <AccountForm
+                key={settings?.id ?? "new"}
+                settings={settings}
+                hasToken={hasToken}
+                isSaving={isSaving}
+                canPreview={Boolean(data?.configured)}
+                isPreviewing={isPreviewing}
+                onPreview={handlePreview}
+                onSave={async (input) => {
+                    await save(input).unwrap();
+                    toast({ tone: "success", title: "Payment settings saved" });
+                }}
+            />
+            {previewQr && <PreviewCard khqr={previewQr} />}
+        </div>
+    );
+}
+
+/**
+ * The editable half.
+ *
+ * Split out and keyed on the saved record so its initial state comes from
+ * props: React resets it by remounting when the settings change, which is
+ * cheaper and less error-prone than mirroring server data with an effect.
+ */
+function AccountForm({
+    settings,
+    hasToken,
+    isSaving,
+    canPreview,
+    isPreviewing,
+    onPreview,
+    onSave,
+}: {
+    settings: BakongSettings | null | undefined;
+    hasToken: boolean;
+    isSaving: boolean;
+    canPreview: boolean;
+    isPreviewing: boolean;
+    onPreview: () => void;
+    onSave: (input: BakongSettingsInput) => Promise<void>;
+}) {
+    const { toast } = useToast();
+    const [fields, setFields] = useState<Fields>(() => ({
+        ...BLANK,
+        accountType: settings?.accountType ?? "INDIVIDUAL",
+        bakongAccountId: settings?.bakongAccountId ?? "",
+        merchantName: settings?.merchantName ?? "",
+        merchantCity: settings?.merchantCity ?? "",
+        merchantId: settings?.merchantId ?? "",
+        acquiringBank: settings?.acquiringBank ?? "",
+        mobileNumber: settings?.mobileNumber ?? "",
+        storeLabel: settings?.storeLabel ?? "",
+    }));
+    const [apiToken, setApiToken] = useState("");
+    const [replacingToken, setReplacingToken] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const set = (name: string) => (value: string) => {
+        setFields((prev) => ({ ...prev, [name]: value }));
+        setErrors((prev) => ({ ...prev, [name]: "" }));
+    };
+
+    async function handleSubmit(event: FormEvent) {
+        event.preventDefault();
+
+        const candidate = {
+            ...(fields as unknown as BakongSettingsInput),
+            // Left out entirely unless the merchant typed a new one, so saving
+            // the form never silently clears a working token.
+            apiToken: apiToken.trim() || undefined,
+        };
+
+        const result = bakongSettingsSchema.safeParse(candidate);
+
+        if (!result.success) {
+            const next: Record<string, string> = {};
+
+            for (const issue of result.error.issues) {
+                const key = String(issue.path[0] ?? "");
+                if (key && !next[key]) next[key] = issue.message;
+            }
+
+            setErrors(next);
+            return;
+        }
+
+        try {
+            await onSave(result.data);
+            setApiToken("");
+            setReplacingToken(false);
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not save payment settings",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        }
+    }
+
+    return (
+            <form
+                onSubmit={handleSubmit}
+                className="rounded-2xl border border-[#e4eae2] bg-white p-5"
+            >
+                <h2 className="text-base font-semibold text-[#161d16]">
+                    Bakong account
+                </h2>
+                <p className="mt-1 text-sm text-[#657064]">
+                    These details appear on the customer&apos;s phone when they
+                    scan.
+                </p>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Account type" error={errors.accountType}>
+                        <SelectField
+                            value={fields.accountType}
+                            onValueChange={set("accountType")}
+                            options={[
+                                { value: "INDIVIDUAL", label: "Individual" },
+                                { value: "MERCHANT", label: "Merchant" },
+                            ]}
+                        />
+                    </Field>
+
+                    <Field
+                        label="Bakong account ID"
+                        error={errors.bakongAccountId}
+                        hint="For example, your_name@bank"
+                    >
+                        <Input
+                            value={fields.bakongAccountId}
+                            onChange={(e) =>
+                                set("bakongAccountId")(e.target.value)
+                            }
+                            placeholder="your_name@bank"
+                        />
+                    </Field>
+
+                    <Field label="Merchant name" error={errors.merchantName}>
+                        <Input
+                            value={fields.merchantName}
+                            onChange={(e) => set("merchantName")(e.target.value)}
+                        />
+                    </Field>
+
+                    <Field label="City" error={errors.merchantCity}>
+                        <Input
+                            value={fields.merchantCity}
+                            onChange={(e) => set("merchantCity")(e.target.value)}
+                            placeholder="Phnom Penh"
+                        />
+                    </Field>
+
+                    <Field label="Merchant ID" optional>
+                        <Input
+                            value={fields.merchantId}
+                            onChange={(e) => set("merchantId")(e.target.value)}
+                        />
+                    </Field>
+
+                    <Field label="Acquiring bank" optional>
+                        <Input
+                            value={fields.acquiringBank}
+                            onChange={(e) =>
+                                set("acquiringBank")(e.target.value)
+                            }
+                        />
+                    </Field>
+
+                    <Field label="Mobile number" optional>
+                        <Input
+                            value={fields.mobileNumber}
+                            onChange={(e) => set("mobileNumber")(e.target.value)}
+                        />
+                    </Field>
+
+                    <Field label="Store label" optional>
+                        <Input
+                            value={fields.storeLabel}
+                            onChange={(e) => set("storeLabel")(e.target.value)}
+                        />
+                    </Field>
+                </div>
+
+                <div className="mt-5 border-t border-[#edf0ec] pt-5">
+                    <Label>API token</Label>
+                    <p className="mt-1 text-sm text-[#657064]">
+                        From Bakong Open API. Used to confirm that a payment
+                        actually arrived.
+                    </p>
+
+                    {hasToken && !replacingToken ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                                <CircleCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Saved
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setReplacingToken(true)}
+                            >
+                                Replace token
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="mt-2 flex flex-col gap-2">
+                            <Input
+                                type="password"
+                                value={apiToken}
+                                autoComplete="off"
+                                onChange={(e) => setApiToken(e.target.value)}
+                                placeholder="Paste your Bakong API token"
+                            />
+                            {hasToken && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setReplacingToken(false);
+                                        setApiToken("");
+                                    }}
+                                    className="self-start text-sm text-[#657064] underline"
+                                >
+                                    Keep the existing token
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3 border-t border-[#edf0ec] pt-5">
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving && (
+                            <LoaderCircle
+                                className="size-4 animate-spin"
+                                aria-hidden="true"
+                            />
+                        )}
+                        Save
+                    </Button>
+
+                    {/* Proves the settings work without ringing up a sale. */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onPreview}
+                        disabled={!canPreview || isPreviewing}
+                    >
+                        <QrCode className="size-4" aria-hidden="true" />
+                        {isPreviewing ? "Testing…" : "Test with $1 code"}
+                    </Button>
+                </div>
+            </form>
+    );
+}
+
+function PreviewCard({ khqr }: { khqr: Khqr }) {
+    return (
+                <section className="flex flex-col items-center gap-3 rounded-2xl border border-[#e4eae2] bg-white p-5">
+                    <h2 className="text-base font-semibold text-[#161d16]">
+                        Test code
+                    </h2>
+                    <p className="max-w-md text-center text-sm text-[#657064]">
+                        A throwaway $1 code. Scanning it would charge you, so
+                        this is only to confirm the details are accepted.
+                    </p>
+                    {khqr.qrImage ? (
+                        /* A data URI from the backend, not an external fetch. */
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={khqr.qrImage}
+                            alt="Test KHQR code"
+                            className="size-56 object-contain"
+                        />
+                    ) : (
+                        <p className="text-sm text-[#657064]">
+                            The code was created but returned no image.
+                        </p>
+                    )}
+                </section>
+    );
+}
+
+function Field({
+    label,
+    error,
+    hint,
+    optional,
+    children,
+}: {
+    label: string;
+    error?: string;
+    hint?: string;
+    optional?: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            <Label>
+                {label}
+                {optional && (
+                    <span className="ml-1 font-normal text-[#8a8f89]">
+                        (optional)
+                    </span>
+                )}
+            </Label>
+            {children}
+            {hint && !error && (
+                <p className="text-xs text-[#8a8f89]">{hint}</p>
+            )}
+            {error && (
+                <p role="alert" className="text-xs text-brand-red">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}

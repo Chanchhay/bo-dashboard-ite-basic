@@ -67,10 +67,10 @@ export function InventoryError({
 }) {
     return (
         <div
-            className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-2xl border border-accent/20 bg-white px-6 text-center"
+            className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-2xl border border-brand-red/20 bg-white px-6 text-center"
             role="alert"
         >
-            <span className="grid size-10 place-items-center rounded-full bg-accent/10 text-accent">
+            <span className="grid size-10 place-items-center rounded-full bg-brand-red/10 text-brand-red">
                 <AlertCircle className="size-5" />
             </span>
             <p className="max-w-md text-sm text-[#657064]">{message}</p>

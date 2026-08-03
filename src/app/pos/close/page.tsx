@@ -120,7 +120,7 @@ function Reconciliation({ session }: { session: RegisterSession }) {
     difference === 0
       ? "text-primary"
       : difference < 0
-        ? "text-accent"
+        ? "text-brand-red"
         : "text-primary";
 
   return (

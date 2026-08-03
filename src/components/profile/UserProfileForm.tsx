@@ -159,7 +159,7 @@ function Field({
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-brand-red" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -586,7 +586,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                 className={
                                     status.type === "success"
                                         ? "text-primary"
-                                        : "text-accent"
+                                        : "text-brand-red"
                                 }
                                 role={
                                     status.type === "error"
@@ -630,7 +630,7 @@ function ProfileQueryError({
 }) {
     return (
         <div
-            className="rounded-2xl border border-accent/20 bg-white p-6 text-[#1a222b] shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
+            className="rounded-2xl border border-brand-red/20 bg-white p-6 text-[#1a222b] shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
             role="alert"
         >
             <h2 className="text-lg font-bold">Unable to load your profile</h2>

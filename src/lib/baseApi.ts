@@ -24,6 +24,7 @@ export const baseApi = createApi({
         "SalesChannels",
         "ItemChannels",
         "PosOrder",
+        "BakongSettings",
         "PosOpenOrders",
         "PosReceipts",
     ],

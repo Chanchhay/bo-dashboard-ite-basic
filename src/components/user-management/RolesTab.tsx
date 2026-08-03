@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
     EmptyState,
@@ -39,12 +40,13 @@ export default function RolesTab() {
     const staffQuery = useGetStaffQuery();
     const [createRole, createState] = useCreateBusinessRoleMutation();
     const [updateRole, updateState] = useUpdateBusinessRoleMutation();
-    const [deleteRole] = useDeleteBusinessRoleMutation();
+    const [deleteRole, deleteState] = useDeleteBusinessRoleMutation();
 
     const [editor, setEditor] = useState<Editor>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [nameError, setNameError] = useState<string | undefined>();
     const [formError, setFormError] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<BusinessRole | null>(null);
 
     const roles = rolesQuery.data || [];
 
@@ -148,26 +150,18 @@ export default function RolesTab() {
         }
     }
 
-    async function remove(role: BusinessRole) {
-        const assigned = assignedCounts.get(role.id) || 0;
-        const warning = assigned
-            ? ` ${assigned} user${assigned === 1 ? "" : "s"} will lose it.`
-            : "";
-
-        if (
-            !window.confirm(
-                `Delete ${role.name || "this role"}?${warning} This cannot be undone.`,
-            )
-        ) {
+    async function remove() {
+        if (!pendingDelete) {
             return;
         }
 
         try {
-            await deleteRole(role.id).unwrap();
+            await deleteRole(pendingDelete.id).unwrap();
             toast({
                 title: "Role deleted",
-                description: role.name || undefined,
+                description: pendingDelete.name || undefined,
             });
+            setPendingDelete(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -177,6 +171,7 @@ export default function RolesTab() {
                     "Unable to delete the role.",
                 ),
             });
+            setPendingDelete(null);
         }
     }
 
@@ -412,10 +407,13 @@ export default function RolesTab() {
                                             </Button>
                                             <Button
                                                 type="button"
-                                                onClick={() => remove(role)}
+                                                onClick={() =>
+                                                    setPendingDelete(role)
+                                                }
                                                 aria-label={`Delete ${role.name || "role"}`}
                                                 variant="destructive"
-                                                    size="icon-sm"
+                                                size="icon-sm"
+                                                disabled={deleteState.isLoading}
                                             >
                                                 <Trash2
                                                     className="size-4"
@@ -451,6 +449,32 @@ export default function RolesTab() {
                     </p>
                 )}
             </Panel>
+            <DestructiveConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Delete role?"
+                description={
+                    <>
+                        <span className="font-semibold text-[#37423b]">
+                            {pendingDelete?.name || "This role"}
+                        </span>{" "}
+                        will be permanently removed.
+                        {pendingDelete &&
+                        (assignedCounts.get(pendingDelete.id) || 0) > 0
+                            ? ` ${assignedCounts.get(pendingDelete.id)} user${assignedCounts.get(pendingDelete.id) === 1 ? "" : "s"} will lose this role.`
+                            : ""}{" "}
+                        This action cannot be undone.
+                    </>
+                }
+                cancelLabel="Keep role"
+                confirmLabel="Delete role"
+                isPending={deleteState.isLoading}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDelete(null);
+                    }
+                }}
+                onConfirm={() => void remove()}
+            />
         </div>
     );
 }

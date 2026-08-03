@@ -166,7 +166,7 @@ export function InventoryStock() {
                     "Out of stock",
                     String(outOfStock.length),
                     PackageX,
-                    "bg-accent/10 text-brand-red",
+                    "bg-brand-red/10 text-brand-red",
                 )}
             </div>
 

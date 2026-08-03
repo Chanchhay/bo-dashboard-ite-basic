@@ -9,7 +9,7 @@
  * Border:   #e8e8e8   resting, primary on focus
  */
 const base =
-    "w-full rounded-xl border border-[#e8e8e8] bg-white text-base leading-6 text-[#1a222b] outline-none transition-colors placeholder:text-[#6b7280] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 disabled:cursor-not-allowed disabled:bg-[#f7f8f7] disabled:text-[#6b7280] aria-invalid:border-accent aria-invalid:ring-2 aria-invalid:ring-accent/15";
+    "w-full rounded-xl border border-[#e8e8e8] bg-white text-base leading-6 text-[#1a222b] outline-none transition-colors placeholder:text-[#6b7280] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 disabled:cursor-not-allowed disabled:bg-[#f7f8f7] disabled:text-[#6b7280] aria-invalid:border-brand-red aria-invalid:ring-2 aria-invalid:ring-brand-red/15";
 
 export const controlClassName = `h-12 px-4 py-3 ${base}`;
 
@@ -17,7 +17,7 @@ export const textareaClassName = `min-h-24 px-4 py-3 ${base}`;
 
 export const labelClassName = "text-base font-medium text-[#424841]";
 export const hintClassName = "text-xs text-[#6b7280]";
-export const errorClassName = "text-xs text-accent";
+export const errorClassName = "text-xs text-brand-red";
 
 /** Primary and secondary actions, sized to line up with the controls. */
 export const primaryButtonClassName =

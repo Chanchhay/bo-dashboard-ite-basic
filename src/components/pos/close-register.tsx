@@ -131,7 +131,7 @@ export function CloseRegister({
               <span
                 className={`font-semibold ${
                   totalDifferent < 0
-                    ? "text-accent"
+                    ? "text-brand-red"
                     : totalDifferent > 0
                       ? "text-primary"
                       : "text-gray-500"
@@ -163,7 +163,7 @@ export function CloseRegister({
             <p
               id="close-register-error"
               role="alert"
-              className="pb-2 text-center text-xs text-accent"
+              className="pb-2 text-center text-xs text-brand-red"
             >
               {error}
             </p>

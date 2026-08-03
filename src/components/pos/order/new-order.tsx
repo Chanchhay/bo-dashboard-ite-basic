@@ -71,7 +71,7 @@ export function NewOrder({
         <div className="mt-5 flex flex-col gap-4 sm:mt-10 sm:gap-8">
           <div className="flex flex-col gap-2 sm:gap-3">
             <label htmlFor="new-order-name" className="text-base font-bold text-[#37423b] sm:text-xl">
-              Order name <span className="text-accent">*</span>
+              Order name <span className="text-brand-red">*</span>
             </label>
             <input
               id="new-order-name"
@@ -85,7 +85,7 @@ export function NewOrder({
               aria-describedby={error ? "new-order-name-error" : undefined}
               className="h-14 w-full rounded-[20px] border-0 bg-[#f3f4f6] px-5 text-base text-[#37423b] placeholder:text-[#9ca3af] outline-none focus:ring-2 focus:ring-primary/30 sm:h-16 sm:rounded-[25px] sm:px-6 sm:text-xl"
             />
-            {error && <p id="new-order-name-error" className="text-sm text-accent">{error}</p>}
+            {error && <p id="new-order-name-error" className="text-sm text-brand-red">{error}</p>}
           </div>
 
           <div className="flex h-14 items-center rounded-[20px] bg-[#f3f4f6] px-5 text-base text-[#4b5563] sm:h-16 sm:rounded-[25px] sm:px-6 sm:text-xl">
@@ -96,7 +96,7 @@ export function NewOrder({
             <button
               type="button"
               onClick={handleCancel}
-              className="h-14 rounded-[22px] text-brand-red font-bold outline-none transition-colors hover:bg-accent/5 focus-visible:ring-2 focus-visible:ring-accent/30 sm:h-16 sm:rounded-[25px] sm:text-xl border border-brand-red"
+              className="h-14 rounded-[22px] text-brand-red font-bold outline-none transition-colors hover:bg-brand-red/5 focus-visible:ring-2 focus-visible:ring-brand-red/30 sm:h-16 sm:rounded-[25px] sm:text-xl border border-brand-red"
             >
               Cancel
             </button>

@@ -20,6 +20,7 @@ import {
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,6 +31,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     itemGroupSchema,
     type ItemGroup,
@@ -70,6 +72,7 @@ function categoryRows(groups: ItemGroup[]) {
 }
 
 export function InventoryCategories() {
+    const { toast } = useToast();
     const { data, error, isLoading, refetch } =
         useGetItemGroupsQuery();
     const [createGroup, createState] =
@@ -86,8 +89,12 @@ export function InventoryCategories() {
         () => new Set(),
     );
     const [formKey, setFormKey] = useState(0);
-    const [status, setStatus] = useState<string | null>(null);
     const [fieldError, setFieldError] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{
+        id: string;
+        name: string;
+        kind: "category" | "subcategory";
+    } | null>(null);
     const groups = data || [];
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
@@ -109,7 +116,6 @@ export function InventoryCategories() {
     function resetForm() {
         setEditing(null);
         setMode("CATEGORY");
-        setStatus(null);
         setFieldError(null);
         setFormKey((current) => current + 1);
     }
@@ -127,14 +133,12 @@ export function InventoryCategories() {
             parentId,
         });
         setMode(parentId ? "SUBCATEGORY" : "CATEGORY");
-        setStatus(null);
         setFieldError(null);
         setFormKey((current) => current + 1);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
         setFieldError(null);
 
         const formData = new FormData(event.currentTarget);
@@ -149,10 +153,15 @@ export function InventoryCategories() {
         const result = itemGroupSchema.safeParse(input);
 
         if (!result.success) {
-            setFieldError(
+            const message =
                 result.error.issues[0]?.message ||
-                    "Check the category information.",
-            );
+                "Check the category information.";
+            setFieldError(message);
+            toast({
+                tone: "error",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} not ${editing ? "updated" : "created"}`,
+                description: message,
+            });
             return;
         }
 
@@ -165,33 +174,50 @@ export function InventoryCategories() {
             } else {
                 await createGroup(result.data).unwrap();
             }
+            toast({
+                tone: "success",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} ${editing ? "updated" : "created"}`,
+                description: `${result.data.name} was saved successfully.`,
+            });
             resetForm();
         } catch (mutationError) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} not ${editing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
                     mutationError,
                     `Unable to ${editing ? "update" : "create"} the category.`,
                 ),
-            );
+            });
         }
     }
 
-    async function handleDelete(id: string, name: string) {
-        if (
-            !window.confirm(
-                `Delete ${name}? Items assigned to it may need to be updated.`,
-            )
-        ) {
+    async function handleDelete() {
+        if (!pendingDelete) {
             return;
         }
 
         try {
-            await deleteGroup(id).unwrap();
-            if (editing?.id === id) {
+            await deleteGroup(pendingDelete.id).unwrap();
+            toast({
+                tone: "success",
+                title: `${pendingDelete.kind === "category" ? "Category" : "Subcategory"} deleted`,
+                description: `${pendingDelete.name} was deleted successfully.`,
+            });
+            if (editing?.id === pendingDelete.id) {
                 resetForm();
             }
-        } catch {
-            // The mutation error is displayed below the table.
+            setPendingDelete(null);
+        } catch (mutationError) {
+            toast({
+                tone: "error",
+                title: `${pendingDelete.kind === "category" ? "Category" : "Subcategory"} not deleted`,
+                description: getApiErrorMessage(
+                    mutationError,
+                    `Unable to delete the ${pendingDelete.kind}.`,
+                ),
+            });
+            setPendingDelete(null);
         }
     }
 
@@ -295,11 +321,13 @@ export function InventoryCategories() {
                                                     deleteState.isLoading
                                                 }
                                                 onClick={() =>
-                                                    handleDelete(
-                                                        group.id,
-                                                        group.name ||
-                                                            "category",
-                                                    )
+                                                    setPendingDelete({
+                                                        id: group.id,
+                                                        name:
+                                                            group.name ||
+                                                            "This category",
+                                                        kind: "category",
+                                                    })
                                                 }
                                             >
                                                 <Trash2 />
@@ -348,11 +376,13 @@ export function InventoryCategories() {
                                                             deleteState.isLoading
                                                         }
                                                         onClick={() =>
-                                                            handleDelete(
-                                                                subGroup.id,
-                                                                subGroup.name ||
-                                                                    "subcategory",
-                                                            )
+                                                            setPendingDelete({
+                                                                id: subGroup.id,
+                                                                name:
+                                                                    subGroup.name ||
+                                                                    "This subcategory",
+                                                                kind: "subcategory",
+                                                            })
                                                         }
                                                     >
                                                         <Trash2 />
@@ -365,17 +395,6 @@ export function InventoryCategories() {
                             ))}
                         </div>
                     )}
-                    {deleteState.error ? (
-                        <p
-                            className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-brand-red"
-                            role="alert"
-                        >
-                            {getApiErrorMessage(
-                                deleteState.error,
-                                "Unable to delete the category.",
-                            )}
-                        </p>
-                    ) : null}
                 </section>
 
                 <form
@@ -504,12 +523,12 @@ export function InventoryCategories() {
                         </div>
                     </div>
 
-                    {fieldError || status ? (
+                    {fieldError ? (
                         <p
                             className="mt-4 rounded-xl border border-brand-red/20 bg-brand-red/5 px-3 py-2 text-sm text-brand-red"
                             role="alert"
                         >
-                            {fieldError || status}
+                            {fieldError}
                         </p>
                     ) : null}
 
@@ -528,6 +547,28 @@ export function InventoryCategories() {
                     </Button>
                 </form>
             </div>
+            <DestructiveConfirmDialog
+                open={Boolean(pendingDelete)}
+                title={`Delete ${pendingDelete?.kind || "category"}?`}
+                description={
+                    <>
+                        <span className="font-semibold text-[#37423b]">
+                            {pendingDelete?.name}
+                        </span>{" "}
+                        will be permanently removed. Items assigned to it may
+                        need to be updated. This action cannot be undone.
+                    </>
+                }
+                cancelLabel={`Keep ${pendingDelete?.kind || "category"}`}
+                confirmLabel={`Delete ${pendingDelete?.kind || "category"}`}
+                isPending={deleteState.isLoading}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDelete(null);
+                    }
+                }}
+                onConfirm={() => void handleDelete()}
+            />
         </div>
     );
 }
