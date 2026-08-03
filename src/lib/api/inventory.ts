@@ -661,55 +661,91 @@ export const blockImageRules = imageUploadRules({
     formats: "PNG, JPG or WebP",
 });
 
+/** A hand-built request body, paired with the header that describes it. */
+export type MultipartPayload = {
+    body: Blob;
+    contentType: string;
+};
+
+const multipartLineBreak = "\r\n";
+
+/** Quotes and line breaks would end the header early, so they are dropped. */
+function headerSafeFilename(filename: string) {
+    return filename.replace(/[\r\n"]/g, "_") || "upload";
+}
+
 /**
- * Flattens the item request into multipart parts.
+ * Encodes the item request as multipart, one part per top-level field.
  *
- * `POST`/`PUT` items are `multipart/form-data` so the pictures can ride along,
- * and the backend binds them onto a record constructor. That binder reads
- * nested values from indexed paths — `attributes[0].values[1].colorHex` — so
- * arrays and objects are spread into one part per leaf value rather than sent
- * as JSON.
+ * `POST`/`PUT` items are `multipart/form-data` so the pictures can ride along.
+ * `attributes`, `descriptionBlocks` and `variants` go up as single JSON parts
+ * rather than being spread into indexed paths — `attributes[0].values[1]` and
+ * friends — because that spread grows a part per leaf value, and Tomcat caps a
+ * request at `maxPartCount` parts (10 by default). One item with a handful of
+ * attributes blows past that ceiling; as JSON the count is fixed at a dozen or
+ * so however much customization the item carries.
  *
- * Empty strings are sent rather than skipped: an update reads a missing field
- * as "leave alone" and an empty one as "clear", so dropping them would make
- * emptying a SKU or a badge impossible.
+ * This is built by hand instead of with `FormData` because `FormData.append`
+ * stamps `filename="blob"` on every `Blob`, and a part with a filename is a
+ * file part to the server: capped by `max-file-size` rather than the form
+ * limits, and bound as a `MultipartFile` instead of the value it holds.
+ *
+ * Empty strings and empty arrays are sent rather than skipped: an update reads
+ * a missing field as "leave alone" and an empty one as "clear", so dropping
+ * them would make emptying a SKU or removing every attribute impossible.
  */
-export function toItemFormData(
+export function toItemMultipart(
     input: InventoryItemInput,
     files?: readonly File[],
-) {
-    const formData = new FormData();
+): MultipartPayload {
+    const boundary = `----itemBoundary${crypto.randomUUID().replace(/-/g, "")}`;
+    const parts: BlobPart[] = [];
 
-    const append = (path: string, value: unknown) => {
-        if (value === undefined || value === null) {
-            return;
-        }
-
-        if (Array.isArray(value)) {
-            value.forEach((entry, index) => append(`${path}[${index}]`, entry));
-            return;
-        }
-
-        if (typeof value === "object") {
-            for (const [key, nested] of Object.entries(value)) {
-                append(`${path}.${key}`, nested);
-            }
-            return;
-        }
-
-        formData.append(path, String(value));
+    const openPart = (headers: readonly string[]) => {
+        parts.push(
+            `--${boundary}${multipartLineBreak}` +
+                headers
+                    .map((header) => `${header}${multipartLineBreak}`)
+                    .join("") +
+                multipartLineBreak,
+        );
     };
 
     for (const [name, value] of Object.entries(toItemRequest(input))) {
-        append(name, value);
+        if (value === undefined || value === null) {
+            continue;
+        }
+
+        if (typeof value === "object") {
+            openPart([
+                `Content-Disposition: form-data; name="${name}"`,
+                "Content-Type: application/json",
+            ]);
+            parts.push(JSON.stringify(value));
+        } else {
+            openPart([`Content-Disposition: form-data; name="${name}"`]);
+            parts.push(String(value));
+        }
+
+        parts.push(multipartLineBreak);
     }
 
     // Repeated parts under one name are what binds to `List<MultipartFile>`.
     for (const file of files || []) {
-        formData.append("files", file, file.name);
+        openPart([
+            'Content-Disposition: form-data; name="files"; ' +
+                `filename="${headerSafeFilename(file.name)}"`,
+            `Content-Type: ${file.type || "application/octet-stream"}`,
+        ]);
+        parts.push(file, multipartLineBreak);
     }
 
-    return formData;
+    parts.push(`--${boundary}--${multipartLineBreak}`);
+
+    return {
+        body: new Blob(parts),
+        contentType: `multipart/form-data; boundary=${boundary}`,
+    };
 }
 
 export function toItemGroupRequest(input: ItemGroupInput) {

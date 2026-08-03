@@ -9,10 +9,12 @@ import {
     inventoryItemSchema,
     itemImageRules,
     maxItemImages,
-    toItemFormData,
+    toItemMultipart,
     type InventoryItem,
+    type InventoryItemInput,
     type InventoryItemPage,
     type InventoryItemQuery,
+    type MultipartPayload,
 } from "@/lib/api/inventory";
 
 export const getInventoryBusinessId = getCurrentBusinessId;
@@ -180,10 +182,21 @@ export async function inventoryBarcodeImageResponse(
 /**
  * Reads a save posted by the item form: the fields as one JSON part named
  * `item`, plus any newly picked images as `files` parts. The fields stay JSON
- * on this hop so they can be validated as an object; only the body forwarded
- * to the backend is flattened into the indexed parts its binder wants.
+ * on this hop so they can be validated as an object before being re-encoded as
+ * the multipart body the backend takes.
+ *
+ * The returned `body` carries its own boundary, so callers must forward
+ * `contentType` as the `Content-Type` header — `fetch` only generates one for
+ * a `FormData` body.
  */
-export async function readItemSave(request: Request) {
+export type ItemSave =
+    | { error: Response; save?: undefined }
+    | {
+          error?: undefined;
+          save: MultipartPayload & { item: InventoryItemInput };
+      };
+
+export async function readItemSave(request: Request): Promise<ItemSave> {
     const formData = await request.formData();
     let fields: unknown;
 
@@ -208,7 +221,6 @@ export async function readItemSave(request: Request) {
     }
 
     return {
-        body: toItemFormData(result.data, files),
-        item: result.data,
+        save: { ...toItemMultipart(result.data, files), item: result.data },
     };
 }

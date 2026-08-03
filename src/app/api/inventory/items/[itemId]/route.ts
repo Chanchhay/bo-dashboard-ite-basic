@@ -36,7 +36,7 @@ export async function PUT(
     context: ItemRouteContext,
 ) {
     try {
-        const { body, error } = await readItemSave(request);
+        const { error, save } = await readItemSave(request);
 
         if (error) {
             return error;
@@ -48,7 +48,11 @@ export async function PUT(
         ]);
         const item = await backendRequest<InventoryItem>(
             `/api/v1/businesses/${businessId}/items/${encodeURIComponent(itemId)}`,
-            { method: "PUT", body },
+            {
+                method: "PUT",
+                body: save.body,
+                headers: { "Content-Type": save.contentType },
+            },
         );
 
         return Response.json(item);

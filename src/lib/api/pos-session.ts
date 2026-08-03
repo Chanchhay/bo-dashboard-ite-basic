@@ -35,12 +35,12 @@ export type RegisterSession = {
 };
 
 /**
- * Which session this browser has open.
+ * Which shared session this browser has joined.
  *
- * There is no "current session" endpoint — `/sessions/{id}/summary` needs an
- * id we already hold — so the id is what we have to remember. It lives in an
- * httpOnly cookie rather than Redux so a refresh, a closed tab, or a locked
- * screen can't strand a cashier with an open drawer they can no longer close.
+ * `/sessions/current` discovers the store-wide drawer across browsers. After
+ * the authenticated user joins it, this httpOnly cookie keeps the session id
+ * available to order and close-register BFF routes without exposing it to
+ * client JavaScript.
  */
 export const POS_SESSION_COOKIE = "pos_session_id";
 
