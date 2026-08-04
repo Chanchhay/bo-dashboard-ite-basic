@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LogOut, UserRound } from "lucide-react";
+import { LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import {
   Menu,
@@ -13,7 +14,6 @@ import {
   MenuTrigger,
 } from "@/components/ui/menu";
 import { useGetUserProfileQuery } from "@/services/userProfileApi";
-import ThemeToggle from "../dark-mode/theme-toggle";
 
 function initialsOf(name: string) {
   return (
@@ -38,9 +38,21 @@ function initialsOf(name: string) {
  * outside the popup because clicking an item closes the menu, and a form
  * unmounted mid-click never submits.
  */
-export default function UserMenu({ name }: { name: string }) {
+export default function UserMenu({
+    name,
+    compact = false,
+}: {
+    name: string;
+    compact?: boolean;
+}) {
   const signOutForm = useRef<HTMLFormElement>(null);
   const { data: profile } = useGetUserProfileQuery();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const isDark = mounted && resolvedTheme === "dark";
 
   const profileName =
     [profile?.firstName, profile?.lastName]
@@ -51,34 +63,48 @@ export default function UserMenu({ name }: { name: string }) {
     name;
   const picture = profile?.profilePicture;
 
-  return (
-    <>
-      <Menu>
-        <MenuTrigger
-          aria-label={`Account menu for ${profileName}`}
-          className="flex items-center gap-2.5 rounded-full border border-[#bccab8] bg-white py-1.5 pr-4 pl-1.5 outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] data-popup-open:bg-[#f5f8f4]"
-        >
-          <span
-            aria-hidden="true"
-            className="grid size-8 place-items-center overflow-hidden rounded-full border border-[#006b26] bg-[#00932a] text-[13px] font-medium text-white"
-          >
-            {picture ? (
-              // The profile picture URL is supplied by the API.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={picture} alt="" className="size-full object-cover" />
-            ) : (
-              initialsOf(profileName)
-            )}
-          </span>
-          <span className="hidden text-[14px] text-[#161d16] sm:block">
-            {profileName}
-          </span>
-        </MenuTrigger>
+    return (
+        <>
+            <Menu>
+                <MenuTrigger
+                    aria-label={`Account menu for ${profileName}`}
+                    className={`flex items-center justify-center rounded-full border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] outline-none transition-colors hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] focus-visible:ring-2 focus-visible:ring-[#00932a] data-popup-open:bg-[#f7f7f6] dark:data-popup-open:bg-[#252a38] ${
+                        compact
+                            ? "size-10 p-1"
+                            : "size-10 p-1 sm:h-11 sm:w-auto sm:py-1.5 sm:pl-1.5 sm:pr-4 sm:gap-2.5"
+                    }`}
+                >
+                    <span
+                        aria-hidden="true"
+                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-[#006b26] bg-[#00932a] text-[13px] font-medium text-white"
+                    >
+                        {picture ? (
+                            // The profile picture URL is supplied by the API.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={picture}
+                                alt=""
+                                className="size-full object-cover"
+                            />
+                        ) : (
+                            initialsOf(profileName)
+                        )}
+                    </span>
+                    <span
+                        className={
+                            compact
+                                ? "sr-only"
+                                : "hidden text-[14px] font-medium text-[#16181c] dark:text-[#f8fafc] sm:inline-block"
+                        }
+                    >
+                        {profileName}
+                    </span>
+                </MenuTrigger>
 
         <MenuContent>
-          <p className="px-3 pt-1.5 pb-1 text-[12px] text-[#3d4a3c]">
+          <p className="px-3 pt-1.5 pb-1 text-[12px] text-[#3d4a3c] dark:text-[#94a3b8]">
             Signed in as
-            <span className="mt-0.5 block truncate text-[14px] text-[#161d16]">
+            <span className="mt-0.5 block truncate text-[14px] text-[#161d16] dark:text-[#f8fafc]">
               {profileName}
             </span>
           </p>
@@ -89,14 +115,22 @@ export default function UserMenu({ name }: { name: string }) {
             <UserRound aria-hidden="true" />
             Your profile
           </MenuLinkItem>
-          
-          
-           <ThemeToggle mobile />
-          
+
+          <MenuItem
+            className="sm:hidden"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+          >
+            {isDark ? (
+              <Sun className="size-4 text-amber-400" aria-hidden="true" />
+            ) : (
+              <Moon className="size-4" aria-hidden="true" />
+            )}
+            {isDark ? "Light mode" : "Dark mode"}
+          </MenuItem>
 
           <MenuItem
             onClick={() => signOutForm.current?.requestSubmit()}
-            className="text-[#b3352f] data-highlighted:bg-[#fdeceb] [&_svg]:text-[#b3352f]"
+            className="text-[#d14341] dark:text-[#f87171] data-highlighted:bg-[#fdeceb] dark:data-highlighted:bg-[#d14341]/20 [&_svg]:text-[#d14341] dark:[&_svg]:text-[#f87171]"
           >
             <LogOut aria-hidden="true" />
             Sign out

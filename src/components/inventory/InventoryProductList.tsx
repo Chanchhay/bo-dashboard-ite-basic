@@ -312,8 +312,8 @@ export function InventoryProductList() {
                 }
             />
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4">
+            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="flex flex-col gap-3 border-b border-[#edf0ec] dark:border-[#242937] p-4">
                     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                         <div className="relative w-full xl:max-w-md">
                             <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
@@ -397,13 +397,13 @@ export function InventoryProductList() {
                     {filterPanelOpen ? (
                         <div
                             id="inventory-advanced-filters"
-                            className="rounded-2xl border border-[#e4eae2] bg-[#f8faf7] p-4 sm:p-5"
+                            className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf7] dark:bg-[#151821] p-4 sm:p-5"
                         >
                             <div className="flex flex-col gap-1">
-                                <h2 className="font-semibold text-[#161d16]">
+                                <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                                     Advanced filters
                                 </h2>
-                                <p className="text-sm text-[#657064]">
+                                <p className="text-sm text-[#657064] dark:text-[#94a3b8]">
                                     Narrow the catalogue, then apply all fields
                                     together.
                                 </p>
@@ -793,11 +793,11 @@ export function InventoryProductList() {
                     ) : null}
                 </div>
 
-                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[#edf0ec] bg-[#fbfcfa] px-5 py-2.5 text-sm text-[#657064]">
+                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[#edf0ec] dark:border-[#242937] bg-[#fbfcfa] dark:bg-[#151821] px-5 py-2.5 text-sm text-[#657064] dark:text-[#94a3b8]">
                     <p aria-live="polite">
                         {isFetching ? (
                             <span className="inline-flex items-center gap-2">
-                                <LoaderCircle className="size-4 animate-spin text-primary" />
+                                <LoaderCircle className="size-4 animate-spin text-primary dark:text-[#10b981]" />
                                 Updating items
                             </span>
                         ) : totalElements ? (
@@ -831,7 +831,7 @@ export function InventoryProductList() {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[820px] text-left text-sm">
-                            <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
+                            <thead className="bg-[#f8faf7] dark:bg-[#151821] text-xs font-semibold tracking-wide text-[#657064] dark:text-[#94a3b8] uppercase">
                                 <tr>
                                     <th className="px-5 py-3">Name</th>
                                     <th className="px-5 py-3">Category</th>

@@ -45,19 +45,19 @@ export default function AppShell({
     }, [navOpen]);
 
     if (chromeless) {
-        return <div className="min-h-dvh bg-white">{children}</div>;
+        return <div className="min-h-dvh bg-white dark:bg-[#0f1219] text-foreground">{children}</div>;
     }
 
     return (
-        <div className="min-h-dvh bg-[#e8e8e6] lg:p-4">
+        <div className="min-h-dvh bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
             <a
                 href="#main-content"
-                className="sr-only rounded-lg bg-white px-4 py-2 text-[14px] text-[#16181c] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"
+                className="sr-only rounded-lg bg-white dark:bg-[#1e2330] px-4 py-2 text-[14px] text-[#16181c] dark:text-[#f8fafc] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"
             >
                 Skip to content
             </a>
 
-            <div className="flex min-h-dvh gap-0 bg-[#f7f7f6] lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px]">
+            <div className="flex min-h-dvh gap-0 bg-[#f7f7f6] dark:bg-[#151821] lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px] border border-transparent dark:border-[#242937] shadow-2xl">
                 <Sidebar
                     open={navOpen}
                     onClose={() => setNavOpen(false)}

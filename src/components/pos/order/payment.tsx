@@ -1,0 +1,402 @@
+// "use client";
+
+// import { useState } from "react";
+// import { CreditCard, Banknote } from "lucide-react";
+// import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+// import { formatCurrency } from "@/lib/money";
+// import { Order } from "@/types/pos-type";
+// import { AmountReceived } from "../amount-received";
+
+
+// type PaymentMethod = "CASH" | "DIGITAL";
+
+// export interface PaymentProps {
+//   open: boolean;
+//   onOpenChange: (open: boolean) => void;
+//   order: Order;
+//   onValidate: (method: PaymentMethod, receivedAmount?: number) => void;
+//   isProcessing?: boolean;
+// }
+
+// export function Payment({
+//   open,
+//   onOpenChange,
+//   order,
+//   onValidate,
+//   isProcessing,
+// }: PaymentProps) {
+//   const [method, setMethod] = useState<PaymentMethod>("CASH");
+//   const [amountReceivedOpen, setAmountReceivedOpen] = useState(false);
+
+//   const subtotal = parseFloat(order.subtotal);
+//   const discount = parseFloat(order.discount_amount);
+//   const total = parseFloat(order.total);
+
+//   function handleValidateClick() {
+//     if (method === "CASH") {
+
+//       setAmountReceivedOpen(true);
+//       return;
+//     }
+
+//     onValidate("DIGITAL");
+//   }
+
+//   function handleAmountReceivedValidate(receivedAmount: number) {
+//     onValidate("CASH", receivedAmount);
+//     setAmountReceivedOpen(false);
+//   }
+
+//   return (
+//     <>
+//       <Dialog open={open} onOpenChange={onOpenChange}>
+//         <DialogContent className="sm:max-w-xl w-full p-6">
+//           <DialogHeader className="flex-row items-center gap-2 space-y-0">
+//             <CreditCard className="h-5 w-5 text-primary" />
+//             <h2 className="text-lg font-bold">Payment</h2>
+//           </DialogHeader>
+
+//           <div className="grid grid-cols-2 gap-10 pt-2">
+//             {/* Left: order summary */}
+//             <div className="flex flex-col gap-4">
+//               <h3 className="text-xs font-bold tracking-wide text-gray-500">
+//                 ORDER SUMMARY
+//               </h3>
+
+//               <div className="flex flex-col gap-4">
+//                 {order.items.map((item) => (
+//                   <div
+//                     key={item.id}
+//                     className="flex items-center justify-between text-sm"
+//                   >
+//                     <span className="text-gray-700">
+//                       {item.quantity}x {item.product_name}
+//                     </span>
+//                     <span className="font-semibold text-primary">
+//                       {formatCurrency(item.unit_price)}
+//                     </span>
+//                   </div>
+//                 ))}
+//               </div>
+
+//               <div className="mt-2 flex flex-col gap-3 border-t border-input pt-3 text-sm">
+//                 <div className="flex justify-between text-gray-600">
+//                   <span>Subtotal</span>
+//                   <span>{formatCurrency(subtotal)}</span>
+//                 </div>
+//                 <div className="flex justify-between text-green-600">
+//                   <span>Discount</span>
+//                   <span>-{formatCurrency(discount)}</span>
+//                 </div>
+//                 <div className="flex justify-between border-t border-input pt-2 font-semibold">
+//                   <span>To pay</span>
+//                   <span>{formatCurrency(total)}</span>
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Right: total + payment method */}
+//             <div className="flex flex-col items-center gap-6 pt-2">
+//               <div className="text-center">
+//                 <p className="text-sm text-gray-500">To pay</p>
+//                 <p className="text-3xl font-bold text-primary">
+//                   {formatCurrency(total)}
+//                 </p>
+//               </div>
+
+//               <div className="flex w-full flex-col gap-2">
+//                 <p className="text-sm font-bold text-gray-700">
+//                   Payment method
+//                 </p>
+//                 <div className="flex gap-3">
+//                   <button
+//                     type="button"
+//                     onClick={() => setMethod("CASH")}
+//                     className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
+//                       method === "CASH"
+//                         ? "border-secondary bg-amber-50 text-accent"
+//                         : "border-gray-200 text-gray-500 hover:bg-gray-50"
+//                     }`}
+//                   >
+//                     <Banknote className="h-4 w-4" />
+//                     Cash
+//                   </button>
+//                   <button
+//                     type="button"
+//                     onClick={() => setMethod("DIGITAL")}
+//                     className={`flex flex-1 items-center  justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
+//                       method === "DIGITAL"
+//                         ? "border-primary bg-green-50 text-primary"
+//                         : "border-gray-200 text-gray-500 hover:bg-gray-50"
+//                     }`}
+//                   >
+//                     <CreditCard className="h-4 w-4" />
+//                     Card
+//                   </button>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Bottom actions */}
+//           <div className="flex gap-3 pt-6">
+//             <button
+//               type="button"
+//               onClick={() => onOpenChange(false)}
+//               className="flex-1 rounded-xl border border-accent py-3 text-sm font-bold text-accent transition-colors hover:bg-accent hover:text-white"
+//             >
+//               Cancel
+//             </button>
+//             <button
+//               type="button"
+//               onClick={handleValidateClick}
+//               disabled={isProcessing}
+//               className="flex-2 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+//             >
+//               {isProcessing || isGenerating ? "Processing..." : "Validate"}
+//             </button>
+//           </div>
+//         </DialogContent>
+//       </Dialog>
+
+//       <AmountReceived
+//         open={amountReceivedOpen}
+//         onOpenChange={setAmountReceivedOpen}
+//         amountDue={total}
+//         onValidate={handleAmountReceivedValidate}
+//         isProcessing={isProcessing}
+//       />
+//     </>
+//   );
+// }
+
+"use client";
+
+import { useState } from "react";
+import { CreditCard, Banknote } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { formatCurrency } from "@/lib/money";
+import { Order } from "@/types/pos-type";
+import { AmountReceived } from "../amount-received";
+import { KhqrView } from "./khqr-view";
+import { useToast } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
+import type { Khqr, Sale } from "@/lib/api/pos-order";
+import {
+  useGenerateKhqrMutation,
+  useGetBakongStatusQuery,
+} from "@/services/posOrderApi";
+
+
+type PaymentMethod = "CASH" | "DIGITAL";
+
+export interface PaymentProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  order: Order;
+  onValidate: (method: PaymentMethod, receivedAmount?: number) => void;
+  /** Called when a KHQR settles — the sale already exists by then. */
+  onDigitalPaid?: (sale: Sale) => void;
+  isProcessing?: boolean;
+}
+
+export function Payment({
+  open,
+  onOpenChange,
+  order,
+  onValidate,
+  onDigitalPaid,
+  isProcessing,
+}: PaymentProps) {
+  const [method, setMethod] = useState<PaymentMethod>("CASH");
+  const [amountReceivedOpen, setAmountReceivedOpen] = useState(false);
+  const [khqr, setKhqr] = useState<Khqr | null>(null);
+
+  const { toast } = useToast();
+  // Asked up front: a cashier must not discover mid-sale that KHQR was never
+  // set up, so the option is simply not offered when it cannot work.
+  const { data: bakong } = useGetBakongStatusQuery();
+  const [generateKhqr, { isLoading: isGenerating }] = useGenerateKhqrMutation();
+
+  const canTakeDigital = Boolean(bakong?.configured && bakong?.active);
+
+  async function showKhqr() {
+    try {
+      setKhqr(await generateKhqr().unwrap());
+    } catch (cause) {
+      toast({
+        tone: "error",
+        title: "Could not create a KHQR code",
+        description: getApiErrorMessage(cause, "Please try again."),
+      });
+    }
+  }
+
+  const subtotal = parseFloat(order.subtotal);
+  const discount = parseFloat(order.discount_amount);
+  const total = parseFloat(order.total);
+
+  function handleValidateClick() {
+    if (method === "CASH") {
+      setAmountReceivedOpen(true);
+      return;
+    }
+
+    void showKhqr();
+  }
+
+  function handleAmountReceivedValidate(receivedAmount: number) {
+    onValidate("CASH", receivedAmount);
+    setAmountReceivedOpen(false);
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[824px] flex-col gap-0 overflow-hidden rounded-[24px] border-0 bg-white/95 p-0 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] sm:max-h-[calc(100dvh-1.5rem)] sm:w-[calc(100vw-1.5rem)] sm:rounded-[30px]"
+          showCloseButton={false}
+        >
+          <DialogHeader className="flex h-16 shrink-0 flex-row items-center gap-3 px-4 sm:h-[84px] sm:px-6">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <CreditCard className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="text-2xl font-bold tracking-[-0.02em] text-primary sm:text-[30px]">
+              Payment
+            </h2>
+          </DialogHeader>
+
+          {khqr ? (
+            <KhqrView
+              khqr={khqr}
+              isRegenerating={isGenerating}
+              onRegenerate={() => void showKhqr()}
+              onCancel={() => {
+                setKhqr(null);
+                onOpenChange(false);
+              }}
+              onPaid={(sale) => {
+                setKhqr(null);
+                onDigitalPaid?.(sale);
+              }}
+            />
+          ) : (
+          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="grid min-h-0 grid-cols-1 gap-7 overflow-y-auto overscroll-contain px-4 pb-5 pt-3 sm:grid-cols-2 sm:gap-12 sm:px-8 sm:pb-8 sm:pt-8">
+            {/* Left: order summary */}
+            <div className="flex min-w-0 flex-col">
+              <h3 className="text-sm font-bold tracking-[0.04em] text-[#020409] sm:text-lg">
+                ORDER SUMMARY
+              </h3>
+
+              <div className="mt-4 flex flex-col gap-4 sm:mt-5 sm:gap-5">
+                {order.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-4 text-sm sm:text-lg"
+                  >
+                    <span className="min-w-0 truncate text-[#020409]">
+                      {item.quantity}x&nbsp;&nbsp;{item.product_name}
+                    </span>
+                    <span className="shrink-0 font-semibold text-primary">
+                      {formatCurrency(item.unit_price)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-col gap-3 border-t border-[#1e293b] pt-3 text-sm sm:mt-auto sm:text-lg">
+                <div className="flex justify-between text-[#3f493e]">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-[#00501a]">
+                  <span>Discount</span>
+                  <span>-{formatCurrency(discount)}</span>
+                </div>
+                <div className="mt-3 flex justify-between border-t border-[#1e293b] pt-4 font-semibold">
+                  <span>To pay</span>
+                  <span className="text-primary">{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: total + payment method */}
+            <div className="flex min-w-0 flex-col gap-7 sm:gap-8">
+              <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-[18px] bg-[#f5f5f5] p-6 text-center sm:min-h-36 sm:p-8">
+                <p className="text-sm text-[#020409] sm:text-lg">To pay</p>
+                <p className="text-4xl font-semibold leading-none text-primary sm:text-[40px]">
+                  {formatCurrency(total)}
+                </p>
+              </div>
+
+              <div className="flex w-full flex-col gap-3 sm:gap-4">
+                <p className="text-sm font-semibold text-[#020409] sm:text-lg">
+                  Payment method
+                </p>
+                <div className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setMethod("CASH")}
+                    aria-pressed={method === "CASH"}
+                    className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#feb90d]/35 sm:h-[58px] sm:gap-3 sm:text-base ${
+                      method === "CASH"
+                        ? "border-[#feb90d] bg-[#feb90d]/5 text-[#feb90d]"
+                        : "border-[#d9d9d9] text-[#6b7280] hover:bg-[#f5f5f5]"
+                    }`}
+                  >
+                    <Banknote className="size-5 shrink-0 sm:size-6" aria-hidden="true" />
+                    Cash
+                  </button>
+                  {canTakeDigital && (
+                  <button
+                    type="button"
+                    onClick={() => setMethod("DIGITAL")}
+                    aria-pressed={method === "DIGITAL"}
+                    className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-[58px] sm:gap-3 sm:text-base ${
+                      method === "DIGITAL"
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-[#d9d9d9] text-[#6b7280] hover:bg-[#f5f5f5]"
+                    }`}
+                  >
+                    <CreditCard className="size-5 shrink-0 sm:size-6" aria-hidden="true" />
+                    KHQR
+                  </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid shrink-0 grid-cols-1 gap-3 border-t border-[#1e293b]/10 bg-white/95 px-4 py-4 min-[360px]:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-4 sm:px-6 sm:py-6">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-14 rounded-[25px] border border-brand-red text-brand-red font-semibold outline-none transition-colors hover:bg-accent/5 focus-visible:ring-2 focus-visible:ring-accent/30 sm:h-[58px] sm:text-xl"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleValidateClick}
+              disabled={isProcessing}
+              className="h-14 rounded-[25px] bg-primary text-base font-semibold text-white outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary/30 disabled:bg-primary/30 sm:h-[58px] sm:text-xl"
+            >
+              {isProcessing || isGenerating ? "Processing..." : "Validate"}
+            </button>
+          </div>
+          </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AmountReceived
+        open={amountReceivedOpen}
+        onOpenChange={setAmountReceivedOpen}
+        amountDue={total}
+        onValidate={handleAmountReceivedValidate}
+        isProcessing={isProcessing}
+      />
+    </>
+  );
+}

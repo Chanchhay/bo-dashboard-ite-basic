@@ -1,0 +1,64 @@
+"use client";
+
+import { ImageOff } from "lucide-react";
+
+import { formatCurrency } from "@/lib/money";
+import type { Item } from "@/types/pos-type";
+
+export interface PosCardProps {
+  item: Item;
+  onSelect?: (itemId: string) => void;
+}
+
+/**
+ * One sellable item in the terminal grid.
+ *
+ * A real `<button>` rather than a clickable card: a cashier working by
+ * keyboard has to be able to reach it, and the disabled state has to actually
+ * refuse the press rather than only look dimmed.
+ *
+ * Sized by its grid cell instead of a fixed width, so the row stays even
+ * however many columns the breakpoint gives it.
+ */
+const PosCard = ({ item, onSelect }: PosCardProps) => {
+  const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
+
+  return (
+    <button
+      type="button"
+      disabled={isDisabled}
+      aria-label={`${item.name}, ${formatCurrency(item.price)}`}
+      onClick={() => onSelect?.(item.id)}
+      className={`group flex w-full flex-col text-left outline-none transition focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+        isDisabled
+          ? "cursor-not-allowed opacity-50"
+          : "cursor-pointer active:scale-[0.98]"
+      }`}
+    >
+      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md">
+        {item.image_url ? (
+          /* Decorative — the button's aria-label already names the item. */
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.image_url}
+            alt=""
+            className="h-full w-full object-cover opacity-95"
+          />
+        ) : (
+          <ImageOff className="h-8 w-8 text-gray-300" aria-hidden="true" />
+        )}
+      </span>
+
+      <span className="flex w-full flex-col">
+        <span className="truncate text-[15px] font-semibold leading-8 tracking-[-0.24px] text-[#636b74]">
+          {item.name}
+        </span>
+        <span className="text-base font-bold leading-7 text-brand-red">
+          {formatCurrency(item.price)}
+        </span>
+      </span>
+    </button>
+  );
+};
+
+export default PosCard;

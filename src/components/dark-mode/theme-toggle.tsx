@@ -1,56 +1,58 @@
-"use client"
+"use client";
 
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-export default function ThemeToggle({ mobile = false }: { mobile?: boolean }) {
-  const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+export default function ThemeToggle({
+  variant = "menu",
+  className = "",
+}: {
+  variant?: "menu" | "icon";
+  className?: string;
+}) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => setMounted(true), []);
 
-  if (!mounted) {
-    // render a placeholder the same size as the real button to avoid layout shift
+  const isDark = mounted && resolvedTheme === "dark";
+
+  if (variant === "icon") {
     return (
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size={mobile ? "default" : "icon"}
-        className={mobile ? "h-11 w-full justify-start gap-3 rounded-lg px-3" : "size-10 rounded-full"}
-        disabled
-        aria-hidden
-      />
-    )
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+        title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+        className={cn(
+          "relative grid size-8 place-items-center rounded-lg border-0 bg-transparent text-[#16181c] dark:text-[#f8fafc] outline-none transition-colors hover:bg-black/5 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#00932a]",
+          className
+        )}
+      >
+        {isDark ? (
+          <Sun className="size-[18px] text-amber-400" aria-hidden="true" />
+        ) : (
+          <Moon className="size-[18px] text-neutral-600 dark:text-[#94a3b8]" aria-hidden="true" />
+        )}
+      </button>
+    );
   }
 
-  const isDark = resolvedTheme === "dark"
-
   return (
-    <Button
+    <button
       type="button"
-      variant="ghost"
-      size={mobile ? "default" : "icon"}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={
-        mobile
-          ? "h-11 w-full justify-start gap-3 rounded-lg px-3 text-foreground"
-          : "relative size-10 rounded-full text-[#6a6a6a] hover:bg-[#6a6a6a]/10 hover:text-[#6a6a6a]"
-      }
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className={`flex w-full items-center gap-3 rounded-md text-sm outline-none transition-colors ${className}`}
     >
-      <Sun className="size-6 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon
-        className={
-          mobile
-            ? "absolute size-6 rotate-90 scale-0 transition-all dark:relative dark:rotate-0 dark:scale-100"
-            : "absolute size-6 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
-        }
-      />
-      {mobile && <span>{isDark ? "Light mode" : "Dark mode"}</span>}
-      <span className="sr-only">{isDark ? "Switch to light mode" : "Switch to dark mode"}</span>
-    </Button>
-  )
+      {isDark ? (
+        <Sun className="size-4 text-amber-400" aria-hidden="true" />
+      ) : (
+        <Moon className="size-4 text-neutral-600 dark:text-neutral-300" aria-hidden="true" />
+      )}
+      <span>{isDark ? "Light mode" : "Dark mode"}</span>
+    </button>
+  );
 }

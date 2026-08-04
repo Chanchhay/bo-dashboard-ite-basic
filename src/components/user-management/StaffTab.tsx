@@ -475,10 +475,10 @@ export default function StaffTab() {
                                 setFieldErrors({});
                                 setFormError(null);
                             }}
-
+                            className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
-                            <Plus className="size-4" aria-hidden="true" />
-                            Add user
+                            <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                            <span>Add user</span>
                         </Button>
                     }
                 />
@@ -527,7 +527,7 @@ export default function StaffTab() {
                                 Users in this business
                             </caption>
                             <thead>
-                                <tr className="border-b border-[#eceeea] text-[12px] text-[#8a8f89]">
+                                <tr className="border-b border-[#eceeea] dark:border-[#242937] text-[12px] text-[#8a8f89] dark:text-[#94a3b8]">
                                     <th
                                         scope="col"
                                         className="py-3 pr-4 font-medium"
@@ -564,25 +564,25 @@ export default function StaffTab() {
                                 {members.map((member) => (
                                     <tr
                                         key={member.id}
-                                        className="border-b border-[#f2f3f1] last:border-0"
+                                        className="border-b border-[#f2f3f1] dark:border-[#242937] last:border-0"
                                     >
                                         <td className="py-4 pr-4">
-                                            <p className="text-[15px] text-[#16181c]">
+                                            <p className="text-[15px] font-medium text-[#16181c] dark:text-[#f8fafc]">
                                                 {staffFullName(member)}
                                             </p>
                                             {member.username && (
-                                                <p className="text-[13px] text-[#8a8f89]">
+                                                <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
                                                     @{member.username}
                                                 </p>
                                             )}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660]">
+                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
                                             <p>{member.email || "—"}</p>
-                                            <p className="text-[13px] text-[#8a8f89]">
+                                            <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
                                                 {member.phoneNumber || "—"}
                                             </p>
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660]">
+                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
                                             {member.roleId
                                                 ? roleNames.get(
                                                       member.roleId,

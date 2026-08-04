@@ -111,7 +111,7 @@ function Field({ label, name, error, children }: FieldProps) {
         <div className="flex min-w-0 flex-col gap-2">
             <Label
                 htmlFor={name}
-                className="text-sm font-semibold text-[#424841]"
+                className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
             >
                 {label}
             </Label>
@@ -208,10 +208,10 @@ function SectionHeading({
 }) {
     return (
         <div>
-            <h2 className="text-lg font-semibold text-[#161d16]">
+            <h2 className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
                 {title}
             </h2>
-            <p className="mt-1 text-sm text-[#657064]">
+            <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                 {description}
             </p>
         </div>
@@ -720,7 +720,7 @@ function ProductEditor({
                 }
             />
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
                     title="Item information"
                     description="Core identifiers, pricing and sale configuration."
@@ -1074,7 +1074,7 @@ function ProductEditor({
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Images"
@@ -1154,7 +1154,7 @@ function ProductEditor({
                 </ImageDropzone>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Attributes"
@@ -1174,7 +1174,7 @@ function ProductEditor({
                         attributes.map((attribute) => (
                             <div
                                 key={attribute.id}
-                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] px-4 py-3"
+                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-4 py-3"
                             >
                                 {attribute.icon ? (
                                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -1191,7 +1191,7 @@ function ProductEditor({
                                 ) : null}
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <p className="font-medium text-[#1a222b]">
+                                        <p className="font-medium text-[#1a222b] dark:text-[#f8fafc]">
                                             {attribute.name}
                                         </p>
                                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
@@ -1201,7 +1201,7 @@ function ProductEditor({
                                                 ]
                                             }
                                         </span>
-                                        <span className="rounded-full bg-[#f2f3f1] px-2.5 py-0.5 text-xs font-medium text-[#657064]">
+                                        <span className="rounded-full bg-[#f2f3f1] dark:bg-[#252a38] px-2.5 py-0.5 text-xs font-medium text-[#657064] dark:text-[#cbd5e1]">
                                             {
                                                 itemAttributePlacementLabels[
                                                     attribute.placement
@@ -1209,7 +1209,7 @@ function ProductEditor({
                                             }
                                         </span>
                                     </div>
-                                    <p className="mt-1 truncate text-sm text-[#657064]">
+                                    <p className="mt-1 truncate text-sm text-[#657064] dark:text-[#94a3b8]">
                                         {describeAttribute(attribute)}
                                     </p>
                                 </div>
@@ -1243,7 +1243,7 @@ function ProductEditor({
                             </div>
                         ))
                     ) : (
-                        <p className="rounded-xl border border-dashed border-[#e8e8e8] px-4 py-6 text-center text-sm text-[#657064]">
+                        <p className="rounded-xl border border-dashed border-[#e8e8e8] dark:border-[#2a3042] px-4 py-6 text-center text-sm text-[#657064] dark:text-[#94a3b8]">
                             No attributes yet. Add one to describe this item.
                         </p>
                     )}
@@ -1268,7 +1268,7 @@ function ProductEditor({
                 />
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Variants"
@@ -1324,7 +1324,7 @@ function ProductEditor({
                                 placeholder="Price"
                                 className={inventoryControlClassName}
                             />
-                            <label className="flex items-center gap-2 text-xs whitespace-nowrap text-[#6b7280]">
+                            <label className="flex items-center gap-2 text-xs whitespace-nowrap text-[#6b7280] dark:text-[#94a3b8]">
                                 <input
                                     type="checkbox"
                                     checked={!variant.available}
@@ -1363,7 +1363,7 @@ function ProductEditor({
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
                     title="Store description layout"
                     description="Lay out the lower half of the store page: text, bullets, images and the spec grid."

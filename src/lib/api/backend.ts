@@ -42,6 +42,7 @@ async function getKeycloakAccessToken() {
             headers: requestHeaders,
             body: { providerId: "keycloak" },
         });
+        console.log("===> AccessToken => ", tokens.accessToken)
 
         if (!tokens.accessToken) {
             throw new BackendApiError(
@@ -50,7 +51,7 @@ async function getKeycloakAccessToken() {
             );
         }
 
-        return tokens.accessToken;
+        return tokens?.accessToken;
     } catch (error) {
         if (error instanceof BackendApiError) {
             throw error;

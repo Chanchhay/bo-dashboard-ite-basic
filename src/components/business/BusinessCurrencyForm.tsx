@@ -381,14 +381,14 @@ function CurrencyEditor({
             noValidate
             className="flex min-h-[795px] flex-col"
         >
-            <section className="rounded-2xl bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]">
+            <section className="rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>General Configuration</SectionTitle>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                     <div>
                         <Label
                             htmlFor="base-currency"
-                            className="mb-3 ml-1 block text-base font-medium text-[#424841]"
+                            className="mb-3 ml-1 block text-base font-medium text-[#424841] dark:text-[#cbd5e1]"
                         >
                             Base Currency
                         </Label>
@@ -396,7 +396,7 @@ function CurrencyEditor({
                             id="base-currency"
                             value={baseCurrency}
                             onValueChange={changeBaseCurrency}
-                            className="rounded-xl border-[#e8e8e8] bg-white px-4 text-base shadow-none data-[size=default]:h-14"
+                            className="rounded-xl border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-base dark:text-[#f8fafc] shadow-none data-[size=default]:h-14"
                             options={currencies.map((currency) => ({
                                 value: currency.code,
                                 label: `${currency.name} (${currency.code})`,
@@ -407,7 +407,7 @@ function CurrencyEditor({
                     <div>
                         <Label
                             htmlFor="decimal-places"
-                            className="mb-3 ml-1 block text-base font-medium text-[#424841]"
+                            className="mb-3 ml-1 block text-base font-medium text-[#424841] dark:text-[#cbd5e1]"
                         >
                             Decimal Places
                         </Label>
@@ -421,7 +421,7 @@ function CurrencyEditor({
                                     });
                                 }
                             }}
-                            className="rounded-xl border-[#e8e8e8] bg-white px-4 text-base shadow-none data-[size=default]:h-14"
+                            className="rounded-xl border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-base dark:text-[#f8fafc] shadow-none data-[size=default]:h-14"
                             options={[
                                 { value: "0", label: "0 decimals" },
                                 { value: "1", label: "1 decimal" },
@@ -438,21 +438,21 @@ function CurrencyEditor({
                 <div className="mt-7">
                     <Label
                         htmlFor="add-currency"
-                        className="mb-3 ml-1 block text-base font-medium text-[#424841]"
+                        className="mb-3 ml-1 block text-base font-medium text-[#424841] dark:text-[#cbd5e1]"
                     >
                         Currencies
                     </Label>
-                    <div className="flex min-h-[56px] flex-wrap items-center gap-2 rounded-xl border border-[#e8e8e8] bg-white p-2">
+                    <div className="flex min-h-[56px] flex-wrap items-center gap-2 rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] p-2">
                         {currencies.map((currency) => {
                             const isSelected =
                                 currency.code === selectedTarget;
                             return (
                                 <div
                                     key={currency.code}
-                                    className={`flex h-[38px] items-center gap-2 rounded-full px-3 text-sm font-medium tracking-[0.14px] text-[#2b4e30] outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                                    className={`flex h-[38px] items-center gap-2 rounded-full px-3 text-sm font-medium tracking-[0.14px] outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                                         isSelected
-                                            ? "bg-[#aee0b1] ring-1 ring-primary/25"
-                                            : "bg-[#c4edc4]"
+                                            ? "bg-[#aee0b1] dark:bg-[#10b981]/30 text-[#2b4e30] dark:text-[#34d399] ring-1 ring-primary/25"
+                                            : "bg-[#c4edc4] dark:bg-[#10b981]/20 text-[#2b4e30] dark:text-[#a7f3d0]"
                                     }`}
                                 >
                                     <button
@@ -506,10 +506,10 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <section className="mt-4 rounded-2xl bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]">
+            <section className="mt-4 rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>Exchange Rate &amp; Calculator</SectionTitle>
 
-                <div className="mt-5 max-w-[630px] rounded-2xl border border-[#f5f5f5] p-4 sm:p-6">
+                <div className="mt-5 max-w-[630px] rounded-2xl border border-[#f5f5f5] dark:border-[#242937] dark:bg-[#151821]/60 p-4 sm:p-6">
                     {base && target ? (
                         <>
                             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
@@ -517,7 +517,7 @@ function CurrencyEditor({
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <Label
                                             htmlFor="calculator-base-currency"
-                                            className="text-lg font-semibold text-[#020409]/70"
+                                            className="text-lg font-semibold text-[#020409]/70 dark:text-[#f8fafc]/80"
                                         >
                                             Base
                                         </Label>
@@ -533,7 +533,7 @@ function CurrencyEditor({
                                                     changeBaseCurrency(code);
                                                 }
                                             }}
-                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] bg-white px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] dark:text-[#f8fafc] px-3 text-sm shadow-none data-[size=default]:h-9"
                                             options={currencies.map(
                                                 (currency) => ({
                                                     value: currency.code,
@@ -542,11 +542,11 @@ function CurrencyEditor({
                                             )}
                                         />
                                     </div>
-                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[#e8e8e8] bg-white px-4">
-                                        <span className="text-base font-bold text-[#436746]">
+                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] px-4">
+                                        <span className="text-base font-bold text-[#436746] dark:text-[#10b981]">
                                             {base.symbol}
                                         </span>
-                                        <span className="px-3 text-2xl font-bold text-[#1a1c19]">
+                                        <span className="px-3 text-2xl font-bold text-[#1a1c19] dark:text-[#f8fafc]">
                                             1
                                         </span>
                                     </div>
@@ -556,7 +556,7 @@ function CurrencyEditor({
                                     type="button"
                                     onClick={swapCalculatorCurrencies}
                                     aria-label={`Switch ${base.code} and ${target.code}`}
-                                    className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] text-[#826b14] outline-none transition-colors hover:bg-[#efd276] focus-visible:ring-2 focus-visible:ring-[#826b14]/40 sm:mb-[11px]"
+                                    className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] dark:bg-[#feb90d]/20 text-[#826b14] dark:text-[#feb90d] outline-none transition-colors hover:bg-[#efd276] dark:hover:bg-[#feb90d]/30 focus-visible:ring-2 focus-visible:ring-[#826b14]/40 sm:mb-[11px]"
                                 >
                                     <ArrowLeftRight className="size-4" />
                                 </button>
@@ -565,7 +565,7 @@ function CurrencyEditor({
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <Label
                                             htmlFor="exchange-currency"
-                                            className="text-lg font-semibold text-[#020409]/70"
+                                            className="text-lg font-semibold text-[#020409]/70 dark:text-[#f8fafc]/80"
                                         >
                                             Exchange
                                         </Label>
@@ -573,7 +573,7 @@ function CurrencyEditor({
                                             id="exchange-currency"
                                             value={target.code}
                                             onValueChange={setSelectedTarget}
-                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] bg-white px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] dark:text-[#f8fafc] px-3 text-sm shadow-none data-[size=default]:h-9"
                                             options={currencies
                                                 .filter(
                                                     (currency) =>
@@ -586,8 +586,8 @@ function CurrencyEditor({
                                                 }))}
                                         />
                                     </div>
-                                    <div className="flex h-[54px] items-center gap-1 rounded-xl border border-[#e8e8e8] bg-white px-4">
-                                        <span className="text-base font-bold text-[#436746]">
+                                    <div className="flex h-[54px] items-center gap-1 rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] px-4">
+                                        <span className="text-base font-bold text-[#436746] dark:text-[#10b981]">
                                             {target.symbol}
                                         </span>
                                         <Input
@@ -615,7 +615,7 @@ function CurrencyEditor({
                             </div>
                         </>
                     ) : (
-                        <div className="flex min-h-36 items-center justify-center rounded-xl bg-[#f8f9f8] px-6 text-center text-sm text-[#636b74]">
+                        <div className="flex min-h-36 items-center justify-center rounded-xl bg-[#f8f9f8] dark:bg-[#151821] border border-transparent dark:border-[#242937] px-6 text-center text-sm text-[#636b74] dark:text-[#94a3b8]">
                             Add a second currency to configure an exchange
                             rate.
                         </div>
@@ -700,7 +700,7 @@ export default function BusinessCurrencyForm() {
         return (
             <div
                 aria-label="Loading currency configuration"
-                className="min-h-[795px] animate-pulse rounded-2xl bg-[#f7f8f7]"
+                className="min-h-[795px] animate-pulse rounded-2xl bg-[#f7f8f7] dark:bg-[#1a1e29] border border-transparent dark:border-[#242937]"
             />
         );
     }

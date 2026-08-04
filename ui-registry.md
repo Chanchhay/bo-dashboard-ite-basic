@@ -1,5 +1,29 @@
 # UI Registry
 
+### FluxiBiz Brand Logo
+
+File: src/components/brand/BrandLogo.tsx
+Last updated: 2026-08-02
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | Transparent asset; none |
+| Border           | None |
+| Border radius    | None on the image; focus radius belongs to the surrounding link/button |
+| Text — primary   | None; use the supplied wordmark rather than retyped brand text |
+| Text — secondary | None |
+| Spacing          | Clear space is controlled by the consuming surface |
+| Hover state      | Inherit from the surrounding link/button |
+| Shadow           | None |
+| Accent usage     | Supplied navy-and-green artwork only; do not recolor or add effects |
+
+**Pattern notes:**
+Use the horizontal wordmark in navigation and other wide surfaces, the stacked
+lockup on centered sign-in or PIN surfaces, and the monogram only in compact
+square contexts such as the favicon. Always preserve the intrinsic aspect ratio,
+use an empty image alt when the surrounding control already has an accessible
+name, and never reconstruct the brand with live text.
+
 ## Baseline audit
 
 Last audited: 2026-07-28
@@ -246,7 +270,7 @@ frontend-only change; never validate the key against a fixed enum.
 ### Account Menu
 
 Files: `src/components/ui/menu.tsx`, `src/components/layout/UserMenu.tsx`
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 | Property         | Class |
 | ---------------- | ----- |
@@ -268,7 +292,9 @@ menu rather than a button inside it, because logout is a POST to `/api/logout`
 (a GET logout is firable by any third-party page) and a form unmounted
 mid-click never submits. The avatar chip is the shared trigger for both the
 dashboard header and the app launcher; keep the two in sync through this
-component instead of copying the markup.
+component instead of copying the markup. Space-constrained application headers
+may use the compact avatar-only trigger, but the popup must still show the real
+profile identity, profile link, and the same POST sign-out action.
 
 ### Dashboard Module Tile
 
@@ -291,3 +317,148 @@ Last updated: 2026-07-28
 Dashboard module tiles are draggable Next.js links. Keep the white surface,
 subtle border and shadow, 24px radius, centered brand-gradient icon, and visible
 green keyboard focus treatment consistent across future dashboard launchers.
+
+### Sidebar Nested Action
+
+File: src/components/layout/Sidebar.tsx
+Last updated: 2026-08-01
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | Transparent disclosure row; `bg-primary` nested action |
+| Border           | `border-l border-[#dcdcd8]` nested rail |
+| Border radius    | `rounded-lg` disclosure row; `rounded-full` primary action |
+| Text — primary   | `text-[#16181c]` active disclosure |
+| Text — secondary | `text-[14px] text-[#8a8f89]` inactive disclosure |
+| Spacing          | `px-3 py-2`, `mt-1 ml-3`, and `pl-3` |
+| Hover state      | `hover:text-[#16181c]`; `hover:bg-primary/90` primary action |
+| Shadow           | `shadow-[0_1px_2px_rgba(22,24,28,.08)]` when active |
+| Accent usage     | `bg-primary text-white` for the nested action |
+
+**Pattern notes:**
+Use a native `details` disclosure for a sidebar item that owns actions rather
+than a page. Keep the nested rail consistent with normal sidebar children, and
+render the single entry action as the shared full-pill primary button. The
+parent toggles disclosure only; navigation belongs to its child link.
+
+### POS Transaction Surfaces
+
+Files: `src/components/pos/order/payment.tsx`,
+`src/components/pos/amount-received.tsx`,
+`src/components/pos/order/new-order.tsx`,
+`src/components/pos/order/receipt-list.tsx`,
+`src/components/pos/order/receipt-detail-view.tsx`,
+`src/components/pos/order/receipt-ticket.tsx`,
+`src/components/pos/order/pain-receipt-view.tsx`,
+`src/components/pos/order/date-range-filter.tsx`,
+`src/components/pos/order/employee-filter.tsx`,
+`src/components/pos/order/cancel-order-dialog.tsx`,
+`src/components/pos/order/order-list.tsx`,
+`src/components/pos/order/order-table.tsx`,
+`src/components/pos/navbar-pos/navbar.tsx`,
+`src/components/pos/pos-terminal.tsx`,
+`src/components/pos/pos-screen.tsx`,
+`src/components/pos/pos-button.tsx`
+Last updated: 2026-08-02
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white`; `bg-[#eff1f3]` dialog headers; `bg-[#f5f5f5]` secondary panels |
+| Border           | `border-[#bbcabf]` inputs and filters; `border-[#c6c6cd]` table and summary surfaces |
+| Border radius    | `rounded-[24px] sm:rounded-[30px]` dialogs; `rounded-[20px]` to `rounded-[25px]` controls and actions; `rounded-xl` cards and tables |
+| Text — primary   | `text-[#191c1e]` and `text-[#37423b]` |
+| Text — secondary | `text-[#636b74]` and `text-[#45464d]` |
+| Spacing          | Responsive `p-4 sm:p-8 lg:p-10`; `gap-3` controls; safe-area bottom padding on mobile tabs and overlays |
+| Hover state      | `hover:bg-primary/90`; `focus-visible:ring-2 focus-visible:ring-primary/25` |
+| Shadow           | `shadow-[0_24px_60px_rgba(15,26,18,0.22)]` on transactional dialogs |
+| Accent usage     | FluxiBiz green for totals and primary actions; red for change and cancel; amber for cash |
+
+**Pattern notes:**
+Match the supplied POS layouts closely at desktop width, then stack summary,
+payment, filter, and action regions for narrow screens without shrinking tap
+targets. Transaction dialogs use a large rounded shell and clear icon-led
+heading; payment keeps order summary and method details in separate columns.
+Below 360px, paired dialog actions stack; short screens keep the header and
+actions fixed while the body scrolls. Mobile cart tables reduce cell padding,
+retain touch-sized controls, and respect device safe areas.
+Receipt tables derive rows and totals only from the existing data source and
+show an explicit empty state instead of design-sample transactions. Styling
+work must not replace API hooks, payment mutations, KHQR status handling, or
+callback behavior.
+
+The Receipts tab follows Figma node `3627:27345`: three equal summary cards,
+50px date and active-register-user controls, a shadowed white transaction
+table with 66px headers and 90px rows, compact success pills, and quiet square
+row actions. At narrow widths, replace the table with stacked receipt cards and
+keep **View receipt** and **Print** as separate sibling controls. Direct row
+printing must fetch the selected API receipt and render the shared ticket
+offscreen; it must never print the receipts page. The paid-order list supports
+real created-date filtering, but historical cashier and payment-method cells
+remain visibly unavailable until the backend exposes sale history. The Cash
+summary may use the active register session total; never derive KHQR by
+subtracting unrelated totals.
+
+POS catalog search is a controlled field shared between desktop and mobile.
+Match against the API-backed item name, code, SKU, and barcode. Populate the
+category selector from real POS-channel item groups, keep IDs internal while
+showing names, and apply search and category together. A filtered empty result
+must offer **Clear filters**; it is distinct from an empty POS sales channel.
+The category menu follows Figma node `2538:34330`: an anchored dropdown exactly
+as wide as its trigger, offset 4px below it, with a `rounded-xl` translucent
+white surface, `border-[#334155]`, strong lower shadow, 18px description text,
+and 24px checkbox tiles. The selected tile uses `bg-primary` with a white check;
+unselected tiles use `bg-[#f5f5f5]`. Keep this as an accessible Base UI Select,
+not a detached dialog or fixed-width popup.
+
+Open-order cards use a white `rounded-2xl` surface, blue customer glyph,
+amber pencil, red trash action, and three compact metric tiles for time, item
+quantity, and total. Keep the card body as the accessible edit button and the
+trash control as a separate sibling action; never nest interactive controls.
+Their data comes from the authenticated pending-order filter; never recreate
+the Figma sample names or totals. **New order** names and parks the current cart
+without cancelling it, while **Edit** changes the terminal's HTTP-only
+current-order cookie and returns to Point of Sale. **Save** parks the edited
+order again. Cancellation always uses a red warning dialog with **Keep order**
+and **Cancel order** actions, waits for backend success before removing the
+card, and reports failures without closing the dialog. Only an explicit,
+confirmed abandon action may call the cancel endpoint. Track edit mode by the
+edited order ID rather than a boolean; when that same order is cancelled, clear
+edit mode so **Save** returns to **New order** and cannot reappear when the next
+cart item is selected.
+
+### Business Receipt Ticket
+
+File: `src/components/pos/order/receipt-ticket.tsx`
+Last updated: 2026-08-02
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white`; `bg-[#f4fbed]` for the total panel |
+| Border           | `border-dashed border-[#9aa79a]`; `border-[#cfe7ca]` total panel |
+| Border radius    | `rounded-[7px]`; `rounded-[5px]` total panel |
+| Text — primary   | `text-[#0e140e]` and `text-[#006b26]` |
+| Text — secondary | `text-[#3d4a3c]` and `text-[#6d7a77]` |
+| Spacing          | `px-[18px] sm:px-[22px] pt-5 pb-[26px]`; compact `py-[5px]` line rows |
+| Hover state      | Actions use `hover:bg-primary/90` or `hover:bg-[#fbfcfa]` |
+| Shadow           | `shadow-[0_2px_5px_rgba(20,20,19,0.12)]` |
+| Accent usage     | Figma green `#006b26`; discount red `#d14341`; pale green total |
+
+**Pattern notes:**
+Match Figma node `3616:26666`: a compact 559px-wide paper ticket, 7px shell
+radius, 22px padding, dashed separators, mono amounts, narrow quantity and
+amount columns, and a pale-green total panel. The immediate paid view and
+historical receipt detail must render this same ticket. Identity comes from the
+authenticated business profile: use the real logo, name, address, phone, and
+website, with initials only when the owner has no logo. Invoice, VAT number,
+line items, totals, currency, and issue time come from backend order or receipt
+records. Bilingual field labels are static UI copy, but never print sample tax
+amounts, Khmer business or product names, staff names, payment methods,
+received amounts, or change. Immediate `SaleResponse` data may show payment
+detail; historical views omit it until a sales-history API exists. Display
+currency conversion may render only from the real business-currency API.
+Printing isolates `.receipt-ticket` from every other mounted POS element and
+uses the standard `80mm` thermal-paper width with `4mm` print padding. Measure
+the ticket at that width before every print and set the page height from its
+current content so item rows are never clipped and short receipts do not gain
+fixed blank space. Remove the screen shadow and radius, preserve print colors,
+and do not allow navigation, actions, or overlays into the printed result.

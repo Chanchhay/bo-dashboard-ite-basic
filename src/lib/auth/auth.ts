@@ -2,9 +2,9 @@ import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { genericOAuth, keycloak } from "better-auth/plugins/generic-oauth";
 
-const keycloakClientId = process.env.KEYCLOAK_CLIENT_ID;
-const keycloakClientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
-const keycloakIssuer = process.env.KEYCLOAK_ISSUER;
+const keycloakClientId = process.env.KEYCLOAK_CLIENT_ID!;
+const keycloakClientSecret = process.env.KEYCLOAK_CLIENT_SECRET!;
+const keycloakIssuer = process.env.KEYCLOAK_ISSUER!;
 
 if (!keycloakClientId) {
     throw new Error("KEYCLOAK_CLIENT_ID is required");
@@ -20,9 +20,9 @@ export const auth = betterAuth({
         genericOAuth({
             config: [
                 keycloak({
-                    clientId: keycloakClientId,
-                    clientSecret: keycloakClientSecret ?? "",
-                    issuer: keycloakIssuer,
+                    clientId: process.env.KEYCLOAK_CLIENT_ID!,
+                    clientSecret: process.env.KEYCLOAK_CLIENT_SECRET! ?? "",
+                    issuer: process.env.KEYCLOAK_ISSUER!,
                     pkce: true,
                 }),
             ],

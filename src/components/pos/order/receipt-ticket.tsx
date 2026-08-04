@@ -1,0 +1,259 @@
+"use client";
+
+import { Building2 } from "lucide-react";
+
+import type { Business } from "@/lib/api/business";
+import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
+import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
+import { formatCurrencyAmount } from "@/lib/money";
+import { cn } from "@/lib/utils";
+
+interface ReceiptTicketProps {
+  business: Business;
+  order: PosOrder;
+  receipt?: PosReceipt | null;
+  /** Present immediately after payment; historical sale lookup is not exposed. */
+  sale?: Sale | null;
+  currencies?: BusinessCurrencyConfiguration;
+  className?: string;
+}
+
+function businessInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function getDisplayTotal(
+  amount: number,
+  sourceCode: string,
+  configuration?: BusinessCurrencyConfiguration,
+) {
+  if (!configuration?.displayCurrency) return null;
+
+  const source = configuration.currencies.find(
+    (currency) => currency.code === sourceCode,
+  );
+  const display = configuration.currencies.find(
+    (currency) => currency.code === configuration.displayCurrency,
+  );
+
+  if (
+    !source ||
+    !display ||
+    source.code === display.code ||
+    source.exchangeRate <= 0 ||
+    display.exchangeRate <= 0
+  ) {
+    return null;
+  }
+
+  const rate = display.exchangeRate / source.exchangeRate;
+  return { currency: display.code, rate, amount: amount * rate };
+}
+
+export function ReceiptTicket({
+  business,
+  order,
+  receipt,
+  sale,
+  currencies,
+  className,
+}: ReceiptTicketProps) {
+  const businessName = business.name?.trim() || "Your business";
+  const invoiceNumber =
+    receipt?.invoiceNumber || sale?.invoiceNumber || order.invoiceNumber || "—";
+  const issuedAtValue = sale?.soldAt || receipt?.issuedAt || order.createdDate;
+  const issuedAt = issuedAtValue ? new Date(issuedAtValue) : null;
+  const currency = sale?.currency || order.currency;
+  const subtotal = sale?.subtotal ?? order.subtotal;
+  const discount = sale?.discountAmount ?? order.discountAmount;
+  const total = sale?.totalAmount ?? order.total;
+  const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
+  const displayTotal = getDisplayTotal(total, currency, currencies);
+  const location = [business.address, business.cityOrProvince]
+    .filter(Boolean)
+    .join(", ");
+  const documentTitle = receipt?.vatNumber ? "Tax invoice" : "Receipt";
+  const documentTitleKhmer = receipt?.vatNumber ? "វិក្កយបត្រ" : "បង្កាន់ដៃ";
+
+  return (
+    <article
+      className={cn(
+        "receipt-ticket w-full max-w-[559px] rounded-[7px] bg-white px-[18px] pb-[26px] pt-5 shadow-[0_2px_5px_rgba(20,20,19,0.12)] print:max-w-none print:rounded-none print:shadow-none sm:px-[22px]",
+        className,
+      )}
+    >
+      <header className="flex flex-col items-center pb-[14px] text-center">
+        <span className="grid size-[50px] place-items-center overflow-hidden rounded-lg bg-primary/5 text-base font-black text-primary">
+          {business.logo ? (
+            // The owner controls this URL through the business-profile API.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={business.logo}
+              alt={`${businessName} logo`}
+              className="size-full object-contain"
+            />
+          ) : businessInitials(businessName) ? (
+            businessInitials(businessName)
+          ) : (
+            <Building2 className="size-6" aria-hidden="true" />
+          )}
+        </span>
+        <h1 className="mt-[13px] text-[22px] font-bold leading-[1.45] tracking-[0.44px] text-[#006b26]">
+          {businessName}
+        </h1>
+        {location && (
+          <p className="mt-[7px] max-w-full text-[13px] leading-[1.5] text-[#3d4a3c]">
+            {location}
+          </p>
+        )}
+        {business.phoneNumber && (
+          <p className="text-[13px] leading-[1.45] text-[#3d4a3c]">
+            Tel: {business.phoneNumber}
+          </p>
+        )}
+        {receipt?.vatNumber && (
+          <p className="mt-1 font-mono text-xs leading-[1.45] text-[#3d4a3c]">
+            VATTIN: {receipt.vatNumber}
+          </p>
+        )}
+      </header>
+
+      <section className="border-y border-dashed border-[#9aa79a] py-[9px] text-center">
+        <h2 className="text-base font-bold uppercase leading-[1.45] tracking-[2.24px] text-[#006b26]">
+          {documentTitle}
+        </h2>
+        <p className="text-[13px] leading-[1.45] text-[#3d4a3c]">
+          {documentTitleKhmer}
+        </p>
+      </section>
+
+      <dl className="grid grid-cols-[minmax(0,125px)_minmax(0,1fr)] gap-x-2.5 gap-y-1 py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
+        <dt>Receipt No.</dt>
+        <dd className="truncate text-right font-mono font-bold text-[#0e140e]">
+          {invoiceNumber}
+        </dd>
+        <dt>Date / កាលបរិច្ឆេទ</dt>
+        <dd className="text-right font-mono text-[#0e140e]">
+          {issuedAt
+            ? `${issuedAt.toLocaleDateString("en-GB")} · ${issuedAt.toLocaleTimeString(
+                [],
+                { hour: "2-digit", minute: "2-digit" },
+              )}`
+            : "—"}
+        </dd>
+        <dt>Ref / លេខយោង</dt>
+        <dd className="truncate text-right text-[#0e140e]">
+          {order.note?.trim() || order.channel}
+        </dd>
+      </dl>
+
+      <div className="border-t border-dashed border-[#9aa79a]">
+        <div className="grid grid-cols-[minmax(0,1fr)_36px_82px] gap-2 pb-[5px] pt-[7px] text-[11px] font-semibold uppercase leading-[1.45] tracking-[0.44px] text-[#3d4a3c]">
+          <span>Item / Service</span>
+          <span className="text-center">Qty</span>
+          <span className="text-right">Amount</span>
+        </div>
+
+        {order.items.map((item) => (
+          <div
+            key={item.id}
+            className="grid grid-cols-[minmax(0,1fr)_36px_82px] items-start gap-2 border-b border-dashed border-[#dde4d9] py-[5px]"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium leading-[1.45] text-[#0e140e]">
+                {item.itemName}
+              </p>
+              <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
+                {formatCurrencyAmount(item.unitPrice, currency)} ea
+              </p>
+            </div>
+            <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
+              {item.quantity}
+            </span>
+            <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
+              {formatCurrencyAmount(item.lineTotal, currency)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <dl className="space-y-1 pt-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
+        <div className="flex justify-between gap-4">
+          <dt>Subtotal</dt>
+          <dd className="font-mono text-[#0e140e]">
+            {formatCurrencyAmount(subtotal, currency)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt>
+            Discount
+            {discount > 0 ? ` (${discountPercent.toFixed(0)}%)` : ""}
+          </dt>
+          <dd className="font-mono text-[#d14341]">
+            -{formatCurrencyAmount(discount, currency)}
+          </dd>
+        </div>
+      </dl>
+
+      <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-sm font-bold uppercase">Total</dt>
+          <dd className="font-mono text-xl font-bold leading-none">
+            {formatCurrencyAmount(total, currency)}
+          </dd>
+        </div>
+        {displayTotal && (
+          <div className="mt-1 flex justify-between gap-4 text-xs text-[#3d4a3c]">
+            <dt>
+              សរុប ({displayTotal.currency}) · @ {displayTotal.rate.toLocaleString()}
+            </dt>
+            <dd className="font-mono font-bold text-[#0e140e]">
+              {formatCurrencyAmount(displayTotal.amount, displayTotal.currency)}
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <dl className="space-y-1 border-b border-dashed border-[#9aa79a] py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
+        <div className="flex justify-between gap-4">
+          <dt>
+            Paid
+            {sale
+              ? ` · ${sale.paymentMethod === "CASH" ? "Cash" : "Digital"}`
+              : ""}
+          </dt>
+          <dd className="font-mono text-[#0e140e]">
+            {formatCurrencyAmount(
+              sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
+              currency,
+            )}
+          </dd>
+        </div>
+        {sale?.paymentMethod === "CASH" && (
+          <div className="flex justify-between gap-4">
+            <dt>Change / អាប់</dt>
+            <dd className="font-mono text-[#0e140e]">
+              {formatCurrencyAmount(sale.changeAmount, currency)}
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <footer className="pt-2.5 text-center">
+        <p className="text-[13px] font-bold leading-[1.45] text-[#0e140e]">
+          Thank you! · អរគុណ
+        </p>
+        {business.website && (
+          <p className="mt-0.5 text-[11px] leading-[1.45] text-[#3d4a3c]">
+            {business.website}
+          </p>
+        )}
+      </footer>
+    </article>
+  );
+}
