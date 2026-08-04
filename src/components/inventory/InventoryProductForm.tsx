@@ -1297,7 +1297,7 @@ function ProductEditor({
                     {variants.map((variant) => (
                         <div
                             key={variant.id}
-                            className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto_auto] sm:items-center"
+                            className="flex items-center gap-1.5 sm:gap-3 w-full"
                         >
                             <Input
                                 value={variant.name}
@@ -1308,7 +1308,7 @@ function ProductEditor({
                                 }
                                 aria-label="Variant name"
                                 placeholder="Variant name"
-                                className={inventoryControlClassName}
+                                className={`${inventoryControlClassName} !h-9 sm:!h-10 py-0 text-xs sm:text-sm flex-[2] min-w-0 px-2.5 sm:px-4 rounded-xl`}
                             />
                             <Input
                                 type="number"
@@ -1322,9 +1322,9 @@ function ProductEditor({
                                 }
                                 aria-label="Variant price"
                                 placeholder="Price"
-                                className={inventoryControlClassName}
+                                className={`${inventoryControlClassName} !h-9 sm:!h-10 py-0 text-xs sm:text-sm flex-1 min-w-0 px-2 sm:px-3 rounded-xl`}
                             />
-                            <label className="flex items-center gap-2 text-xs whitespace-nowrap text-[#6b7280] dark:text-[#94a3b8]">
+                            <label className="flex items-center gap-1 sm:gap-1.5 text-xs whitespace-nowrap text-[#6b7280] dark:text-[#94a3b8] shrink-0 cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={!variant.available}
@@ -1335,7 +1335,7 @@ function ProductEditor({
                                     }
                                     className="size-3.5 accent-[#d14341]"
                                 />
-                                Sold out
+                                <span className="text-[11px] sm:text-xs">Sold out</span>
                             </label>
                             <Button
                                 type="button"
@@ -1350,8 +1350,9 @@ function ProductEditor({
                                         ),
                                     )
                                 }
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-10 shrink-0 rounded-xl p-0 flex items-center justify-center"
                             >
-                                <Trash2 />
+                                <Trash2 className="size-4 shrink-0" />
                             </Button>
                         </div>
                     ))}
@@ -1390,26 +1391,26 @@ function ProductEditor({
                 </p>
             ) : null}
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button
                     variant="outline"
                     render={<Link href="/inventory" />}
                     nativeButton={false}
-                    className="h-11 px-6"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={isSaving || isUploadingBlockImage}
-                    size="lg"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     {isSaving ? (
-                        <LoaderCircle className="animate-spin" />
+                        <LoaderCircle className="size-4 animate-spin shrink-0" />
                     ) : (
-                        <Save />
+                        <Save className="size-4 shrink-0" />
                     )}
-                    {isEditing ? "Save changes" : "Create item"}
+                    <span>{isEditing ? "Save changes" : "Create item"}</span>
                 </Button>
             </div>
 

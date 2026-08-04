@@ -135,10 +135,10 @@ export function InventoryStock() {
                     <Button
                         render={<Link href="/inventory/stock/adjust" />}
                         nativeButton={false}
-                        size="lg"
+                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                     >
-                        <SlidersHorizontal />
-                        Adjust stock
+                        <SlidersHorizontal className="size-4 shrink-0" />
+                        <span>Adjust stock</span>
                     </Button>
                 }
             />

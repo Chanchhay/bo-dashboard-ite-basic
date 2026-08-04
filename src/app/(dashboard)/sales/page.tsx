@@ -74,8 +74,8 @@ export default function SalesOrdersPage() {
                 <Stat label="Pending" value="0" />
             </section>
 
-            <section className="rounded-2xl border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1a1e29]">
-                <div className="flex flex-wrap items-center gap-2 border-b border-[#e2e2de] dark:border-[#242937] p-4">
+            <section className="overflow-hidden rounded-2xl border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1a1e29]">
+                <div className="flex flex-wrap items-center gap-2 border-b border-[#e2e2de] dark:border-[#242937] p-3.5 sm:p-4">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -237,7 +237,7 @@ function FilterGroup<T extends string>({
         <div
             role="group"
             aria-label={label}
-            className="flex items-center gap-1 rounded-xl bg-[#f0f0ee] dark:bg-[#151821] p-1 border border-transparent dark:border-[#242937]"
+            className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-none rounded-xl bg-[#f0f0ee] dark:bg-[#151821] p-1 border border-transparent dark:border-[#242937] shrink-0"
         >
             {options.map((option) => (
                 <button
@@ -245,7 +245,7 @@ function FilterGroup<T extends string>({
                     type="button"
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
-                    className={`rounded-lg px-2.5 py-1.5 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#00932a] ${
+                    className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#00932a] ${
                         value === option
                             ? "bg-white dark:bg-[#1e2330] font-medium text-[#16181c] dark:text-[#f8fafc] shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
                             : "text-[#5c6660] dark:text-[#94a3b8] hover:text-[#16181c] dark:hover:text-[#f8fafc]"

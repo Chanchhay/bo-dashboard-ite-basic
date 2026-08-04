@@ -304,19 +304,19 @@ export function InventoryProductList() {
                     <Button
                         render={<Link href="/inventory/new" />}
                         nativeButton={false}
-                        size="lg"
+                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                     >
-                        <PackagePlus className="size-4" />
-                        Create item
+                        <PackagePlus className="size-4 shrink-0" />
+                        <span>Create item</span>
                     </Button>
                 }
             />
 
             <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-col gap-3 border-b border-[#edf0ec] dark:border-[#242937] p-4">
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="relative w-full xl:max-w-md">
-                            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
+                    <div className="flex flex-row items-center gap-2">
+                        <div className="relative min-w-0 flex-1">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-[#7b857a] dark:text-[#94a3b8]" />
                             <Input
                                 value={productSearch}
                                 onChange={(event) =>
@@ -324,13 +324,13 @@ export function InventoryProductList() {
                                         setProductSearch(event.target.value),
                                     )
                                 }
-                                placeholder="Search name, SKU, barcode or category"
-                                className={`${inventoryControlClassName} pl-10`}
+                                placeholder="Search items..."
+                                className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] placeholder:text-[#6b7280] dark:placeholder:text-[#94a3b8]"
                                 aria-label="Search items"
                             />
                         </div>
 
-                        <div className="grid w-full gap-3 sm:grid-cols-2 xl:flex xl:w-auto">
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                             <Select
                                 value={productStatus}
                                 onValueChange={(value) =>
@@ -345,8 +345,9 @@ export function InventoryProductList() {
                                 }
                             >
                                 <SelectTrigger
+                                    size="sm"
                                     aria-label="Filter items by status"
-                                    className={`${inventoryControlClassName} w-full xl:w-44`}
+                                    className="!h-9 sm:!h-10 py-0 min-w-[68px] sm:w-44 px-2 sm:px-3 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] justify-between items-center"
                                 >
                                     <SelectValue />
                                 </SelectTrigger>
@@ -366,17 +367,19 @@ export function InventoryProductList() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
+                                size="sm"
+                                aria-label="Advanced filters"
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
                                 onClick={() =>
                                     setFilterPanelOpen((open) => !open)
                                 }
+                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] text-[#16181c] dark:text-[#f8fafc] shrink-0 flex items-center justify-center gap-1.5"
                             >
-                                <SlidersHorizontal />
-                                Advanced filters
+                                <SlidersHorizontal className="size-4 shrink-0" />
+                                <span className="hidden sm:inline">Advanced filters</span>
                                 {advancedFilterCount ? (
-                                    <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-semibold text-white">
+                                    <span className="absolute -top-1 -right-1 sm:static grid size-4 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-[11px] font-semibold text-white">
                                         {advancedFilterCount}
                                     </span>
                                 ) : null}
@@ -385,11 +388,13 @@ export function InventoryProductList() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
+                                size="sm"
+                                aria-label="Scan barcode"
                                 onClick={() => setScannerOpen(true)}
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] text-[#16181c] dark:text-[#f8fafc] shrink-0 flex items-center justify-center gap-1.5"
                             >
-                                <ScanBarcode />
-                                Scan barcode
+                                <ScanBarcode className="size-4 shrink-0" />
+                                <span className="hidden sm:inline">Scan barcode</span>
                             </Button>
                         </div>
                     </div>
@@ -682,19 +687,21 @@ export function InventoryProductList() {
                                 </div>
                             </div>
 
-                            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <div className="mt-5 flex flex-row items-center justify-end gap-2.5 sm:gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={handleApplyFilters}
+                                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
+                                >
+                                    Apply filters
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={resetDraftFilters}
+                                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                                 >
                                     Reset fields
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={handleApplyFilters}
-                                >
-                                    Apply filters
                                 </Button>
                             </div>
                         </div>

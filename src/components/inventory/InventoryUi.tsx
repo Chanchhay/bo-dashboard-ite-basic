@@ -33,16 +33,22 @@ export function InventoryPageHeader({
     action?: ReactNode;
 }) {
     return (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h1 className="text-2xl font-semibold text-[#161d16] dark:text-[#f8fafc]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-semibold text-[#161d16] dark:text-[#f8fafc]">
                     {title}
                 </h1>
-                <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
-                    {description}
-                </p>
+                {description ? (
+                    <p className="mt-1 text-xs sm:text-sm text-[#657064] dark:text-[#94a3b8]">
+                        {description}
+                    </p>
+                ) : null}
             </div>
-            {action}
+            {action ? (
+                <div className="flex justify-end shrink-0 sm:justify-start">
+                    {action}
+                </div>
+            ) : null}
         </div>
     );
 }

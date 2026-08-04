@@ -502,28 +502,26 @@ export function StockAdjustmentForm() {
                 </p>
             ) : null}
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button
                     variant="outline"
                     render={<Link href="/inventory/stock" />}
                     nativeButton={false}
-                    className="h-11 px-6"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={createState.isLoading || items.length === 0}
-                    size="lg"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     {createState.isLoading ? (
-                        <LoaderCircle className="animate-spin" />
-                    ) : (
-                        <Save />
-                    )}
-                    Save stock entry
+                        <LoaderCircle className="size-4 animate-spin shrink-0" />
+                    ) : null}
+                    <span>Save adjustment</span>
                 </Button>
-                </div>
+            </div>
             </form>
             <BarcodeScannerDialog
                 open={scannerOpen}

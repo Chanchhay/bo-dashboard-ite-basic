@@ -113,12 +113,12 @@ export default async function DashboardPage() {
                         Live figures from your inventory.
                     </p>
 
-                    <div className="mt-7 grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
                         <Stat
                             icon={Package}
                             label="Items"
                             value={compact(items.length)}
-                            note="In your catalog"
+                            note="In catalog"
                         />
                         <Stat
                             icon={CircleCheck}
@@ -127,14 +127,14 @@ export default async function DashboardPage() {
                             note={
                                 items.length > 0
                                     ? `of ${compact(items.length)} total`
-                                    : "Nothing published yet"
+                                    : "Published"
                             }
                         />
                         <Stat
                             icon={Warehouse}
                             label="Units in stock"
                             value={compact(unitsInStock)}
-                            note="Across all items"
+                            note="Across items"
                         />
                         <Stat
                             icon={TriangleAlert}
@@ -142,8 +142,8 @@ export default async function DashboardPage() {
                             value={compact(lowStock)}
                             note={
                                 lowStock > 0
-                                    ? "At or below threshold"
-                                    : "Nothing to restock"
+                                    ? "At threshold"
+                                    : "Restock OK"
                             }
                             alert={lowStock > 0}
                         />
@@ -230,23 +230,31 @@ function Stat({
     alert?: boolean;
 }) {
     return (
-        <div>
-            <span
-                aria-hidden="true"
-                className={
-                    alert
-                        ? "grid size-11 place-items-center rounded-full bg-[#fff4d6] dark:bg-[#d14341]/20 text-[#8a5f00] dark:text-[#f87171]"
-                        : "grid size-11 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]"
-                }
-            >
-                <Icon className="size-5" />
-            </span>
+        <div className="flex flex-col justify-between rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf7] dark:bg-[#151821] p-3.5 sm:p-5 transition-all">
+            <div className="flex items-center justify-between gap-2">
+                <span
+                    aria-hidden="true"
+                    className={
+                        alert
+                            ? "grid size-9 sm:size-11 place-items-center rounded-xl bg-[#fff4d6] dark:bg-[#d14341]/20 text-[#8a5f00] dark:text-[#f87171]"
+                            : "grid size-9 sm:size-11 place-items-center rounded-xl bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]"
+                    }
+                >
+                    <Icon className="size-4 sm:size-5" />
+                </span>
+                <span className="text-[11px] sm:text-[13px] text-[#8a8f89] dark:text-[#64748b] truncate max-w-[90px] text-right">
+                    {note}
+                </span>
+            </div>
 
-            <p className="mt-4 text-[14px] font-medium text-[#5c6660] dark:text-[#94a3b8]">{label}</p>
-            <p className="mt-1 text-[38px] leading-none font-bold text-[#16181c] dark:text-[#f8fafc] tabular-nums">
-                {value}
-            </p>
-            <p className="mt-2 text-[13px] text-[#8a8f89] dark:text-[#64748b]">{note}</p>
+            <div className="mt-3">
+                <p className="text-[12px] sm:text-[14px] font-medium text-[#5c6660] dark:text-[#94a3b8] truncate">
+                    {label}
+                </p>
+                <p className="mt-0.5 text-2xl sm:text-[36px] leading-tight font-bold text-[#16181c] dark:text-[#f8fafc] tabular-nums">
+                    {value}
+                </p>
+            </div>
         </div>
     );
 }
