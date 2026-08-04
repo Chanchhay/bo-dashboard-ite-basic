@@ -6,10 +6,10 @@ import { Globe, Send, ShoppingBag, Store, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
-import { ChannelSelector } from "./components/ChannelSelector";
-import { PostChannelDialog } from "./components/PostChannelDialog";
-import { ItemChannelTable } from "./components/ItemChannelTable";
-import { ChannelHeader } from "./components/ChannelHeader";
+import { ChannelSelector } from "@/components/menu/ChannelSelector";
+import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
+import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
+import { ChannelHeader } from "@/components/menu/ChannelHeader";
 import {
     useCreateItemChannelMutation,
     useDeleteItemChannelMutation,

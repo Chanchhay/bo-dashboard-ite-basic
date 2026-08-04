@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 import BrandLogo from "@/components/brand/BrandLogo";
 import UserMenu from "@/components/layout/UserMenu";
+import { NotificationMenu } from "@/components/notification/Notification";
 import {
   Select,
   SelectContent,
@@ -145,9 +146,7 @@ export function Navbar({
         <UserMenu name={managerName} compact />
 
         {/* Notifications — visible at every size, matches reference header */}
-        <button type="button" className="shrink-0 text-brand-yellow">
-          <Bell className="h-5 w-5" strokeWidth={2} />
-        </button>
+        <NotificationMenu />
 
         {/* Online status */}
         <div className="hidden h-8 w-[97px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-white min-[901px]:flex">

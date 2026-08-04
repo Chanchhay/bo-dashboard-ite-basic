@@ -19,15 +19,21 @@ export const notificationApi = createApi({
                 page?: number;
                 size?: number;
                 sort?: string;
+                type?: string;
+                isRead?: boolean;
             } | void
         >({
             query: (args) => {
                 const page = args?.page ?? 0;
-                const size = args?.size ?? 6;
-                const sort = args?.sort ?? "DESC";
+                const size = args?.size ?? 20;
+                const sort = args?.sort ?? "createdDate,desc";
+                const params: Record<string, any> = { page, size, sort };
+                if (args?.type) params.type = args.type;
+                if (args?.isRead !== undefined) params.isRead = args.isRead;
+
                 return {
                     url: "/notification",
-                    params: { page, size, sort },
+                    params,
                 };
             },
 
@@ -66,25 +72,32 @@ export const notificationApi = createApi({
                 url: `/notification/${id}/read`,
                 method: "PATCH",
             }),
-            async onQueryStarted(id, { dispatch, queryFulfilled }) {
-                const patchResult = dispatch(
-                    notificationApi.util.updateQueryData(
-                        "getReceivedNotifications",
-                        undefined,
-                        (draft) => {
-                            if (!draft || !draft.content) return;
-                            const target = draft.content.find((item) => item.id === id);
-                            if (target) {
-                                target.read = true;
-                                target.readAt = new Date().toISOString();
-                            }
+            async onQueryStarted(id, { dispatch, getState, queryFulfilled }) {
+                const updateFn = (draft: any) => {
+                    if (!draft || !draft.content) return;
+                    const target = draft.content.find((item: any) => item.id === id);
+                    if (target) {
+                        target.read = true;
+                        target.readAt = new Date().toISOString();
+                    }
+                };
+                const patches: any[] = [
+                    dispatch(notificationApi.util.updateQueryData("getReceivedNotifications", undefined, updateFn)),
+                ];
+                const state = getState() as any;
+                const queries = state?.notificationApi?.queries || {};
+                for (const key of Object.keys(queries)) {
+                    if (key.startsWith("getReceivedNotifications(")) {
+                        const originalArgs = queries[key]?.originalArgs;
+                        if (originalArgs) {
+                            patches.push(dispatch(notificationApi.util.updateQueryData("getReceivedNotifications", originalArgs, updateFn)));
                         }
-                    )
-                );
+                    }
+                }
                 try {
                     await queryFulfilled;
                 } catch {
-                    patchResult.undo();
+                    patches.forEach((p) => p?.undo?.());
                 }
             },
             invalidatesTags: ["Notification"],
@@ -95,24 +108,66 @@ export const notificationApi = createApi({
                 url: "/notification/read-all",
                 method: "PATCH",
             }),
-            async onQueryStarted(_, { dispatch, queryFulfilled }) {
-                const patchResult = dispatch(
-                    notificationApi.util.updateQueryData(
-                        "getReceivedNotifications",
-                        undefined,
-                        (draft) => {
-                            if (!draft || !draft.content) return;
-                            draft.content.forEach((item) => {
-                                item.read = true;
-                                item.readAt = new Date().toISOString();
-                            });
+            async onQueryStarted(_, { dispatch, getState, queryFulfilled }) {
+                const updateFn = (draft: any) => {
+                    if (!draft || !draft.content) return;
+                    draft.content.forEach((item: any) => {
+                        item.read = true;
+                        item.readAt = new Date().toISOString();
+                    });
+                };
+                const patches: any[] = [
+                    dispatch(notificationApi.util.updateQueryData("getReceivedNotifications", undefined, updateFn)),
+                ];
+                const state = getState() as any;
+                const queries = state?.notificationApi?.queries || {};
+                for (const key of Object.keys(queries)) {
+                    if (key.startsWith("getReceivedNotifications(")) {
+                        const originalArgs = queries[key]?.originalArgs;
+                        if (originalArgs) {
+                            patches.push(dispatch(notificationApi.util.updateQueryData("getReceivedNotifications", originalArgs, updateFn)));
                         }
-                    )
-                );
+                    }
+                }
                 try {
                     await queryFulfilled;
                 } catch {
-                    patchResult.undo();
+                    patches.forEach((p) => p?.undo?.());
+                }
+            },
+            invalidatesTags: ["Notification"],
+        }),
+
+        deleteNotification: builder.mutation<void, { id: string; permanent?: boolean }>({
+            query: ({ id, permanent }) => ({
+                url: `/notification/${id}${permanent ? "?permanent=true" : ""}`,
+                method: "DELETE",
+            }),
+            async onQueryStarted({ id }, { dispatch, getState, queryFulfilled }) {
+                const updateFn = (draft: any) => {
+                    if (!draft || !draft.content) return;
+                    draft.content = draft.content.filter((item: any) => item.id !== id);
+                    if (draft.page && draft.page.totalElements) {
+                        draft.page.totalElements = Math.max(0, draft.page.totalElements - 1);
+                    }
+                };
+                const patches: any[] = [
+                    dispatch(notificationApi.util.updateQueryData("getReceivedNotifications", undefined, updateFn)),
+                ];
+                const state = getState() as any;
+                const queries = state?.notificationApi?.queries || {};
+                for (const key of Object.keys(queries)) {
+                    if (key.startsWith("getReceivedNotifications(")) {
+                        const originalArgs = queries[key]?.originalArgs;
+                        if (originalArgs) {
+                            patches.push(dispatch(notificationApi.util.updateQueryData("getReceivedNotifications", originalArgs, updateFn)));
+                        }
+                    }
+                }
+                try {
+                    await queryFulfilled;
+                } catch {
+                    patches.forEach((p) => p?.undo?.());
                 }
             },
             invalidatesTags: ["Notification"],
@@ -124,4 +179,5 @@ export const {
     useGetReceivedNotificationsQuery,
     useMarkAsReadMutation,
     useMarkAllAsReadMutation,
+    useDeleteNotificationMutation,
 } = notificationApi;

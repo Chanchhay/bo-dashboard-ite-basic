@@ -15,12 +15,27 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
 
         const page = searchParams.get("page") ?? "0";
-        const size = searchParams.get("size") ?? "6";
-        const sort = searchParams.get("sort") ?? "ASC";
+        const size = searchParams.get("size") ?? "20";
+        const sort = searchParams.get("sort");
+        const type = searchParams.get("type");
+        const isRead = searchParams.get("isRead");
 
-        const response = await backendRequest<NotificationResponse>(
-            `/api/v1/notifications/received?page=${page}&size=${size}&sort=${sort}`
-        );
+        let sortParam = "createdDate,desc";
+        if (sort) {
+            if (sort.toUpperCase() === "DESC") sortParam = "createdDate,desc";
+            else if (sort.toUpperCase() === "ASC") sortParam = "createdDate,asc";
+            else sortParam = sort;
+        }
+
+        let backendUrl = `/api/v1/notifications/received?page=${page}&size=${size}&sort=${encodeURIComponent(sortParam)}`;
+        if (type) {
+            backendUrl += `&type=${encodeURIComponent(type)}`;
+        }
+        if (isRead !== null && isRead !== undefined) {
+            backendUrl += `&isRead=${encodeURIComponent(isRead)}`;
+        }
+
+        const response = await backendRequest<NotificationResponse>(backendUrl);
 
         return Response.json(
             normalizeNotificationResponse(response)
@@ -28,4 +43,4 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         return backendErrorResponse(error);
     }
-}
+}

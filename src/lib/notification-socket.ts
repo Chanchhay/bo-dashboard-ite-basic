@@ -11,7 +11,15 @@ export interface SocketConnectParams {
 }
 
 function getWsConfig(): { brokerURL?: string; webSocketFactory?: () => any } {
-    const customUrl = process.env.NEXT_PUBLIC_WS_URL;
+    let customUrl = process.env.NEXT_PUBLIC_WS_URL;
+
+    if (typeof window !== "undefined") {
+        const host = window.location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") {
+            customUrl = "http://localhost:8080/ws/notifications-sockjs";
+        }
+    }
+
     if (customUrl) {
         if (customUrl.startsWith("ws://") || customUrl.startsWith("wss://")) {
             return { brokerURL: customUrl };
@@ -31,17 +39,51 @@ class NotificationSocketService {
     private isConnecting = false;
     private params: SocketConnectParams = {};
     private processedIds = new Set<string>();
+    private subscribedTopics = new Set<string>();
+
+    private subscribeTopics(): void {
+        if (!this.client?.connected) return;
+
+        const topicsToSubscribe: string[] = [
+            "/topic/notifications",
+            "/user/queue/notifications",
+        ];
+
+        if (this.params.receiverId) {
+            topicsToSubscribe.push(`/topic/notifications/${this.params.receiverId}`);
+        }
+
+        if (this.params.userId && this.params.receiverId) {
+            topicsToSubscribe.push(`/topic/notifications/${this.params.userId}/${this.params.receiverId}`);
+        }
+
+        for (const topic of topicsToSubscribe) {
+            if (!this.subscribedTopics.has(topic)) {
+                this.subscribedTopics.add(topic);
+                this.client.subscribe(topic, (message: Message) => {
+                    this.handleIncomingMessage(message);
+                });
+            }
+        }
+    }
 
     public connect(params?: SocketConnectParams | string): void {
         if (typeof window === "undefined") return;
 
         if (typeof params === "string") {
-            this.params = { token: params };
+            this.params = { ...this.params, token: params };
         } else if (params) {
             this.params = { ...this.params, ...params };
         }
 
-        if (this.client?.active || this.isConnecting) return;
+        if (this.client?.active) {
+            if (this.client.connected) {
+                this.subscribeTopics();
+            }
+            return;
+        }
+
+        if (this.isConnecting) return;
 
         this.isConnecting = true;
         const wsConfig = getWsConfig();
@@ -61,31 +103,9 @@ class NotificationSocketService {
 
         this.client.onConnect = () => {
             this.isConnecting = false;
+            this.subscribedTopics.clear();
             console.log("[NotificationSocket] Connected successfully");
-
-            // 1. Subscribe to general broadcast notification topic
-            this.client?.subscribe("/topic/notifications", (message: Message) => {
-                this.handleIncomingMessage(message);
-            });
-
-            // 2. Subscribe to user personal notification queue
-            this.client?.subscribe("/user/queue/notifications", (message: Message) => {
-                this.handleIncomingMessage(message);
-            });
-
-            // 3. Subscribe to user personal topic: /topic/notifications/{receiverId}
-            if (this.params.receiverId) {
-                this.client?.subscribe(`/topic/notifications/${this.params.receiverId}`, (message: Message) => {
-                    this.handleIncomingMessage(message);
-                });
-            }
-
-            // 4. Subscribe to tenant + user topic: /topic/notifications/{userId}/{receiverId}
-            if (this.params.userId && this.params.receiverId) {
-                this.client?.subscribe(`/topic/notifications/${this.params.userId}/${this.params.receiverId}`, (message: Message) => {
-                    this.handleIncomingMessage(message);
-                });
-            }
+            this.subscribeTopics();
         };
 
         this.client.onStompError = (frame) => {
@@ -149,6 +169,8 @@ class NotificationSocketService {
         }
         if (!this.client?.active && !this.isConnecting) {
             this.connect(this.params);
+        } else if (this.client?.connected) {
+            this.subscribeTopics();
         }
 
         return () => {
@@ -164,6 +186,7 @@ class NotificationSocketService {
             this.client.deactivate();
             this.client = null;
             this.isConnecting = false;
+            this.subscribedTopics.clear();
             console.log("[NotificationSocket] Disconnected");
         }
     }

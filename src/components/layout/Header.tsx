@@ -5,7 +5,7 @@ import { Menu, Search } from "lucide-react";
 
 import { getPageTitle } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
-import { NotificationMenu } from "../profile/Notification";
+import { NotificationMenu } from "../notification/Notification";
 
 export default function Header({
     managerName,
