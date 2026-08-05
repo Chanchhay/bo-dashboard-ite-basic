@@ -169,7 +169,7 @@ export default function RolesTab() {
                     "Unable to delete the role.",
                 ),
             });
-            setPendingDelete(null);
+            setDeleteTarget(null);
         }
     }
 
@@ -283,7 +283,7 @@ export default function RolesTab() {
                                                                         permission.value,
                                                                     )
                                                                 }
-                                                                className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-[#00932a] dark:accent-[#10b981] cursor-pointer"
+                                                                className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-success cursor-pointer"
                                                             />
                                                             {permission.label}
                                                         </label>

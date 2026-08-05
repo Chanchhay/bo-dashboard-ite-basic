@@ -75,7 +75,7 @@ function Field({ label, name, error, children }: FieldProps) {
             </Label>
             {children}
             {error ? (
-                <p className="pl-1 text-xs text-brand-red" role="alert">
+                <p className="pl-1 text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -559,20 +559,6 @@ function BusinessProfileEditor({
             </section>
 
             <div className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center sm:justify-between">
-                {status ? (
-                    <div aria-live="polite" className="text-left">
-                        <p
-                            className={
-                                status.type === "success"
-                                    ? "text-sm text-primary dark:text-[#10b981]"
-                                    : "text-sm text-accent"
-                            }
-                            role={status.type === "error" ? "alert" : "status"}
-                        >
-                            {status.message}
-                        </p>
-                    </div>
-                ) : null}
                 <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto">
                     <Button
                         type="button"
@@ -607,7 +593,7 @@ function ProfileQueryError({
 }) {
     return (
         <div
-            className="rounded-xl border border-brand-red/20 bg-brand-red/5 p-6 text-[#1a222b] shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
+            className="rounded-xl border border-danger/20 bg-danger/5 p-6 text-foreground shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
             role="alert"
         >
             <h2 className="text-lg font-bold">Unable to load business profile</h2>

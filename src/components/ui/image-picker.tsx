@@ -295,7 +295,7 @@ export function ImagePicker({
 
             <div className="min-h-4" aria-live="polite">
                 {error ? (
-                    <p className="text-xs text-brand-red" role="alert">
+                    <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
                 ) : null}
@@ -401,7 +401,7 @@ export function ImageDropzone({
 
             <div className="min-h-4" aria-live="polite">
                 {error ? (
-                    <p className="text-xs text-brand-red" role="alert">
+                    <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
                 ) : null}

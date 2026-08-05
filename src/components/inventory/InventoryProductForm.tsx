@@ -118,7 +118,7 @@ function Field({ label, name, error, children }: FieldProps) {
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-brand-red" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -844,7 +844,7 @@ function ProductEditor({
                             ) : null}
                         </div>
                         {barcodeGenerationError ? (
-                            <p className="text-xs text-brand-red" role="alert">
+                            <p className="text-xs text-danger" role="alert">
                                 {barcodeGenerationError}
                             </p>
                         ) : null}
@@ -1293,7 +1293,7 @@ function ProductEditor({
                         </p>
                     )}
                     {fieldErrors.attributes ? (
-                        <p className="text-xs text-brand-red" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.attributes}
                         </p>
                     ) : null}
@@ -1378,7 +1378,7 @@ function ProductEditor({
                                             available: !event.target.checked,
                                         })
                                     }
-                                    className="size-3.5 accent-[#d14341]"
+                                    className="size-3.5 accent-danger"
                                 />
                                 <span className="text-[11px] sm:text-xs">Sold out</span>
                             </label>
@@ -1402,7 +1402,7 @@ function ProductEditor({
                         </div>
                     ))}
                     {fieldErrors.variants ? (
-                        <p className="text-xs text-brand-red" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.variants}
                         </p>
                     ) : null}
@@ -1420,7 +1420,7 @@ function ProductEditor({
                         onChange={setBlocks}
                     />
                     {fieldErrors.descriptionBlocks ? (
-                        <p className="mt-3 text-xs text-brand-red" role="alert">
+                        <p className="mt-3 text-xs text-danger" role="alert">
                             {fieldErrors.descriptionBlocks}
                         </p>
                     ) : null}
@@ -1429,7 +1429,7 @@ function ProductEditor({
 
             {status ? (
                 <p
-                    className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
+                    className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger"
                     role="alert"
                 >
                     {status}

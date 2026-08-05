@@ -256,7 +256,7 @@ function ColumnEditor({
                                     ),
                                 )
                             }
-                            className="text-[#657064] dark:text-[#94a3b8] hover:text-accent"
+                            className="text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                         >
                             <Trash2 />
                         </Button>

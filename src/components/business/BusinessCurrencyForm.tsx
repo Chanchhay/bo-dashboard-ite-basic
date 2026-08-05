@@ -114,12 +114,12 @@ function CurrencyAutocomplete({
                     id="add-currency"
                     aria-label="Search or enter a three-letter currency code"
                     placeholder="Search or enter a currency..."
-                    className="h-full w-full rounded-lg border-0 bg-transparent px-3 pr-10 text-base text-[#1a222b] outline-none placeholder:text-[#9ca3af] focus-visible:ring-0"
+                    className="h-full w-full rounded-lg border-0 bg-transparent px-3 pr-10 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0"
                 />
                 <Autocomplete.Trigger
                     type="button"
                     aria-label="Show currency options"
-                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-lg text-[#6b7280] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                     <ChevronDown className="size-4" />
                 </Autocomplete.Trigger>
@@ -131,8 +131,8 @@ function CurrencyAutocomplete({
                     align="start"
                     className="isolate z-50 outline-none"
                 >
-                    <Autocomplete.Popup className="w-(--anchor-width) min-w-64 overflow-hidden rounded-xl bg-white p-1.5 text-[#1a222b] shadow-lg ring-1 ring-[#e8e8e8]">
-                        <Autocomplete.Empty className="px-3 py-3 text-sm text-[#6b7280]">
+                    <Autocomplete.Popup className="w-(--anchor-width) min-w-64 overflow-hidden rounded-xl bg-popover p-1.5 text-popover-foreground shadow-lg ring-1 ring-border">
+                        <Autocomplete.Empty className="px-3 py-3 text-sm text-muted-foreground">
                             No matching currency. You can enter a custom
                             three-letter code.
                         </Autocomplete.Empty>
@@ -157,7 +157,7 @@ function CurrencyAutocomplete({
 function SectionTitle({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex items-center gap-3">
-            <span className="h-6 w-1.5 rounded-full bg-[#436746]" />
+            <span className="h-6 w-1.5 rounded-full bg-primary" />
             <h2 className="text-xl leading-5 font-semibold tracking-[0.5px] text-primary uppercase">
                 {children}
             </h2>
@@ -381,14 +381,14 @@ function CurrencyEditor({
             noValidate
             className="flex min-h-[795px] flex-col"
         >
-            <section className="rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section className="rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>General Configuration</SectionTitle>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                     <div>
                         <Label
                             htmlFor="base-currency"
-                            className="mb-3 ml-1 block text-base font-medium text-[#424841] dark:text-[#cbd5e1]"
+                            className="mb-3 ml-1 block text-base font-medium text-foreground"
                         >
                             Base Currency
                         </Label>
@@ -396,7 +396,7 @@ function CurrencyEditor({
                             id="base-currency"
                             value={baseCurrency}
                             onValueChange={changeBaseCurrency}
-                            className="rounded-xl border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-base dark:text-[#f8fafc] shadow-none data-[size=default]:h-14"
+                            className="rounded-xl border-border bg-popover text-base shadow-none data-[size=default]:h-14"
                             options={currencies.map((currency) => ({
                                 value: currency.code,
                                 label: `${currency.name} (${currency.code})`,
@@ -407,7 +407,7 @@ function CurrencyEditor({
                     <div>
                         <Label
                             htmlFor="decimal-places"
-                            className="mb-3 ml-1 block text-base font-medium text-[#424841] dark:text-[#cbd5e1]"
+                            className="mb-3 ml-1 block text-base font-medium text-foreground"
                         >
                             Decimal Places
                         </Label>
@@ -421,7 +421,7 @@ function CurrencyEditor({
                                     });
                                 }
                             }}
-                            className="rounded-xl border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-base dark:text-[#f8fafc] shadow-none data-[size=default]:h-14"
+                            className="rounded-xl border-border bg-popover text-base shadow-none data-[size=default]:h-14"
                             options={[
                                 { value: "0", label: "0 decimals" },
                                 { value: "1", label: "1 decimal" },
@@ -438,11 +438,11 @@ function CurrencyEditor({
                 <div className="mt-7">
                     <Label
                         htmlFor="add-currency"
-                        className="mb-3 ml-1 block text-base font-medium text-[#424841] dark:text-[#cbd5e1]"
+                        className="mb-3 ml-1 block text-base font-medium text-foreground"
                     >
                         Currencies
                     </Label>
-                    <div className="flex min-h-[56px] flex-wrap items-center gap-2 rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] p-2">
+                    <div className="flex min-h-[56px] flex-wrap items-center gap-2 rounded-xl border border-border bg-popover p-2">
                         {currencies.map((currency) => {
                             const isSelected =
                                 currency.code === selectedTarget;
@@ -451,8 +451,8 @@ function CurrencyEditor({
                                     key={currency.code}
                                     className={`flex h-[38px] items-center gap-2 rounded-full px-3 text-sm font-medium tracking-[0.14px] outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                                         isSelected
-                                            ? "bg-[#aee0b1] dark:bg-[#10b981]/30 text-[#2b4e30] dark:text-[#34d399] ring-1 ring-primary/25"
-                                            : "bg-[#c4edc4] dark:bg-[#10b981]/20 text-[#2b4e30] dark:text-[#a7f3d0]"
+                                            ? "bg-success/25 text-success ring-1 ring-success/40"
+                                            : "bg-success/10 text-success"
                                     }`}
                                 >
                                     <button
@@ -506,10 +506,10 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <section className="mt-4 rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section className="mt-4 rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>Exchange Rate &amp; Calculator</SectionTitle>
 
-                <div className="mt-5 max-w-[630px] rounded-2xl border border-[#f5f5f5] dark:border-[#242937] dark:bg-[#151821]/60 p-4 sm:p-6">
+                <div className="mt-5 max-w-[630px] rounded-2xl border border-border bg-muted/30 p-4 sm:p-6">
                     {base && target ? (
                         <>
                             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
@@ -517,7 +517,7 @@ function CurrencyEditor({
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <Label
                                             htmlFor="calculator-base-currency"
-                                            className="text-lg font-semibold text-[#020409]/70 dark:text-[#f8fafc]/80"
+                                            className="text-lg font-semibold text-foreground/80"
                                         >
                                             Base
                                         </Label>
@@ -533,7 +533,7 @@ function CurrencyEditor({
                                                     changeBaseCurrency(code);
                                                 }
                                             }}
-                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] dark:text-[#f8fafc] px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            className="w-[100px] min-w-[92px] rounded-lg border-border bg-popover px-3 text-sm shadow-none data-[size=default]:h-9"
                                             options={currencies.map(
                                                 (currency) => ({
                                                     value: currency.code,
@@ -542,11 +542,11 @@ function CurrencyEditor({
                                             )}
                                         />
                                     </div>
-                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] px-4">
-                                        <span className="text-base font-bold text-[#436746] dark:text-[#10b981]">
+                                    <div className="flex h-[54px] items-center gap-3 rounded-xl border border-border bg-popover px-4">
+                                        <span className="text-base font-bold text-success">
                                             {base.symbol}
                                         </span>
-                                        <span className="px-3 text-2xl font-bold text-[#1a1c19] dark:text-[#f8fafc]">
+                                        <span className="px-3 text-2xl font-bold text-foreground">
                                             1
                                         </span>
                                     </div>
@@ -556,7 +556,7 @@ function CurrencyEditor({
                                     type="button"
                                     onClick={swapCalculatorCurrencies}
                                     aria-label={`Switch ${base.code} and ${target.code}`}
-                                    className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f6e2a1] dark:bg-[#feb90d]/20 text-[#826b14] dark:text-[#feb90d] outline-none transition-colors hover:bg-[#efd276] dark:hover:bg-[#feb90d]/30 focus-visible:ring-2 focus-visible:ring-[#826b14]/40 sm:mb-[11px]"
+                                    className="flex size-8 shrink-0 items-center justify-center justify-self-center rounded-full bg-warning/20 text-warning outline-none transition-colors hover:bg-warning/30 focus-visible:ring-2 focus-visible:ring-warning/40 sm:mb-[11px]"
                                 >
                                     <ArrowLeftRight className="size-4" />
                                 </button>
@@ -565,7 +565,7 @@ function CurrencyEditor({
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <Label
                                             htmlFor="exchange-currency"
-                                            className="text-lg font-semibold text-[#020409]/70 dark:text-[#f8fafc]/80"
+                                            className="text-lg font-semibold text-foreground/80"
                                         >
                                             Exchange
                                         </Label>
@@ -573,7 +573,7 @@ function CurrencyEditor({
                                             id="exchange-currency"
                                             value={target.code}
                                             onValueChange={setSelectedTarget}
-                                            className="w-[100px] min-w-[92px] rounded-lg border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] dark:text-[#f8fafc] px-3 text-sm shadow-none data-[size=default]:h-9"
+                                            className="w-[100px] min-w-[92px] rounded-lg border-border bg-popover px-3 text-sm shadow-none data-[size=default]:h-9"
                                             options={currencies
                                                 .filter(
                                                     (currency) =>
@@ -586,8 +586,8 @@ function CurrencyEditor({
                                                 }))}
                                         />
                                     </div>
-                                    <div className="flex h-[54px] items-center gap-1 rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] px-4">
-                                        <span className="text-base font-bold text-[#436746] dark:text-[#10b981]">
+                                    <div className="flex h-[54px] items-center gap-1 rounded-xl border border-border bg-popover px-4">
+                                        <span className="text-base font-bold text-success">
                                             {target.symbol}
                                         </span>
                                         <Input
@@ -608,14 +608,14 @@ function CurrencyEditor({
                                                     },
                                                 )
                                             }
-                                            className="h-12 rounded-none border-0 bg-transparent px-3 text-2xl font-bold text-[#1a1c19] shadow-none focus-visible:ring-0"
+                                            className="h-12 rounded-none border-0 bg-transparent px-3 text-2xl font-bold text-foreground shadow-none focus-visible:ring-0"
                                         />
                                     </div>
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="flex min-h-36 items-center justify-center rounded-xl bg-[#f8f9f8] dark:bg-[#151821] border border-transparent dark:border-[#242937] px-6 text-center text-sm text-[#636b74] dark:text-[#94a3b8]">
+                        <div className="flex min-h-36 items-center justify-center rounded-xl bg-muted/40 border border-border px-6 text-center text-sm text-muted-foreground">
                             Add a second currency to configure an exchange
                             rate.
                         </div>
@@ -664,12 +664,12 @@ function CurrencyQueryError({
     return (
         <div
             role="alert"
-            className="rounded-2xl border border-brand-red/20 bg-white p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]"
+            className="rounded-2xl border border-danger/20 bg-card p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)]"
         >
-            <h2 className="text-lg font-bold text-[#161d16]">
+            <h2 className="text-lg font-bold text-foreground">
                 Unable to load currencies
             </h2>
-            <p className="mt-2 text-sm text-[#636b74]">{message}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{message}</p>
             <Button
                 type="button"
                 onClick={onRetry}
@@ -688,7 +688,7 @@ export default function BusinessCurrencyForm() {
         return (
             <div
                 aria-label="Loading currency configuration"
-                className="min-h-[795px] animate-pulse rounded-2xl bg-[#f7f8f7] dark:bg-[#1a1e29] border border-transparent dark:border-[#242937]"
+                className="min-h-[795px] animate-pulse rounded-2xl bg-muted/40 border border-border"
             />
         );
     }

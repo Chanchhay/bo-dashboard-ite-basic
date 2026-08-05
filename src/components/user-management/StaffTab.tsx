@@ -65,7 +65,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 onClick={() => setVisible((value) => !value)}
                 aria-label={visible ? "Hide password" : "Show password"}
                 aria-pressed={visible}
-                className="bg-transparent absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                className="bg-transparent absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
             >
                 {visible ? (
                     <EyeOff className="size-4" aria-hidden="true" />
@@ -232,7 +232,7 @@ export default function StaffTab() {
                     "Unable to remove the user.",
                 ),
             });
-            setPendingDelete(null);
+            setDeleteTarget(null);
         }
     }
 
@@ -431,7 +431,7 @@ export default function StaffTab() {
                         {formError && (
                             <p
                                 role="alert"
-                                className="text-[13px] text-[#b3352f]"
+                                className="text-[13px] text-danger"
                             >
                                 {formError}
                             </p>
@@ -483,7 +483,7 @@ export default function StaffTab() {
 
                 <div className="relative mt-6 max-w-sm">
                     <Search
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8a8f89]"
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
                     />
                     <label htmlFor="staff-search" className="sr-only">
@@ -525,7 +525,7 @@ export default function StaffTab() {
                                 Users in this business
                             </caption>
                             <thead>
-                                <tr className="border-b border-[#eceeea] dark:border-[#242937] text-[12px] text-[#8a8f89] dark:text-[#94a3b8]">
+                                <tr className="border-b border-border text-[12px] text-muted-foreground">
                                     <th
                                         scope="col"
                                         className="py-3 pr-4 font-medium"
@@ -562,25 +562,25 @@ export default function StaffTab() {
                                 {members.map((member) => (
                                     <tr
                                         key={member.id}
-                                        className="border-b border-[#f2f3f1] dark:border-[#242937] last:border-0"
+                                        className="border-b border-border last:border-0"
                                     >
                                         <td className="py-4 pr-4">
-                                            <p className="text-[15px] font-medium text-[#16181c] dark:text-[#f8fafc]">
+                                            <p className="text-[15px] font-medium text-foreground">
                                                 {staffFullName(member)}
                                             </p>
                                             {member.username && (
-                                                <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
+                                                <p className="text-[13px] text-muted-foreground">
                                                     @{member.username}
                                                 </p>
                                             )}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
+                                        <td className="py-4 pr-4 text-[14px] text-muted-foreground">
                                             <p>{member.email || "—"}</p>
-                                            <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
+                                            <p className="text-[13px] text-muted-foreground">
                                                 {member.phoneNumber || "—"}
                                             </p>
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
+                                        <td className="py-4 pr-4 text-[14px] text-muted-foreground">
                                             {member.roleId
                                                 ? roleNames.get(
                                                       member.roleId,
@@ -664,7 +664,7 @@ export default function StaffTab() {
                     deleteTarget ? (
                         <>
                             Are you sure you want to delete{" "}
-                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                            <strong className="font-semibold text-foreground">
                                 {staffFullName(deleteTarget)}
                             </strong>
                             ? This action cannot be undone.

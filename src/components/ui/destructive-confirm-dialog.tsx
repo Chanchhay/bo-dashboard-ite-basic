@@ -45,11 +45,11 @@ export function DestructiveConfirmDialog({
             }}
         >
             <DialogContent
-                className="w-[calc(100vw-2rem)] max-w-[440px] gap-0 rounded-3xl border border-red-100 bg-white p-5 shadow-[0_24px_60px_rgba(15,26,18,0.22)] sm:p-7"
+                className="w-[calc(100vw-2rem)] max-w-[440px] gap-0 rounded-3xl border border-danger/20 bg-card p-5 shadow-[0_24px_60px_rgba(15,26,18,0.22)] sm:p-7"
                 showCloseButton={false}
             >
                 <DialogHeader className="items-center text-center">
-                    <span className="grid size-14 place-items-center rounded-2xl bg-red-50 text-brand-red">
+                    <span className="grid size-14 place-items-center rounded-2xl bg-danger/10 text-danger">
                         <TriangleAlert className="size-7" aria-hidden="true" />
                     </span>
                     <DialogTitle className="mt-4 text-2xl font-bold text-[#191c1e]">
@@ -76,7 +76,7 @@ export function DestructiveConfirmDialog({
                         size="lg"
                         onClick={onConfirm}
                         disabled={isPending}
-                        className="w-full bg-brand-red text-white hover:bg-brand-red/90 focus-visible:ring-brand-red/30"
+                        className="w-full bg-brand-red text-white hover:bg-brand-red/90 focus-visible:ring-danger/30"
                     >
                         {isPending ? (
                             <>

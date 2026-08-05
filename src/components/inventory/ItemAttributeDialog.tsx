@@ -428,7 +428,7 @@ function AttributeForm({
                                             size="icon-lg"
                                             aria-label={`Remove value ${index + 1}`}
                                             onClick={() => removeValue(index)}
-                                            className="shrink-0 text-[#657064] dark:text-[#94a3b8] hover:text-accent"
+                                            className="shrink-0 text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                                         >
                                             <Trash2 />
                                         </Button>
@@ -445,7 +445,7 @@ function AttributeForm({
                                                         !event.target.checked,
                                                 })
                                             }
-                                            className="size-3.5 accent-[#d14341]"
+                                            className="size-3.5 accent-danger"
                                         />
                                         Sold out — show but do not allow
                                         selecting
@@ -479,7 +479,7 @@ function AttributeForm({
             )}
 
             {error ? (
-                <p className="text-xs text-brand-red" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -489,7 +489,7 @@ function AttributeForm({
                     type="button"
                     size="lg"
                     onClick={onClose}
-                    className="rounded-full bg-brand-red px-8 text-white hover:bg-brand-red/90 focus-visible:ring-brand-red/30"
+                    className="rounded-full bg-brand-red px-8 text-white hover:bg-brand-red/90 focus-visible:ring-danger/30"
                 >
                     Cancel
                 </Button>

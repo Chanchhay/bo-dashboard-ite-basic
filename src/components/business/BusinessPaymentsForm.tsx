@@ -90,7 +90,7 @@ export function BusinessPaymentsForm() {
 
     if (isLoading) {
         return (
-            <p className="p-6 text-sm text-[#657064]">
+            <p className="p-6 text-sm text-muted-foreground">
                 Loading payment settings…
             </p>
         );
@@ -98,13 +98,13 @@ export function BusinessPaymentsForm() {
 
     return (
         <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5">
+            <section className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-base font-semibold text-[#161d16]">
+                        <h2 className="text-base font-semibold text-foreground">
                             Accept KHQR at the till
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             {data?.configured
                                 ? "Customers can scan to pay when this is on."
                                 : "Add your Bakong account below to turn this on."}
@@ -123,7 +123,7 @@ export function BusinessPaymentsForm() {
                     /* Generating a code and confirming payment are different
                        credentials. Without the token a QR can appear and never
                        settle, which looks like the customer's fault. */
-                    <p className="mt-4 flex items-start gap-2 rounded-xl bg-[#fff4d6] px-3 py-2 text-sm text-[#7a5600]">
+                    <p className="mt-4 flex items-start gap-2 rounded-xl bg-warning/15 px-3 py-2 text-sm text-warning">
                         <KeyRound
                             className="mt-0.5 size-4 shrink-0"
                             aria-hidden="true"
@@ -237,12 +237,12 @@ function AccountForm({
     return (
             <form
                 onSubmit={handleSubmit}
-                className="rounded-2xl border border-[#e4eae2] bg-white p-5"
+                className="rounded-2xl border border-border bg-card p-5"
             >
-                <h2 className="text-base font-semibold text-[#161d16]">
+                <h2 className="text-base font-semibold text-foreground">
                     Bakong account
                 </h2>
-                <p className="mt-1 text-sm text-[#657064]">
+                <p className="mt-1 text-sm text-muted-foreground">
                     These details appear on the customer&apos;s phone when they
                     scan.
                 </p>
@@ -319,16 +319,16 @@ function AccountForm({
                     </Field>
                 </div>
 
-                <div className="mt-5 border-t border-[#edf0ec] pt-5">
+                <div className="mt-5 border-t border-border pt-5">
                     <Label>API token</Label>
-                    <p className="mt-1 text-sm text-[#657064]">
+                    <p className="mt-1 text-sm text-muted-foreground">
                         From Bakong Open API. Used to confirm that a payment
                         actually arrived.
                     </p>
 
                     {hasToken && !replacingToken ? (
                         <div className="mt-2 flex flex-wrap items-center gap-3">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-sm font-semibold text-success">
                                 <CircleCheck
                                     className="size-4"
                                     aria-hidden="true"
@@ -359,7 +359,7 @@ function AccountForm({
                                         setReplacingToken(false);
                                         setApiToken("");
                                     }}
-                                    className="self-start text-sm text-[#657064] underline"
+                                    className="self-start text-sm text-muted-foreground underline"
                                 >
                                     Keep the existing token
                                 </button>
@@ -368,7 +368,7 @@ function AccountForm({
                     )}
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3 border-t border-[#edf0ec] pt-5">
+                <div className="mt-6 flex flex-wrap gap-3 border-t border-border pt-5">
                     <Button type="submit" disabled={isSaving}>
                         {isSaving && (
                             <LoaderCircle
@@ -396,24 +396,27 @@ function AccountForm({
 
 function PreviewCard({ khqr }: { khqr: Khqr }) {
     return (
-                <section className="flex flex-col items-center gap-3 rounded-2xl border border-[#e4eae2] bg-white p-5">
-                    <h2 className="text-base font-semibold text-[#161d16]">
+                <section className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-5">
+                    <h2 className="text-base font-semibold text-foreground">
                         Test code
                     </h2>
-                    <p className="max-w-md text-center text-sm text-[#657064]">
+                    <p className="max-w-md text-center text-sm text-muted-foreground">
                         A throwaway $1 code. Scanning it would charge you, so
                         this is only to confirm the details are accepted.
                     </p>
                     {khqr.qrImage ? (
-                        /* A data URI from the backend, not an external fetch. */
+                        /* A data URI from the backend, not an external fetch.
+                           Kept on a white plate in both themes — a QR with a
+                           transparent background is unscannable on the dark
+                           card, and scanners expect a light quiet zone. */
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={khqr.qrImage}
                             alt="Test KHQR code"
-                            className="size-56 object-contain"
+                            className="size-56 rounded-xl bg-white p-3 object-contain"
                         />
                     ) : (
-                        <p className="text-sm text-[#657064]">
+                        <p className="text-sm text-muted-foreground">
                             The code was created but returned no image.
                         </p>
                     )}
@@ -439,17 +442,17 @@ function Field({
             <Label>
                 {label}
                 {optional && (
-                    <span className="ml-1 font-normal text-[#8a8f89]">
+                    <span className="ml-1 font-normal text-muted-foreground">
                         (optional)
                     </span>
                 )}
             </Label>
             {children}
             {hint && !error && (
-                <p className="text-xs text-[#8a8f89]">{hint}</p>
+                <p className="text-xs text-muted-foreground">{hint}</p>
             )}
             {error && (
-                <p role="alert" className="text-xs text-brand-red">
+                <p role="alert" className="text-xs text-danger">
                     {error}
                 </p>
             )}

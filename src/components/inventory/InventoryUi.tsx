@@ -35,11 +35,11 @@ export function InventoryPageHeader({
     return (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0 flex-1">
-                <h1 className="text-xl sm:text-2xl font-semibold text-[#161d16] dark:text-[#f8fafc]">
+                <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
                     {title}
                 </h1>
                 {description ? (
-                    <p className="mt-1 text-xs sm:text-sm text-[#657064] dark:text-[#94a3b8]">
+                    <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                         {description}
                     </p>
                 ) : null}
@@ -55,9 +55,9 @@ export function InventoryPageHeader({
 
 export function InventoryLoading({ label = "Loading inventory" }) {
     return (
-        <div className="flex min-h-64 items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29]">
-            <div className="flex items-center gap-2 text-sm text-[#657064] dark:text-[#94a3b8]">
-                <LoaderCircle className="size-4 animate-spin text-primary dark:text-[#10b981]" />
+        <div className="flex min-h-64 items-center justify-center rounded-2xl border border-border bg-card">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin text-success" />
                 {label}
             </div>
         </div>
@@ -73,13 +73,13 @@ export function InventoryError({
 }) {
     return (
         <div
-            className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-2xl border border-accent/20 bg-white dark:bg-[#1a1e29] px-6 text-center"
+            className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-2xl border border-danger/20 bg-card px-6 text-center"
             role="alert"
         >
-            <span className="grid size-10 place-items-center rounded-full bg-brand-red/10 text-brand-red">
+            <span className="grid size-10 place-items-center rounded-full bg-danger/10 text-danger">
                 <AlertCircle className="size-5" />
             </span>
-            <p className="max-w-md text-sm text-[#657064] dark:text-[#94a3b8]">{message}</p>
+            <p className="max-w-md text-sm text-muted-foreground">{message}</p>
             {retry ? (
                 <Button type="button" variant="link" onClick={retry}>
                     Try again
@@ -98,12 +98,12 @@ export function InventoryEmpty({
 }) {
     return (
         <div className="flex min-h-52 flex-col items-center justify-center gap-3 px-6 text-center">
-            <span className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary dark:text-[#10b981]">
+            <span className="grid size-11 place-items-center rounded-full bg-primary/10 text-success">
                 <PackageOpen className="size-5" />
             </span>
             <div>
-                <p className="font-semibold text-[#161d16] dark:text-[#f8fafc]">{title}</p>
-                <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
+                <p className="font-semibold text-foreground">{title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
                     {description}
                 </p>
             </div>

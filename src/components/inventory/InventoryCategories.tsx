@@ -505,7 +505,7 @@ export function InventoryCategories() {
 
                     {fieldError ? (
                         <p
-                            className="mt-4 rounded-xl border border-brand-red/20 bg-brand-red/5 px-3 py-2 text-sm text-brand-red"
+                            className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
                             role="alert"
                         >
                             {fieldError}
