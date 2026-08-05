@@ -57,17 +57,17 @@ function Field({
         <div className="flex min-w-0 flex-col gap-2">
             <Label
                 htmlFor={name}
-                className="text-sm font-semibold text-[#424841]"
+                className="text-sm font-semibold text-foreground"
             >
                 {label}
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-brand-red" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : hint ? (
-                <p className="text-xs text-[#7b857a]">{hint}</p>
+                <p className="text-xs text-muted-foreground">{hint}</p>
             ) : null}
         </div>
     );
@@ -221,16 +221,16 @@ export function StockAdjustmentForm() {
                 }
             />
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start gap-4">
                     <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <SlidersHorizontal className="size-5" />
                     </span>
                     <div>
-                        <h2 className="text-lg font-semibold text-[#161d16]">
+                        <h2 className="text-lg font-semibold text-foreground">
                             Stock entry information
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             Enter the quantity and any tracking details for
                             this stock change.
                         </p>
@@ -238,7 +238,7 @@ export function StockAdjustmentForm() {
                 </div>
 
                 {items.length === 0 ? (
-                    <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-[#6d5600]">
+                    <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-warning">
                         Create an item before adding stock.
                     </div>
                 ) : (
@@ -429,16 +429,16 @@ export function StockAdjustmentForm() {
                                 className={inventoryControlClassName}
                             />
                         </Field>
-                        <div className="rounded-xl border border-[#e4eae2] bg-transparent p-4 md:col-span-2 sm:p-5">
+                        <div className="rounded-xl border border-border bg-transparent p-4 md:col-span-2 sm:p-5">
                             <div className="flex items-start gap-3">
                                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                                     <PackageOpen className="size-5" />
                                 </span>
                                 <div>
-                                    <h3 className="font-semibold text-[#161d16]">
+                                    <h3 className="font-semibold text-foreground">
                                         Batch details
                                     </h3>
-                                    <p className="mt-1 text-sm text-[#657064]">
+                                    <p className="mt-1 text-sm text-muted-foreground">
                                         Optional. Use these fields when stock
                                         is tracked by lot or expiration date.
                                         No JSON is required.
@@ -495,35 +495,33 @@ export function StockAdjustmentForm() {
 
             {status ? (
                 <p
-                    className="rounded-xl border border-brand-red/20 bg-brand-red/5 px-4 py-3 text-sm text-brand-red"
+                    className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger"
                     role="alert"
                 >
                     {status}
                 </p>
             ) : null}
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button
                     variant="outline"
                     render={<Link href="/inventory/stock" />}
                     nativeButton={false}
-                    className="h-11 px-6"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={createState.isLoading || items.length === 0}
-                    size="lg"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     {createState.isLoading ? (
-                        <LoaderCircle className="animate-spin" />
-                    ) : (
-                        <Save />
-                    )}
-                    Save stock entry
+                        <LoaderCircle className="size-4 animate-spin shrink-0" />
+                    ) : null}
+                    <span>Save adjustment</span>
                 </Button>
-                </div>
+            </div>
             </form>
             <BarcodeScannerDialog
                 open={scannerOpen}

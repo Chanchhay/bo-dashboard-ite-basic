@@ -195,7 +195,7 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
                     <OrderMetric
                       label="Items"
                       value={`${itemCount} ${itemCount === 1 ? "item" : "items"}`}
-                      tone="text-emerald-500"
+                      tone="text-primary"
                     />
                     <OrderMetric
                       label="Total"

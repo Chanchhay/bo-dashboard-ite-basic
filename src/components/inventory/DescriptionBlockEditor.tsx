@@ -129,10 +129,10 @@ export function DescriptionBlockEditor({
             {blocks.map((block, index) => (
                 <div
                     key={block.id}
-                    className="rounded-xl border border-[#e8e8e8] bg-white p-4"
+                    className="rounded-xl border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1a1e29] p-4"
                 >
                     <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-2 text-sm font-medium text-[#1a222b]">
+                        <span className="inline-flex items-center gap-2 text-sm font-medium text-[#1a222b] dark:text-[#f8fafc]">
                             <BlockGlyph type={block.type} />
                             {labelFor(block.type)}
                         </span>
@@ -211,7 +211,7 @@ export function DescriptionBlockEditor({
             ))}
 
             {blocks.length ? null : (
-                <p className="rounded-xl border border-dashed border-[#e8e8e8] px-4 py-6 text-center text-sm text-[#657064]">
+                <p className="rounded-xl border border-dashed border-[#e8e8e8] dark:border-[#2a3042] px-4 py-6 text-center text-sm text-[#657064] dark:text-[#94a3b8]">
                     No description layout yet. Add a block, or leave this empty
                     to fall back to the plain description above.
                 </p>
@@ -233,14 +233,14 @@ function ColumnEditor({
     onChange: (blocks: BlockDraft[]) => void;
 }) {
     return (
-        <div className="flex flex-col gap-2 rounded-xl bg-[#f7f8f7] p-3">
+        <div className="flex flex-col gap-2 rounded-xl bg-[#f7f8f7] dark:bg-[#151821] p-3">
             {column.blocks.map((block, index) => (
                 <div
                     key={block.id}
-                    className="rounded-lg border border-[#e8e8e8] bg-white p-3"
+                    className="rounded-lg border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1a1e29] p-3"
                 >
                     <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#657064]">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#657064] dark:text-[#cbd5e1]">
                             <BlockGlyph type={block.type} />
                             {labelFor(block.type)}
                         </span>
@@ -256,7 +256,7 @@ function ColumnEditor({
                                     ),
                                 )
                             }
-                            className="text-[#657064] hover:text-brand-red"
+                            className="text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                         >
                             <Trash2 />
                         </Button>
@@ -297,7 +297,7 @@ function BlockFields({
 }) {
     if (block.type === "SPEC_GRID") {
         return (
-            <p className="text-xs text-[#6b7280]">
+            <p className="text-xs text-[#6b7280] dark:text-[#94a3b8]">
                 Renders this item&apos;s specification attributes here. Add
                 them in the Attributes section with &ldquo;Show
                 as: Specification&rdquo;.
@@ -334,7 +334,7 @@ function BlockFields({
                     aria-label="Bullet list"
                     className={inventoryTextareaClassName}
                 />
-                <p className="text-xs text-[#6b7280]">One bullet per line.</p>
+                <p className="text-xs text-[#6b7280] dark:text-[#94a3b8]">One bullet per line.</p>
             </div>
         );
     }
@@ -464,7 +464,7 @@ function BlockImageField({
                 });
             }}
             preview={
-                <span className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg bg-[#f0f1f0]">
+                <span className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg bg-[#f0f1f0] dark:bg-[#252a38]">
                     {preview ? (
                         // Uploaded images come back as URLs; a pick previews as
                         // a blob until then.
@@ -476,7 +476,7 @@ function BlockImageField({
                         />
                     ) : (
                         <ImageIcon
-                            className="size-6 text-[#a3aca1]"
+                            className="size-6 text-[#a3aca1] dark:text-[#64748b]"
                             aria-hidden="true"
                         />
                     )}
@@ -489,7 +489,7 @@ function BlockImageField({
                         variant="link"
                         size="xs"
                         onClick={handleRemove}
-                        className="h-auto px-0 text-xs text-[#6b7280]"
+                        className="h-auto px-0 text-xs text-[#6b7280] dark:text-[#94a3b8]"
                     >
                         Remove image
                     </Button>
@@ -511,7 +511,7 @@ function AddBlockRow({
     return (
         <div className="flex flex-wrap items-center gap-1.5">
             {compact ? null : (
-                <Label className="mr-1 text-xs text-[#6b7280]">
+                <Label className="mr-1 text-xs text-[#6b7280] dark:text-[#94a3b8]">
                     Add block
                 </Label>
             )}

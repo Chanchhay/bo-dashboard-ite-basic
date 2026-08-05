@@ -136,7 +136,7 @@ export function ItemPreviewDialog({
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl overflow-hidden bg-[#f7f8f7] p-0">
+            <DialogContent className="max-w-5xl overflow-hidden bg-[#f7f8f7] dark:bg-[#121620] p-0">
                 {item ? (
                     <Storefront
                         item={item}
@@ -210,7 +210,7 @@ function Storefront({
 
     return (
         <div className="max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center gap-2 px-6 pt-6 text-sm text-[#657064]">
+            <div className="flex items-center gap-2 px-6 pt-6 text-sm text-[#657064] dark:text-[#94a3b8]">
                 <ChevronLeft className="size-4" />
                 <span>
                     Store / {item.categoryName || "product"} / detail
@@ -235,38 +235,38 @@ function Storefront({
                                 ? " · Hidden from store"
                                 : ""}
                         </p>
-                        <DialogTitle className="mt-2 text-2xl font-bold text-[#161d16]">
+                        <DialogTitle className="mt-2 text-2xl font-bold text-[#161d16] dark:text-[#f8fafc]">
                             {item.name || "Untitled item"}
                         </DialogTitle>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-2xl font-bold text-brand-red">
+                        <span className="text-2xl font-bold text-[#d14341] dark:text-[#f87171]">
                             {formatMoney(activePrice)}
                         </span>
                         {discount ? (
                             <>
-                                <span className="text-sm text-[#7b857a] line-through">
+                                <span className="text-sm text-[#7b857a] dark:text-[#94a3b8] line-through">
                                     {formatMoney(compareAt)}
                                 </span>
-                                <span className="rounded-full bg-brand-red/10 px-2 py-0.5 text-xs font-semibold text-brand-red">
+                                <span className="rounded-full bg-[#d14341]/10 dark:bg-[#f87171]/20 px-2 py-0.5 text-xs font-semibold text-[#d14341] dark:text-[#f87171]">
                                     {discount}% OFF
                                 </span>
                             </>
                         ) : null}
                         {item.unitName ? (
-                            <span className="text-sm text-[#657064]">
+                            <span className="text-sm text-[#657064] dark:text-[#94a3b8]">
                                 per {item.unitName}
                             </span>
                         ) : null}
                     </div>
 
                     {item.description ? (
-                        <p className="text-sm leading-6 text-[#657064]">
+                        <p className="text-sm leading-6 text-[#657064] dark:text-[#cbd5e1]">
                             {item.description}
                         </p>
                     ) : (
-                        <p className="text-sm text-[#a3aca1] italic">
+                        <p className="text-sm text-[#a3aca1] dark:text-[#94a3b8] italic">
                             No description yet — shoppers will see nothing
                             here.
                         </p>
@@ -286,7 +286,7 @@ function Storefront({
                                 >
                                     <span>{option.name}</span>
                                     {option.price === undefined ? null : (
-                                        <span className="mt-0.5 block text-xs text-[#7b857a]">
+                                        <span className="mt-0.5 block text-xs text-[#7b857a] dark:text-[#94a3b8]">
                                             {formatMoney(option.price)}
                                         </span>
                                     )}
@@ -353,7 +353,7 @@ function Storefront({
                     {toggles.map((attribute) => (
                         <label
                             key={attribute.name}
-                            className="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium text-[#1a222b]"
+                            className="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium text-[#1a222b] dark:text-[#f8fafc]"
                         >
                             {attribute.name}
                             <input
@@ -370,13 +370,13 @@ function Storefront({
                             />
                             {/* The knob is a descendant, not a sibling, so the
                                 checked variant has to reach it explicitly. */}
-                            <span className="relative h-6 w-11 shrink-0 rounded-full bg-[#dfe3dd] transition-colors peer-checked:bg-primary peer-checked:[&>span]:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30">
-                                <span className="absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform" />
+                            <span className="relative h-6 w-11 shrink-0 rounded-full bg-[#dfe3dd] dark:bg-[#2e3748] transition-colors peer-checked:bg-primary peer-checked:[&>span]:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30">
+                                <span className="absolute top-0.5 left-0.5 size-5 rounded-full bg-white dark:bg-[#f8fafc] shadow transition-transform" />
                             </span>
                         </label>
                     ))}
 
-                    <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] bg-white px-3 py-1.5">
+                    <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-[#1a222b] dark:text-[#f8fafc]">
                         <button
                             type="button"
                             aria-label="Decrease quantity"
@@ -385,7 +385,7 @@ function Storefront({
                                     Math.max(1, current - 1),
                                 )
                             }
-                            className="text-brand-red"
+                            className="text-[#d14341] dark:text-[#f87171]"
                         >
                             <Minus className="size-4" />
                         </button>
@@ -411,17 +411,17 @@ function Storefront({
                      */}
                     <div
                         aria-disabled
-                        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary/60 text-base font-medium text-white"
+                        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-white shadow-md shadow-primary/20"
                     >
                         <ShoppingBag className="size-4" />
                         Add to Cart
                     </div>
-                    <p className="text-center text-xs text-[#7b857a]">
+                    <p className="text-center text-xs text-[#7b857a] dark:text-[#94a3b8]">
                         Preview only — nothing here is live yet.
                     </p>
 
                     {highlights.length ? (
-                        <div className="grid gap-4 border-t border-[#e4eae2] pt-4 sm:grid-cols-3">
+                        <div className="grid gap-4 border-t border-[#e4eae2] dark:border-[#242937] pt-4 sm:grid-cols-3">
                             {highlights.map((attribute) => {
                                 const Glyph = attributeIcon(attribute.icon);
 
@@ -432,11 +432,11 @@ function Storefront({
                                     >
                                         <Glyph className="mt-0.5 size-4 shrink-0 text-primary" />
                                         <div className="min-w-0">
-                                            <p className="text-xs font-semibold text-[#1a222b]">
+                                            <p className="text-xs font-semibold text-[#1a222b] dark:text-[#f8fafc]">
                                                 {attribute.name}
                                             </p>
                                             {attribute.values[0] ? (
-                                                <p className="text-xs text-[#7b857a]">
+                                                <p className="text-xs text-[#7b857a] dark:text-[#94a3b8]">
                                                     {displayOf(
                                                         attribute.values[0],
                                                     )}
@@ -450,7 +450,7 @@ function Storefront({
                     ) : null}
 
                     {item.sku ? (
-                        <p className="text-xs text-[#7b857a]">
+                        <p className="text-xs text-[#7b857a] dark:text-[#94a3b8]">
                             SKU {item.sku}
                         </p>
                     ) : null}
@@ -458,14 +458,14 @@ function Storefront({
             </div>
 
             {hasBlocks ? (
-                <div className="mx-6 mb-6 rounded-2xl bg-white p-6">
+                <div className="mx-6 mb-6 rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6">
                     <h3 className="mb-4 inline-block border-b-2 border-secondary pb-1 text-base font-semibold text-primary">
                         Description
                     </h3>
                     <BlockList blocks={item.descriptionBlocks} specs={specs} />
                 </div>
             ) : specs.length ? (
-                <div className="mx-6 mb-6 rounded-2xl bg-white p-6">
+                <div className="mx-6 mb-6 rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6">
                     <h3 className="mb-4 inline-block border-b-2 border-secondary pb-1 text-base font-semibold text-primary">
                         Specifications
                     </h3>
@@ -473,11 +473,11 @@ function Storefront({
                 </div>
             ) : null}
 
-            <div className="sticky bottom-0 flex justify-end border-t border-[#e4eae2] bg-white px-6 py-4">
+            <div className="sticky bottom-0 flex justify-end border-t border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] px-6 py-4">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="h-11 rounded-full border border-[#e8e8e8] bg-white px-6 text-sm font-medium text-[#1a222b] transition-colors hover:bg-[#f7f8f7]"
+                    className="h-11 rounded-full border border-[#e8e8e8] dark:border-[#384252] bg-white dark:bg-[#1e2330] px-6 text-sm font-medium text-[#1a222b] dark:text-[#f8fafc] transition-colors hover:bg-[#f7f8f7] dark:hover:bg-[#252a38]"
                 >
                     Close preview
                 </button>
@@ -525,7 +525,7 @@ function Block({
 
     if (block.type === "HEADING") {
         return (
-            <h4 className="text-base font-semibold text-[#161d16]">
+            <h4 className="text-base font-semibold text-[#161d16] dark:text-[#f8fafc]">
                 {block.text}
             </h4>
         );
@@ -537,7 +537,7 @@ function Block({
                 {(block.items || []).map((line, index) => (
                     <li
                         key={index}
-                        className="flex items-start gap-2 text-sm text-[#657064]"
+                        className="flex items-start gap-2 text-sm text-[#657064] dark:text-[#cbd5e1]"
                     >
                         <Check className="mt-0.5 size-4 shrink-0 text-primary" />
                         {line}
@@ -557,7 +557,7 @@ function Block({
                     className="w-full rounded-xl object-cover"
                 />
                 {block.caption ? (
-                    <figcaption className="mt-2 text-xs text-[#7b857a]">
+                    <figcaption className="mt-2 text-xs text-[#7b857a] dark:text-[#94a3b8]">
                         {block.caption}
                     </figcaption>
                 ) : null}
@@ -570,34 +570,34 @@ function Block({
     }
 
     return (
-        <p className="text-sm leading-6 text-[#657064]">{block.text}</p>
+        <p className="text-sm leading-6 text-[#657064] dark:text-[#cbd5e1]">{block.text}</p>
     );
 }
 
 function SpecGrid({ specs }: { specs: PreviewAttribute[] }) {
     if (!specs.length) {
         return (
-            <p className="text-sm text-[#a3aca1] italic">
+            <p className="text-sm text-[#a3aca1] dark:text-[#94a3b8] italic">
                 No specification attributes yet — this grid stays empty.
             </p>
         );
     }
 
     return (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {specs.map((attribute) => {
                 const Glyph = attributeIcon(attribute.icon);
 
                 return (
                     <div
                         key={attribute.name}
-                        className="rounded-xl bg-[#f7f8f7] p-3 text-center"
+                        className="rounded-xl border border-[#e8e8e8] dark:border-[#2a3042] bg-[#f7f8f7] dark:bg-[#1e2330] p-3 text-center"
                     >
-                        <Glyph className="mx-auto size-4 text-[#657064]" />
-                        <p className="mt-2 text-xs font-semibold text-[#1a222b]">
+                        <Glyph className="mx-auto size-4 text-[#657064] dark:text-[#94a3b8]" />
+                        <p className="mt-2 text-xs font-semibold text-[#1a222b] dark:text-[#f8fafc]">
                             {attribute.name}
                         </p>
-                        <p className="mt-0.5 text-xs text-[#7b857a]">
+                        <p className="mt-0.5 text-xs text-[#7b857a] dark:text-[#94a3b8]">
                             {attribute.values[0]
                                 ? displayOf(attribute.values[0])
                                 : "Yes"}
@@ -622,8 +622,8 @@ function Gallery({
 }) {
     if (!images.length) {
         return (
-            <div className="flex aspect-square items-center justify-center rounded-2xl bg-white text-center">
-                <div className="flex flex-col items-center gap-2 text-[#a3aca1]">
+            <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center">
+                <div className="flex flex-col items-center gap-2 text-[#a3aca1] dark:text-[#64748b]">
                     <ImageOff className="size-8" />
                     <p className="text-sm">No image yet</p>
                 </div>
@@ -634,8 +634,8 @@ function Gallery({
     const active = images[Math.min(index, images.length - 1)];
 
     return (
-        <div className="flex gap-3">
-            <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-row sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto max-w-full">
                 {images.map((image, position) => (
                     <button
                         key={`${image}-${position}`}
@@ -644,10 +644,10 @@ function Gallery({
                         aria-pressed={position === index}
                         onClick={() => onSelect(position)}
                         className={cn(
-                            "size-16 overflow-hidden rounded-xl border-2 bg-white transition-colors",
+                            "size-16 overflow-hidden rounded-xl border-2 bg-white dark:bg-[#1a1e29] transition-colors",
                             position === index
                                 ? "border-primary"
-                                : "border-transparent hover:border-[#cfd6cc]",
+                                : "border-transparent dark:border-[#2a3042] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
                         )}
                     >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -659,7 +659,7 @@ function Gallery({
                     </button>
                 ))}
             </div>
-            <div className="flex-1 overflow-hidden rounded-2xl bg-white">
+            <div className="flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={active}
@@ -682,9 +682,9 @@ function OptionRow({
 }) {
     return (
         <div>
-            <p className="text-xs text-[#657064]">
+            <p className="text-xs text-[#657064] dark:text-[#94a3b8]">
                 {label}:{" "}
-                <span className="font-semibold text-[#1a222b]">{value}</span>
+                <span className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">{value}</span>
             </p>
             <div className="mt-2 flex flex-wrap gap-2">{children}</div>
         </div>
@@ -711,10 +711,10 @@ function Chip({
             className={cn(
                 "rounded-lg border px-4 py-2 text-center text-sm transition-colors",
                 disabled
-                    ? "cursor-not-allowed border-[#f0f1ef] bg-[#fafbfa] text-[#c2c8c0] line-through"
+                    ? "cursor-not-allowed border-[#f0f1ef] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] text-[#c2c8c0] dark:text-[#64748b] line-through"
                     : active
                       ? "border-primary bg-primary/5 font-medium text-primary"
-                      : "border-[#e8e8e8] bg-white text-[#1a222b] hover:border-[#cfd6cc]",
+                      : "border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
             )}
         >
             {children}

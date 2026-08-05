@@ -243,8 +243,8 @@ export function ImagePicker({
             <label
                 {...dropProps}
                 className={cn(
-                    "group relative flex w-full cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-[#e4eae2] bg-white px-5 py-6 text-center outline-none transition-colors focus-within:border-primary hover:border-primary/50",
-                    isOver && "border-primary bg-[#f5f8f4]",
+                    "group relative flex w-full cursor-pointer flex-col items-center gap-2.5 sm:gap-3 rounded-2xl border-2 border-dashed border-[#e4eae2] dark:border-[#2a3042] bg-white dark:bg-[#1a1e29] px-4 py-4 sm:px-5 sm:py-6 text-center outline-none transition-colors focus-within:border-primary hover:border-primary/50",
+                    isOver && "border-primary bg-[#f5f8f4] dark:bg-[#252a38]",
                     disabled && "cursor-not-allowed opacity-60",
                 )}
             >
@@ -268,7 +268,7 @@ export function ImagePicker({
                     {busy ? (
                         <span
                             className={cn(
-                                "absolute inset-0 grid place-items-center bg-white/70 text-xs font-semibold text-primary",
+                                "absolute inset-0 grid place-items-center bg-white/70 dark:bg-[#1a1e29]/80 text-xs font-semibold text-primary",
                                 previewShape === "circle"
                                     ? "rounded-full"
                                     : "rounded-xl",
@@ -279,10 +279,10 @@ export function ImagePicker({
                     ) : null}
                 </span>
 
-                <span className="text-base leading-6 font-bold text-[#1a222b]">
+                <span className="text-base leading-6 font-bold text-[#1a222b] dark:text-[#f8fafc]">
                     {label}
                 </span>
-                <span className="max-w-[220px] text-[11px] leading-[16.5px] text-[#424841]">
+                <span className="max-w-[220px] text-[11px] leading-[16.5px] text-[#424841] dark:text-[#94a3b8]">
                     Drag and drop, or click to browse. {hint || rules.hint}
                 </span>
             </label>
@@ -295,7 +295,7 @@ export function ImagePicker({
 
             <div className="min-h-4" aria-live="polite">
                 {error ? (
-                    <p className="text-xs text-brand-red" role="alert">
+                    <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
                 ) : null}
@@ -387,13 +387,13 @@ export function ImageDropzone({
                     disabled={disabled || isFull}
                     onClick={() => fileInput.current?.click()}
                     className={cn(
-                        "flex min-h-28 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#e4eae2] bg-[#fafbfa] text-sm text-[#6b7569] transition-colors hover:border-primary/40 hover:bg-[#f5f8f4] disabled:cursor-not-allowed disabled:opacity-60",
-                        isOver && "border-primary bg-[#f5f8f4]",
+                        "flex min-h-28 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#e4eae2] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#1a1e29] text-sm text-[#6b7569] dark:text-[#cbd5e1] font-medium transition-colors hover:border-primary/40 hover:bg-[#f5f8f4] dark:hover:bg-[#252a38] disabled:cursor-not-allowed disabled:opacity-60",
+                        isOver && "border-primary bg-[#f5f8f4] dark:bg-[#252a38]",
                     )}
                 >
                     <ImagePlus className="size-5" aria-hidden="true" />
                     {label}
-                    <span className="text-[11px] text-[#7a8478]">
+                    <span className="text-[11px] font-normal text-[#7a8478] dark:text-[#94a3b8]">
                         Drag and drop, or click to browse. {hint || rules.hint}
                     </span>
                 </button>
@@ -401,7 +401,7 @@ export function ImageDropzone({
 
             <div className="min-h-4" aria-live="polite">
                 {error ? (
-                    <p className="text-xs text-brand-red" role="alert">
+                    <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
                 ) : null}

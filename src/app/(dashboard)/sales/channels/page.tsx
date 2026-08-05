@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Globe, Send, ShoppingBag, Store, MessageSquare } from "lucide-react";
 
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
@@ -27,7 +28,7 @@ const CHANNEL_METADATA: Record<
         name: "Point of Sale (POS)",
         description: "Items available to sell at the in-store till.",
         icon: Store,
-        color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        color: "bg-primary text-primary/700 border-primary",
     },
     TELEGRAM: {
         name: "Telegram Bot / Store",
@@ -63,6 +64,21 @@ export default function SalesChannelsPage() {
     const [selectedItemId, setSelectedItemId] = useState<string>("");
     const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
     const [pendingItemId, setPendingItemId] = useState<string>("");
+    // Row action awaiting confirmation. Kept after the dialog closes so its
+    // copy stays put while it animates out — clearing it here would flash the
+    // other mode's wording on the closing frame. `isConfirmOpen` is what the
+    // dialog actually opens and closes on.
+    const [confirmAction, setConfirmAction] = useState<{
+        mode: "add" | "remove";
+        itemId: string;
+    } | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+
+    /** Opens the confirmation dialog for one row action. */
+    function askToConfirm(mode: "add" | "remove", itemId: string) {
+        setConfirmAction({ mode, itemId });
+        setIsConfirmOpen(true);
+    }
 
     const {
         data: salesChannels = [],
@@ -224,6 +240,31 @@ export default function SalesChannelsPage() {
         }
     }
 
+    const confirmItem = useMemo(
+        () =>
+            confirmAction
+                ? activeInventoryItems.find(
+                      (item) => item.id === confirmAction.itemId,
+                  )
+                : undefined,
+        [confirmAction, activeInventoryItems],
+    );
+
+    /** Runs the action the confirmation dialog was opened for. */
+    async function handleConfirmAction() {
+        if (!confirmAction) return;
+
+        const { mode, itemId } = confirmAction;
+
+        if (mode === "add") {
+            await publishItem(itemId);
+        } else {
+            await unpublishItem(itemId);
+        }
+
+        setIsConfirmOpen(false);
+    }
+
     async function handlePostItem(event: React.FormEvent) {
         event.preventDefault();
 
@@ -249,22 +290,24 @@ export default function SalesChannelsPage() {
             {/* Only channels the backend actually has. Nothing can be sold on
                 a channel we invented, so none are drawn for show. */}
             {!channelsLoading && activeChannels.length === 0 ? (
-                <section className="rounded-2xl border border-[#e4eae2] bg-white p-10 text-center">
-                    <ShoppingBag
-                        className="mx-auto mb-3 size-8 text-[#c4c9c3]"
-                        aria-hidden="true"
-                    />
-                    <h2 className="text-base font-semibold text-[#161d16]">
+                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-10 text-center shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary">
+                        <ShoppingBag
+                            className="size-6"
+                            aria-hidden="true"
+                        />
+                    </span>
+                    <h2 className="text-base font-semibold text-[#161d16] dark:text-[#f8fafc]">
                         No sales channels yet
                     </h2>
-                    <p className="mx-auto mt-1 max-w-md text-sm text-[#657064]">
+                    <p className="mx-auto mt-1 max-w-md text-sm text-[#657064] dark:text-[#94a3b8]">
                         Items can only be sold once a sales channel exists. Add
                         one on the backend, then refresh.
                     </p>
                     <button
                         type="button"
                         onClick={() => refetchChannels()}
-                        className="mt-4 inline-flex items-center rounded-lg border border-[#e4eae2] px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                        className="mt-4 inline-flex items-center rounded-lg border border-[#c9cbc6] dark:border-[#384252] bg-white dark:bg-[#1e2330] px-4 py-2 text-sm font-semibold text-primary transition hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] shadow-xs"
                     >
                         Refresh
                     </button>
@@ -288,8 +331,8 @@ export default function SalesChannelsPage() {
                     pendingItemId={pendingItemId}
                     onSearchChange={setSearchQuery}
                     onRefresh={() => refetchChannels()}
-                    onPublish={publishItem}
-                    onUnpublish={unpublishItem}
+                    onPublish={(itemId) => askToConfirm("add", itemId)}
+                    onUnpublish={(itemId) => askToConfirm("remove", itemId)}
                 />
                 </>
             )}
@@ -307,6 +350,52 @@ export default function SalesChannelsPage() {
                 onClose={() => setIsAddDialogOpen(false)}
                 onSelectItem={setSelectedItemId}
                 onSubmit={handlePostItem}
+            />
+
+            <DestructiveConfirmDialog
+                open={isConfirmOpen}
+                onOpenChange={(open) => {
+                    if (!open) setIsConfirmOpen(false);
+                }}
+                tone={confirmAction?.mode === "remove" ? "danger" : "info"}
+                title={
+                    confirmAction?.mode === "remove"
+                        ? "Remove from this channel?"
+                        : "Add to this channel?"
+                }
+                description={
+                    confirmAction?.mode === "remove" ? (
+                        <>
+                            <strong className="font-semibold text-foreground">
+                                {confirmItem?.name || "This item"}
+                            </strong>{" "}
+                            will no longer be sold on{" "}
+                            {selectedSalesChannel?.name ??
+                                activeChannelMeta.name}
+                            . You can add it back at any time.
+                        </>
+                    ) : (
+                        <>
+                            <strong className="font-semibold text-foreground">
+                                {confirmItem?.name || "This item"}
+                            </strong>{" "}
+                            becomes available to sell on{" "}
+                            {selectedSalesChannel?.name ??
+                                activeChannelMeta.name}{" "}
+                            straight away.
+                        </>
+                    )
+                }
+                confirmLabel={
+                    confirmAction?.mode === "remove" ? "Remove" : "Add item"
+                }
+                pendingLabel={
+                    confirmAction?.mode === "remove" ? "Removing…" : "Adding…"
+                }
+                isPending={Boolean(
+                    confirmAction && pendingItemId === confirmAction.itemId,
+                )}
+                onConfirm={handleConfirmAction}
             />
         </main>
     );

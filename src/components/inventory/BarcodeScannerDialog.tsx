@@ -134,7 +134,7 @@ export function BarcodeScannerDialog({
 
                     {message ? (
                         <p
-                            className="rounded-xl border border-brand-red/20 bg-brand-red/5 px-4 py-3 text-sm text-brand-red"
+                            className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger"
                             role="alert"
                         >
                             {message}
@@ -142,12 +142,12 @@ export function BarcodeScannerDialog({
                     ) : null}
 
                     {foundItem ? (
-                        <section className="rounded-2xl border border-[#e4eae2] bg-[#f8faf7] p-4">
+                        <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf7] dark:bg-[#151821] p-4">
                             <div className="flex flex-col gap-1">
-                                <p className="text-lg font-semibold text-[#161d16]">
+                                <p className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
                                     {foundItem.name || "Unnamed item"}
                                 </p>
-                                <p className="text-sm text-[#657064]">
+                                <p className="text-sm text-[#657064] dark:text-[#94a3b8]">
                                     {foundItem.sku || "No SKU"} · {formatMoney(foundItem.price)}
                                 </p>
                             </div>

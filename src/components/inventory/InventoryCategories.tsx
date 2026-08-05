@@ -81,6 +81,7 @@ export function InventoryCategories() {
         useUpdateItemGroupMutation();
     const [deleteGroup, deleteState] =
         useDeleteItemGroupMutation();
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
     const [mode, setMode] = useState<"CATEGORY" | "SUBCATEGORY">(
         "CATEGORY",
     );
@@ -192,32 +193,17 @@ export function InventoryCategories() {
         }
     }
 
-    async function handleDelete() {
-        if (!pendingDelete) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteGroup(pendingDelete.id).unwrap();
-            toast({
-                tone: "success",
-                title: `${pendingDelete.kind === "category" ? "Category" : "Subcategory"} deleted`,
-                description: `${pendingDelete.name} was deleted successfully.`,
-            });
-            if (editing?.id === pendingDelete.id) {
+            await deleteGroup(deleteTarget.id).unwrap();
+            if (editing?.id === deleteTarget.id) {
                 resetForm();
             }
-            setPendingDelete(null);
-        } catch (mutationError) {
-            toast({
-                tone: "error",
-                title: `${pendingDelete.kind === "category" ? "Category" : "Subcategory"} not deleted`,
-                description: getApiErrorMessage(
-                    mutationError,
-                    `Unable to delete the ${pendingDelete.kind}.`,
-                ),
-            });
-            setPendingDelete(null);
+            setDeleteTarget(null);
+        } catch {
+            // The mutation error is displayed below the table.
         }
     }
 
@@ -245,12 +231,12 @@ export function InventoryCategories() {
             />
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                    <div className="border-b border-[#edf0ec] px-5 py-4">
-                        <h2 className="font-semibold text-[#161d16]">
+                <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <div className="border-b border-[#edf0ec] dark:border-[#242937] px-5 py-4">
+                        <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                             Category structure
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                             {rows.length} configured{" "}
                             {rows.length === 1 ? "entry" : "entries"}
                         </p>
@@ -270,11 +256,11 @@ export function InventoryCategories() {
                                             <FolderPlus className="size-4" />
                                         </span>
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-semibold text-[#1a222b]">
+                                            <p className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">
                                                 {group.name ||
                                                     "Unnamed category"}
                                             </p>
-                                            <p className="truncate text-xs text-[#7b857a]">
+                                            <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
                                                 {group.note ||
                                                     `${group.subGroups?.length || 0} subcategories`}
                                             </p>
@@ -312,7 +298,7 @@ export function InventoryCategories() {
                                             >
                                                 <Pencil />
                                             </Button>
-                                            <Button
+                                             <Button
                                                 type="button"
                                                 variant="destructive"
                                                 size="icon-sm"
@@ -321,12 +307,9 @@ export function InventoryCategories() {
                                                     deleteState.isLoading
                                                 }
                                                 onClick={() =>
-                                                    setPendingDelete({
+                                                    setDeleteTarget({
                                                         id: group.id,
-                                                        name:
-                                                            group.name ||
-                                                            "This category",
-                                                        kind: "category",
+                                                        name: group.name || "category",
                                                     })
                                                 }
                                             >
@@ -341,13 +324,13 @@ export function InventoryCategories() {
                                                 key={subGroup.id}
                                                 className={`${collapsedGroupIds.has(group.id) ? "hidden" : "flex"} ml-10 items-center gap-4 border-t border-[#f2f4f1] px-5 py-3`}
                                             >
-                                                <span className="h-7 w-1 rounded-full bg-[#c9d7c6]" />
+                                                <span className="h-7 w-1 rounded-full bg-[#c9d7c6] dark:bg-[#384252]" />
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold text-[#424841]">
+                                                    <p className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
                                                         {subGroup.name ||
                                                             "Unnamed subcategory"}
                                                     </p>
-                                                    <p className="truncate text-xs text-[#7b857a]">
+                                                    <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
                                                         {subGroup.note ||
                                                             `Under ${group.name || "category"}`}
                                                     </p>
@@ -376,12 +359,9 @@ export function InventoryCategories() {
                                                             deleteState.isLoading
                                                         }
                                                         onClick={() =>
-                                                            setPendingDelete({
+                                                            setDeleteTarget({
                                                                 id: subGroup.id,
-                                                                name:
-                                                                    subGroup.name ||
-                                                                    "This subcategory",
-                                                                kind: "subcategory",
+                                                                name: subGroup.name || "subcategory",
                                                             })
                                                         }
                                                     >
@@ -401,17 +381,17 @@ export function InventoryCategories() {
                     key={formKey}
                     onSubmit={handleSubmit}
                     noValidate
-                    className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)]"
+                    className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
                 >
                     <div className="flex items-start justify-between gap-4">
                         <div>
-                            <h2 className="text-lg font-semibold text-[#161d16]">
+                            <h2 className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
                                 {editing ? "Edit" : "Add"}{" "}
                                 {mode === "CATEGORY"
                                     ? "category"
                                     : "subcategory"}
                             </h2>
-                            <p className="mt-1 text-sm text-[#657064]">
+                            <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                                 Define how items are grouped.
                             </p>
                         </div>
@@ -428,14 +408,14 @@ export function InventoryCategories() {
                         ) : null}
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-1 rounded-full bg-[#f4f7f3] p-1">
+                    <div className="mt-5 grid grid-cols-2 gap-1 rounded-full bg-[#f4f7f3] dark:bg-[#252a38] p-1">
                         <button
                             type="button"
                             onClick={() => setMode("CATEGORY")}
                             className={`rounded-full px-3 py-2 text-sm font-semibold ${
                                 mode === "CATEGORY"
                                     ? "bg-primary text-white"
-                                    : "text-[#657064]"
+                                    : "text-[#657064] dark:text-[#94a3b8]"
                             }`}
                         >
                             Category
@@ -446,7 +426,7 @@ export function InventoryCategories() {
                             className={`rounded-full px-3 py-2 text-sm font-semibold ${
                                 mode === "SUBCATEGORY"
                                     ? "bg-primary text-white"
-                                    : "text-[#657064]"
+                                    : "text-[#657064] dark:text-[#94a3b8]"
                             }`}
                         >
                             Subcategory
@@ -455,7 +435,7 @@ export function InventoryCategories() {
 
                     <div className="mt-5 flex flex-col gap-4">
                         <div className="flex flex-col gap-2">
-                            <Label className="text-black" htmlFor="category-name">
+                            <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]" htmlFor="category-name">
                                 Name *
                             </Label>
                             <Input
@@ -474,7 +454,7 @@ export function InventoryCategories() {
 
                         {mode === "SUBCATEGORY" ? (
                             <div className="flex flex-col gap-2">
-                                <Label className="text-black" htmlFor="parentId">
+                                <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]" htmlFor="parentId">
                                     Parent category *
                                 </Label>
                                 <Select
@@ -512,7 +492,7 @@ export function InventoryCategories() {
                         ) : null}
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-black" htmlFor="category-note">Note</Label>
+                            <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]" htmlFor="category-note">Note</Label>
                             <Textarea
                                 id="category-note"
                                 name="note"
@@ -525,7 +505,7 @@ export function InventoryCategories() {
 
                     {fieldError ? (
                         <p
-                            className="mt-4 rounded-xl border border-brand-red/20 bg-brand-red/5 px-3 py-2 text-sm text-brand-red"
+                            className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
                             role="alert"
                         >
                             {fieldError}
@@ -547,27 +527,30 @@ export function InventoryCategories() {
                     </Button>
                 </form>
             </div>
+
             <DestructiveConfirmDialog
-                open={Boolean(pendingDelete)}
-                title={`Delete ${pendingDelete?.kind || "category"}?`}
-                description={
-                    <>
-                        <span className="font-semibold text-[#37423b]">
-                            {pendingDelete?.name}
-                        </span>{" "}
-                        will be permanently removed. Items assigned to it may
-                        need to be updated. This action cannot be undone.
-                    </>
-                }
-                cancelLabel={`Keep ${pendingDelete?.kind || "category"}`}
-                confirmLabel={`Delete ${pendingDelete?.kind || "category"}`}
-                isPending={deleteState.isLoading}
+                open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
-                    if (!open) {
-                        setPendingDelete(null);
-                    }
+                    if (!open) setDeleteTarget(null);
                 }}
-                onConfirm={() => void handleDelete()}
+                title={deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete category?"}
+                description={
+                    deleteTarget?.name ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {deleteTarget.name}
+                            </strong>
+                            ? Items assigned to it may need to be updated. This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this category? This action cannot be undone."
+                    )
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );

@@ -14,6 +14,8 @@ import UserMenu from "@/components/layout/UserMenu";
 import type { Permission } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
+import ThemeToggle from "@/components/dark-mode/theme-toggle";
+
 /** How long the icon grows before the route actually changes. */
 const OPEN_MS = 620;
 
@@ -46,21 +48,22 @@ export default function AppLauncher({
     }, [opening, router]);
 
     return (
-        <div className="min-h-dvh bg-[#f5f5f5]">
-            <header className="flex h-[88px] items-center justify-between border-b border-[#bccab8]/10 px-5 lg:px-8 bg-white">
+        <div className="min-h-dvh bg-[#f5f5f5] dark:bg-[#0f1219]">
+            <header className="flex h-16 sm:h-[88px] items-center justify-between border-0 px-4 sm:px-5 lg:px-8 bg-white dark:bg-[#1a1e29]">
                 <Link
                     href="/apps"
                     aria-label="FluxiBiz home"
-                    className="flex h-11 w-32 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+                    className="flex h-7 sm:h-9 w-auto min-w-max items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
                 >
-                    <BrandLogo variant="wordmark" alt="" preload />
+                    <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-8 w-auto shrink-0" />
                 </Link>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <ThemeToggle variant="icon" className="hidden sm:grid" />
                     <button
                         type="button"
                         aria-label="Notifications"
-                        className="relative grid size-8 place-items-center text-[#161d16] outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+                        className="relative grid size-8 place-items-center text-[#161d16] dark:text-[#f8fafc] outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
                     >
                         <Bell className="size-5" aria-hidden="true" />
                         <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-[#006b26]" />
@@ -71,11 +74,11 @@ export default function AppLauncher({
 
             <main className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
                 <header className="mb-10">
-                    <h1 className="text-[32px] leading-tight text-[#161d16]">
+                    <h1 className="text-[32px] leading-tight text-[#161d16] dark:text-[#f8fafc]">
                         <span className="font-semibold">Hello,</span>{" "}
                         {managerName.split(" ")[0]}
                     </h1>
-                    <p className="mt-1.5 text-[16px] text-[#3d4a3c]">
+                    <p className="mt-1.5 text-[16px] text-[#3d4a3c] dark:text-[#94a3b8]">
                         Choose an app to open.
                     </p>
                 </header>
@@ -93,7 +96,7 @@ export default function AppLauncher({
                         ))}
                     </ul>
                 ) : (
-                    <p className="rounded-[24px] bg-white px-6 py-10 text-center text-[15px] text-[#3d4a3c]">
+                    <p className="rounded-[24px] bg-white dark:bg-[#1a1e29] border-0 px-6 py-10 text-center text-[15px] text-[#3d4a3c] dark:text-[#94a3b8]">
                         No apps are available for your role yet. Ask an
                         administrator to review your permissions.
                     </p>
@@ -136,7 +139,7 @@ function AppTile({
                     size: badge.width,
                 });
             }}
-            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] px-7 pt-10 pb-9 text-center outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] border-0 bg-transparent px-7 pt-10 pb-9 text-center outline-none transition-transform duration-200 ease-out hover:scale-[1.05] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
         >
             <span
                 ref={badgeRef}
@@ -146,7 +149,7 @@ function AppTile({
             >
                 <Icon className="size-11" strokeWidth={1.8} />
             </span>
-            <span className="text-[21px] leading-[30px] text-[#161d16]">
+            <span className="text-[21px] font-normal leading-[30px] text-[#161d16] dark:text-[#f8fafc]">
                 {app.label.split(" ").map((word) => (
                     <span key={word} className="block">
                         {word}

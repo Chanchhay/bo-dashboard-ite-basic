@@ -45,19 +45,27 @@ export default function AppShell({
     }, [navOpen]);
 
     if (chromeless) {
-        return <div className="min-h-dvh bg-white">{children}</div>;
+        return <div className="min-h-dvh bg-white dark:bg-[#0f1219] text-foreground">{children}</div>;
     }
 
     return (
-        <div className="min-h-dvh bg-[#e8e8e6] lg:p-4">
+        <div className="min-h-dvh bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
             <a
                 href="#main-content"
-                className="sr-only rounded-lg bg-white px-4 py-2 text-[14px] text-[#16181c] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"
+                className="sr-only rounded-lg bg-white dark:bg-[#1e2330] px-4 py-2 text-[14px] text-[#16181c] dark:text-[#f8fafc] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"
             >
                 Skip to content
             </a>
 
-            <div className="flex min-h-dvh gap-0 bg-[#f7f7f6] lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px]">
+            {/*
+             * The border is deliberately a low-alpha white rather than a solid
+             * grey: at #242937 it was lighter than both the page behind it and
+             * the panel itself, so it read as a drawn outline instead of an
+             * edge. It also only applies from `lg`, where the panel is inset
+             * and rounded — below that the panel is full-bleed and the border
+             * was landing as a hairline against the viewport edge.
+             */}
+            <div className="flex min-h-dvh gap-0 bg-shell lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px] border border-transparent lg:dark:border-white/6 shadow-2xl dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)]">
                 <Sidebar
                     open={navOpen}
                     onClose={() => setNavOpen(false)}

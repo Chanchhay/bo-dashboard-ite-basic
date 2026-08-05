@@ -45,10 +45,10 @@ const DATE_FILTERS = ["Today", "7 days", "30 days", "All time"] as const;
 
 /** Status pill colours. Paid is the only success; pending is the only wait. */
 const STATUS_STYLES: Record<OrderStatus, string> = {
-    PAID: "bg-[#e7f6ea] text-[#00701f]",
-    PENDING: "bg-[#fff4d6] text-[#7a5600]",
-    CANCELLED: "bg-[#f0f0ee] text-[#5c6660]",
-    FAILED: "bg-[#fdeaea] text-[#a11212]",
+    PAID: "bg-success/10 text-success",
+    PENDING: "bg-warning/15 text-warning",
+    CANCELLED: "bg-muted text-muted-foreground",
+    FAILED: "bg-danger/10 text-danger",
 };
 
 export default function SalesOrdersPage() {
@@ -74,12 +74,12 @@ export default function SalesOrdersPage() {
                 <Stat label="Pending" value="0" />
             </section>
 
-            <section className="rounded-2xl border border-[#e2e2de] bg-white">
-                <div className="flex flex-wrap items-center gap-2 border-b border-[#e2e2de] p-4">
+            <section className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
-                            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8a8f89]"
+                            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                             aria-hidden="true"
                         />
                         <input
@@ -87,7 +87,7 @@ export default function SalesOrdersPage() {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Search invoice or customer"
-                            className="h-10 w-full rounded-xl border border-[#e2e2de] bg-white pr-3 pl-9 text-[14px] text-[#16181c] outline-none placeholder:text-[#8a8f89] focus-visible:border-[#00932a] focus-visible:ring-2 focus-visible:ring-[#00932a]/25"
+                            className="h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
                         />
                     </label>
 
@@ -112,7 +112,7 @@ export default function SalesOrdersPage() {
                 </div>
 
                 {isLoading ? (
-                    <p className="p-10 text-center text-[14px] text-[#8a8f89]">
+                    <p className="p-10 text-center text-[14px] text-muted-foreground">
                         Loading orders…
                     </p>
                 ) : orders.length === 0 ? (
@@ -158,22 +158,22 @@ function OrderRow({ order }: { order: Order }) {
 
     return (
         <TableRow>
-            <TableCell className="font-medium text-[#16181c]">
+            <TableCell className="font-medium text-foreground">
                 {order.invoice_number ?? "—"}
             </TableCell>
-            <TableCell className="text-[#5c6660]">
+            <TableCell className="text-muted-foreground">
                 {formatOrderDate(order.created_at)}
             </TableCell>
-            <TableCell className="text-[#5c6660]">
+            <TableCell className="text-muted-foreground">
                 {CHANNEL_LABELS[order.channel]}
             </TableCell>
-            <TableCell className="text-[#5c6660]">
+            <TableCell className="text-muted-foreground">
                 {order.cashier_id ?? "—"}
             </TableCell>
-            <TableCell className="text-right tabular-nums text-[#5c6660]">
+            <TableCell className="text-right tabular-nums text-muted-foreground">
                 {itemCount}
             </TableCell>
-            <TableCell className="text-right font-semibold tabular-nums text-[#16181c]">
+            <TableCell className="text-right font-semibold tabular-nums text-foreground">
                 {formatCurrency(order.total)}
             </TableCell>
             <TableCell>
@@ -209,9 +209,9 @@ function formatOrderDate(value: string) {
 
 function Stat({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-2xl border border-[#e2e2de] bg-white p-4">
-            <p className="text-[13px] text-[#5c6660]">{label}</p>
-            <p className="mt-1 text-[22px] font-semibold tabular-nums text-[#16181c]">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <p className="text-[13px] text-muted-foreground">{label}</p>
+            <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">
                 {value}
             </p>
         </div>
@@ -237,7 +237,7 @@ function FilterGroup<T extends string>({
         <div
             role="group"
             aria-label={label}
-            className="flex items-center gap-1 rounded-xl bg-[#f0f0ee] p-1"
+            className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-none rounded-xl bg-muted p-1 border border-transparent dark:border-border shrink-0"
         >
             {options.map((option) => (
                 <button
@@ -245,10 +245,10 @@ function FilterGroup<T extends string>({
                     type="button"
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
-                    className={`rounded-lg px-2.5 py-1.5 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#00932a] ${
+                    className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
                         value === option
-                            ? "bg-white font-medium text-[#16181c] shadow-[0_1px_2px_rgba(22,24,28,.08)]"
-                            : "text-[#5c6660] hover:text-[#16181c]"
+                            ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                            : "text-muted-foreground hover:text-foreground hover:text-foreground"
                     }`}
                 >
                     {option === "ALL" ? "All" : option}
@@ -261,11 +261,11 @@ function FilterGroup<T extends string>({
 function EmptyState() {
     return (
         <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-            <Receipt className="size-8 text-[#c4c9c3]" aria-hidden="true" />
-            <p className="text-[15px] font-medium text-[#16181c]">
+            <Receipt className="size-8 text-muted-foreground" aria-hidden="true" />
+            <p className="text-[15px] font-medium text-foreground">
                 No orders yet
             </p>
-            <p className="max-w-80 text-[14px] text-[#5c6660]">
+            <p className="max-w-80 text-[14px] text-muted-foreground">
                 Orders appear here as soon as your first sale is completed.
             </p>
         </div>

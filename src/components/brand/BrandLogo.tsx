@@ -10,11 +10,13 @@ const LOGOS = {
     },
     wordmark: {
         src: "/brand/fluxibiz-wordmark.png",
-        width: 1400,
-        height: 326,
+        darkSrc: "/brand/fluxibiz-dark.png",
+        width: 500,
+        height: 150,
     },
     stacked: {
         src: "/brand/fluxibiz-stacked.png",
+        darkSrc: "/brand/fluxibiz-stacked-dark.png",
         width: 908,
         height: 910,
     },
@@ -35,6 +37,29 @@ export default function BrandLogo({
 }) {
     const logo = LOGOS[variant];
 
+    if ("darkSrc" in logo && logo.darkSrc) {
+        return (
+            <>
+                <Image
+                    src={logo.src}
+                    width={logo.width}
+                    height={logo.height}
+                    alt={alt}
+                    preload={preload}
+                    className={cn("block dark:hidden h-full w-auto max-h-full max-w-full object-contain shrink-0", className)}
+                />
+                <Image
+                    src={logo.darkSrc}
+                    width={logo.width}
+                    height={logo.height}
+                    alt={alt}
+                    preload={preload}
+                    className={cn("hidden dark:block h-full w-auto max-h-full max-w-full object-contain shrink-0", className)}
+                />
+            </>
+        );
+    }
+
     return (
         <Image
             src={logo.src}
@@ -42,7 +67,7 @@ export default function BrandLogo({
             height={logo.height}
             alt={alt}
             preload={preload}
-            className={cn("block h-auto object-contain", className)}
+            className={cn("block h-full w-auto max-h-full max-w-full object-contain", className)}
         />
     );
 }
