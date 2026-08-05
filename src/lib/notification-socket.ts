@@ -10,12 +10,15 @@ export interface SocketConnectParams {
     receiverId?: string;
 }
 
-type WsCredentials = { accessToken: string; subject: string | null };
+type WsCredentials = {
+    accessToken: string | null;
+    subject: string | null;
+    wsUrl: string | null;
+};
 
 /*
- * Resolved once per connect (and again on every reconnect, since the token
- * expires). Returns null when the user is not signed in — the caller still
- * connects, it just won't get user-routed messages.
+ * Resolved once per connect and again on every reconnect, since the token
+ * expires. Returns null when the user is not signed in.
  */
 async function fetchCredentials(): Promise<WsCredentials | null> {
     try {
@@ -31,30 +34,28 @@ async function fetchCredentials(): Promise<WsCredentials | null> {
     }
 }
 
-function getWsConfig(): { brokerURL?: string; webSocketFactory?: () => any } {
-    /*
-     * NEXT_PUBLIC_WS_URL is the configured answer and is honoured everywhere,
-     * localhost included. It used to be overridden by a hardcoded
-     * http://localhost:8080 whenever the page was served from localhost, so a
-     * dev pointing at a deployed backend silently got no realtime at all.
-     */
-    const customUrl = process.env.NEXT_PUBLIC_WS_URL?.trim();
+/*
+ * The server-derived URL wins. It comes from API_BASE_URL — the same backend
+ * the REST proxy posts notifications to — and the socket has to match it,
+ * because each backend publishes to its own in-process broker. A separately
+ * configured NEXT_PUBLIC_WS_URL is what let the two drift apart (socket on the
+ * deployed API, notifications being created on a local one), which looks
+ * exactly like "realtime is broken": connected, subscribed, silent.
+ */
+function getWsConfig(resolvedUrl: string | null): {
+    brokerURL?: string;
+    webSocketFactory?: () => any;
+} {
+    const url =
+        resolvedUrl ||
+        process.env.NEXT_PUBLIC_WS_URL?.trim() ||
+        "http://localhost:8080/ws/notifications-sockjs";
 
-    if (customUrl) {
-        if (customUrl.startsWith("ws://") || customUrl.startsWith("wss://")) {
-            return { brokerURL: customUrl };
-        }
-        return { webSocketFactory: () => new SockJS(customUrl) };
+    if (url.startsWith("ws://") || url.startsWith("wss://")) {
+        return { brokerURL: url };
     }
 
-    const apiBase =
-        process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8080";
-    const cleanBase = apiBase.replace(/\/+$/, "");
-
-    return {
-        webSocketFactory: () =>
-            new SockJS(`${cleanBase}/ws/notifications-sockjs`),
-    };
+    return { webSocketFactory: () => new SockJS(url) };
 }
 
 class NotificationSocketService {
@@ -136,7 +137,24 @@ class NotificationSocketService {
         if (this.isConnecting) return;
 
         this.isConnecting = true;
-        const wsConfig = getWsConfig();
+        void this.openClient();
+    }
+
+    /*
+     * Split out because the socket URL is only known after asking the server,
+     * so the client cannot be constructed synchronously.
+     */
+    private async openClient(): Promise<void> {
+        const credentials = await fetchCredentials();
+
+        // disconnect() may have landed while the fetch was in flight.
+        if (!this.isConnecting) return;
+
+        if (credentials?.subject) {
+            this.subject = credentials.subject;
+        }
+
+        const wsConfig = getWsConfig(credentials?.wsUrl ?? null);
 
         const client = new Client({
             ...wsConfig,
@@ -151,22 +169,27 @@ class NotificationSocketService {
         });
 
         /*
-         * Runs before the initial CONNECT and before every reconnect, which is
-         * what makes this survive token expiry: each attempt gets a freshly
-         * minted token rather than the one captured at page load.
+         * Re-runs before every reconnect, so a long-lived tab reconnects with
+         * a freshly minted token instead of the one captured at page load.
+         * The URL is deliberately not re-read here — stompjs has already built
+         * the socket factory by this point.
          */
         client.beforeConnect = async () => {
-            const credentials = await fetchCredentials();
-            const token = credentials?.accessToken ?? this.params.token;
+            const fresh = await fetchCredentials();
+            const token = fresh?.accessToken ?? this.params.token;
 
-            if (credentials?.subject) {
-                this.subject = credentials.subject;
+            if (fresh?.subject) {
+                this.subject = fresh.subject;
             }
 
             client.connectHeaders = token
                 ? { Authorization: `Bearer ${token}` }
                 : {};
         };
+
+        client.connectHeaders = credentials?.accessToken
+            ? { Authorization: `Bearer ${credentials.accessToken}` }
+            : {};
 
         client.onConnect = () => {
             this.isConnecting = false;

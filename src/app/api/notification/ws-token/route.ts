@@ -3,17 +3,32 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth/auth";
 
 /*
- * The REST side never needs this: `backendRequest` runs on the server and
- * attaches the Keycloak token itself. The notification socket is the one place
- * the browser talks to the backend directly, so it needs a token of its own —
- * without one the STOMP session has no Principal and the backend can never
- * route `/user/queue/**` (which is how per-receiver alerts are addressed).
+ * Hands the browser what it needs to open the notification socket itself —
+ * the one place it talks to the backend directly instead of through
+ * `backendRequest`.
  *
- * The access token is short-lived and already scoped to this user, so handing
- * it to that user's own tab adds no reach they didn't have. `subject` comes
- * back alongside it because the backend identifies receivers by the Keycloak
- * subject, which is not the same value as Better Auth's local `user.id`.
+ * `wsUrl` is the important part. It is derived from API_BASE_URL, the same
+ * variable the REST proxy uses, because the two MUST address the same backend:
+ * notifications are created over REST and published to that instance's
+ * in-process SimpleBroker. Point the socket somewhere else and it subscribes
+ * to a broker that will never see them. That is exactly what a separately
+ * configured NEXT_PUBLIC_WS_URL caused.
+ *
+ * The token is sent for when the backend grows a STOMP auth interceptor (it
+ * has none today, so the CONNECT frame is anonymous and `/user/queue/**` never
+ * routes — delivery rides on `/topic/notifications` instead). It is
+ * short-lived and already scoped to this user, so handing it to that user's
+ * own tab adds no reach they didn't have.
  */
+
+/** Mirrors `getApiBaseUrl` in lib/api/backend.ts — the REST target. */
+function getSocketUrl(): string | null {
+    const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, "");
+
+    if (!baseUrl) return null;
+
+    return `${baseUrl}/ws/notifications-sockjs`;
+}
 
 /** Reads the `sub` claim without verifying — the backend still verifies the token. */
 function readSubject(accessToken: string): string | null {
@@ -41,30 +56,30 @@ export async function GET() {
         return Response.json({ message: "Not authenticated." }, { status: 401 });
     }
 
+    /*
+     * A token failure is not fatal here. Delivery currently rides on the
+     * unauthenticated `/topic/notifications` broadcast, so the socket is still
+     * worth opening without one — failing the whole request would take
+     * realtime down for a problem it does not actually depend on.
+     */
+    let accessToken: string | null = null;
+
     try {
         const tokens = await auth.api.getAccessToken({
             headers: requestHeaders,
             body: { providerId: "keycloak" },
         });
-
-        if (!tokens.accessToken) {
-            return Response.json(
-                { message: "No Keycloak access token available." },
-                { status: 401 },
-            );
-        }
-
-        return Response.json(
-            {
-                accessToken: tokens.accessToken,
-                subject: readSubject(tokens.accessToken),
-            },
-            { headers: { "Cache-Control": "no-store" } },
-        );
+        accessToken = tokens.accessToken ?? null;
     } catch {
-        return Response.json(
-            { message: "Unable to refresh the Keycloak access token." },
-            { status: 401 },
-        );
+        accessToken = null;
     }
+
+    return Response.json(
+        {
+            accessToken,
+            subject: accessToken ? readSubject(accessToken) : null,
+            wsUrl: getSocketUrl(),
+        },
+        { headers: { "Cache-Control": "no-store" } },
+    );
 }
