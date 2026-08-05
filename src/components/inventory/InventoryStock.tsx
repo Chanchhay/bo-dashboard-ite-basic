@@ -38,14 +38,14 @@ function metricCard(
     const Icon = icon;
 
     return (
-        <div className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)]">
+        <div className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div
                 className={`grid size-10 place-items-center rounded-xl ${accent}`}
             >
                 <Icon className="size-5" />
             </div>
-            <p className="mt-4 text-sm text-[#657064]">{label}</p>
-            <p className="mt-1 text-2xl font-semibold text-[#161d16]">
+            <p className="mt-4 text-sm text-[#657064] dark:text-[#94a3b8]">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-[#161d16] dark:text-[#f8fafc]">
                 {value}
             </p>
         </div>
@@ -135,10 +135,10 @@ export function InventoryStock() {
                     <Button
                         render={<Link href="/inventory/stock/adjust" />}
                         nativeButton={false}
-                        size="lg"
+                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                     >
-                        <SlidersHorizontal />
-                        Adjust stock
+                        <SlidersHorizontal className="size-4 shrink-0" />
+                        <span>Adjust stock</span>
                     </Button>
                 }
             />
@@ -148,32 +148,32 @@ export function InventoryStock() {
                     "Total items",
                     String(items.length),
                     Boxes,
-                    "bg-primary/10 text-primary",
+                    "bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]",
                 )}
                 {metricCard(
                     "Inventory value",
                     formatMoney(inventoryValue),
                     CircleDollarSign,
-                    "bg-secondary/20 text-[#8a6500]",
+                    "bg-[#feb90d]/15 dark:bg-[#feb90d]/20 text-[#8a6500] dark:text-[#feb90d]",
                 )}
                 {metricCard(
                     "Low stock",
                     String(lowStock.length),
                     AlertTriangle,
-                    "bg-[#fff4d6] text-[#9a6900]",
+                    "bg-[#fff4d6] dark:bg-[#f59e0b]/20 text-[#9a6900] dark:text-[#fbbf24]",
                 )}
                 {metricCard(
                     "Out of stock",
                     String(outOfStock.length),
                     PackageX,
-                    "bg-accent/10 text-brand-red",
+                    "bg-accent/10 dark:bg-[#d14341]/20 text-accent dark:text-[#f87171]",
                 )}
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="flex flex-col gap-3 border-b border-[#edf0ec] dark:border-[#242937] p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h2 className="font-semibold text-[#161d16]">
+                        <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                             Current stock
                         </h2>
                         <p className="mt-1 text-sm text-[#657064]">
@@ -296,12 +296,12 @@ export function InventoryStock() {
                 )}
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                <div className="border-b border-[#edf0ec] px-5 py-4">
-                    <h2 className="font-semibold text-[#161d16]">
+            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="border-b border-[#edf0ec] dark:border-[#242937] px-5 py-4">
+                    <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                         Recent stock activity
                     </h2>
-                    <p className="mt-1 text-sm text-[#657064]">
+                    <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                         Latest entries returned by the stock-entry API.
                     </p>
                 </div>

@@ -221,16 +221,16 @@ export function StockAdjustmentForm() {
                 }
             />
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start gap-4">
                     <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <SlidersHorizontal className="size-5" />
                     </span>
                     <div>
-                        <h2 className="text-lg font-semibold text-[#161d16]">
+                        <h2 className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
                             Stock entry information
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                             Enter the quantity and any tracking details for
                             this stock change.
                         </p>
@@ -238,7 +238,7 @@ export function StockAdjustmentForm() {
                 </div>
 
                 {items.length === 0 ? (
-                    <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-[#6d5600]">
+                    <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-[#6d5600] dark:text-[#fcd34d]">
                         Create an item before adding stock.
                     </div>
                 ) : (
@@ -502,28 +502,26 @@ export function StockAdjustmentForm() {
                 </p>
             ) : null}
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button
                     variant="outline"
                     render={<Link href="/inventory/stock" />}
                     nativeButton={false}
-                    className="h-11 px-6"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={createState.isLoading || items.length === 0}
-                    size="lg"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     {createState.isLoading ? (
-                        <LoaderCircle className="animate-spin" />
-                    ) : (
-                        <Save />
-                    )}
-                    Save stock entry
+                        <LoaderCircle className="size-4 animate-spin shrink-0" />
+                    ) : null}
+                    <span>Save adjustment</span>
                 </Button>
-                </div>
+            </div>
             </form>
             <BarcodeScannerDialog
                 open={scannerOpen}

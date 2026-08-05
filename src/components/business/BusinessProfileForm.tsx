@@ -7,7 +7,7 @@ import {
     type ReactNode,
 } from "react";
 import Image from "next/image";
-import { Image as ImageIcon } from "lucide-react";
+import { Camera, Image as ImageIcon } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ function Field({ label, name, error, children }: FieldProps) {
         <div className="flex min-w-0 flex-col gap-2.5">
             <Label
                 htmlFor={name}
-                className="pl-1 text-base leading-[16.5px] font-semibold text-[#424841]"
+                className="pl-1 text-base leading-[16.5px] font-semibold text-[#424841] dark:text-[#cbd5e1]"
             >
                 {label}
             </Label>
@@ -85,10 +85,10 @@ function Field({ label, name, error, children }: FieldProps) {
 function SectionTitle({ children }: { children: ReactNode }) {
     return (
         <div className="flex flex-col gap-1.5">
-            <h2 className="pl-1 text-base leading-6 font-bold text-[#020409] uppercase">
+            <h2 className="pl-1 text-base leading-6 font-bold text-[#020409] dark:text-[#f8fafc] uppercase">
                 {children}
             </h2>
-            <span className="h-0.5 w-8 bg-[rgba(67,103,70,0.3)]" />
+            <span className="h-0.5 w-8 bg-[rgba(67,103,70,0.3)] dark:bg-[#10b981]" />
         </div>
     );
 }
@@ -194,14 +194,14 @@ function StagedImageField({
             onPick={staged.pick}
             onError={staged.setError}
             actions={
-                <div className="flex flex-col items-center gap-1">
+                <div className="flex flex-col items-center gap-1.5 py-1">
                     {staged.file ? (
-                        <p className="text-center text-[10px] leading-4 text-[#6b7280]">
+                        <p className="text-center text-[11px] leading-4 text-[#6b7280] dark:text-[#94a3b8]">
                             {staged.file.name} — uploads when you save.
                         </p>
                     ) : null}
                     {staged.removed ? (
-                        <p className="text-center text-[10px] leading-4 text-[#6b7280]">
+                        <p className="text-center text-[11px] leading-4 text-[#6b7280] dark:text-[#94a3b8]">
                             {noun} removed — applies when you save.
                         </p>
                     ) : null}
@@ -214,7 +214,7 @@ function StagedImageField({
                             onClick={
                                 staged.isDirty ? staged.reset : staged.remove
                             }
-                            className="h-auto px-0 text-[11px] text-[#6b7280]"
+                            className="h-auto px-2 py-1 text-xs font-medium text-[#4b5563] dark:text-[#94a3b8] hover:text-primary dark:hover:text-[#10b981]"
                         >
                             {staged.isDirty
                                 ? `Undo ${noun.toLowerCase()} change`
@@ -350,9 +350,9 @@ function BusinessProfileEditor({
             ref={formRef}
             onSubmit={handleSubmit}
             noValidate
-            className="flex min-h-[847px] flex-col gap-6 rounded-xl bg-white p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
+            className="flex min-h-0 flex-col gap-4 sm:gap-5 rounded-xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-4 sm:p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
         >
-            <div className="grid gap-[30px] xl:grid-cols-[303px_minmax(0,1fr)]">
+            <div className="grid gap-6 xl:gap-[30px] xl:grid-cols-[303px_minmax(0,1fr)]">
                 <div className="flex flex-col gap-4">
                     <StagedImageField
                         staged={logo}
@@ -362,7 +362,7 @@ function BusinessProfileEditor({
                         noun="Logo"
                         previewShape="circle"
                         preview={
-                            <span className="flex size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8]">
+                            <span className="flex size-24 sm:size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8] dark:bg-[#252a38]">
                                 {logo.preview ? (
                                     // The API supplies this URL dynamically and the local preview uses a blob URL.
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -372,20 +372,14 @@ function BusinessProfileEditor({
                                         className="size-full object-cover"
                                     />
                                 ) : (
-                                    <Image
-                                        src={asset("camera.svg")}
-                                        alt=""
-                                        width={33}
-                                        height={30}
-                                        className="h-[30px] w-[33px]"
-                                    />
+                                    <Camera className="size-7 sm:size-9 text-primary dark:text-[#10b981]" />
                                 )}
                             </span>
                         }
                     />
                 </div>
 
-                <section className="rounded-2xl bg-white/90 px-6">
+                <section className="rounded-2xl bg-white/90 dark:bg-[#1e2330]/50 px-4 py-4 sm:px-6 sm:py-5">
                     <SectionTitle>Business Identity</SectionTitle>
 
                     <div className="mt-5 grid gap-x-4 gap-y-5 md:grid-cols-2">
@@ -463,10 +457,10 @@ function BusinessProfileEditor({
                 </section>
             </div>
 
-            <section className="flex flex-col gap-4 rounded-2xl py-6">
+            <section className="flex flex-col gap-4 rounded-2xl pt-2 pb-0 sm:pt-3 sm:pb-0">
                 <SectionTitle>Contact Information</SectionTitle>
 
-                <div className="grid gap-10 lg:grid-cols-2">
+                <div className="grid gap-5 lg:gap-10 lg:grid-cols-2">
                     <div className="flex flex-col gap-3">
                         <Field
                             label="Email Address"
@@ -556,38 +550,41 @@ function BusinessProfileEditor({
                 </div>
             </section>
 
-            <div className="mt-auto flex min-h-[105px] flex-col items-end justify-end gap-3 pt-2 sm:flex-row">
-                <div className="mr-auto min-h-6" aria-live="polite">
-                    {status ? (
+            <div className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center sm:justify-between">
+                {status ? (
+                    <div aria-live="polite" className="text-left">
                         <p
                             className={
                                 status.type === "success"
-                                    ? "text-sm text-primary"
+                                    ? "text-sm text-primary dark:text-[#10b981]"
                                     : "text-sm text-accent"
                             }
                             role={status.type === "error" ? "alert" : "status"}
                         >
                             {status.message}
                         </p>
-                    ) : null}
+                    </div>
+                ) : null}
+                <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto">
+                    <Button
+                        type="button"
+                        onClick={handleCancel}
+                        disabled={isLoading}
+                        variant="outline"
+                        size="lg"
+                        className="flex-1 sm:flex-initial min-w-[100px]"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        size="lg"
+                        className="flex-1 sm:flex-initial min-w-[121px]"
+                    >
+                        {isLoading ? "Saving…" : "Save"}
+                    </Button>
                 </div>
-                <Button
-                    type="button"
-                    onClick={handleCancel}
-                    disabled={isLoading}
-                    variant="outline"
-                    size="lg"
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="submit"
-                    disabled={isLoading}
-                    size="lg"
-                    className="min-w-[121px]"
-                >
-                    {isLoading ? "Saving…" : "Save"}
-                </Button>
             </div>
         </form>
     );
@@ -629,7 +626,7 @@ export default function BusinessProfileForm() {
     if (businessQuery.isLoading) {
         return (
             <div
-                className="min-h-[847px] animate-pulse rounded-xl bg-[#f7f8f7]"
+                className="min-h-[847px] animate-pulse rounded-xl bg-[#f7f8f7] dark:bg-[#1a1e29] border border-transparent dark:border-[#242937]"
                 aria-label="Loading business profile"
             />
         );

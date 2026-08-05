@@ -89,24 +89,24 @@ body {
 }
 
 .dark {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --card: #171717;
-    --card-foreground: #ededed;
-    --popover: #171717;
-    --popover-foreground: #ededed;
+    --background: #0f1219;
+    --foreground: #f8fafc;
+    --card: #1a1e29;
+    --card-foreground: #f8fafc;
+    --popover: #1e2330;
+    --popover-foreground: #f8fafc;
     --primary: #00932a;
     --primary-foreground: #ffffff;
-    --secondary: #262626;
-    --secondary-foreground: #ededed;
-    --muted: #262626;
-    --muted-foreground: #a1a1aa;
-    --accent: #262626;
-    --accent-foreground: #ededed;
+    --secondary: #252a38;
+    --secondary-foreground: #f8fafc;
+    --muted: #252a38;
+    --muted-foreground: #94a3b8;
+    --accent: #252a38;
+    --accent-foreground: #f8fafc;
     --destructive: #d14341;
     --destructive-foreground: #ffffff;
-    --border: #262626;
-    --input: #333333;
+    --border: #262c3b;
+    --input: #262c3b;
     --ring: #00932a;
 }
 
@@ -156,12 +156,48 @@ body {
     }
 }
 
-.scrollbar-hide {
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.animate-toast-in {
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hide scrollbars globally across WebKit, Blink, Firefox, and IE/Edge */
+*,
+*::before,
+*::after,
+html,
+body {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.scrollbar-hide,
+.scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-hide::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 @media print {

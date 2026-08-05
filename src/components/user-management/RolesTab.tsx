@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
     EmptyState,
@@ -45,6 +46,7 @@ export default function RolesTab() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [nameError, setNameError] = useState<string | undefined>();
     const [formError, setFormError] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<BusinessRole | null>(null);
 
     const roles = rolesQuery.data || [];
 
@@ -148,26 +150,16 @@ export default function RolesTab() {
         }
     }
 
-    async function remove(role: BusinessRole) {
-        const assigned = assignedCounts.get(role.id) || 0;
-        const warning = assigned
-            ? ` ${assigned} user${assigned === 1 ? "" : "s"} will lose it.`
-            : "";
-
-        if (
-            !window.confirm(
-                `Delete ${role.name || "this role"}?${warning} This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteRole(role.id).unwrap();
+            await deleteRole(deleteTarget.id).unwrap();
             toast({
                 title: "Role deleted",
-                description: role.name || undefined,
+                description: deleteTarget.name || undefined,
             });
+            setDeleteTarget(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -232,9 +224,9 @@ export default function RolesTab() {
                         </div>
 
                         <div className="flex flex-col gap-4">
-                            <p className="text-[13px] font-medium text-[#16181c]">
+                            <p className="text-[13px] font-semibold text-[#16181c] dark:text-[#f8fafc]">
                                 Permissions
-                                <span className="ml-2 font-normal text-[#8a8f89]">
+                                <span className="ml-2 font-normal text-[#8a8f89] dark:text-[#94a3b8]">
                                     {selected.size} selected
                                 </span>
                             </p>
@@ -251,18 +243,20 @@ export default function RolesTab() {
                                     return (
                                         <fieldset
                                             key={group.id}
-                                            className="rounded-2xl border border-[#e2e2de] p-4"
+                                            className="rounded-2xl border border-[#e2e2de] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] p-4 shadow-xs dark:shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
                                         >
-                                            <legend className="flex items-center gap-3 px-1 text-[14px] text-[#16181c]">
+                                            <legend className="flex items-center gap-3 px-2 text-[14px] font-bold text-[#16181c] dark:text-[#f8fafc]">
                                                 {group.label}
                                             </legend>
 
                                             <Button
                                                 type="button"
+                                                size="xs"
+                                                variant={allOn ? "outline" : "default"}
                                                 onClick={() =>
                                                     toggleGroup(values, allOn)
                                                 }
-                                                className="mb-3 rounded-lg text-[12px] text-white outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                                                className="mb-3.5 rounded-lg text-[12px] font-medium transition-all"
                                             >
                                                 {allOn
                                                     ? "Clear all"
@@ -276,7 +270,7 @@ export default function RolesTab() {
                                                             key={
                                                                 permission.value
                                                             }
-                                                            className="flex items-center gap-2 text-[14px] text-[#5c6660]"
+                                                            className="flex items-center gap-2 text-[14px] font-medium text-[#424841] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] cursor-pointer select-none transition-colors"
                                                         >
                                                             <input
                                                                 type="checkbox"
@@ -288,7 +282,7 @@ export default function RolesTab() {
                                                                         permission.value,
                                                                     )
                                                                 }
-                                                                className="size-4 rounded border-[#c9cbc6] accent-[#00932a]"
+                                                                className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-[#00932a] dark:accent-[#10b981] cursor-pointer"
                                                             />
                                                             {permission.label}
                                                         </label>
@@ -342,10 +336,10 @@ export default function RolesTab() {
                         <Button
                             type="button"
                             onClick={() => openEditor({ mode: "create" })}
-
+                            className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
-                            <Plus className="size-4" aria-hidden="true" />
-                            Create role
+                            <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                            <span>Create role</span>
                         </Button>
                     }
                 />
@@ -374,14 +368,14 @@ export default function RolesTab() {
                             return (
                                 <li
                                     key={role.id}
-                                    className="rounded-2xl border border-[#e2e2de] p-5"
+                                    className="rounded-2xl border border-[#e2e2de] dark:border-[#242937] bg-white/50 dark:bg-[#151821] p-5 shadow-xs dark:shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-4">
                                         <div>
-                                            <p className="text-[16px] text-[#16181c]">
+                                            <p className="text-[16px] font-semibold text-[#16181c] dark:text-[#f8fafc]">
                                                 {role.name || role.id}
                                             </p>
-                                            <p className="mt-0.5 text-[13px] text-[#8a8f89]">
+                                            <p className="mt-0.5 text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
                                                 {permissions.length} permission
                                                 {permissions.length === 1
                                                     ? ""
@@ -412,7 +406,7 @@ export default function RolesTab() {
                                             </Button>
                                             <Button
                                                 type="button"
-                                                onClick={() => remove(role)}
+                                                onClick={() => setDeleteTarget(role)}
                                                 aria-label={`Delete ${role.name || "role"}`}
                                                 variant="destructive"
                                                     size="icon-sm"
@@ -430,7 +424,7 @@ export default function RolesTab() {
                                             {permissions.map((permission) => (
                                                 <li
                                                     key={permission}
-                                                    className="rounded-lg bg-[#f2f3f1] px-2.5 py-1 text-[12px] text-[#5c6660]"
+                                                    className="rounded-lg bg-[#f2f3f1] dark:bg-[#252a38] border border-transparent dark:border-[#2a3042] px-2.5 py-1 text-[12px] font-medium text-[#5c6660] dark:text-[#cbd5e1]"
                                                 >
                                                     {describePermission(
                                                         permission,
@@ -451,6 +445,32 @@ export default function RolesTab() {
                     </p>
                 )}
             </Panel>
+
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget ? `Delete ${deleteTarget.name || "role"}?` : "Delete role?"}
+                description={
+                    deleteTarget ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {deleteTarget.name || "this role"}
+                            </strong>
+                            ? {assignedCounts.get(deleteTarget.id) ? `${assignedCounts.get(deleteTarget.id)} user(s) assigned to this role will lose it. ` : ""}
+                            This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this role? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                onConfirm={handleConfirmDelete}
+            />
         </div>
     );
 }
