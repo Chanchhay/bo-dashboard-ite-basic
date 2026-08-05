@@ -254,7 +254,7 @@ export function NotificationMenu({ className }: { className?: string }) {
                 <div ref={scrollContainerRef} className="max-h-[460px] overflow-y-auto">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-12 gap-3 text-[#657064] dark:text-[#94a3b8]">
-                            <Loader2 className="size-7 animate-spin text-[#00932a]" />
+                            <Loader2 className="size-7 animate-spin text-[#00932a] dark:text-[#00b032]" />
                             <p className="text-base font-semibold">Loading notifications...</p>
                         </div>
                     )}
@@ -302,16 +302,16 @@ export function NotificationMenu({ className }: { className?: string }) {
                             </div>
 
                             {filter === "ALL" && hasMore && (
-                                <div className="p-4 text-center border-t border-[#edf0ec] bg-[#fafbfa]">
+                                <div className="p-4 text-center border-t border-[#edf0ec] dark:border-[#242937] bg-[#fafbfa] dark:bg-[#151821]">
                                     <button
                                         type="button"
                                         onClick={handleLoadMore}
                                         disabled={isFetching}
-                                        className="w-full py-3 px-5 text-base font-bold text-[#00932a] bg-white border border-[#e4eae2] hover:bg-[#f2f7f2] rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                                        className="w-full py-3 px-5 text-base font-bold text-[#00932a] dark:text-[#00b032] bg-white dark:bg-[#252a38] border border-[#e4eae2] dark:border-[#242937] hover:bg-[#f2f7f2] dark:hover:bg-[#2a3042] rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-[#00932a]"
                                     >
                                         {isFetching ? (
                                             <>
-                                                <Loader2 className="size-5 animate-spin text-[#00932a]" />
+                                                <Loader2 className="size-5 animate-spin text-[#00932a] dark:text-[#00b032]" />
                                                 <span>Loading previous notifications...</span>
                                             </>
                                         ) : (
@@ -326,8 +326,8 @@ export function NotificationMenu({ className }: { className?: string }) {
 
                 {/* Footer */}
                 {notifications.length > 0 && unreadCount === 0 && (
-                    <div className="flex items-center justify-center px-5 py-3 border-t border-[#edf0ec] bg-[#fafbfa] text-sm font-bold">
-                        <span className="flex items-center gap-2 text-emerald-600">
+                    <div className="flex items-center justify-center px-5 py-3 border-t border-[#edf0ec] dark:border-[#242937] bg-[#fafbfa] dark:bg-[#151821] text-sm font-bold">
+                        <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                             <CheckCheck className="size-4.5" /> All caught up
                         </span>
                     </div>
@@ -432,7 +432,7 @@ function NotificationItem({
 
     if (notification.deepLink) {
         return (
-            <Link href={href} className="block outline-none focus-visible:bg-[#eaf4ea]">
+            <Link href={href} className="block outline-none focus-visible:bg-[#eaf4ea] dark:focus-visible:bg-[#00932a]/15">
                 {innerContent}
             </Link>
         );
