@@ -71,7 +71,7 @@ export default function UserManagement({
                             tabIndex={selected ? 0 : -1}
                             onClick={() => setActive(tab.id)}
                             className={cn(
-                                "flex min-w-0 w-full items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-1.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[14px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#00932a] sm:w-auto sm:min-w-max",
+                                "flex min-w-0 w-full items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-1.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[14px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary sm:w-auto sm:min-w-max",
                                 selected
                                     ? "bg-[#f2f3f1] dark:bg-[#252a38] text-[#16181c] dark:text-[#f8fafc] shadow-sm"
                                     : "text-[#8a8f89] dark:text-[#94a3b8] hover:text-[#16181c] dark:hover:text-[#f8fafc]",
@@ -80,7 +80,7 @@ export default function UserManagement({
                             <Icon
                                 className={cn(
                                     "size-3.5 sm:size-4 shrink-0",
-                                    selected ? "text-[#00932a] dark:text-[#10b981]" : "dark:text-[#94a3b8]",
+                                    selected ? "text-primary" : "dark:text-[#94a3b8]",
                                 )}
                                 aria-hidden="true"
                             />

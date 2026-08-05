@@ -1,15 +1,14 @@
-import { ThemeProvider } from "@/components/dark-mode/theme-provider";
-
+/**
+ * Light theme for these routes is forced by the root ThemeProvider, which is
+ * the only provider next-themes honours — a second one here renders as a
+ * passthrough and would silently do nothing.
+ */
 export default function PosLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider attribute="class" forcedTheme="light">
-      <div className="light min-h-screen bg-background text-foreground">
-        {children}
-      </div>
-    </ThemeProvider>
+    <div className="min-h-screen bg-background text-foreground">{children}</div>
   );
 }

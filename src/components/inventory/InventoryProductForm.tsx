@@ -60,6 +60,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
     inventoryItemSchema,
@@ -117,7 +118,7 @@ function Field({ label, name, error, children }: FieldProps) {
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -337,6 +338,7 @@ function ProductEditor({
     initialItem?: InventoryItem;
 }) {
     const router = useRouter();
+    const { toast } = useToast();
     const { data: groups, error: groupsError } =
         useGetItemGroupsQuery();
     const { data: units, error: unitsError } =
@@ -386,7 +388,6 @@ function ProductEditor({
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    const [status, setStatus] = useState<string | null>(null);
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [deleteImage, deleteImageState] = useDeleteItemImageMutation();
@@ -433,12 +434,16 @@ function ProductEditor({
                 return next;
             });
         } catch (error) {
-            setBarcodeGenerationError(
-                getApiErrorMessage(
-                    error,
-                    "Unable to generate a unique barcode.",
-                ),
+            const message = getApiErrorMessage(
+                error,
+                "Unable to generate a unique barcode.",
             );
+            setBarcodeGenerationError(message);
+            toast({
+                tone: "error",
+                title: "Barcode not generated",
+                description: message,
+            });
         }
     }
 
@@ -473,10 +478,22 @@ function ProductEditor({
                 itemId: initialItem.id,
                 imageIds: order,
             }).unwrap();
+            toast({
+                tone: "success",
+                title: "Images reordered",
+                description: "The item gallery order was updated.",
+            });
         } catch (error) {
-            setImageError(
-                getApiErrorMessage(error, "Unable to reorder the images."),
+            const message = getApiErrorMessage(
+                error,
+                "Unable to reorder the images.",
             );
+            setImageError(message);
+            toast({
+                tone: "error",
+                title: "Images not reordered",
+                description: message,
+            });
         }
     }
 
@@ -490,10 +507,21 @@ function ProductEditor({
 
         try {
             await deleteImage({ itemId: initialItem.id, imageId }).unwrap();
+            toast({
+                tone: "success",
+                title: "Item image deleted",
+            });
         } catch (error) {
-            setImageError(
-                getApiErrorMessage(error, "Unable to remove that image."),
+            const message = getApiErrorMessage(
+                error,
+                "Unable to remove that image.",
             );
+            setImageError(message);
+            toast({
+                tone: "error",
+                title: "Item image not deleted",
+                description: message,
+            });
         }
     }
 
@@ -597,7 +625,6 @@ function ProductEditor({
 
     async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const attributeValues = attributes.map((attribute) => ({
@@ -649,7 +676,11 @@ function ProductEditor({
 
         if (!result.success) {
             setFieldErrors(fieldErrorsFromIssues(result.error.issues));
-            setStatus("Check the highlighted item information.");
+            toast({
+                tone: "error",
+                title: `Item not ${isEditing ? "updated" : "created"}`,
+                description: "Check the highlighted item information.",
+            });
             return;
         }
 
@@ -669,14 +700,21 @@ function ProductEditor({
             } else {
                 await createItem({ body: result.data, files }).unwrap();
             }
+            toast({
+                tone: "success",
+                title: `Item ${isEditing ? "updated" : "created"}`,
+                description: `${result.data.name} was saved successfully.`,
+            });
             router.push("/inventory");
         } catch (error) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: `Item not ${isEditing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
                     error,
                     `Unable to ${isEditing ? "update" : "create"} the item.`,
                 ),
-            );
+            });
         }
     }
 
@@ -806,7 +844,7 @@ function ProductEditor({
                             ) : null}
                         </div>
                         {barcodeGenerationError ? (
-                            <p className="text-xs text-accent" role="alert">
+                            <p className="text-xs text-danger" role="alert">
                                 {barcodeGenerationError}
                             </p>
                         ) : null}
@@ -1100,7 +1138,14 @@ function ProductEditor({
                     remaining={maxItemImages - galleryCount}
                     label="Add images of this item"
                     onPick={handleImagesPicked}
-                    onError={setImageError}
+                    onError={(message) => {
+                        setImageError(message);
+                        toast({
+                            tone: "error",
+                            title: "Images not added",
+                            description: message,
+                        });
+                    }}
                 >
                     {galleryCount ? (
                         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
@@ -1248,7 +1293,7 @@ function ProductEditor({
                         </p>
                     )}
                     {fieldErrors.attributes ? (
-                        <p className="text-xs text-accent" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.attributes}
                         </p>
                     ) : null}
@@ -1333,7 +1378,7 @@ function ProductEditor({
                                             available: !event.target.checked,
                                         })
                                     }
-                                    className="size-3.5 accent-[#d14341]"
+                                    className="size-3.5 accent-danger"
                                 />
                                 <span className="text-[11px] sm:text-xs">Sold out</span>
                             </label>
@@ -1357,7 +1402,7 @@ function ProductEditor({
                         </div>
                     ))}
                     {fieldErrors.variants ? (
-                        <p className="text-xs text-accent" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.variants}
                         </p>
                     ) : null}
@@ -1375,7 +1420,7 @@ function ProductEditor({
                         onChange={setBlocks}
                     />
                     {fieldErrors.descriptionBlocks ? (
-                        <p className="mt-3 text-xs text-accent" role="alert">
+                        <p className="mt-3 text-xs text-danger" role="alert">
                             {fieldErrors.descriptionBlocks}
                         </p>
                     ) : null}
@@ -1384,7 +1429,7 @@ function ProductEditor({
 
             {status ? (
                 <p
-                    className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
+                    className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger"
                     role="alert"
                 >
                     {status}

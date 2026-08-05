@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     blockImageRules,
     type DescriptionBlockType,
@@ -255,7 +256,7 @@ function ColumnEditor({
                                     ),
                                 )
                             }
-                            className="text-[#657064] dark:text-[#94a3b8] hover:text-accent"
+                            className="text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                         >
                             <Trash2 />
                         </Button>
@@ -376,6 +377,7 @@ function BlockImageField({
     const [uploadAsset] = useUploadAssetMutation();
     const [deleteAsset] = useDeleteAssetMutation();
     const { create, release } = useObjectUrls();
+    const { toast } = useToast();
     const preview = block.previewUrl || block.url;
 
     /**
@@ -410,15 +412,25 @@ function BlockImageField({
             });
             release(previewUrl);
             discardUploaded(replaced);
+            toast({
+                tone: "success",
+                title: "Description image uploaded",
+            });
         } catch (error) {
+            const message = getApiErrorMessage(
+                error,
+                "Unable to upload that image.",
+            );
             release(previewUrl);
             onChange({
                 previewUrl: undefined,
                 uploading: false,
-                uploadError: getApiErrorMessage(
-                    error,
-                    "Unable to upload that image.",
-                ),
+                uploadError: message,
+            });
+            toast({
+                tone: "error",
+                title: "Description image not uploaded",
+                description: message,
             });
         }
     }
@@ -443,7 +455,14 @@ function BlockImageField({
             error={block.uploadError}
             label={block.url ? "Replace image" : "Block image"}
             onPick={handlePick}
-            onError={(message) => onChange({ uploadError: message })}
+            onError={(message) => {
+                onChange({ uploadError: message });
+                toast({
+                    tone: "error",
+                    title: "Description image not selected",
+                    description: message,
+                });
+            }}
             preview={
                 <span className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg bg-[#f0f1f0] dark:bg-[#252a38]">
                     {preview ? (

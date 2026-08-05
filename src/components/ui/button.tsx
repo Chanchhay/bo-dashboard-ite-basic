@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
  * button sits correctly beside an input.
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-accent aria-invalid:ring-2 aria-invalid:ring-accent/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-danger aria-invalid:ring-2 aria-invalid:ring-danger/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -28,7 +28,7 @@ const buttonVariants = cva(
         ghost:
           "text-[#5c6660] dark:text-[#94a3b8] hover:bg-[#f2f3f1] dark:hover:bg-[#252a38] hover:text-[#1a222b] dark:hover:text-[#f8fafc] aria-expanded:bg-[#f2f3f1] dark:aria-expanded:bg-[#252a38] aria-expanded:text-[#1a222b] dark:aria-expanded:text-[#f8fafc]",
         destructive:
-          "bg-[#fdeceb] dark:bg-[#d14341]/20 text-[#b3352f] dark:text-[#f87171] hover:bg-[#f9dbd9] dark:hover:bg-[#d14341]/30 focus-visible:ring-accent/30",
+          "bg-[#fdeceb] dark:bg-[#d14341]/20 text-[#b3352f] dark:text-[#f87171] hover:bg-[#f9dbd9] dark:hover:bg-[#d14341]/30 focus-visible:ring-danger/30",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

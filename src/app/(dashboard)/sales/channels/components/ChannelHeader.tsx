@@ -29,7 +29,7 @@ export function ChannelHeader({
                     onClick={onOpenDialog}
                     disabled={disabled}
                     size="lg"
-                    className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Add item to {selectedChannelCode || activeChannelCode}

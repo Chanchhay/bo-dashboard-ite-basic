@@ -20,7 +20,7 @@ import {
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,6 +31,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     itemGroupSchema,
     type ItemGroup,
@@ -71,6 +72,7 @@ function categoryRows(groups: ItemGroup[]) {
 }
 
 export function InventoryCategories() {
+    const { toast } = useToast();
     const { data, error, isLoading, refetch } =
         useGetItemGroupsQuery();
     const [createGroup, createState] =
@@ -88,8 +90,12 @@ export function InventoryCategories() {
         () => new Set(),
     );
     const [formKey, setFormKey] = useState(0);
-    const [status, setStatus] = useState<string | null>(null);
     const [fieldError, setFieldError] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{
+        id: string;
+        name: string;
+        kind: "category" | "subcategory";
+    } | null>(null);
     const groups = data || [];
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
@@ -111,7 +117,6 @@ export function InventoryCategories() {
     function resetForm() {
         setEditing(null);
         setMode("CATEGORY");
-        setStatus(null);
         setFieldError(null);
         setFormKey((current) => current + 1);
     }
@@ -129,14 +134,12 @@ export function InventoryCategories() {
             parentId,
         });
         setMode(parentId ? "SUBCATEGORY" : "CATEGORY");
-        setStatus(null);
         setFieldError(null);
         setFormKey((current) => current + 1);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
         setFieldError(null);
 
         const formData = new FormData(event.currentTarget);
@@ -151,10 +154,15 @@ export function InventoryCategories() {
         const result = itemGroupSchema.safeParse(input);
 
         if (!result.success) {
-            setFieldError(
+            const message =
                 result.error.issues[0]?.message ||
-                    "Check the category information.",
-            );
+                "Check the category information.";
+            setFieldError(message);
+            toast({
+                tone: "error",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} not ${editing ? "updated" : "created"}`,
+                description: message,
+            });
             return;
         }
 
@@ -167,14 +175,21 @@ export function InventoryCategories() {
             } else {
                 await createGroup(result.data).unwrap();
             }
+            toast({
+                tone: "success",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} ${editing ? "updated" : "created"}`,
+                description: `${result.data.name} was saved successfully.`,
+            });
             resetForm();
         } catch (mutationError) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} not ${editing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
                     mutationError,
                     `Unable to ${editing ? "update" : "create"} the category.`,
                 ),
-            );
+            });
         }
     }
 
@@ -360,17 +375,6 @@ export function InventoryCategories() {
                             ))}
                         </div>
                     )}
-                    {deleteState.error ? (
-                        <p
-                            className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-brand-red"
-                            role="alert"
-                        >
-                            {getApiErrorMessage(
-                                deleteState.error,
-                                "Unable to delete the category.",
-                            )}
-                        </p>
-                    ) : null}
                 </section>
 
                 <form
@@ -499,12 +503,12 @@ export function InventoryCategories() {
                         </div>
                     </div>
 
-                    {fieldError || status ? (
+                    {fieldError ? (
                         <p
-                            className="mt-4 rounded-xl border border-brand-red/20 bg-brand-red/5 px-3 py-2 text-sm text-brand-red"
+                            className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
                             role="alert"
                         >
-                            {fieldError || status}
+                            {fieldError}
                         </p>
                     ) : null}
 
@@ -524,7 +528,7 @@ export function InventoryCategories() {
                 </form>
             </div>
 
-            <ConfirmDialog
+            <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
@@ -543,10 +547,9 @@ export function InventoryCategories() {
                         "Are you sure you want to delete this category? This action cannot be undone."
                     )
                 }
-                confirmText="Delete"
-                cancelText="Cancel"
-                variant="danger"
-                isLoading={deleteState.isLoading}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

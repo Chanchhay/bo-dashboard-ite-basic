@@ -24,7 +24,7 @@ const CHANNEL_METADATA: Record<
         name: "Point of Sale (POS)",
         description: "Items available to sell at the in-store till.",
         icon: Store,
-        color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        color: "bg-primary/10 text-primary border-primary/20",
     },
     TELEGRAM: {
         name: "Telegram Bot / Store",
@@ -79,7 +79,7 @@ export function ChannelSelector({
                         aria-pressed={isActive}
                         className={`flex flex-col items-start p-4 rounded-xl border transition-all text-left ${
                             isActive
-                                ? "border-primary dark:border-[#10b981] bg-primary/10 dark:bg-[#00932a]/20 ring-2 ring-primary/20 shadow-xs"
+                                ? "border-primary bg-primary/10 dark:bg-[#00932a]/20 ring-2 ring-primary/20 shadow-xs"
                                 : "border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] hover:border-gray-300 dark:hover:border-[#384252] hover:bg-gray-50/50 dark:hover:bg-[#252a38]"
                         }`}
                     >
@@ -88,7 +88,7 @@ export function ChannelSelector({
                                 <Icon className="w-5 h-5" />
                             </span>
                             {isActive ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary dark:bg-[#10b981] text-white">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary text-white">
                                     Selected
                                 </span>
                             ) : null}

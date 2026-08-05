@@ -159,7 +159,7 @@ function Field({
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -178,7 +178,7 @@ function AccountDetail({
 }) {
     return (
         <div className="flex gap-3 rounded-xl bg-[#f6f8f5] dark:bg-[#151821] border border-transparent dark:border-[#242937] p-4">
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:text-[#10b981]">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 {icon}
             </span>
             <div className="min-w-0">
@@ -445,7 +445,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                 className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7"
             >
                 <div className="flex items-start gap-3 border-b border-[#edf0ec] dark:border-[#242937] pb-5">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:text-[#10b981]">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <UserRound className="size-5" />
                     </span>
                     <div>
@@ -586,7 +586,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                 className={
                                     status.type === "success"
                                         ? "text-primary"
-                                        : "text-accent"
+                                        : "text-danger"
                                 }
                                 role={
                                     status.type === "error"
@@ -630,7 +630,7 @@ function ProfileQueryError({
 }) {
     return (
         <div
-            className="rounded-2xl border border-accent/20 bg-white p-6 text-[#1a222b] shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
+            className="rounded-2xl border border-danger/20 bg-card p-6 text-foreground shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
             role="alert"
         >
             <h2 className="text-lg font-bold">Unable to load your profile</h2>

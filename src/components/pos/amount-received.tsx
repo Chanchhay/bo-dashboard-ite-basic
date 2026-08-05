@@ -248,7 +248,7 @@ export function AmountReceived({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="h-14 rounded-[20px] border border-brand-red text-base font-semibold text-brand-red outline-none transition-colors hover:bg-accent/5 focus-visible:ring-2 focus-visible:ring-accent/30 sm:text-lg"
+            className="h-14 rounded-[20px] border border-brand-red text-base font-semibold text-brand-red outline-none transition-colors hover:bg-brand-red/5 focus-visible:ring-2 focus-visible:ring-brand-red/30 sm:text-lg"
           >
             Cancel
           </button>
