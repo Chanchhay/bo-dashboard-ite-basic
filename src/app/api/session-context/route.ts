@@ -11,12 +11,16 @@ import { auth } from "@/lib/auth/auth";
  * is a different, local value, so anything addressed with that id is written
  * under a key the inbox will never look up.
  *
- * `wsUrl` is derived from API_BASE_URL, the same
- * variable the REST proxy uses, because the two MUST address the same backend:
- * notifications are created over REST and published to that instance's
- * in-process SimpleBroker. Point the socket somewhere else and it subscribes
- * to a broker that will never see them. That is exactly what a separately
- * configured NEXT_PUBLIC_WS_URL caused.
+ * `wsPath` is a path on THIS origin, not a backend URL. next.config.ts
+ * rewrites it to API_BASE_URL server-side, which keeps the backend host out of
+ * the browser and means the socket is same-origin, so the backend's CORS
+ * allow-list never has to know about a frontend deploy.
+ *
+ * Routing it through API_BASE_URL also guarantees the socket and the REST
+ * proxy address the same backend. They must: notifications are created over
+ * REST and published to that instance's in-process SimpleBroker, so a socket
+ * pointed elsewhere subscribes to a broker that will never see them. That is
+ * exactly what a separately configured NEXT_PUBLIC_WS_URL caused.
  *
  * The token is sent for when the backend grows a STOMP auth interceptor (it
  * has none today, so the CONNECT frame is anonymous and `/user/queue/**` never
@@ -25,13 +29,15 @@ import { auth } from "@/lib/auth/auth";
  * own tab adds no reach they didn't have.
  */
 
-/** Mirrors `getApiBaseUrl` in lib/api/backend.ts — the REST target. */
-function getSocketUrl(): string | null {
-    const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, "");
+/**
+ * Same-origin path, proxied by the rewrite in next.config.ts. Null when there
+ * is no API_BASE_URL to proxy to, so the client does not open a socket that
+ * can only 404.
+ */
+function getSocketPath(): string | null {
+    if (!process.env.API_BASE_URL?.trim()) return null;
 
-    if (!baseUrl) return null;
-
-    return `${baseUrl}/ws/notifications-sockjs`;
+    return "/ws/notifications-sockjs";
 }
 
 /** Reads the `sub` claim without verifying — the backend still verifies the token. */
@@ -82,7 +88,7 @@ export async function GET() {
         {
             accessToken,
             subject: accessToken ? readSubject(accessToken) : null,
-            wsUrl: getSocketUrl(),
+            wsPath: getSocketPath(),
         },
         { headers: { "Cache-Control": "no-store" } },
     );
