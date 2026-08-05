@@ -87,9 +87,9 @@ export function Navbar({
           onClick={() => router.push(SALES_HOME)}
           title="Back to sales dashboard"
           aria-label="Back to sales dashboard"
-          className="flex h-9 w-24 shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary min-[901px]:w-[148px]"
+          className="flex h-7 sm:h-9 w-20 min-[901px]:w-[148px] shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <BrandLogo variant="wordmark" alt="" preload />
+          <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-7 min-[901px]:h-8 w-auto shrink-0" />
         </button>
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 min-[901px]:flex">

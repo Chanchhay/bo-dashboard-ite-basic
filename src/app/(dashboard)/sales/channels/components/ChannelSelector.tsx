@@ -79,8 +79,8 @@ export function ChannelSelector({
                         aria-pressed={isActive}
                         className={`flex flex-col items-start p-4 rounded-xl border transition-all text-left ${
                             isActive
-                                ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20 shadow-sm"
-                                : "border-[#e4eae2] bg-white hover:border-gray-300 hover:bg-gray-50/50"
+                                ? "border-primary dark:border-[#10b981] bg-primary/10 dark:bg-[#00932a]/20 ring-2 ring-primary/20 shadow-xs"
+                                : "border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] hover:border-gray-300 dark:hover:border-[#384252] hover:bg-gray-50/50 dark:hover:bg-[#252a38]"
                         }`}
                     >
                         <div className="flex items-center justify-between w-full">
@@ -88,13 +88,13 @@ export function ChannelSelector({
                                 <Icon className="w-5 h-5" />
                             </span>
                             {isActive ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-600 text-white">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary dark:bg-[#10b981] text-white">
                                     Selected
                                 </span>
                             ) : null}
                         </div>
-                        <span className="mt-3 font-semibold text-sm text-[#161d16]">{channel.name}</span>
-                        <span className="text-xs text-gray-500 font-mono mt-0.5">
+                        <span className="mt-3 font-semibold text-sm text-[#161d16] dark:text-[#f8fafc]">{channel.name}</span>
+                        <span className="text-xs text-gray-500 dark:text-[#94a3b8] font-mono mt-0.5">
                             Code: {channel.code}
                         </span>
                     </button>

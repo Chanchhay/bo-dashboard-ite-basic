@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -90,7 +90,7 @@ export default function StaffTab() {
     const [editor, setEditor] = useState<Editor>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [formError, setFormError] = useState<string | null>(null);
-    const [pendingDelete, setPendingDelete] = useState<Staff | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
 
     const roles = useMemo(() => rolesQuery.data || [], [rolesQuery.data]);
     const roleNames = useMemo(
@@ -213,18 +213,16 @@ export default function StaffTab() {
         }
     }
 
-    async function remove() {
-        if (!pendingDelete) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteStaff(pendingDelete.id).unwrap();
+            await deleteStaff(deleteTarget.id).unwrap();
             toast({
                 title: "User removed",
-                description: staffFullName(pendingDelete),
+                description: staffFullName(deleteTarget),
             });
-            setPendingDelete(null);
+            setDeleteTarget(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -475,10 +473,10 @@ export default function StaffTab() {
                                 setFieldErrors({});
                                 setFormError(null);
                             }}
-
+                            className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
-                            <Plus className="size-4" aria-hidden="true" />
-                            Add user
+                            <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                            <span>Add user</span>
                         </Button>
                     }
                 />
@@ -527,7 +525,7 @@ export default function StaffTab() {
                                 Users in this business
                             </caption>
                             <thead>
-                                <tr className="border-b border-[#eceeea] text-[12px] text-[#8a8f89]">
+                                <tr className="border-b border-[#eceeea] dark:border-[#242937] text-[12px] text-[#8a8f89] dark:text-[#94a3b8]">
                                     <th
                                         scope="col"
                                         className="py-3 pr-4 font-medium"
@@ -564,25 +562,25 @@ export default function StaffTab() {
                                 {members.map((member) => (
                                     <tr
                                         key={member.id}
-                                        className="border-b border-[#f2f3f1] last:border-0"
+                                        className="border-b border-[#f2f3f1] dark:border-[#242937] last:border-0"
                                     >
                                         <td className="py-4 pr-4">
-                                            <p className="text-[15px] text-[#16181c]">
+                                            <p className="text-[15px] font-medium text-[#16181c] dark:text-[#f8fafc]">
                                                 {staffFullName(member)}
                                             </p>
                                             {member.username && (
-                                                <p className="text-[13px] text-[#8a8f89]">
+                                                <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
                                                     @{member.username}
                                                 </p>
                                             )}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660]">
+                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
                                             <p>{member.email || "—"}</p>
-                                            <p className="text-[13px] text-[#8a8f89]">
+                                            <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
                                                 {member.phoneNumber || "—"}
                                             </p>
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660]">
+                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
                                             {member.roleId
                                                 ? roleNames.get(
                                                       member.roleId,
@@ -632,7 +630,7 @@ export default function StaffTab() {
                                                 <Button
                                                     type="button"
                                                     onClick={() =>
-                                                        setPendingDelete(member)
+                                                        setDeleteTarget(member)
                                                     }
                                                     aria-label={`Remove ${staffFullName(member)}`}
                                                     variant="destructive"
@@ -655,30 +653,31 @@ export default function StaffTab() {
                     </div>
                 )}
             </Panel>
-            <DestructiveConfirmDialog
-                open={Boolean(pendingDelete)}
-                title="Remove user?"
-                description={
-                    <>
-                        <span className="font-semibold text-[#37423b]">
-                            {pendingDelete
-                                ? staffFullName(pendingDelete)
-                                : "This user"}
-                        </span>{" "}
-                        will lose access to this business. This action cannot be
-                        undone.
-                    </>
-                }
-                cancelLabel="Keep user"
-                confirmLabel="Remove user"
-                pendingLabel="Removing…"
-                isPending={deleteState.isLoading}
+
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
-                    if (!open) {
-                        setPendingDelete(null);
-                    }
+                    if (!open) setDeleteTarget(null);
                 }}
-                onConfirm={() => void remove()}
+                title={deleteTarget ? `Delete ${staffFullName(deleteTarget)}?` : "Delete staff member?"}
+                description={
+                    deleteTarget ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {staffFullName(deleteTarget)}
+                            </strong>
+                            ? This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this staff member? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                isLoading={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );

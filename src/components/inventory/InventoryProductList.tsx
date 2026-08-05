@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
     ItemPreviewDialog,
     toPreviewItem,
@@ -188,6 +189,7 @@ export function InventoryProductList() {
     const groupsQuery = useGetItemGroupsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
     const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
 
     const items = data?.content ?? [];
     const currentPage = data?.page?.number ?? productPage;
@@ -289,33 +291,18 @@ export function InventoryProductList() {
         dispatch(resetProductDraftFilters());
     }
 
-    async function handleDelete() {
-        if (!pendingDelete) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteItem(pendingDelete.id).unwrap();
-            toast({
-                tone: "success",
-                title: "Item deleted",
-                description: `${pendingDelete.name} was deleted successfully.`,
-            });
-            setPendingDelete(null);
+            await deleteItem(deleteTarget.id).unwrap();
 
             if (items.length === 1 && productPage > 0) {
                 dispatch(setProductPage(productPage - 1));
             }
-        } catch (error) {
-            toast({
-                tone: "error",
-                title: "Item not deleted",
-                description: getApiErrorMessage(
-                    error,
-                    "Unable to delete the item.",
-                ),
-            });
-            setPendingDelete(null);
+            setDeleteTarget(null);
+        } catch {
+            // RTK Query exposes the request error below.
         }
     }
 
@@ -328,19 +315,19 @@ export function InventoryProductList() {
                     <Button
                         render={<Link href="/inventory/new" />}
                         nativeButton={false}
-                        size="lg"
+                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                     >
-                        <PackagePlus className="size-4" />
-                        Create item
+                        <PackagePlus className="size-4 shrink-0" />
+                        <span>Create item</span>
                     </Button>
                 }
             />
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4">
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="relative w-full xl:max-w-md">
-                            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
+            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="flex flex-col gap-3 border-b border-[#edf0ec] dark:border-[#242937] p-4">
+                    <div className="flex flex-row items-center gap-2">
+                        <div className="relative min-w-0 flex-1">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-[#7b857a] dark:text-[#94a3b8]" />
                             <Input
                                 value={productSearch}
                                 onChange={(event) =>
@@ -348,13 +335,13 @@ export function InventoryProductList() {
                                         setProductSearch(event.target.value),
                                     )
                                 }
-                                placeholder="Search name, SKU, barcode or category"
-                                className={`${inventoryControlClassName} pl-10`}
+                                placeholder="Search items..."
+                                className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] placeholder:text-[#6b7280] dark:placeholder:text-[#94a3b8]"
                                 aria-label="Search items"
                             />
                         </div>
 
-                        <div className="grid w-full gap-3 sm:grid-cols-2 xl:flex xl:w-auto">
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                             <Select
                                 value={productStatus}
                                 onValueChange={(value) =>
@@ -369,8 +356,9 @@ export function InventoryProductList() {
                                 }
                             >
                                 <SelectTrigger
+                                    size="sm"
                                     aria-label="Filter items by status"
-                                    className={`${inventoryControlClassName} w-full xl:w-44`}
+                                    className="!h-9 sm:!h-10 py-0 min-w-[68px] sm:w-44 px-2 sm:px-3 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] justify-between items-center"
                                 >
                                     <SelectValue />
                                 </SelectTrigger>
@@ -390,17 +378,19 @@ export function InventoryProductList() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
+                                size="sm"
+                                aria-label="Advanced filters"
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
                                 onClick={() =>
                                     setFilterPanelOpen((open) => !open)
                                 }
+                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] text-[#16181c] dark:text-[#f8fafc] shrink-0 flex items-center justify-center gap-1.5"
                             >
-                                <SlidersHorizontal />
-                                Advanced filters
+                                <SlidersHorizontal className="size-4 shrink-0" />
+                                <span className="hidden sm:inline">Advanced filters</span>
                                 {advancedFilterCount ? (
-                                    <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-semibold text-white">
+                                    <span className="absolute -top-1 -right-1 sm:static grid size-4 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-[11px] font-semibold text-white">
                                         {advancedFilterCount}
                                     </span>
                                 ) : null}
@@ -409,11 +399,13 @@ export function InventoryProductList() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
+                                size="sm"
+                                aria-label="Scan barcode"
                                 onClick={() => setScannerOpen(true)}
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-[#e8e8e8] dark:border-[#242937] bg-white dark:bg-[#1e2330] hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] text-[#16181c] dark:text-[#f8fafc] shrink-0 flex items-center justify-center gap-1.5"
                             >
-                                <ScanBarcode />
-                                Scan barcode
+                                <ScanBarcode className="size-4 shrink-0" />
+                                <span className="hidden sm:inline">Scan barcode</span>
                             </Button>
                         </div>
                     </div>
@@ -421,13 +413,13 @@ export function InventoryProductList() {
                     {filterPanelOpen ? (
                         <div
                             id="inventory-advanced-filters"
-                            className="rounded-2xl border border-[#e4eae2] bg-[#f8faf7] p-4 sm:p-5"
+                            className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf7] dark:bg-[#151821] p-4 sm:p-5"
                         >
                             <div className="flex flex-col gap-1">
-                                <h2 className="font-semibold text-[#161d16]">
+                                <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                                     Advanced filters
                                 </h2>
-                                <p className="text-sm text-[#657064]">
+                                <p className="text-sm text-[#657064] dark:text-[#94a3b8]">
                                     Narrow the catalogue, then apply all fields
                                     together.
                                 </p>
@@ -706,19 +698,21 @@ export function InventoryProductList() {
                                 </div>
                             </div>
 
-                            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <div className="mt-5 flex flex-row items-center justify-end gap-2.5 sm:gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={handleApplyFilters}
+                                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
+                                >
+                                    Apply filters
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={resetDraftFilters}
+                                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                                 >
                                     Reset fields
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={handleApplyFilters}
-                                >
-                                    Apply filters
                                 </Button>
                             </div>
                         </div>
@@ -817,11 +811,11 @@ export function InventoryProductList() {
                     ) : null}
                 </div>
 
-                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[#edf0ec] bg-[#fbfcfa] px-5 py-2.5 text-sm text-[#657064]">
+                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[#edf0ec] dark:border-[#242937] bg-[#fbfcfa] dark:bg-[#151821] px-5 py-2.5 text-sm text-[#657064] dark:text-[#94a3b8]">
                     <p aria-live="polite">
                         {isFetching ? (
                             <span className="inline-flex items-center gap-2">
-                                <LoaderCircle className="size-4 animate-spin text-primary" />
+                                <LoaderCircle className="size-4 animate-spin text-primary dark:text-[#10b981]" />
                                 Updating items
                             </span>
                         ) : totalElements ? (
@@ -855,7 +849,7 @@ export function InventoryProductList() {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[820px] text-left text-sm">
-                            <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
+                            <thead className="bg-[#f8faf7] dark:bg-[#151821] text-xs font-semibold tracking-wide text-[#657064] dark:text-[#94a3b8] uppercase">
                                 <tr>
                                     <th className="px-5 py-3">Name</th>
                                     <th className="px-5 py-3">Category</th>
@@ -940,11 +934,9 @@ export function InventoryProductList() {
                                                     aria-label={`Delete ${item.name || "item"}`}
                                                     disabled={deleteState.isLoading}
                                                     onClick={() =>
-                                                        setPendingDelete({
+                                                        setDeleteTarget({
                                                             id: item.id,
-                                                            name:
-                                                                item.name ||
-                                                                "This item",
+                                                            name: item.name,
                                                         })
                                                     }
                                                 >
@@ -967,81 +959,78 @@ export function InventoryProductList() {
                         <div className="flex items-center gap-3 text-sm text-[#657064]">
                             <Label
                                 htmlFor="item-page-size"
-                                className="whitespace-nowrap text-sm font-normal"
+                                className="shrink-0 text-xs font-semibold text-[#657064]"
                             >
                                 Items per page
                             </Label>
-                            <Select
-                                value={String(productPageSize)}
-                                onValueChange={(value) =>
+                            <select
+                                id="item-page-size"
+                                value={productPageSize}
+                                onChange={(e) =>
                                     dispatch(
                                         setProductPageSize(
-                                            Number(value || 20),
+                                            Number(e.target.value),
                                         ),
                                     )
                                 }
+                                className="h-9 rounded-lg border border-[#d9dfd8] bg-white px-2.5 text-xs text-[#1d241d] outline-none focus:border-[#00932a]"
                             >
-                                <SelectTrigger
-                                    id="item-page-size"
-                                    size="sm"
-                                    className="w-20"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {pageSizes.map((size) => (
-                                        <SelectItem
-                                            key={size}
-                                            value={String(size)}
-                                        >
-                                            {size}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                            <span>
+                                Showing {firstResult}–{lastResult} of{" "}
+                                {totalElements}
+                            </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
-                            <p className="text-sm text-[#657064]">
-                                Page {currentPage + 1} of {Math.max(totalPages, 1)}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage === 0 || isFetching}
-                                    onClick={() =>
-                                        dispatch(
-                                            setProductPage(currentPage - 1),
-                                        )
-                                    }
-                                >
-                                    <ChevronLeft />
-                                    Previous
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={
-                                        currentPage + 1 >= totalPages ||
-                                        isFetching
-                                    }
-                                    onClick={() =>
-                                        dispatch(
-                                            setProductPage(currentPage + 1),
-                                        )
-                                    }
-                                >
-                                    Next
-                                    <ChevronRight />
-                                </Button>
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={currentPage <= 0 || isFetching}
+                                onClick={() =>
+                                    dispatch(setProductPage(currentPage - 1))
+                                }
+                            >
+                                <ChevronLeft className="size-4" />
+                                Previous
+                            </Button>
+                            <span className="px-2 text-xs font-medium text-[#657064]">
+                                Page {currentPage + 1} of {totalPages || 1}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                    currentPage + 1 >= totalPages || isFetching
+                                }
+                                onClick={() =>
+                                    dispatch(setProductPage(currentPage + 1))
+                                }
+                            >
+                                Next
+                                <ChevronRight className="size-4" />
+                            </Button>
                         </div>
                     </nav>
                 ) : null}
 
+                {deleteState.isError ? (
+                    <p
+                        role="alert"
+                        className="border-t border-[#edf0ec] px-5 py-3 text-xs text-[#d14341]"
+                    >
+                        {getApiErrorMessage(
+                            deleteState.error,
+                            "Unable to delete the item.",
+                        )}
+                    </p>
+                ) : null}
             </section>
 
             <ItemPreviewDialog
@@ -1057,27 +1046,30 @@ export function InventoryProductList() {
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
             />
-            <DestructiveConfirmDialog
-                open={Boolean(pendingDelete)}
-                title="Delete item?"
-                description={
-                    <>
-                        <span className="font-semibold text-[#37423b]">
-                            {pendingDelete?.name}
-                        </span>{" "}
-                        will be permanently removed from inventory. This action
-                        cannot be undone.
-                    </>
-                }
-                cancelLabel="Keep item"
-                confirmLabel="Delete item"
-                isPending={deleteState.isLoading}
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
-                    if (!open) {
-                        setPendingDelete(null);
-                    }
+                    if (!open) setDeleteTarget(null);
                 }}
-                onConfirm={() => void handleDelete()}
+                title={deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete item?"}
+                description={
+                    deleteTarget?.name ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {deleteTarget.name}
+                            </strong>
+                            ? This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this item? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                isLoading={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );

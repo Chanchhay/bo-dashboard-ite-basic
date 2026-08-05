@@ -249,22 +249,24 @@ export default function SalesChannelsPage() {
             {/* Only channels the backend actually has. Nothing can be sold on
                 a channel we invented, so none are drawn for show. */}
             {!channelsLoading && activeChannels.length === 0 ? (
-                <section className="rounded-2xl border border-[#e4eae2] bg-white p-10 text-center">
-                    <ShoppingBag
-                        className="mx-auto mb-3 size-8 text-[#c4c9c3]"
-                        aria-hidden="true"
-                    />
-                    <h2 className="text-base font-semibold text-[#161d16]">
+                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-10 text-center shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]">
+                        <ShoppingBag
+                            className="size-6"
+                            aria-hidden="true"
+                        />
+                    </span>
+                    <h2 className="text-base font-semibold text-[#161d16] dark:text-[#f8fafc]">
                         No sales channels yet
                     </h2>
-                    <p className="mx-auto mt-1 max-w-md text-sm text-[#657064]">
+                    <p className="mx-auto mt-1 max-w-md text-sm text-[#657064] dark:text-[#94a3b8]">
                         Items can only be sold once a sales channel exists. Add
                         one on the backend, then refresh.
                     </p>
                     <button
                         type="button"
                         onClick={() => refetchChannels()}
-                        className="mt-4 inline-flex items-center rounded-lg border border-[#e4eae2] px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                        className="mt-4 inline-flex items-center rounded-lg border border-[#c9cbc6] dark:border-[#384252] bg-white dark:bg-[#1e2330] px-4 py-2 text-sm font-semibold text-primary dark:text-[#10b981] transition hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] shadow-xs"
                     >
                         Refresh
                     </button>

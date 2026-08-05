@@ -51,7 +51,7 @@ function DialogContent({
             <DialogPrimitive.Popup
                 data-slot="dialog-content"
                 className={cn(
-                    "fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-2xl border border-[#e4eae2] bg-white p-6 shadow-[0_24px_60px_rgba(15,26,18,0.22)] outline-none transition-all duration-150 data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100 sm:p-7",
+                    "fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-[#16181c] dark:text-[#f8fafc] p-6 shadow-[0_24px_60px_rgba(15,26,18,0.22)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.5)] outline-none transition-all duration-150 data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100 sm:p-7",
                     className,
                 )}
                 {...props}
@@ -95,7 +95,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
         <DialogPrimitive.Title
             data-slot="dialog-title"
             className={cn(
-                "text-xl font-semibold text-[#161d16]",
+                "text-xl font-semibold text-[#161d16] dark:text-[#f8fafc]",
                 className,
             )}
             {...props}
@@ -110,7 +110,7 @@ function DialogDescription({
     return (
         <DialogPrimitive.Description
             data-slot="dialog-description"
-            className={cn("text-sm text-[#657064]", className)}
+            className={cn("text-sm text-[#657064] dark:text-[#94a3b8]", className)}
             {...props}
         />
     );
