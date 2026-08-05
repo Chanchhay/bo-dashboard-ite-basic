@@ -3,17 +3,23 @@ import { setupListeners } from "@reduxjs/toolkit/query";
 
 import { baseApi } from "@/lib/baseApi";
 import inventoryUiReducer from "@/store/inventoryUiSlice";
+import { notificationApi } from "@/services/notificationApi";
 import sessionReducer from "@/features/sessionSlice";
 
 export const makeStore = () => {
     const store = configureStore({
         reducer: {
             [baseApi.reducerPath]: baseApi.reducer,
+            [notificationApi.reducerPath]: notificationApi.reducer,
             inventoryUi: inventoryUiReducer,
+            
             session: sessionReducer,
         },
         middleware: (getDefaultMiddleware) =>
-            getDefaultMiddleware().concat(baseApi.middleware),
+            getDefaultMiddleware().concat(
+                baseApi.middleware,
+                notificationApi.middleware,
+            ),
     });
 
     setupListeners(store.dispatch);

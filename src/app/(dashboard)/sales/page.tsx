@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Receipt, Search } from "lucide-react";
+import Link from "next/link";
+import { Receipt, Search, QrCode, Store, ExternalLink } from "lucide-react";
 
 import {
     Table,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/money";
 import type { Order, OrderChannel, OrderStatus } from "@/types/pos-type";
+import MenuQRModal from "@/components/menu/menu-qr-modal";
 
 /**
  * Orders — the record of what was sold, and nothing else. Getting to other
@@ -58,12 +60,33 @@ export default function SalesOrdersPage() {
         useState<(typeof CHANNEL_FILTERS)[number]>("ALL");
     const [range, setRange] = useState<(typeof DATE_FILTERS)[number]>("Today");
     const [query, setQuery] = useState("");
+    const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
     const orders: Order[] = [];
     const isLoading = false;
 
     return (
         <div className="flex flex-col gap-5 pb-4">
+            {/* Business Owner Digital Menu Banner */}
+
+            <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                <button
+                    type="button"
+                    onClick={() => setIsQRModalOpen(true)}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
+                >
+                    <QrCode className="h-4 w-4 text-[#00a651]" />
+                    Get Menu QR Code
+                </button>
+                <Link
+                    href="/menu"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
+                >
+                    <ExternalLink className="h-4 w-4" />
+                    View Live Menu
+                </Link>
+            </div>
+
             <section
                 aria-label="Totals"
                 className="grid grid-cols-2 gap-3 lg:grid-cols-4"
@@ -73,6 +96,11 @@ export default function SalesOrdersPage() {
                 <Stat label="Paid" value="0" />
                 <Stat label="Pending" value="0" />
             </section>
+
+            <MenuQRModal
+                isOpen={isQRModalOpen}
+                onClose={() => setIsQRModalOpen(false)}
+            />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
                 <div className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
@@ -200,11 +228,11 @@ function formatOrderDate(value: string) {
     return Number.isNaN(date.getTime())
         ? "—"
         : date.toLocaleString(undefined, {
-              day: "2-digit",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-          });
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

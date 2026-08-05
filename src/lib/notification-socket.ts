@@ -1,0 +1,195 @@
+import { Client, Message } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import type { Notification } from "./api/notification";
+
+export type NotificationCallback = (notification: Notification) => void;
+
+export interface SocketConnectParams {
+    token?: string;
+    userId?: string;
+    receiverId?: string;
+}
+
+function getWsConfig(): { brokerURL?: string; webSocketFactory?: () => any } {
+    let customUrl = process.env.NEXT_PUBLIC_WS_URL;
+
+    if (typeof window !== "undefined") {
+        const host = window.location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") {
+            customUrl = "http://localhost:8080/ws/notifications-sockjs";
+        }
+    }
+
+    if (customUrl) {
+        if (customUrl.startsWith("ws://") || customUrl.startsWith("wss://")) {
+            return { brokerURL: customUrl };
+        }
+        return { webSocketFactory: () => new SockJS(customUrl) };
+    }
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+    const cleanBase = apiBase.replace(/\/+$/, "");
+    const sockJsUrl = `${cleanBase}/ws/notifications-sockjs`;
+
+    return { webSocketFactory: () => new SockJS(sockJsUrl) };
+}
+
+class NotificationSocketService {
+    private client: Client | null = null;
+    private callbacks: Set<NotificationCallback> = new Set();
+    private isConnecting = false;
+    private params: SocketConnectParams = {};
+    private processedIds = new Set<string>();
+    private subscribedTopics = new Set<string>();
+
+    private subscribeTopics(): void {
+        if (!this.client?.connected) return;
+
+        const topicsToSubscribe: string[] = [
+            "/topic/notifications",
+            "/user/queue/notifications",
+        ];
+
+        if (this.params.receiverId) {
+            topicsToSubscribe.push(`/topic/notifications/${this.params.receiverId}`);
+        }
+
+        if (this.params.userId && this.params.receiverId) {
+            topicsToSubscribe.push(`/topic/notifications/${this.params.userId}/${this.params.receiverId}`);
+        }
+
+        for (const topic of topicsToSubscribe) {
+            if (!this.subscribedTopics.has(topic)) {
+                this.subscribedTopics.add(topic);
+                this.client.subscribe(topic, (message: Message) => {
+                    this.handleIncomingMessage(message);
+                });
+            }
+        }
+    }
+
+    public connect(params?: SocketConnectParams | string): void {
+        if (typeof window === "undefined") return;
+
+        if (typeof params === "string") {
+            this.params = { ...this.params, token: params };
+        } else if (params) {
+            this.params = { ...this.params, ...params };
+        }
+
+        if (this.client?.active) {
+            if (this.client.connected) {
+                this.subscribeTopics();
+            }
+            return;
+        }
+
+        if (this.isConnecting) return;
+
+        this.isConnecting = true;
+        const wsConfig = getWsConfig();
+
+        this.client = new Client({
+            ...wsConfig,
+            connectHeaders: this.params.token ? { Authorization: `Bearer ${this.params.token}` } : {},
+            debug: (str) => {
+                if (process.env.NODE_ENV === "development") {
+                    console.log("[NotificationSocket]", str);
+                }
+            },
+            reconnectDelay: 5000,
+            heartbeatIncoming: 4000,
+            heartbeatOutgoing: 4000,
+        });
+
+        this.client.onConnect = () => {
+            this.isConnecting = false;
+            this.subscribedTopics.clear();
+            console.log("[NotificationSocket] Connected successfully");
+            this.subscribeTopics();
+        };
+
+        this.client.onStompError = (frame) => {
+            this.isConnecting = false;
+            console.error("[NotificationSocket] STOMP Error:", frame.headers["message"], frame.body);
+        };
+
+        this.client.onWebSocketClose = () => {
+            this.isConnecting = false;
+        };
+
+        this.client.activate();
+    }
+
+    private handleIncomingMessage(message: Message) {
+        try {
+            const data = JSON.parse(message.body);
+            const id = String(data.id || data.notificationId || Date.now());
+
+            if (this.processedIds.has(id)) {
+                return;
+            }
+            this.processedIds.add(id);
+
+            if (this.processedIds.size > 200) {
+                const firstKey = this.processedIds.values().next().value;
+                if (firstKey) this.processedIds.delete(firstKey);
+            }
+
+            const notification: Notification = {
+                id,
+                notificationId: data.notificationId ?? null,
+                senderId: data.senderId ?? null,
+                senderName: data.senderName ?? null,
+                type: data.type ?? "GENERAL",
+                title: data.title || "New Notification",
+                content: data.content || data.message || "",
+                deepLink: data.deepLink ?? null,
+                read: Boolean(data.read),
+                readAt: data.readAt ?? null,
+                deliveredAt: data.deliveredAt ?? null,
+                createdAt: data.createdAt || new Date().toISOString(),
+            };
+
+            this.callbacks.forEach((cb) => {
+                try {
+                    cb(notification);
+                } catch (e) {
+                    console.error("[NotificationSocket] Callback error:", e);
+                }
+            });
+        } catch (err) {
+            console.error("[NotificationSocket] Failed to parse message:", err);
+        }
+    }
+
+    public subscribe(callback: NotificationCallback, params?: SocketConnectParams): () => void {
+        this.callbacks.add(callback);
+        if (params) {
+            this.params = { ...this.params, ...params };
+        }
+        if (!this.client?.active && !this.isConnecting) {
+            this.connect(this.params);
+        } else if (this.client?.connected) {
+            this.subscribeTopics();
+        }
+
+        return () => {
+            this.callbacks.delete(callback);
+            if (this.callbacks.size === 0) {
+                this.disconnect();
+            }
+        };
+    }
+
+    public disconnect(): void {
+        if (this.client) {
+            this.client.deactivate();
+            this.client = null;
+            this.isConnecting = false;
+            this.subscribedTopics.clear();
+            console.log("[NotificationSocket] Disconnected");
+        }
+    }
+}
+
+export const notificationSocket = new NotificationSocketService();

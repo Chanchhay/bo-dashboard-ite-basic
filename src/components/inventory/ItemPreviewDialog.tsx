@@ -129,10 +129,12 @@ export function ItemPreviewDialog({
     open,
     onOpenChange,
     item,
+    hideAddToCart = false,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: PreviewItem | null;
+    hideAddToCart?: boolean;
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -141,6 +143,7 @@ export function ItemPreviewDialog({
                     <Storefront
                         item={item}
                         onClose={() => onOpenChange(false)}
+                        hideAddToCart={hideAddToCart}
                     />
                 ) : null}
             </DialogContent>
@@ -155,9 +158,11 @@ function displayOf(value: PreviewValue) {
 function Storefront({
     item,
     onClose,
+    hideAddToCart = false,
 }: {
     item: PreviewItem;
     onClose: () => void;
+    hideAddToCart?: boolean;
 }) {
     // `placement` decides which part of the page each attribute feeds.
     const options = item.attributes.filter(
@@ -241,7 +246,7 @@ function Storefront({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-2xl font-bold text-[#d14341] dark:text-[#f87171]">
+                        <span className="text-2xl font-bold text-danger">
                             {formatMoney(activePrice)}
                         </span>
                         {discount ? (
@@ -376,49 +381,53 @@ function Storefront({
                         </label>
                     ))}
 
-                    <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-[#1a222b] dark:text-[#f8fafc]">
-                        <button
-                            type="button"
-                            aria-label="Decrease quantity"
-                            onClick={() =>
-                                setQuantity((current) =>
-                                    Math.max(1, current - 1),
-                                )
-                            }
-                            className="text-[#d14341] dark:text-[#f87171]"
-                        >
-                            <Minus className="size-4" />
-                        </button>
-                        <span className="min-w-6 text-center text-sm font-medium">
-                            {quantity}
-                        </span>
-                        <button
-                            type="button"
-                            aria-label="Increase quantity"
-                            onClick={() =>
-                                setQuantity((current) => current + 1)
-                            }
-                            className="text-primary"
-                        >
-                            <Plus className="size-4" />
-                        </button>
-                    </div>
+                    {!hideAddToCart && (
+                        <>
+                            <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-[#1a222b] dark:text-[#f8fafc]">
+                                <button
+                                    type="button"
+                                    aria-label="Decrease quantity"
+                                    onClick={() =>
+                                        setQuantity((current) =>
+                                            Math.max(1, current - 1),
+                                        )
+                                    }
+                                    className="text-danger"
+                                >
+                                    <Minus className="size-4" />
+                                </button>
+                                <span className="min-w-6 text-center text-sm font-medium">
+                                    {quantity}
+                                </span>
+                                <button
+                                    type="button"
+                                    aria-label="Increase quantity"
+                                    onClick={() =>
+                                        setQuantity((current) => current + 1)
+                                    }
+                                    className="text-primary"
+                                >
+                                    <Plus className="size-4" />
+                                </button>
+                            </div>
 
-                    {/*
-                     * Inert on purpose: this is a rendering of the storefront,
-                     * not the storefront, so the button must not look clickable
-                     * to whoever is reviewing the layout.
-                     */}
-                    <div
-                        aria-disabled
-                        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-white shadow-md shadow-primary/20"
-                    >
-                        <ShoppingBag className="size-4" />
-                        Add to Cart
-                    </div>
-                    <p className="text-center text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                        Preview only — nothing here is live yet.
-                    </p>
+                            {/*
+                             * Inert on purpose: this is a rendering of the storefront,
+                             * not the storefront, so the button must not look clickable
+                             * to whoever is reviewing the layout.
+                             */}
+                            <div
+                                aria-disabled
+                                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-white shadow-md shadow-primary/20"
+                            >
+                                <ShoppingBag className="size-4" />
+                                Add to Cart
+                            </div>
+                            <p className="text-center text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                Preview only — nothing here is live yet.
+                            </p>
+                        </>
+                    )}
 
                     {highlights.length ? (
                         <div className="grid gap-4 border-t border-[#e4eae2] dark:border-[#242937] pt-4 sm:grid-cols-3">
