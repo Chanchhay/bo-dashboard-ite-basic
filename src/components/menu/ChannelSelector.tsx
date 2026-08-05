@@ -87,11 +87,6 @@ export function ChannelSelector({
                             <span className={`p-2 rounded-lg ${meta.color}`}>
                                 <Icon className="w-5 h-5" />
                             </span>
-                            {isActive ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary text-white">
-                                    Selected
-                                </span>
-                            ) : null}
                         </div>
                         <span className="mt-3 font-semibold text-sm text-[#161d16] dark:text-[#f8fafc]">{channel.name}</span>
                         <span className="text-xs text-gray-500 dark:text-[#94a3b8] font-mono mt-0.5">

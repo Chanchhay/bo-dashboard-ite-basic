@@ -191,9 +191,9 @@ export default async function DashboardPage() {
                                             )}
                                         </span>
                                     </div>
-                                    <div className="mt-2 h-2.5 w-full rounded-[4px] bg-[#eceeea] dark:bg-[#252a38]">
+                                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-[4px] bg-[#eceeea] dark:bg-[#252a38]">
                                         <div
-                                            className="h-full rounded-r-[4px] bg-primary"
+                                            className="h-full rounded-[4px] bg-primary"
                                             style={{
                                                 width: `${Math.max(
                                                     (entry.quantity /
