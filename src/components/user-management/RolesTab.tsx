@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
     EmptyState,
@@ -448,7 +448,7 @@ export default function RolesTab() {
                 )}
             </Panel>
 
-            <ConfirmDialog
+            <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
@@ -468,9 +468,9 @@ export default function RolesTab() {
                         "Are you sure you want to delete this role? This action cannot be undone."
                     )
                 }
-                confirmText="Delete"
-                cancelText="Cancel"
-                variant="danger"
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

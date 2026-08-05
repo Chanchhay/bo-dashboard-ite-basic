@@ -178,7 +178,7 @@ function AccountDetail({
 }) {
     return (
         <div className="flex gap-3 rounded-xl bg-[#f6f8f5] dark:bg-[#151821] border border-transparent dark:border-[#242937] p-4">
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:text-[#10b981]">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 {icon}
             </span>
             <div className="min-w-0">
@@ -445,7 +445,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                 className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7"
             >
                 <div className="flex items-start gap-3 border-b border-[#edf0ec] dark:border-[#242937] pb-5">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:text-[#10b981]">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <UserRound className="size-5" />
                     </span>
                     <div>

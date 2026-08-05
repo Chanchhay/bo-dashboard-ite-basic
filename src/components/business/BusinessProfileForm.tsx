@@ -89,7 +89,7 @@ function SectionTitle({ children }: { children: ReactNode }) {
             <h2 className="pl-1 text-base leading-6 font-bold text-[#020409] dark:text-[#f8fafc] uppercase">
                 {children}
             </h2>
-            <span className="h-0.5 w-8 bg-[rgba(67,103,70,0.3)] dark:bg-[#10b981]" />
+            <span className="h-0.5 w-8 bg-primary/30" />
         </div>
     );
 }
@@ -224,7 +224,7 @@ function StagedImageField({
                             onClick={
                                 staged.isDirty ? staged.reset : staged.remove
                             }
-                            className="h-auto px-2 py-1 text-xs font-medium text-[#4b5563] dark:text-[#94a3b8] hover:text-primary dark:hover:text-[#10b981]"
+                            className="h-auto px-2 py-1 text-xs font-medium text-[#4b5563] dark:text-[#94a3b8] hover:text-primary"
                         >
                             {staged.isDirty
                                 ? `Undo ${noun.toLowerCase()} change`
@@ -380,7 +380,7 @@ function BusinessProfileEditor({
                                         className="size-full object-cover"
                                     />
                                 ) : (
-                                    <Camera className="size-7 sm:size-9 text-primary dark:text-[#10b981]" />
+                                    <Camera className="size-7 sm:size-9 text-primary" />
                                 )}
                             </span>
                         }

@@ -20,7 +20,7 @@ import {
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -528,7 +528,7 @@ export function InventoryCategories() {
                 </form>
             </div>
 
-            <ConfirmDialog
+            <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
@@ -547,10 +547,9 @@ export function InventoryCategories() {
                         "Are you sure you want to delete this category? This action cannot be undone."
                     )
                 }
-                confirmText="Delete"
-                cancelText="Cancel"
-                variant="danger"
-                isLoading={deleteState.isLoading}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

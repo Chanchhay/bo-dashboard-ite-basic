@@ -52,8 +52,8 @@ const TONES: Record<
 > = {
     success: {
         icon: CircleCheck,
-        iconClass: "text-[#00932a] dark:text-[#10b981]",
-        ring: "ring-[#cfe7d6] dark:ring-[#10b981]/40",
+        iconClass: "text-primary",
+        ring: "ring-[#cfe7d6] dark:ring-primary/40",
     },
     error: {
         icon: CircleAlert,
@@ -161,7 +161,7 @@ function ToastItem({
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => onDismiss(item.id)}
                     aria-label="Dismiss notification"
-                    className="grid size-7 shrink-0 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a] dark:text-[#94a3b8] dark:hover:bg-[#252a38] dark:hover:text-[#f8fafc] dark:focus-visible:ring-[#10b981]"
+                    className="grid size-7 shrink-0 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-primary dark:text-[#94a3b8] dark:hover:bg-[#252a38] dark:hover:text-[#f8fafc]"
                 >
                     <X className="size-4" aria-hidden="true" />
                 </button>

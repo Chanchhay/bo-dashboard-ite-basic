@@ -149,7 +149,7 @@ function AppTile({
             >
                 <Icon className="size-11" strokeWidth={1.8} />
             </span>
-            <span className="text-[21px] font-semibold leading-[30px] text-[#161d16] dark:text-[#f8fafc]">
+            <span className="text-[21px] font-normal leading-[30px] text-[#161d16] dark:text-[#f8fafc]">
                 {app.label.split(" ").map((word) => (
                     <span key={word} className="block">
                         {word}
