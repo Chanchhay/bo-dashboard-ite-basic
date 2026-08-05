@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CircleCheck } from "lucide-react";
 
 import { CloseRegister } from "@/components/pos/close-register";
+import { useToast } from "@/components/ui/toast";
 import type { RegisterSession } from "@/lib/api/pos-session";
 import { formatCurrency } from "@/lib/money";
 import { POS_ROUTES } from "@/lib/pos-routes";
@@ -19,11 +20,11 @@ import { POS_ROUTES } from "@/lib/pos-routes";
  */
 export default function PosCloseRegisterPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [session, setSession] = useState<RegisterSession | null>(null);
   const [closed, setClosed] = useState<RegisterSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -56,7 +57,6 @@ export default function PosCloseRegisterPage() {
 
   async function handleConfirm(totalCounted: number) {
     setIsClosing(true);
-    setError("");
 
     try {
       const response = await fetch("/api/register/close", {
@@ -68,14 +68,22 @@ export default function PosCloseRegisterPage() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setError(payload?.message ?? "Could not close the register.");
+        toast({
+          tone: "error",
+          title: "Register not closed",
+          description: payload?.message ?? "Could not close the register.",
+        });
         setIsClosing(false);
         return;
       }
 
       setClosed(payload);
     } catch {
-      setError("Could not reach the server. Check your connection.");
+      toast({
+        tone: "error",
+        title: "Register not closed",
+        description: "Could not reach the server. Check your connection.",
+      });
       setIsClosing(false);
     }
   }
@@ -103,7 +111,6 @@ export default function PosCloseRegisterPage() {
       orderCount={session!.orderCount ?? 0}
       onConfirm={handleConfirm}
       isProcessing={isClosing}
-      error={error}
     />
   );
 }

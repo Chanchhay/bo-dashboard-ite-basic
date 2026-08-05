@@ -299,9 +299,26 @@ export function InventoryProductList() {
             if (items.length === 1 && productPage > 0) {
                 dispatch(setProductPage(productPage - 1));
             }
+            toast({
+                tone: "success",
+                title: "Item deleted",
+                description: deleteTarget.name
+                    ? `${deleteTarget.name} is no longer in your inventory.`
+                    : undefined,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Delete failed",
+                description: getApiErrorMessage(
+                    cause,
+                    "Unable to delete the item.",
+                ),
+            });
+        } finally {
+            // The outcome is a toast either way, so the dialog has nothing
+            // left to say once the request settles.
             setDeleteTarget(null);
-        } catch {
-            // RTK Query exposes the request error below.
         }
     }
 
@@ -1017,18 +1034,6 @@ export function InventoryProductList() {
                             </Button>
                         </div>
                     </nav>
-                ) : null}
-
-                {deleteState.isError ? (
-                    <p
-                        role="alert"
-                        className="border-t border-border px-5 py-3 text-xs text-danger"
-                    >
-                        {getApiErrorMessage(
-                            deleteState.error,
-                            "Unable to delete the item.",
-                        )}
-                    </p>
                 ) : null}
             </section>
 

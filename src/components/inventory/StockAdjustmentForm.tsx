@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
 import {
     Select,
     SelectContent,
@@ -89,13 +90,13 @@ function getOptionalFormValue(formData: FormData, name: string) {
 
 export function StockAdjustmentForm() {
     const router = useRouter();
+    const { toast } = useToast();
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    const [status, setStatus] = useState<string | null>(null);
     const [selectedItemId, setSelectedItemId] = useState("");
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
@@ -121,7 +122,6 @@ export function StockAdjustmentForm() {
     function handleScannedItem(item: InventoryItem) {
         setSelectedItemId(item.id);
         setScannedItemName(item.name || "Unnamed item");
-        setStatus(null);
         setFieldErrors((current) => {
             if (!current.itemId) {
                 return current;
@@ -135,7 +135,6 @@ export function StockAdjustmentForm() {
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const batchData: Record<string, string> = {};
@@ -179,7 +178,11 @@ export function StockAdjustmentForm() {
 
         if (!result.success) {
             setFieldErrors(issueMap(result.error.issues));
-            setStatus("Check the highlighted stock information.");
+            toast({
+                tone: "error",
+                title: "Check the highlighted stock information",
+                description: result.error.issues[0]?.message,
+            });
             return;
         }
 
@@ -187,14 +190,20 @@ export function StockAdjustmentForm() {
 
         try {
             await createEntry(result.data).unwrap();
+            toast({
+                tone: "success",
+                title: "Stock entry recorded",
+            });
             router.push("/inventory/stock");
         } catch (error) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Stock entry not recorded",
+                description: getApiErrorMessage(
                     error,
                     "Unable to create the stock entry.",
                 ),
-            );
+            });
         }
     }
 
@@ -492,15 +501,6 @@ export function StockAdjustmentForm() {
                     </div>
                 )}
             </section>
-
-            {status ? (
-                <p
-                    className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger"
-                    role="alert"
-                >
-                    {status}
-                </p>
-            ) : null}
 
             <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button

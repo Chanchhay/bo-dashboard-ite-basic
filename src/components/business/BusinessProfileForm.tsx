@@ -190,13 +190,11 @@ function StagedImageField({
         <ImagePicker
             rules={rules}
             disabled={disabled}
-            error={staged.error}
             previewShape={previewShape}
             label={label}
             preview={preview}
             onPick={staged.pick}
             onError={(message) => {
-                staged.setError(message);
                 toast({
                     tone: "error",
                     title: `${noun} not selected`,

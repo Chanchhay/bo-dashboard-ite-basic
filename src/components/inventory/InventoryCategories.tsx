@@ -201,9 +201,22 @@ export function InventoryCategories() {
             if (editing?.id === deleteTarget.id) {
                 resetForm();
             }
+            toast({
+                tone: "success",
+                title: "Category deleted",
+                description: deleteTarget.name || undefined,
+            });
             setDeleteTarget(null);
-        } catch {
-            // The mutation error is displayed below the table.
+        } catch (mutationError) {
+            toast({
+                tone: "error",
+                title: "Delete failed",
+                description: getApiErrorMessage(
+                    mutationError,
+                    "Unable to delete the category.",
+                ),
+            });
+            setDeleteTarget(null);
         }
     }
 
@@ -502,15 +515,6 @@ export function InventoryCategories() {
                             />
                         </div>
                     </div>
-
-                    {fieldError ? (
-                        <p
-                            className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger"
-                            role="alert"
-                        >
-                            {fieldError}
-                        </p>
-                    ) : null}
 
                     <Button
                         type="submit"
