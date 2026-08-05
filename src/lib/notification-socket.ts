@@ -21,27 +21,27 @@ function fetchCredentials(force = false) {
 }
 
 /*
- * The server-derived URL wins. It comes from API_BASE_URL — the same backend
- * the REST proxy posts notifications to — and the socket has to match it,
- * because each backend publishes to its own in-process broker. A separately
- * configured NEXT_PUBLIC_WS_URL is what let the two drift apart (socket on the
- * deployed API, notifications being created on a local one), which looks
- * exactly like "realtime is broken": connected, subscribed, silent.
+ * A Next rewrite proxies plain HTTP; it does not forward the Upgrade handshake
+ * a raw WebSocket needs. SockJS's XHR transports are ordinary HTTP requests, so
+ * they survive the proxy — hence pinning them here rather than letting SockJS
+ * try `websocket` first and spend every connect on a handshake that cannot
+ * succeed. Notification traffic is a trickle, so long-polling costs nothing
+ * that matters.
  */
-function getWsConfig(resolvedUrl: string | null): {
-    brokerURL?: string;
-    webSocketFactory?: () => any;
-} {
-    const url =
-        resolvedUrl ||
-        process.env.NEXT_PUBLIC_WS_URL?.trim() ||
-        "http://localhost:8080/ws/notifications-sockjs";
+const PROXY_SAFE_TRANSPORTS = ["xhr-streaming", "xhr-polling"];
 
-    if (url.startsWith("ws://") || url.startsWith("wss://")) {
-        return { brokerURL: url };
-    }
+function getWsConfig(wsPath: string): { webSocketFactory: () => any } {
+    /*
+     * SockJS wants an absolute URL. Resolving against the page origin keeps it
+     * same-origin, which is the whole point: no CORS preflight, and the backend
+     * host never appears in the browser.
+     */
+    const url = new URL(wsPath, window.location.origin).toString();
 
-    return { webSocketFactory: () => new SockJS(url) };
+    return {
+        webSocketFactory: () =>
+            new SockJS(url, null, { transports: PROXY_SAFE_TRANSPORTS }),
+    };
 }
 
 class NotificationSocketService {
@@ -142,7 +142,19 @@ class NotificationSocketService {
             this.subject = credentials.subject;
         }
 
-        const wsConfig = getWsConfig(credentials?.wsUrl ?? null);
+        /*
+         * No path means the server has no API_BASE_URL to proxy to. Opening a
+         * socket then would just retry a 404 every 5s forever.
+         */
+        if (!credentials?.wsPath) {
+            this.isConnecting = false;
+            console.warn(
+                "[NotificationSocket] No socket path configured; realtime disabled.",
+            );
+            return;
+        }
+
+        const wsConfig = getWsConfig(credentials.wsPath);
 
         const client = new Client({
             ...wsConfig,

@@ -6,8 +6,12 @@ export type SessionContext = {
     /** Keycloak `sub` — the id the backend identifies users by. */
     subject: string | null;
     accessToken: string | null;
-    /** SockJS endpoint on the same backend the REST proxy talks to. */
-    wsUrl: string | null;
+    /**
+     * SockJS endpoint as a path on this origin, proxied to the backend by the
+     * rewrite in next.config.ts. Never an absolute backend URL — the API host
+     * is not something the browser needs to know.
+     */
+    wsPath: string | null;
 };
 
 /*
