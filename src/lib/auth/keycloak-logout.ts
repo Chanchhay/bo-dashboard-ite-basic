@@ -6,7 +6,12 @@ const DISCOVERY_PATH = "/.well-known/openid-configuration";
 let cachedEndSessionEndpoint: string | undefined;
 
 function issuerUrl() {
-    return process.env.KEYCLOAK_ISSUER?.trim().replace(/\/+$/, "");
+    const issuer =
+        process.env.KEYCLOAK_ISSUER ||
+        (process.env.NEXT_PUBLIC_KEYCLOAK_URL && process.env.NEXT_PUBLIC_KEYCLOAK_REALM
+            ? `${process.env.NEXT_PUBLIC_KEYCLOAK_URL.replace(/\/+$/, "")}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM.replace(/^\/+|\/+$/g, "")}`
+            : "https://auth.chanchhay.site/realms/istad-fluxipos-auth");
+    return issuer.replace(/\/+$/, "");
 }
 
 async function endSessionEndpoint(issuer: string) {

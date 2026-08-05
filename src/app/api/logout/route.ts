@@ -71,5 +71,30 @@ export async function POST(request: NextRequest) {
         response.headers.append("set-cookie", cookie);
     }
 
+    const cookiesToClear = [
+        "better-auth.session_token",
+        "__Secure-better-auth.session_token",
+        "better-auth.session_data",
+        "__Secure-better-auth.session_data",
+        "better-auth.dont_remember",
+        "__Secure-better-auth.dont_remember",
+        "ipos_token",
+    ];
+
+    for (const cookieName of cookiesToClear) {
+        response.headers.append(
+            "set-cookie",
+            `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax`
+        );
+        response.headers.append(
+            "set-cookie",
+            `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax`
+        );
+    }
+
     return response;
+}
+
+export async function GET(request: NextRequest) {
+    return POST(request);
 }
