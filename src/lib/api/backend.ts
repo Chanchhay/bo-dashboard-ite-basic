@@ -42,7 +42,6 @@ async function getKeycloakAccessToken() {
             headers: requestHeaders,
             body: { providerId: "keycloak" },
         });
-        console.log("===> AccessToken => ", tokens.accessToken)
 
         if (!tokens.accessToken) {
             throw new BackendApiError(
