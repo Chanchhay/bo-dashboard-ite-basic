@@ -27,7 +27,7 @@ const CHANNEL_METADATA: Record<
         name: "Point of Sale (POS)",
         description: "Items available to sell at the in-store till.",
         icon: Store,
-        color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        color: "bg-primary text-primary/700 border-primary",
     },
     TELEGRAM: {
         name: "Telegram Bot / Store",

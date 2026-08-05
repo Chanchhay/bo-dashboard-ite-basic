@@ -49,7 +49,7 @@ export function PostChannelDialog({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Plus className="w-5 h-5 text-emerald-600" />
+                        <Plus className="w-5 h-5 text-primary" />
                         {title}
                     </DialogTitle>
                     <DialogDescription>
@@ -93,7 +93,7 @@ export function PostChannelDialog({
                         <Button
                             type="submit"
                             disabled={isPosting || !selectedItemId}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="bg-primary hover:bg-primary text-white"
                         >
                             {isPosting ? "Adding…" : "Add item"}
                         </Button>
