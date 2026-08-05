@@ -1,6 +1,7 @@
 import { Client, Message, StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import type { Notification } from "./api/notification";
+import { fetchSessionContext } from "./auth/session-context";
 
 export type NotificationCallback = (notification: Notification) => void;
 
@@ -10,28 +11,13 @@ export interface SocketConnectParams {
     receiverId?: string;
 }
 
-type WsCredentials = {
-    accessToken: string | null;
-    subject: string | null;
-    wsUrl: string | null;
-};
-
 /*
- * Resolved once per connect and again on every reconnect, since the token
- * expires. Returns null when the user is not signed in.
+ * Resolved once per connect and again on every reconnect — `force` on the
+ * latter, since the whole point of re-reading is to get a token the cached
+ * copy no longer has.
  */
-async function fetchCredentials(): Promise<WsCredentials | null> {
-    try {
-        const response = await fetch("/api/notification/ws-token", {
-            cache: "no-store",
-        });
-
-        if (!response.ok) return null;
-
-        return (await response.json()) as WsCredentials;
-    } catch {
-        return null;
-    }
+function fetchCredentials(force = false) {
+    return fetchSessionContext(force ? { force: true } : undefined);
 }
 
 /*
@@ -73,9 +59,11 @@ class NotificationSocketService {
         if (!this.client?.connected) return;
 
         /*
-         * `/user/queue/notifications` is the one that matters for per-receiver
-         * alerts (low stock, completed sale): Spring rewrites it per Principal,
-         * so it only ever delivers once the CONNECT frame carried a token.
+         * `/topic/notifications` is the one that actually delivers today:
+         * NotificationWebSocketPublisher broadcasts every notification there.
+         * `/user/queue/notifications` is kept for the day the backend adds a
+         * ChannelInterceptor — it registers none, so the STOMP session has no
+         * Principal and Spring can never route a user destination.
          */
         const topicsToSubscribe = [
             "/topic/notifications",
@@ -175,7 +163,7 @@ class NotificationSocketService {
          * the socket factory by this point.
          */
         client.beforeConnect = async () => {
-            const fresh = await fetchCredentials();
+            const fresh = await fetchCredentials(true);
             const token = fresh?.accessToken ?? this.params.token;
 
             if (fresh?.subject) {

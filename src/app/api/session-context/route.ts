@@ -3,11 +3,15 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth/auth";
 
 /*
- * Hands the browser what it needs to open the notification socket itself —
- * the one place it talks to the backend directly instead of through
- * `backendRequest`.
+ * The parts of the server-side session the browser legitimately needs.
  *
- * `wsUrl` is the important part. It is derived from API_BASE_URL, the same
+ * `subject` is the Keycloak `sub`, which is how the backend identifies a user:
+ * `SecurityUtils.extractUserId()` reads it off the JWT, and the notification
+ * inbox query matches `receiverId` against it. Better Auth's `session.user.id`
+ * is a different, local value, so anything addressed with that id is written
+ * under a key the inbox will never look up.
+ *
+ * `wsUrl` is derived from API_BASE_URL, the same
  * variable the REST proxy uses, because the two MUST address the same backend:
  * notifications are created over REST and published to that instance's
  * in-process SimpleBroker. Point the socket somewhere else and it subscribes

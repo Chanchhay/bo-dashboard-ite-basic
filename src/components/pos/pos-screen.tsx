@@ -18,6 +18,7 @@ import { OrderTable } from "@/components/pos/order/order-table";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { authClient } from "@/lib/auth/auth-client";
+import { useSessionSubject } from "@/lib/auth/session-context";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
 import {
   useAddOrderItemMutation,
@@ -130,6 +131,9 @@ export function PosScreen({
 
   const [createNotification] = useCreateNotificationMutation();
   const { data: session } = authClient.useSession();
+  /* The backend matches receiverId against the Keycloak subject, not against
+     Better Auth's local user.id. */
+  const subject = useSessionSubject();
 
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
     setPaidReceipt({ order, sale });
@@ -138,7 +142,7 @@ export function PosScreen({
     setEditingOrderId(null);
 
     // Dispatch Sale Completed notification to POS / Business users
-    if (session?.user?.id) {
+    if (subject) {
       const orderRef = order.invoiceNumber || (order.id ? order.id.slice(0, 8) : "POS");
       const totalVal = sale.totalAmount ?? order.total ?? 0;
       const formattedTotal = formatCurrency(totalVal);
@@ -146,9 +150,9 @@ export function PosScreen({
 
       // 1. Dispatch Sale Completed Notification
       createNotification({
-        senderId: session.user.id,
-        senderName: session.user.name || "POS Cashier",
-        receiverIds: [session.user.id],
+        senderId: subject,
+        senderName: session?.user?.name || "POS Cashier",
+        receiverIds: [subject],
         type: "ORDER",
         title: `Sale Completed (#${orderRef})`,
         content: `Completed sale of ${itemCount} item(s) total ${formattedTotal}.`,
@@ -167,9 +171,9 @@ export function PosScreen({
 
           // Dispatch real-time low stock warning for Business Owner / Team
           createNotification({
-            senderId: session.user.id!,
+            senderId: subject,
             senderName: "Inventory System",
-            receiverIds: [session.user.id!],
+            receiverIds: [subject],
             type: "INVENTORY",
             title: `Low Stock Warning: ${itemName}`,
             content: `Item "${itemName}" stock updated after sale. Check inventory to restock!`,

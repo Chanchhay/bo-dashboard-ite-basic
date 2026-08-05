@@ -26,6 +26,7 @@ import { setStockSearch } from "@/store/inventoryUiSlice";
 import { useGetCurrentStockQuery, useGetInventoryItemOptionsQuery, useGetStockEntriesQuery } from "@/services/inventoryApi";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
 import { authClient } from "@/lib/auth/auth-client";
+import { useSessionSubject } from "@/lib/auth/session-context";
 import { useToast } from "@/components/ui/toast";
 
 function metricCard(
@@ -61,6 +62,9 @@ export function InventoryStock() {
     const entriesQuery = useGetStockEntriesQuery();
     const [createNotification, { isLoading: isNotifying }] = useCreateNotificationMutation();
     const { data: session } = authClient.useSession();
+    /* The backend matches receiverId against the Keycloak subject, not against
+       Better Auth's local user.id. */
+    const subject = useSessionSubject();
     const { toast } = useToast();
 
     if (itemsQuery.isLoading || stockQuery.isLoading) {
@@ -129,7 +133,7 @@ export function InventoryStock() {
         .slice(0, 6);
 
     const handleBroadcastLowStockAlert = async () => {
-        if (!session?.user?.id) return;
+        if (!subject) return;
         if (lowStock.length === 0 && outOfStock.length === 0) {
             toast({ tone: "info", title: "All stock levels normal", description: "No items are currently low or out of stock." });
             return;
@@ -141,9 +145,9 @@ export function InventoryStock() {
             const extra = count > 3 ? ` and ${count - 3} more` : "";
 
             await createNotification({
-                senderId: session.user.id,
-                senderName: session.user.name || "Inventory Manager",
-                receiverIds: [session.user.id],
+                senderId: subject,
+                senderName: session?.user?.name || "Inventory Manager",
+                receiverIds: [subject],
                 type: "INVENTORY",
                 title: `Low Stock Warning (${count} item${count > 1 ? "s" : ""})`,
                 content: `Attention: ${names}${extra} ${count > 1 ? "are" : "is"} low or out of stock!`,
