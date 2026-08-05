@@ -26,6 +26,7 @@ export const baseApi = createApi({
         "PosOrder",
         "BakongSettings",
         "PosOpenOrders",
+        "PosOrderHistory",
         "PosReceipts",
     ],
     endpoints: () => ({}),

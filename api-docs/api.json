@@ -16,6 +16,129 @@
     }
   ],
   "paths": {
+    "/api/v1/sales-channels/{id}": {
+      "put": {
+        "tags": [
+          "sales-channel-controller"
+        ],
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSalesChannelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesChannelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sales-channel-controller"
+        ],
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/staff/{userId}": {
       "get": {
         "tags": [
@@ -332,6 +455,60 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/received/{id}": {
+      "put": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",
@@ -1201,13 +1378,175 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "itemGroupId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "unitId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sku",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "imageUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "images",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "badge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "barcode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "compareAtPrice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "itemType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DIGITAL",
+                "SERVICE",
+                "PHYSICAL"
+              ]
+            }
+          },
+          {
+            "name": "lowStockDefault",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ]
+            }
           }
         ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateItemRequest"
+                "type": "object",
+                "properties": {
+                  "attributes": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ItemAttributeRequest"
+                    }
+                  },
+                  "descriptionBlocks": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/DescriptionBlockRequest"
+                    }
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ItemVariantRequest"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
               }
             }
           }
@@ -3446,6 +3785,128 @@
         }
       }
     },
+    "/api/v1/sales-channels": {
+      "get": {
+        "tags": [
+          "sales-channel-controller"
+        ],
+        "operationId": "findAll",
+        "parameters": [
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SalesChannelResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sales-channel-controller"
+        ],
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSalesChannelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesChannelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/staff": {
       "get": {
         "tags": [
@@ -3654,12 +4115,72 @@
         }
       }
     },
+    "/api/v1/notifications": {
+      "post": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateNotificationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/item-channels": {
       "post": {
         "tags": [
           "item-channel-controller"
         ],
-        "operationId": "create",
+        "operationId": "create_2",
         "requestBody": {
           "content": {
             "application/json": {
@@ -5005,13 +5526,175 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "itemGroupId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "unitId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sku",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "imageUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "images",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "badge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "barcode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "compareAtPrice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "itemType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DIGITAL",
+                "SERVICE",
+                "PHYSICAL"
+              ]
+            }
+          },
+          {
+            "name": "lowStockDefault",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ]
+            }
           }
         ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/CreateItemRequest"
+                "type": "object",
+                "properties": {
+                  "attributes": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ItemAttributeRequest"
+                    }
+                  },
+                  "descriptionBlocks": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/DescriptionBlockRequest"
+                    }
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ItemVariantRequest"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
               }
             }
           }
@@ -5967,12 +6650,72 @@
         }
       }
     },
-    "/api/v1/auth/register": {
+    "/api/v1/auth/register/customer": {
       "post": {
         "tags": [
           "auth-controller"
         ],
-        "operationId": "register",
+        "operationId": "registerCustomer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register/business": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "registerBusiness",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6526,6 +7269,113 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/received/{id}/read": {
+      "patch": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/received/read-all": {
+      "patch": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "markAllRead",
+        "parameters": [
+          {
+            "name": "receiverId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",
@@ -9055,59 +9905,6 @@
         }
       }
     },
-    "/api/v1/sales-channels": {
-      "get": {
-        "tags": [
-          "sales-channel-controller"
-        ],
-        "operationId": "findAll",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SalesChannelResponse"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/sales-channels/{channelCode}/items": {
       "get": {
         "tags": [
@@ -9623,6 +10420,149 @@
                   "items": {
                     "$ref": "#/components/schemas/BusinessCategoryResponse"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/received": {
+      "get": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "received",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ORDER",
+                "PAYMENT",
+                "INVENTORY",
+                "SYSTEM",
+                "PROMOTION"
+              ]
+            }
+          },
+          {
+            "name": "isRead",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "pageable",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelReceivedNotificationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/received/unread-count": {
+      "get": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "unreadCount",
+        "parameters": [
+          {
+            "name": "receiverId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
                 }
               }
             }
@@ -10280,6 +11220,102 @@
         }
       }
     },
+    "/api/v1/businesses/{businessId}/discounts/applicable": {
+      "get": {
+        "tags": [
+          "discount-controller"
+        ],
+        "operationId": "findApplicableDiscounts",
+        "parameters": [
+          {
+            "name": "businessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "POS",
+                "TELEGRAM",
+                "MESSENGER",
+                "WEB"
+              ]
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "itemGroupId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DiscountResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/businesses/{businessId}/coupons/code/{code}": {
       "get": {
         "tags": [
@@ -10835,7 +11871,7 @@
         "tags": [
           "admin-business-controller"
         ],
-        "operationId": "delete",
+        "operationId": "delete_2",
         "parameters": [
           {
             "name": "businessId",
@@ -11204,12 +12240,66 @@
         }
       }
     },
+    "/api/v1/notifications/received/{id}/permanent": {
+      "delete": {
+        "tags": [
+          "notification-controller"
+        ],
+        "operationId": "hardDelete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/item-channels/{id}": {
       "delete": {
         "tags": [
           "item-channel-controller"
         ],
-        "operationId": "delete_1",
+        "operationId": "delete_3",
         "parameters": [
           {
             "name": "id",
@@ -11420,6 +12510,42 @@
             "format": "date-time"
           },
           "errorDetail": {}
+        }
+      },
+      "UpdateSalesChannelRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 0
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SalesChannelResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
         }
       },
       "UpdateStaffRequest": {
@@ -11689,10 +12815,13 @@
           "typeName": {
             "type": "string",
             "maxLength": 100,
-            "minLength": 0
+            "minLength": 0,
+            "pattern": "^[\\p{L}]+(?: [\\p{L}]+)*$"
           },
           "remark": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
           },
           "discountId": {
             "type": "string",
@@ -11701,6 +12830,41 @@
           "status": {
             "type": "string",
             "pattern": "ACTIVE|INACTIVE"
+          }
+        }
+      },
+      "DiscountSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE",
+              "FIXED_AMOUNT",
+              "BUY_X_GET_Y"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "ALL_ITEMS",
+              "SPECIFIC_ITEMS",
+              "SPECIFIC_CATEGORIES",
+              "SPECIFIC_MEMBERSHIP",
+              "ORDER",
+              "ITEM",
+              "CATEGORY"
+            ]
+          },
+          "value": {
+            "type": "number"
           }
         }
       },
@@ -11725,6 +12889,9 @@
             "type": "string",
             "format": "uuid"
           },
+          "discount": {
+            "$ref": "#/components/schemas/DiscountSummaryResponse"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -11734,71 +12901,6 @@
           },
           "createdBy": {
             "type": "string"
-          }
-        }
-      },
-      "DescriptionBlockRequest": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "PARAGRAPH",
-              "HEADING",
-              "BULLETS",
-              "IMAGE",
-              "SPEC_GRID",
-              "COLUMNS"
-            ]
-          },
-          "text": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 0
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 300,
-              "minLength": 0
-            },
-            "maxItems": 20,
-            "minItems": 0
-          },
-          "url": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 0
-          },
-          "caption": {
-            "type": "string",
-            "maxLength": 150,
-            "minLength": 0
-          },
-          "columns": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DescriptionColumnRequest"
-            },
-            "maxItems": 3,
-            "minItems": 2
-          }
-        },
-        "required": [
-          "type"
-        ]
-      },
-      "DescriptionColumnRequest": {
-        "type": "object",
-        "properties": {
-          "blocks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DescriptionBlockRequest"
-            },
-            "maxItems": 20,
-            "minItems": 0
           }
         }
       },
@@ -11870,6 +12972,71 @@
           "value"
         ]
       },
+      "DescriptionBlockRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "PARAGRAPH",
+              "HEADING",
+              "BULLETS",
+              "IMAGE",
+              "SPEC_GRID",
+              "COLUMNS"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 0
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DescriptionColumnRequest"
+            },
+            "maxItems": 3,
+            "minItems": 2
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "DescriptionColumnRequest": {
+        "type": "object",
+        "properties": {
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DescriptionBlockRequest"
+            },
+            "maxItems": 20,
+            "minItems": 0
+          }
+        }
+      },
       "ItemVariantRequest": {
         "type": "object",
         "properties": {
@@ -11889,110 +13056,6 @@
         "required": [
           "name"
         ]
-      },
-      "UpdateItemRequest": {
-        "type": "object",
-        "properties": {
-          "itemGroupId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "unitId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 0
-          },
-          "sku": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0
-          },
-          "code": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0
-          },
-          "description": {
-            "type": "string"
-          },
-          "imageUrl": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 0
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 255,
-              "minLength": 0
-            },
-            "maxItems": 8,
-            "minItems": 0
-          },
-          "badge": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 0
-          },
-          "barcode": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0
-          },
-          "price": {
-            "type": "number",
-            "minimum": 0
-          },
-          "compareAtPrice": {
-            "type": "number",
-            "minimum": 0
-          },
-          "itemType": {
-            "type": "string",
-            "enum": [
-              "DIGITAL",
-              "SERVICE",
-              "PHYSICAL"
-            ]
-          },
-          "attributes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ItemAttributeRequest"
-            }
-          },
-          "descriptionBlocks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DescriptionBlockRequest"
-            },
-            "maxItems": 30,
-            "minItems": 0
-          },
-          "variants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ItemVariantRequest"
-            }
-          },
-          "lowStockDefault": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "ACTIVE",
-              "INACTIVE"
-            ]
-          }
-        }
       },
       "DescriptionBlockResponse": {
         "type": "object",
@@ -12095,6 +13158,22 @@
           }
         }
       },
+      "ItemImageResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ItemResponse": {
         "type": "object",
         "properties": {
@@ -12133,7 +13212,7 @@
           "images": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ItemImageResponse"
             }
           },
           "badge": {
@@ -12289,10 +13368,13 @@
           "name": {
             "type": "string",
             "maxLength": 150,
-            "minLength": 0
+            "minLength": 0,
+            "pattern": "^[\\\\p{L}]+(?: [\\\\p{L}]+)*$"
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 0
           },
           "type": {
             "type": "string",
@@ -12304,28 +13386,46 @@
           },
           "buyQuantity": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 1
           },
           "getQuantity": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 1
           },
           "minQuantity": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 1
           },
           "value": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
           },
           "scope": {
             "type": "string",
+            "enum": [
+              "ALL_ITEMS",
+              "SPECIFIC_ITEMS",
+              "SPECIFIC_CATEGORIES",
+              "SPECIFIC_MEMBERSHIP",
+              "ORDER",
+              "ITEM",
+              "CATEGORY"
+            ],
             "pattern": "ALL_ITEMS|SPECIFIC_ITEMS|SPECIFIC_CATEGORIES|SPECIFIC_MEMBERSHIP"
           },
           "minOrderAmount": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
           },
           "maxDiscountAmount": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
           },
           "requiresCoupon": {
             "type": "boolean"
@@ -12341,12 +13441,53 @@
           "selectedDays": {
             "type": "array",
             "items": {
-              "type": "string"
-            }
+              "type": "string",
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
+            },
+            "maxItems": 7,
+            "minItems": 0
           },
           "status": {
             "type": "string",
             "pattern": "ACTIVE|INACTIVE"
+          },
+          "applicableChannels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "POS",
+                "TELEGRAM",
+                "MESSENGER",
+                "WEB"
+              ]
+            }
+          },
+          "targetItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
+          },
+          "targetItemGroupIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
           }
         }
       },
@@ -12405,7 +13546,10 @@
               "ALL_ITEMS",
               "SPECIFIC_ITEMS",
               "SPECIFIC_CATEGORIES",
-              "SPECIFIC_MEMBERSHIP"
+              "SPECIFIC_MEMBERSHIP",
+              "ORDER",
+              "ITEM",
+              "CATEGORY"
             ]
           },
           "minOrderAmount": {
@@ -12428,7 +13572,34 @@
           "selectedDay": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
+            }
+          },
+          "applicableChannels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "POS",
+                "TELEGRAM",
+                "MESSENGER",
+                "WEB"
+              ]
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscountTargetResponse"
             }
           },
           "status": {
@@ -12437,6 +13608,29 @@
               "ACTIVE",
               "INACTIVE"
             ]
+          }
+        }
+      },
+      "DiscountTargetResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "ITEM",
+              "ITEM_GROUP"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "targetName": {
+            "type": "string"
           }
         }
       },
@@ -12555,6 +13749,9 @@
           },
           "code": {
             "type": "string"
+          },
+          "discount": {
+            "$ref": "#/components/schemas/DiscountSummaryResponse"
           },
           "usageLimit": {
             "type": "integer",
@@ -13221,6 +14418,28 @@
           "openingBalance"
         ]
       },
+      "CreateSalesChannelRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 0
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
       "CreateStaffRequest": {
         "type": "object",
         "properties": {
@@ -13267,6 +14486,70 @@
           "phoneNumber",
           "username"
         ]
+      },
+      "CreateNotificationRequest": {
+        "type": "object",
+        "properties": {
+          "senderId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "senderName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "receiverIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 0
+            },
+            "minItems": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "PAYMENT",
+              "INVENTORY",
+              "SYSTEM",
+              "PROMOTION"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "content": {
+            "type": "string"
+          },
+          "deepLink": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "receiverIds",
+          "senderId",
+          "title",
+          "type"
+        ]
+      },
+      "CreateNotificationResponse": {
+        "type": "object",
+        "properties": {
+          "notificationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recipientCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "CreateItemChannelRequest": {
         "type": "object",
@@ -13780,7 +15063,8 @@
           "typeName": {
             "type": "string",
             "maxLength": 100,
-            "minLength": 0
+            "minLength": 0,
+            "pattern": "^[\\p{L}]+(?: [\\p{L}]+)*$"
           },
           "remark": {
             "type": "string",
@@ -13806,114 +15090,6 @@
           "remark",
           "status",
           "typeName"
-        ]
-      },
-      "CreateItemRequest": {
-        "type": "object",
-        "properties": {
-          "itemGroupId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "unitId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 0
-          },
-          "sku": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0
-          },
-          "code": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0
-          },
-          "description": {
-            "type": "string"
-          },
-          "imageUrl": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 0
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 255,
-              "minLength": 0
-            },
-            "maxItems": 8,
-            "minItems": 0
-          },
-          "badge": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 0
-          },
-          "barcode": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0
-          },
-          "price": {
-            "type": "number",
-            "minimum": 0
-          },
-          "compareAtPrice": {
-            "type": "number",
-            "minimum": 0
-          },
-          "itemType": {
-            "type": "string",
-            "enum": [
-              "DIGITAL",
-              "SERVICE",
-              "PHYSICAL"
-            ]
-          },
-          "attributes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ItemAttributeRequest"
-            }
-          },
-          "descriptionBlocks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DescriptionBlockRequest"
-            },
-            "maxItems": 30,
-            "minItems": 0
-          },
-          "variants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ItemVariantRequest"
-            }
-          },
-          "lowStockDefault": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "ACTIVE",
-              "INACTIVE"
-            ]
-          }
-        },
-        "required": [
-          "itemType",
-          "name"
         ]
       },
       "UploadItemImagesRequest": {
@@ -13970,7 +15146,8 @@
           "name": {
             "type": "string",
             "maxLength": 150,
-            "minLength": 0
+            "minLength": 0,
+            "pattern": "^[\\p{L}]+(?: [\\p{L}]+)*$"
           },
           "description": {
             "type": "string",
@@ -13997,7 +15174,8 @@
           "buyQuantity": {
             "type": "integer",
             "format": "int32",
-            "maximum": 10000
+            "maximum": 10000,
+            "minimum": 1
           },
           "getQuantity": {
             "type": "integer",
@@ -14007,7 +15185,8 @@
           "minQuantity": {
             "type": "integer",
             "format": "int32",
-            "maximum": 10000
+            "maximum": 10000,
+            "minimum": 1
           },
           "value": {
             "type": "number",
@@ -14019,7 +15198,10 @@
               "ALL_ITEMS",
               "SPECIFIC_ITEMS",
               "SPECIFIC_CATEGORIES",
-              "SPECIFIC_MEMBERSHIP"
+              "SPECIFIC_MEMBERSHIP",
+              "ORDER",
+              "ITEM",
+              "CATEGORY"
             ]
           },
           "minOrderAmount": {
@@ -14030,28 +15212,71 @@
             "type": "number",
             "minimum": 0
           },
+          "requiresCoupon": {
+            "type": "boolean"
+          },
           "startsAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "minLength": 1
           },
           "endsAt": {
             "type": "string",
-            "format": "date-time"
-          },
-          "requiresCoupon": {
-            "type": "boolean"
+            "format": "date-time",
+            "minLength": 1
           },
           "selectedDays": {
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
             },
-            "minItems": 1
+            "maxItems": 7,
+            "minItems": 0
           },
           "status": {
             "type": "string",
             "minLength": 1
+          },
+          "applicableChannels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "POS",
+                "TELEGRAM",
+                "MESSENGER",
+                "WEB"
+              ]
+            },
+            "maxItems": 4,
+            "minItems": 0
+          },
+          "targetItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
+          },
+          "targetItemGroupIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
           }
         },
         "required": [
@@ -14060,10 +15285,10 @@
           "requiresCoupon",
           "ruleType",
           "scope",
-          "selectedDays",
           "startsAt",
           "status",
-          "type"
+          "type",
+          "value"
         ]
       },
       "CreateBusinessCurrencyRequest": {
@@ -14113,18 +15338,24 @@
           "code": {
             "type": "string",
             "maxLength": 60,
-            "minLength": 0
+            "minLength": 0,
+            "pattern": "^[A-Za-z0-9_-]+$"
           },
           "usageLimit": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 1
           },
           "usageLimitPerCustomer": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 1
           },
           "minPurchaseAmount": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
           },
           "startsAt": {
             "type": "string",
@@ -14231,10 +15462,14 @@
             "minLength": 1,
             "pattern": "MALE|FEMALE|OTHER|UNSPECIFIED"
           },
-          "role": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "GLOBAL_USER|BUSINESS|CUSTOMER"
+          "businessName": {
+            "type": "string"
+          },
+          "businessAddress": {
+            "type": "string"
+          },
+          "businessCategoryId": {
+            "type": "string"
           }
         },
         "required": [
@@ -14245,7 +15480,6 @@
           "lastName",
           "password",
           "phoneNumber",
-          "role",
           "username"
         ]
       },
@@ -14928,24 +16162,6 @@
           }
         }
       },
-      "SalesChannelResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "code": {
-            "type": "string"
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        }
-      },
       "SalesChannelItemResponse": {
         "type": "object",
         "properties": {
@@ -15167,6 +16383,82 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "PagedModelReceivedNotificationResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceivedNotificationResponse"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          }
+        }
+      },
+      "ReceivedNotificationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "notificationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "PAYMENT",
+              "INVENTORY",
+              "SYSTEM",
+              "PROMOTION"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "deepLink": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deliveredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
