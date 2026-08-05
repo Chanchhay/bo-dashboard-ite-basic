@@ -16,7 +16,16 @@ export function NotificationToastListener() {
     const handledIdsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
-        if (!userId) return;
+        /*
+         * Signing out is a form POST that navigates away, so the socket dies
+         * with the page. This covers the other case: a session that expires
+         * while the tab stays open, where the connection would otherwise keep
+         * running against a token that is no longer valid.
+         */
+        if (!userId) {
+            notificationSocket.disconnect();
+            return;
+        }
 
         // Ensure websocket is connected for logged in user
         notificationSocket.connect({
