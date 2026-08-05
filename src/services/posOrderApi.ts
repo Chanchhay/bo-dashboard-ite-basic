@@ -2,6 +2,8 @@ import { baseApi } from "@/lib/baseApi";
 import type {
     AddOrderItemInput,
     Khqr,
+    OrderHistory,
+    OrderHistoryQuery,
     ParkOrderInput,
     PaymentStatus,
     PayOrderInput,
@@ -35,6 +37,27 @@ export const posOrderApi = baseApi.injectEndpoints({
                     id: order.id,
                 })) ?? []),
             ],
+        }),
+
+        /** Sale Management's order list — every status, not just the open cart. */
+        getOrderHistory: builder.query<OrderHistory, OrderHistoryQuery | void>({
+            query: (input) => ({
+                url: "/orders",
+                params: {
+                    // "ALL" is the absence of a filter, so it is never sent.
+                    status:
+                        input?.status && input.status !== "ALL"
+                            ? input.status
+                            : undefined,
+                    channel:
+                        input?.channel && input.channel !== "ALL"
+                            ? input.channel
+                            : undefined,
+                    from: input?.from,
+                    to: input?.to,
+                },
+            }),
+            providesTags: ["PosOrderHistory"],
         }),
 
         getReceipts: builder.query<
@@ -73,7 +96,11 @@ export const posOrderApi = baseApi.injectEndpoints({
                 method: "POST",
                 body,
             }),
-            invalidatesTags: ["PosOrder", { type: "PosOpenOrders", id: "LIST" }],
+            invalidatesTags: [
+                "PosOrder",
+                "PosOrderHistory",
+                { type: "PosOpenOrders", id: "LIST" },
+            ],
         }),
 
         loadOrderForEdit: builder.mutation<PosOrder, string>({
@@ -91,6 +118,7 @@ export const posOrderApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: (_result, _error, orderId) => [
                 "PosOrder",
+                "PosOrderHistory",
                 { type: "PosOpenOrders", id: orderId },
                 { type: "PosOpenOrders", id: "LIST" },
             ],
@@ -138,6 +166,7 @@ export const posOrderApi = baseApi.injectEndpoints({
             query: () => ({ url: "/orders/current/clear", method: "POST" }),
             invalidatesTags: [
                 "PosOrder",
+                "PosOrderHistory",
                 { type: "PosOpenOrders", id: "LIST" },
             ],
         }),
@@ -169,6 +198,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                     if (data.sale) {
                         dispatch(
                             posOrderApi.util.invalidateTags([
+                                "PosOrderHistory",
                                 { type: "PosReceipts", id: "LIST" },
                             ]),
                         );
@@ -188,6 +218,7 @@ export const posOrderApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: [
                 "PosOrder",
+                "PosOrderHistory",
                 { type: "PosOpenOrders", id: "LIST" },
                 { type: "PosReceipts", id: "LIST" },
             ],
@@ -225,6 +256,7 @@ async function writeBackOrder(
 export const {
     useGetCurrentOrderQuery,
     useGetOpenOrdersQuery,
+    useGetOrderHistoryQuery,
     useGetReceiptsQuery,
     useGetReceiptQuery,
     useParkOrderMutation,
