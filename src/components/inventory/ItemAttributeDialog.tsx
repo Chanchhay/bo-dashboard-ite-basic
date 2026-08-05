@@ -478,12 +478,6 @@ function AttributeForm({
                 </p>
             )}
 
-            {error ? (
-                <p className="text-xs text-danger" role="alert">
-                    {error}
-                </p>
-            ) : null}
-
             <DialogFooter>
                 <Button
                     type="button"

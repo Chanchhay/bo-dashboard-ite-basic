@@ -89,7 +89,6 @@ export default function StaffTab() {
     const [search, setSearch] = useState("");
     const [editor, setEditor] = useState<Editor>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const [formError, setFormError] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
 
     const roles = useMemo(() => rolesQuery.data || [], [rolesQuery.data]);
@@ -118,7 +117,6 @@ export default function StaffTab() {
     const closeEditor = () => {
         setEditor(null);
         setFieldErrors({});
-        setFormError(null);
     };
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -126,7 +124,6 @@ export default function StaffTab() {
         if (!editor) return;
 
         setFieldErrors({});
-        setFormError(null);
 
         const form = new FormData(event.currentTarget);
         const shared = {
@@ -151,7 +148,11 @@ export default function StaffTab() {
 
                 if (!parsed.success) {
                     setFieldErrors(issueMap(parsed.error.issues));
-                    setFormError("Check the highlighted fields.");
+                    toast({
+                        tone: "error",
+                        title: "Check the highlighted fields",
+                        description: parsed.error.issues[0]?.message,
+                    });
                     return;
                 }
 
@@ -165,7 +166,11 @@ export default function StaffTab() {
 
                 if (!parsed.success) {
                     setFieldErrors(issueMap(parsed.error.issues));
-                    setFormError("Check the highlighted fields.");
+                    toast({
+                        tone: "error",
+                        title: "Check the highlighted fields",
+                        description: parsed.error.issues[0]?.message,
+                    });
                     return;
                 }
 
@@ -178,15 +183,13 @@ export default function StaffTab() {
 
             closeEditor();
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to save the user.",
-            );
-            setFormError(message);
             toast({
                 tone: "error",
                 title: "Save failed",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to save the user.",
+                ),
             });
         }
     }
@@ -428,15 +431,6 @@ export default function StaffTab() {
                             </FormField>
                         </div>
 
-                        {formError && (
-                            <p
-                                role="alert"
-                                className="text-[13px] text-danger"
-                            >
-                                {formError}
-                            </p>
-                        )}
-
                         <div className="flex flex-wrap gap-3">
                             <Button
                                 type="submit"
@@ -471,7 +465,6 @@ export default function StaffTab() {
                             onClick={() => {
                                 setEditor({ mode: "create" });
                                 setFieldErrors({});
-                                setFormError(null);
                             }}
                             className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
@@ -616,7 +609,6 @@ export default function StaffTab() {
                                                             staff: member,
                                                         });
                                                         setFieldErrors({});
-                                                        setFormError(null);
                                                     }}
                                                     aria-label={`Edit ${staffFullName(member)}`}
                                                     variant="ghost"
