@@ -635,32 +635,30 @@ function Gallery({
 
     return (
         <div className="flex flex-col sm:flex-row gap-4">
-            {images.length > 1 ? (
-                <div className="flex flex-row sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-w-full shrink-0">
-                    {images.map((image, position) => (
-                        <button
-                            key={`${image}-${position}`}
-                            type="button"
-                            aria-label={`Show image ${position + 1}`}
-                            aria-pressed={position === index}
-                            onClick={() => onSelect(position)}
-                            className={cn(
-                                "relative size-14 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer",
-                                position === index
-                                    ? "border-primary ring-2 ring-primary/20 shadow-xs scale-[1.02]"
-                                    : "border-transparent dark:border-[#242937] hover:border-primary/40 opacity-70 hover:opacity-100",
-                            )}
-                        >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={image}
-                                alt=""
-                                className="size-full object-cover"
-                            />
-                        </button>
-                    ))}
-                </div>
-            ) : null}
+            <div className="flex flex-row sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-w-full shrink-0">
+                {images.map((image, position) => (
+                    <button
+                        key={`${image}-${position}`}
+                        type="button"
+                        aria-label={`Show image ${position + 1}`}
+                        aria-pressed={position === index}
+                        onClick={() => onSelect(position)}
+                        className={cn(
+                            "relative size-14 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer",
+                            position === index
+                                ? "border-primary ring-2 ring-primary/20 shadow-xs scale-[1.02]"
+                                : "border-transparent dark:border-[#242937] hover:border-primary/40 opacity-70 hover:opacity-100",
+                        )}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={image}
+                            alt=""
+                            className="size-full object-cover"
+                        />
+                    </button>
+                ))}
+            </div>
             <div className="relative aspect-square flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf8] dark:bg-[#151821] shadow-xs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
