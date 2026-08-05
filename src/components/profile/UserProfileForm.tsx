@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     profilePictureRules,
     userProfileGenders,
@@ -213,10 +214,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     // to, rather than in the form's status line.
     const [pictureNote, setPictureNote] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-    const [status, setStatus] = useState<{
-        type: "success" | "error";
-        message: string;
-    } | null>(null);
+    const { toast } = useToast();
     const [updateUserProfile, { isLoading: isSaving }] =
         useUpdateUserProfileMutation();
     const [deleteProfilePicture, { isLoading: isRemovingPicture }] =
@@ -252,12 +250,14 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             publishProfile({ ...profile, profilePicture: "" });
             setPictureNote("Profile picture removed.");
         } catch (error) {
-            picture.setError(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Profile picture not removed",
+                description: getApiErrorMessage(
                     error,
                     "Unable to remove your profile picture.",
                 ),
-            );
+            });
         }
     }
 
@@ -268,12 +268,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         picture.reset();
         setFieldErrors({});
         setPictureNote(null);
-        setStatus(null);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const result = userProfileSchema.safeParse({
@@ -286,9 +284,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
         if (!result.success) {
             setFieldErrors(getFieldErrors(result.error));
-            setStatus({
-                type: "error",
-                message: "Check the highlighted fields and try again.",
+            toast({
+                tone: "error",
+                title: "Check the highlighted fields",
+                description: "Some details still need your attention.",
             });
             return;
         }
@@ -310,14 +309,16 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             );
             picture.reset();
             setPictureNote(null);
-            setStatus({
-                type: "success",
-                message: "Your profile was saved successfully.",
+            toast({
+                tone: "success",
+                title: "Profile saved",
+                description: "Your profile was saved successfully.",
             });
         } catch (error) {
-            setStatus({
-                type: "error",
-                message: getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Profile not saved",
+                description: getApiErrorMessage(
                     error,
                     "Unable to save your profile.",
                 ),
@@ -332,12 +333,17 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     <ImagePicker
                         rules={profilePictureRules}
                         disabled={isSaving}
-                        error={picture.error}
                         busy={isSaving && Boolean(picture.file)}
                         previewShape="circle"
                         label="Profile picture"
                         onPick={handlePicturePick}
-                        onError={picture.setError}
+                        onError={(message) =>
+                            toast({
+                                tone: "error",
+                                title: "Profile picture not selected",
+                                description: message,
+                            })
+                        }
                         preview={
                             <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
                                 {picture.preview ? (
@@ -577,27 +583,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                 </div>
 
                 <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] pt-6 sm:flex-row sm:items-center">
-                    <div
-                        className="min-h-5 flex-1 text-sm"
-                        aria-live="polite"
-                    >
-                        {status ? (
-                            <p
-                                className={
-                                    status.type === "success"
-                                        ? "text-primary"
-                                        : "text-danger"
-                                }
-                                role={
-                                    status.type === "error"
-                                        ? "alert"
-                                        : "status"
-                                }
-                            >
-                                {status.message}
-                            </p>
-                        ) : null}
-                    </div>
+                    <div className="flex-1" />
                     <Button
                         type="button"
                         variant="outline"

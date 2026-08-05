@@ -50,7 +50,6 @@ export type BlockDraft = {
     // the local preview and outcome until `url` is filled in.
     previewUrl?: string;
     uploading?: boolean;
-    uploadError?: string;
     /** The storage key of a picture uploaded here, so it can be cleaned up. */
     assetKey?: string;
 };
@@ -395,7 +394,7 @@ function BlockImageField({
         release(block.previewUrl);
         const replaced = block.assetKey;
         const previewUrl = create(file);
-        onChange({ previewUrl, uploading: true, uploadError: undefined });
+        onChange({ previewUrl, uploading: true });
 
         try {
             const asset = await uploadAsset(file).unwrap();
@@ -417,20 +416,18 @@ function BlockImageField({
                 title: "Description image uploaded",
             });
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to upload that image.",
-            );
             release(previewUrl);
             onChange({
                 previewUrl: undefined,
                 uploading: false,
-                uploadError: message,
             });
             toast({
                 tone: "error",
                 title: "Description image not uploaded",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to upload that image.",
+                ),
             });
         }
     }
@@ -443,7 +440,6 @@ function BlockImageField({
             assetKey: undefined,
             previewUrl: undefined,
             uploading: false,
-            uploadError: undefined,
         });
     }
 
@@ -452,11 +448,9 @@ function BlockImageField({
             rules={blockImageRules}
             disabled={block.uploading}
             busy={block.uploading}
-            error={block.uploadError}
             label={block.url ? "Replace image" : "Block image"}
             onPick={handlePick}
             onError={(message) => {
-                onChange({ uploadError: message });
                 toast({
                     tone: "error",
                     title: "Description image not selected",

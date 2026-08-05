@@ -362,9 +362,6 @@ function ProductEditor({
     const [barcodePreview, setBarcodePreview] = useState(
         initialItem?.barcode || "",
     );
-    const [barcodeGenerationError, setBarcodeGenerationError] = useState<
-        string | null
-    >(null);
     // Stored images belong to the server: they arrive with an id and are
     // deleted through their own endpoint. Picked files are held here until the
     // save carries them up.
@@ -376,7 +373,6 @@ function ProductEditor({
         [initialItem?.images],
     );
     const [pickedImages, setPickedImages] = useState<PickedImage[]>([]);
-    const [imageError, setImageError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const {
         create: createObjectUrl,
@@ -407,7 +403,6 @@ function ProductEditor({
     ].filter(Boolean);
 
     function handleImagesPicked(picked: File[]) {
-        setImageError(null);
         setPickedImages((current) => [
             ...current,
             ...picked.map((file) => ({
@@ -419,8 +414,6 @@ function ProductEditor({
     }
 
     async function handleGenerateBarcode() {
-        setBarcodeGenerationError(null);
-
         try {
             const result = await generateBarcode().unwrap();
             setBarcodePreview(result.barcode);
@@ -434,15 +427,13 @@ function ProductEditor({
                 return next;
             });
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to generate a unique barcode.",
-            );
-            setBarcodeGenerationError(message);
             toast({
                 tone: "error",
                 title: "Barcode not generated",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to generate a unique barcode.",
+                ),
             });
         }
     }
@@ -454,7 +445,6 @@ function ProductEditor({
 
             return current.filter((image) => image.id !== id);
         });
-        setImageError(null);
     }
 
     /**
@@ -471,8 +461,6 @@ function ProductEditor({
         const order = storedImages.map((image) => image.id || "");
         [order[index], order[target]] = [order[target], order[index]];
 
-        setImageError(null);
-
         try {
             await reorderImages({
                 itemId: initialItem.id,
@@ -484,15 +472,13 @@ function ProductEditor({
                 description: "The item gallery order was updated.",
             });
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to reorder the images.",
-            );
-            setImageError(message);
             toast({
                 tone: "error",
                 title: "Images not reordered",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to reorder the images.",
+                ),
             });
         }
     }
@@ -503,8 +489,6 @@ function ProductEditor({
             return;
         }
 
-        setImageError(null);
-
         try {
             await deleteImage({ itemId: initialItem.id, imageId }).unwrap();
             toast({
@@ -512,15 +496,13 @@ function ProductEditor({
                 title: "Item image deleted",
             });
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to remove that image.",
-            );
-            setImageError(message);
             toast({
                 tone: "error",
                 title: "Item image not deleted",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to remove that image.",
+                ),
             });
         }
     }
@@ -816,10 +798,9 @@ function ProductEditor({
                                 id="barcode"
                                 name="barcode"
                                 value={barcodePreview}
-                                onChange={(event) => {
-                                    setBarcodePreview(event.target.value);
-                                    setBarcodeGenerationError(null);
-                                }}
+                                onChange={(event) =>
+                                    setBarcodePreview(event.target.value)
+                                }
                                 placeholder="3547908987678"
                                 aria-invalid={Boolean(fieldErrors.barcode)}
                                 className={`${inventoryControlClassName} flex-1 font-mono`}
@@ -843,11 +824,6 @@ function ProductEditor({
                                 </Button>
                             ) : null}
                         </div>
-                        {barcodeGenerationError ? (
-                            <p className="text-xs text-danger" role="alert">
-                                {barcodeGenerationError}
-                            </p>
-                        ) : null}
                         {barcodePreview.trim() ? (
                             <div className="rounded-xl border border-[#e4eae2] bg-[#f8faf7] p-3">
                                 <BarcodePreview
@@ -1134,12 +1110,10 @@ function ProductEditor({
                     rules={itemImageRules}
                     inputRef={imageInputRef}
                     disabled={isSaving}
-                    error={imageError}
                     remaining={maxItemImages - galleryCount}
                     label="Add images of this item"
                     onPick={handleImagesPicked}
                     onError={(message) => {
-                        setImageError(message);
                         toast({
                             tone: "error",
                             title: "Images not added",
@@ -1426,15 +1400,6 @@ function ProductEditor({
                     ) : null}
                 </div>
             </section>
-
-            {status ? (
-                <p
-                    className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger"
-                    role="alert"
-                >
-                    {status}
-                </p>
-            ) : null}
 
             <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLogo from "@/components/brand/BrandLogo";
+import { useToast } from "@/components/ui/toast";
 
 
 
@@ -13,20 +14,18 @@ const PIN_LENGTH = 6;
 export function PinPad() {
   const router = useRouter();
   const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
+  const { toast } = useToast();
   const isLoading = false;
   const loginPin = async (p: string) => ({ cashierId: "mock", businessOwnerId: "mock" });
 
   const handleDigit = (digit: number) => {
     if (pin.length >= PIN_LENGTH || isLoading) return;
     setPin((prev) => prev + digit.toString());
-    setError("");
   };
 
   const handleDelete = () => setPin((prev) => prev.slice(0, -1));
   const handleClear = () => {
     setPin("");
-    setError("");
   };
 
   // Auto-submit once the pin reaches full length — no separate "confirm" button
@@ -39,10 +38,14 @@ export function PinPad() {
         router.replace("/sales/cash-register"); // next step in flow
       })
       .catch(() => {
-        setError("Incorrect PIN, please try again");
+        toast({
+          tone: "error",
+          title: "Incorrect PIN",
+          description: "Please try again.",
+        });
         setPin("");
       });
-  }, [pin, router]);
+  }, [pin, router, toast]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
@@ -66,13 +69,6 @@ export function PinPad() {
             />
           ))}
         </div>
-
-        {/* Error */}
-        {error && (
-          <p className="text-xs text-red-500 text-center min-h-[16px]">
-            {error}
-          </p>
-        )}
 
         {/* Keypad */}
         <div className="grid grid-cols-3 gap-3 w-62">

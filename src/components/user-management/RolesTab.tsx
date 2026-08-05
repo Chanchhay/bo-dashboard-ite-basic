@@ -45,7 +45,6 @@ export default function RolesTab() {
     const [editor, setEditor] = useState<Editor>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [nameError, setNameError] = useState<string | undefined>();
-    const [formError, setFormError] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<BusinessRole | null>(null);
 
     const roles = rolesQuery.data || [];
@@ -67,14 +66,12 @@ export default function RolesTab() {
             new Set(next.mode === "edit" ? next.role.permissions || [] : []),
         );
         setNameError(undefined);
-        setFormError(null);
     };
 
     const closeEditor = () => {
         setEditor(null);
         setSelected(new Set());
         setNameError(undefined);
-        setFormError(null);
     };
 
     const toggle = (value: string) =>
@@ -100,7 +97,6 @@ export default function RolesTab() {
         if (!editor) return;
 
         setNameError(undefined);
-        setFormError(null);
 
         const form = new FormData(event.currentTarget);
         const parsed = businessRoleSchema.safeParse({
@@ -109,11 +105,16 @@ export default function RolesTab() {
         });
 
         if (!parsed.success) {
-            setNameError(
-                parsed.error.issues.find((issue) => issue.path[0] === "name")
-                    ?.message,
-            );
-            setFormError("Check the highlighted fields.");
+            const nameIssue = parsed.error.issues.find(
+                (issue) => issue.path[0] === "name",
+            )?.message;
+
+            setNameError(nameIssue);
+            toast({
+                tone: "error",
+                title: "Check the highlighted fields",
+                description: nameIssue || parsed.error.issues[0]?.message,
+            });
             return;
         }
 
@@ -137,15 +138,13 @@ export default function RolesTab() {
 
             closeEditor();
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to save the role.",
-            );
-            setFormError(message);
             toast({
                 tone: "error",
                 title: "Save failed",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to save the role.",
+                ),
             });
         }
     }
@@ -296,15 +295,6 @@ export default function RolesTab() {
                             </div>
                         </div>
 
-                        {formError && (
-                            <p
-                                role="alert"
-                                className="text-[13px] text-[#b3352f]"
-                            >
-                                {formError}
-                            </p>
-                        )}
-
                         <div className="flex flex-wrap gap-3">
                             <Button
                                 type="submit"
@@ -439,12 +429,6 @@ export default function RolesTab() {
                             );
                         })}
                     </ul>
-                )}
-
-                {formError && !editor && (
-                    <p role="alert" className="mt-4 text-[13px] text-[#b3352f]">
-                        {formError}
-                    </p>
                 )}
             </Panel>
 
