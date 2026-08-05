@@ -39,26 +39,26 @@ export function ChannelHeader({
                             variant="outline"
                             onClick={() => setIsQRModalOpen(true)}
                             size="lg"
-                            className="inline-flex items-center gap-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50 shadow-2xs"
+                            className="inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs"
                         >
-                            <QrCode className="w-4 h-4 text-[#00a651]" />
+                            <QrCode className="w-4 h-4 text-primary" />
                             Menu QR Code
                         </Button>
                         <Link
                             href="/menu"
                             className={cn(
                                 buttonVariants({ variant: "outline", size: "lg" }),
-                                "inline-flex items-center gap-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50 shadow-2xs"
+                                "inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs"
                             )}
                         >
-                            <ExternalLink className="w-4 h-4 text-[#00a651]" />
+                            <ExternalLink className="w-4 h-4 text-primary" />
                             View Live Menu
                         </Link>
                         <Button
                             onClick={onOpenDialog}
                             disabled={disabled}
                             size="lg"
-                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm"
                         >
                             <Plus className="w-4 h-4" />
                             Add item to {selectedChannelCode || activeChannelCode}
