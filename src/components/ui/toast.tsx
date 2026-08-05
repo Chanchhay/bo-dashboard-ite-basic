@@ -21,6 +21,7 @@ type Toast = {
     tone: ToastTone;
     title: string;
     description?: string;
+    onClick?: () => void;
 };
 
 type ToastInput = {
@@ -29,6 +30,7 @@ type ToastInput = {
     description?: string;
     /** Milliseconds before auto-dismiss. */
     duration?: number;
+    onClick?: () => void;
 };
 
 type ToastContextValue = {
@@ -119,6 +121,17 @@ function ToastItem({
         setDragOffset(0);
     }
 
+    /* A swipe ends in a click event too, so only treat it as an activation if
+       the pointer barely moved. */
+    function handleClick() {
+        if (!item.onClick || Math.abs(dragOffsetRef.current) > 4) {
+            return;
+        }
+
+        item.onClick();
+        onDismiss(item.id);
+    }
+
     return (
         /* The entry animation lives on this wrapper and the swipe transform on
            the child, so the two never write to the same `transform`. */
@@ -129,6 +142,7 @@ function ToastItem({
                 onPointerMove={handlePointerMove}
                 onPointerUp={finishSwipe}
                 onPointerCancel={finishSwipe}
+                onClick={handleClick}
                 style={{
                     opacity: Math.max(0.45, 1 - Math.abs(dragOffset) / 240),
                     transform: `translateX(${dragOffset}px)`,
@@ -139,6 +153,7 @@ function ToastItem({
                 className={cn(
                     "flex w-full touch-pan-y cursor-grab items-start gap-3 rounded-2xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(22,24,28,.45)] ring-1 select-none active:cursor-grabbing",
                     "dark:bg-[#1a1e29] dark:shadow-[0_16px_40px_-16px_rgba(0,0,0,.75)]",
+                    item.onClick && "hover:shadow-lg",
                     ring,
                 )}
             >
@@ -185,9 +200,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const toast = useCallback(
-        ({ tone = "success", title, description, duration }: ToastInput) => {
+        ({ tone = "success", title, description, duration, onClick }: ToastInput) => {
             const id = nextId.current++;
-            setToasts((current) => [...current, { id, tone, title, description }]);
+            setToasts((current) => [...current, { id, tone, title, description, onClick }]);
 
             const ttl = duration ?? DEFAULT_TOAST_DURATION;
             if (ttl > 0) {

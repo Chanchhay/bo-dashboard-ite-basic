@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 
 import { getPageTitle } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
+import { NotificationMenu } from "@/components/notification/Notification";
 
 export default function Header({
     managerName,
@@ -61,13 +62,7 @@ export default function Header({
 
                 <ThemeToggle variant="icon" className="hidden sm:grid" />
 
-                <button
-                    type="button"
-                    aria-label="Notifications"
-                    className="relative grid size-10 place-items-center rounded-xl border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] outline-none transition-colors hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] focus-visible:ring-2 focus-visible:ring-[#00932a] sm:size-11"
-                >
-                    <Bell className="size-4 sm:size-[18px]" aria-hidden="true" />
-                </button>
+                <NotificationMenu />
 
                 <UserMenu name={managerName} />
             </div>

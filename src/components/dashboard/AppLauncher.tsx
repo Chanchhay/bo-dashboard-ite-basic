@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
-
+import { NotificationMenu } from "../notification/Notification";
 import {
     launcherApps,
     sectionEntryHref,
@@ -60,14 +59,7 @@ export default function AppLauncher({
 
                 <div className="flex items-center gap-4 sm:gap-6">
                     <ThemeToggle variant="icon" className="hidden sm:grid" />
-                    <button
-                        type="button"
-                        aria-label="Notifications"
-                        className="relative grid size-8 place-items-center text-[#161d16] dark:text-[#f8fafc] outline-none focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
-                    >
-                        <Bell className="size-5" aria-hidden="true" />
-                        <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-[#006b26]" />
-                    </button>
+                    <NotificationMenu />
                     <UserMenu name={managerName} />
                 </div>
             </header>
