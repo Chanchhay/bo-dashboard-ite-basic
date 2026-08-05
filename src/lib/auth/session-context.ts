@@ -7,11 +7,11 @@ export type SessionContext = {
     subject: string | null;
     accessToken: string | null;
     /**
-     * SockJS endpoint as a path on this origin, proxied to the backend by the
-     * rewrite in next.config.ts. Never an absolute backend URL — the API host
-     * is not something the browser needs to know.
+     * The backend's raw STOMP endpoint (ws:// or wss://), dialled directly.
+     * Served from here rather than a NEXT_PUBLIC_ var so the host stays out of
+     * the JS bundle and only reaches a request that carries a session.
      */
-    wsPath: string | null;
+    wsUrl: string | null;
 };
 
 /*
