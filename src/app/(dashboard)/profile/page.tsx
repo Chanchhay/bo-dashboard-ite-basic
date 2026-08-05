@@ -17,7 +17,7 @@ export default async function UserProfilePage() {
     // so this page only owns its own content.
     return (
         <div className="pb-4">
-            <p className="max-w-2xl text-[15px] text-[#5c6660]">
+            <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
                 Review your account details and keep your personal information
                 up to date.
             </p>

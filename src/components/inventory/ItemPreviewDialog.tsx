@@ -622,10 +622,10 @@ function Gallery({
 }) {
     if (!images.length) {
         return (
-            <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center">
+            <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center shadow-xs">
                 <div className="flex flex-col items-center gap-2 text-[#a3aca1] dark:text-[#64748b]">
                     <ImageOff className="size-8" />
-                    <p className="text-sm">No image yet</p>
+                    <p className="text-sm font-medium">No image available</p>
                 </div>
             </div>
         );
@@ -634,37 +634,39 @@ function Gallery({
     const active = images[Math.min(index, images.length - 1)];
 
     return (
-        <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex flex-row sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto max-w-full">
-                {images.map((image, position) => (
-                    <button
-                        key={`${image}-${position}`}
-                        type="button"
-                        aria-label={`Show image ${position + 1}`}
-                        aria-pressed={position === index}
-                        onClick={() => onSelect(position)}
-                        className={cn(
-                            "size-16 overflow-hidden rounded-xl border-2 bg-white dark:bg-[#1a1e29] transition-colors",
-                            position === index
-                                ? "border-primary"
-                                : "border-transparent dark:border-[#2a3042] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
-                        )}
-                    >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={image}
-                            alt=""
-                            className="size-full object-cover"
-                        />
-                    </button>
-                ))}
-            </div>
-            <div className="flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29]">
+        <div className="flex flex-col sm:flex-row gap-4">
+            {images.length > 1 ? (
+                <div className="flex flex-row sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-w-full shrink-0">
+                    {images.map((image, position) => (
+                        <button
+                            key={`${image}-${position}`}
+                            type="button"
+                            aria-label={`Show image ${position + 1}`}
+                            aria-pressed={position === index}
+                            onClick={() => onSelect(position)}
+                            className={cn(
+                                "relative size-14 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer",
+                                position === index
+                                    ? "border-primary ring-2 ring-primary/20 shadow-xs scale-[1.02]"
+                                    : "border-transparent dark:border-[#242937] hover:border-primary/40 opacity-70 hover:opacity-100",
+                            )}
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={image}
+                                alt=""
+                                className="size-full object-cover"
+                            />
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+            <div className="relative aspect-square flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf8] dark:bg-[#151821] shadow-xs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={active}
                     alt={name || "Item image"}
-                    className="aspect-square w-full object-contain"
+                    className="size-full object-cover transition-all duration-300"
                 />
             </div>
         </div>

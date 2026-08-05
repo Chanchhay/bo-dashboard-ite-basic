@@ -154,7 +154,7 @@ function Field({
         <div className="flex min-w-0 flex-col gap-2">
             <Label
                 htmlFor={name}
-                className="text-sm font-semibold text-[#424841]"
+                className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
             >
                 {label}
             </Label>
@@ -345,24 +345,26 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                             })
                         }
                         preview={
-                            <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
-                                {picture.preview ? (
-                                    // The API supplies this URL dynamically and
-                                    // the staged preview uses a blob URL.
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={picture.preview}
-                                        alt={`${profileName} profile`}
-                                        className="size-full object-cover"
-                                    />
-                                ) : (
-                                    getInitials(
-                                        firstName,
-                                        lastName,
-                                        profile.username,
-                                    )
-                                )}
-                                <span className="absolute right-0 bottom-0 grid size-9 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-[0_4px_12px_rgba(0,147,42,0.35)]">
+                            <span className="relative inline-flex size-28 items-center justify-center">
+                                <span className="flex size-full items-center justify-center overflow-hidden rounded-full border-4 border-white dark:border-[#1a1e29] bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] dark:bg-[linear-gradient(145deg,#153e1a,#1e5426)] text-3xl font-bold text-primary dark:text-[#6ee7b7] shadow-md">
+                                    {picture.preview ? (
+                                        // The API supplies this URL dynamically and
+                                        // the staged preview uses a blob URL.
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={picture.preview}
+                                            alt={`${profileName} profile`}
+                                            className="size-full object-cover"
+                                        />
+                                    ) : (
+                                        getInitials(
+                                            firstName,
+                                            lastName,
+                                            profile.username,
+                                        )
+                                    )}
+                                </span>
+                                <span className="absolute right-0 bottom-0 z-10 grid size-9 place-items-center rounded-full border-2 border-white dark:border-[#1a1e29] bg-primary text-white shadow-md">
                                     <Camera
                                         className="size-4"
                                         aria-hidden="true"
@@ -402,10 +404,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         }
                     />
 
-                    <h2 className="mt-4 text-xl font-bold text-[#161d16]">
+                    <h2 className="mt-4 text-xl font-bold text-[#161d16] dark:text-[#f8fafc]">
                         {profileName}
                     </h2>
-                    <p className="mt-1 text-sm text-[#657064]">
+                    <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                         {profile.role || "Team member"}
                     </p>
                     <div className="min-h-4" aria-live="polite">
@@ -458,7 +460,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         <h2 className="text-lg font-bold text-[#161d16] dark:text-[#f8fafc]">
                             Personal details
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                             Keep your contact and profile information current.
                         </p>
                     </div>
@@ -509,7 +511,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         error={fieldErrors.phoneNumber}
                     >
                         <div className="relative">
-                            <Phone className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7a8478]" />
+                            <Phone className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7a8478] dark:text-[#94a3b8]" />
                             <Input
                                 id="phoneNumber"
                                 name="phoneNumber"
@@ -564,7 +566,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                             error={fieldErrors.address}
                         >
                             <div className="relative">
-                                <MapPin className="pointer-events-none absolute top-4 left-4 size-4 text-[#7a8478]" />
+                                <MapPin className="pointer-events-none absolute top-4 left-4 size-4 text-[#7a8478] dark:text-[#94a3b8]" />
                                 <Textarea
                                     id="address"
                                     name="address"
@@ -574,7 +576,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                     aria-invalid={Boolean(
                                         fieldErrors.address,
                                     )}
-                                    className="min-h-28 rounded-xl border-[#e2e8e0] bg-white py-3 pr-4 pl-11 text-base text-[#1a222b] placeholder:text-[#7a8478] focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 md:text-base"
+                                    className="min-h-28 rounded-xl border border-[#e2e8e0] dark:border-[#242937] bg-white dark:bg-[#1e2330] py-3 pr-4 pl-11 text-base text-[#1a222b] dark:text-[#f8fafc] placeholder:text-[#7a8478] dark:placeholder:text-[#94a3b8] focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 md:text-base"
                                 />
                             </div>
                         </Field>
@@ -582,7 +584,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
                 </div>
 
-                <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] pt-6 sm:flex-row sm:items-center">
+                <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] dark:border-[#242937] pt-6 sm:flex-row sm:items-center">
                     <div className="flex-1" />
                     <Button
                         type="button"
