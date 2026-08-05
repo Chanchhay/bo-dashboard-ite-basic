@@ -101,24 +101,24 @@ export default async function DashboardPage() {
 
                 <section
                     aria-labelledby="overview-heading"
-                    className="rounded-[24px] bg-white p-6 lg:p-7"
+                    className="rounded-[24px] bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 lg:p-7 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
                 >
                     <h2
                         id="overview-heading"
-                        className="text-[17px] font-medium text-[#16181c]"
+                        className="text-[17px] font-semibold text-[#16181c] dark:text-[#f8fafc]"
                     >
                         Overview
                     </h2>
-                    <p className="mt-1 text-[14px] text-[#8a8f89]">
+                    <p className="mt-1 text-[14px] text-[#8a8f89] dark:text-[#94a3b8]">
                         Live figures from your inventory.
                     </p>
 
-                    <div className="mt-7 grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
                         <Stat
                             icon={Package}
                             label="Items"
                             value={compact(items.length)}
-                            note="In your catalog"
+                            note="In catalog"
                         />
                         <Stat
                             icon={CircleCheck}
@@ -127,14 +127,14 @@ export default async function DashboardPage() {
                             note={
                                 items.length > 0
                                     ? `of ${compact(items.length)} total`
-                                    : "Nothing published yet"
+                                    : "Published"
                             }
                         />
                         <Stat
                             icon={Warehouse}
                             label="Units in stock"
                             value={compact(unitsInStock)}
-                            note="Across all items"
+                            note="Across items"
                         />
                         <Stat
                             icon={TriangleAlert}
@@ -142,8 +142,8 @@ export default async function DashboardPage() {
                             value={compact(lowStock)}
                             note={
                                 lowStock > 0
-                                    ? "At or below threshold"
-                                    : "Nothing to restock"
+                                    ? "At threshold"
+                                    : "Restock OK"
                             }
                             alert={lowStock > 0}
                         />
@@ -152,17 +152,17 @@ export default async function DashboardPage() {
 
                 <section
                     aria-labelledby="stock-heading"
-                    className="rounded-[24px] bg-white p-6 lg:p-7"
+                    className="rounded-[24px] bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 lg:p-7 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
                 >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                             <h2
                                 id="stock-heading"
-                                className="text-[17px] font-medium text-[#16181c]"
+                                className="text-[17px] font-semibold text-[#16181c] dark:text-[#f8fafc]"
                             >
                                 Stock on hand
                             </h2>
-                            <p className="mt-1 text-[14px] text-[#8a8f89]">
+                            <p className="mt-1 text-[14px] text-[#8a8f89] dark:text-[#94a3b8]">
                                 Your six best-stocked items.
                             </p>
                         </div>
@@ -182,18 +182,18 @@ export default async function DashboardPage() {
                             {topStocked.map((entry) => (
                                 <li key={entry.id}>
                                     <div className="flex items-baseline justify-between gap-4">
-                                        <span className="truncate text-[15px] text-[#16181c]">
+                                        <span className="truncate text-[15px] font-medium text-[#16181c] dark:text-[#f8fafc]">
                                             {entry.name}
                                         </span>
-                                        <span className="shrink-0 text-[15px] font-medium text-[#16181c] tabular-nums">
+                                        <span className="shrink-0 text-[15px] font-semibold text-[#16181c] dark:text-[#f8fafc] tabular-nums">
                                             {entry.quantity.toLocaleString(
                                                 "en-US",
                                             )}
                                         </span>
                                     </div>
-                                    <div className="mt-2 h-2.5 w-full rounded-[4px] bg-[#eceeea]">
+                                    <div className="mt-2 h-2.5 w-full rounded-[4px] bg-[#eceeea] dark:bg-[#252a38]">
                                         <div
-                                            className="h-full rounded-r-[4px] bg-[#00932a]"
+                                            className="h-full rounded-r-[4px] bg-primary"
                                             style={{
                                                 width: `${Math.max(
                                                     (entry.quantity /
@@ -230,40 +230,48 @@ function Stat({
     alert?: boolean;
 }) {
     return (
-        <div>
-            <span
-                aria-hidden="true"
-                className={
-                    alert
-                        ? "grid size-11 place-items-center rounded-full bg-[#fff4d6] text-[#8a5f00]"
-                        : "grid size-11 place-items-center rounded-full bg-[#f2f3f1] text-[#5c6660]"
-                }
-            >
-                <Icon className="size-5" />
-            </span>
+        <div className="flex flex-col justify-between rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf7] dark:bg-[#151821] p-3.5 sm:p-5 transition-all">
+            <div className="flex items-center justify-between gap-2">
+                <span
+                    aria-hidden="true"
+                    className={
+                        alert
+                            ? "grid size-9 sm:size-11 place-items-center rounded-xl bg-[#fff4d6] dark:bg-[#d14341]/20 text-[#8a5f00] dark:text-[#f87171]"
+                            : "grid size-9 sm:size-11 place-items-center rounded-xl bg-primary/10 dark:bg-[#00932a]/20 text-primary"
+                    }
+                >
+                    <Icon className="size-4 sm:size-5" />
+                </span>
+                <span className="text-[11px] sm:text-[13px] text-[#8a8f89] dark:text-[#64748b] truncate max-w-[90px] text-right">
+                    {note}
+                </span>
+            </div>
 
-            <p className="mt-4 text-[14px] text-[#5c6660]">{label}</p>
-            <p className="mt-1 text-[38px] leading-none font-semibold text-[#16181c] tabular-nums">
-                {value}
-            </p>
-            <p className="mt-2 text-[13px] text-[#8a8f89]">{note}</p>
+            <div className="mt-3">
+                <p className="text-[12px] sm:text-[14px] font-medium text-[#5c6660] dark:text-[#94a3b8] truncate">
+                    {label}
+                </p>
+                <p className="mt-0.5 text-2xl sm:text-[36px] leading-tight font-bold text-[#16181c] dark:text-[#f8fafc] tabular-nums">
+                    {value}
+                </p>
+            </div>
         </div>
     );
 }
 
 function EmptyState({ hasItems }: { hasItems: boolean }) {
     return (
-        <div className="mt-7 rounded-2xl bg-[#f7f7f6] px-6 py-10 text-center">
+        <div className="mt-7 rounded-2xl bg-[#f7f7f6] dark:bg-[#151821] border border-transparent dark:border-[#242937] px-6 py-10 text-center">
             <span
                 aria-hidden="true"
-                className="mx-auto grid size-12 place-items-center rounded-full bg-white text-[#8a8f89]"
+                className="mx-auto grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary"
             >
                 <Boxes className="size-5" />
             </span>
-            <p className="mt-4 text-[15px] text-[#16181c]">
+            <p className="mt-4 text-[15px] font-medium text-[#16181c] dark:text-[#f8fafc]">
                 {hasItems ? "No stock recorded yet" : "No items yet"}
             </p>
-            <p className="mt-1 text-[14px] text-[#8a8f89]">
+            <p className="mt-1 text-[14px] text-[#8a8f89] dark:text-[#94a3b8]">
                 {hasItems
                     ? "Record a stock entry to see quantities here."
                     : "Create your first item to start tracking inventory."}

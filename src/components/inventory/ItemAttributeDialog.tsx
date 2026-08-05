@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
+import { useToast } from "@/components/ui/toast";
 import {
     attributeIcon,
     attributeIconKeys,
@@ -169,12 +170,22 @@ function AttributeForm({
         draft.values.length ? draft.values : [emptyValue()],
     );
     const [error, setError] = useState<string | null>(null);
+    const { toast } = useToast();
 
     const takesValues = type !== "TOGGLE";
     const single = isSingleValue(placement);
     const showsIcon = placement === "HIGHLIGHT" || placement === "SPECIFICATION";
     const copy = valueCopy(type, placement);
     const visibleValues = single ? values.slice(0, 1) : values;
+
+    function showError(message: string) {
+        setError(message);
+        toast({
+            tone: "error",
+            title: `Attribute not ${isEditing ? "updated" : "added"}`,
+            description: message,
+        });
+    }
 
     function updateValue(
         index: number,
@@ -206,12 +217,12 @@ function AttributeForm({
         const trimmedName = name.trim();
 
         if (!trimmedName) {
-            setError("Attribute name is required.");
+            showError("Attribute name is required.");
             return;
         }
 
         if (existingNames.includes(trimmedName.toLowerCase())) {
-            setError("An attribute with this name already exists.");
+            showError("An attribute with this name already exists.");
             return;
         }
 
@@ -231,12 +242,12 @@ function AttributeForm({
             (type === "SELECTION" || type === "COLOR") &&
             !cleaned.length
         ) {
-            setError("Add at least one option for shoppers to choose from.");
+            showError("Add at least one option for shoppers to choose from.");
             return;
         }
 
         if (type === "COLOR" && cleaned.some((value) => !value.colorHex)) {
-            setError("Every colour needs a hex value such as #3a3a3c.");
+            showError("Every colour needs a hex value such as #3a3a3c.");
             return;
         }
 
@@ -244,7 +255,7 @@ function AttributeForm({
             type === "NUMBER" &&
             cleaned.some((value) => Number.isNaN(Number(value.value)))
         ) {
-            setError("Number attributes only accept numeric values.");
+            showError("Number attributes only accept numeric values.");
             return;
         }
 
@@ -277,7 +288,7 @@ function AttributeForm({
             <div className="flex flex-col gap-2">
                 <Label
                     htmlFor="attribute-name"
-                    className="text-sm font-semibold text-[#424841]"
+                    className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
                 >
                     Attribute name
                 </Label>
@@ -296,7 +307,7 @@ function AttributeForm({
                 <div className="flex flex-col gap-2">
                     <Label
                         htmlFor="attribute-type"
-                        className="text-sm font-semibold text-[#424841]"
+                        className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
                     >
                         Attribute type
                     </Label>
@@ -313,7 +324,7 @@ function AttributeForm({
                 <div className="flex flex-col gap-2">
                     <Label
                         htmlFor="attribute-placement"
-                        className="text-sm font-semibold text-[#424841]"
+                        className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
                     >
                         Show as
                     </Label>
@@ -328,13 +339,13 @@ function AttributeForm({
                     />
                 </div>
             </div>
-            <p className="-mt-3 text-xs text-[#6b7280]">
+            <p className="-mt-3 text-xs text-[#6b7280] dark:text-[#94a3b8]">
                 {itemAttributePlacementLabels[placement].hint}
             </p>
 
             {showsIcon ? (
                 <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-semibold text-[#424841]">
+                    <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
                         Icon
                     </Label>
                     <div className="flex flex-wrap gap-1.5">
@@ -355,7 +366,7 @@ function AttributeForm({
                                         "grid size-9 place-items-center rounded-lg border transition-colors",
                                         icon === key
                                             ? "border-primary bg-primary/10 text-primary"
-                                            : "border-[#e8e8e8] bg-white text-[#657064] hover:border-[#cfd6cc]",
+                                            : "border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] text-[#657064] dark:text-[#cbd5e1] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
                                     )}
                                 >
                                     <Glyph className="size-4" />
@@ -368,7 +379,7 @@ function AttributeForm({
 
             {takesValues ? (
                 <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-semibold text-[#424841]">
+                    <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
                         {copy.label}
                     </Label>
                     <div className="flex flex-col gap-2">
@@ -417,14 +428,14 @@ function AttributeForm({
                                             size="icon-lg"
                                             aria-label={`Remove value ${index + 1}`}
                                             onClick={() => removeValue(index)}
-                                            className="shrink-0 text-[#657064] hover:text-accent"
+                                            className="shrink-0 text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                                         >
                                             <Trash2 />
                                         </Button>
                                     )}
                                 </div>
                                 {single ? null : (
-                                    <label className="flex items-center gap-2 pl-1 text-xs text-[#6b7280]">
+                                    <label className="flex items-center gap-2 pl-1 text-xs text-[#6b7280] dark:text-[#94a3b8]">
                                         <input
                                             type="checkbox"
                                             checked={!value.available}
@@ -434,7 +445,7 @@ function AttributeForm({
                                                         !event.target.checked,
                                                 })
                                             }
-                                            className="size-3.5 accent-[#d14341]"
+                                            className="size-3.5 accent-danger"
                                         />
                                         Sold out — show but do not allow
                                         selecting
@@ -454,31 +465,25 @@ function AttributeForm({
                                     emptyValue(),
                                 ])
                             }
-                            className="self-start px-0 text-[#657064] no-underline hover:text-primary hover:underline"
+                            className="self-start px-0 text-[#657064] dark:text-[#cbd5e1] no-underline hover:text-primary hover:underline"
                         >
                             + Add more
                         </Button>
                     )}
                 </div>
             ) : (
-                <p className="rounded-xl bg-[#f7f8f7] px-4 py-3 text-sm text-[#657064]">
+                <p className="rounded-xl bg-[#f7f8f7] dark:bg-[#252a38] px-4 py-3 text-sm text-[#657064] dark:text-[#cbd5e1]">
                     A toggle attribute is either on or off, so it takes
                     no values.
                 </p>
             )}
-
-            {error ? (
-                <p className="text-xs text-accent" role="alert">
-                    {error}
-                </p>
-            ) : null}
 
             <DialogFooter>
                 <Button
                     type="button"
                     size="lg"
                     onClick={onClose}
-                    className="rounded-full bg-accent px-8 text-white hover:bg-accent/90 focus-visible:ring-accent/30"
+                    className="rounded-full bg-brand-red px-8 text-white hover:bg-brand-red/90 focus-visible:ring-danger/30"
                 >
                     Cancel
                 </Button>

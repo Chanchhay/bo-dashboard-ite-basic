@@ -1,6 +1,7 @@
-import { Client, Message } from "@stomp/stompjs";
+import { Client, Message, StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import type { Notification } from "./api/notification";
+import { fetchSessionContext } from "./auth/session-context";
 
 export type NotificationCallback = (notification: Notification) => void;
 
@@ -10,27 +11,37 @@ export interface SocketConnectParams {
     receiverId?: string;
 }
 
-function getWsConfig(): { brokerURL?: string; webSocketFactory?: () => any } {
-    let customUrl = process.env.NEXT_PUBLIC_WS_URL;
+/*
+ * Resolved once per connect and again on every reconnect — `force` on the
+ * latter, since the whole point of re-reading is to get a token the cached
+ * copy no longer has.
+ */
+function fetchCredentials(force = false) {
+    return fetchSessionContext(force ? { force: true } : undefined);
+}
 
-    if (typeof window !== "undefined") {
-        const host = window.location.hostname;
-        if (host === "localhost" || host === "127.0.0.1") {
-            customUrl = "http://localhost:8080/ws/notifications-sockjs";
-        }
+/*
+ * The server-derived URL wins. It comes from API_BASE_URL — the same backend
+ * the REST proxy posts notifications to — and the socket has to match it,
+ * because each backend publishes to its own in-process broker. A separately
+ * configured NEXT_PUBLIC_WS_URL is what let the two drift apart (socket on the
+ * deployed API, notifications being created on a local one), which looks
+ * exactly like "realtime is broken": connected, subscribed, silent.
+ */
+function getWsConfig(resolvedUrl: string | null): {
+    brokerURL?: string;
+    webSocketFactory?: () => any;
+} {
+    const url =
+        resolvedUrl ||
+        process.env.NEXT_PUBLIC_WS_URL?.trim() ||
+        "http://localhost:8080/ws/notifications-sockjs";
+
+    if (url.startsWith("ws://") || url.startsWith("wss://")) {
+        return { brokerURL: url };
     }
 
-    if (customUrl) {
-        if (customUrl.startsWith("ws://") || customUrl.startsWith("wss://")) {
-            return { brokerURL: customUrl };
-        }
-        return { webSocketFactory: () => new SockJS(customUrl) };
-    }
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-    const cleanBase = apiBase.replace(/\/+$/, "");
-    const sockJsUrl = `${cleanBase}/ws/notifications-sockjs`;
-
-    return { webSocketFactory: () => new SockJS(sockJsUrl) };
+    return { webSocketFactory: () => new SockJS(url) };
 }
 
 class NotificationSocketService {
@@ -39,31 +50,58 @@ class NotificationSocketService {
     private isConnecting = false;
     private params: SocketConnectParams = {};
     private processedIds = new Set<string>();
-    private subscribedTopics = new Set<string>();
+    /** Live STOMP subscriptions by destination, so re-subscribing is idempotent. */
+    private subscriptions = new Map<string, StompSubscription>();
+    /** Keycloak subject for the signed-in user; the backend's notion of "who". */
+    private subject: string | null = null;
 
     private subscribeTopics(): void {
         if (!this.client?.connected) return;
 
-        const topicsToSubscribe: string[] = [
+        /*
+         * `/topic/notifications` is the one that actually delivers today:
+         * NotificationWebSocketPublisher broadcasts every notification there.
+         * `/user/queue/notifications` is kept for the day the backend adds a
+         * ChannelInterceptor — it registers none, so the STOMP session has no
+         * Principal and Spring can never route a user destination.
+         */
+        const topicsToSubscribe = [
             "/topic/notifications",
             "/user/queue/notifications",
         ];
 
-        if (this.params.receiverId) {
-            topicsToSubscribe.push(`/topic/notifications/${this.params.receiverId}`);
+        /*
+         * The backend addresses users by Keycloak subject. Better Auth's local
+         * `user.id` is a different value, so subscribe to both rather than
+         * betting on which one callers passed in.
+         */
+        const receivers = new Set(
+            [this.subject, this.params.receiverId, this.params.userId].filter(
+                (value): value is string => Boolean(value),
+            ),
+        );
+
+        for (const receiver of receivers) {
+            topicsToSubscribe.push(`/topic/notifications/${receiver}`);
         }
 
-        if (this.params.userId && this.params.receiverId) {
-            topicsToSubscribe.push(`/topic/notifications/${this.params.userId}/${this.params.receiverId}`);
+        for (const receiver of receivers) {
+            for (const sender of receivers) {
+                topicsToSubscribe.push(
+                    `/topic/notifications/${sender}/${receiver}`,
+                );
+            }
         }
 
         for (const topic of topicsToSubscribe) {
-            if (!this.subscribedTopics.has(topic)) {
-                this.subscribedTopics.add(topic);
+            if (this.subscriptions.has(topic)) continue;
+
+            this.subscriptions.set(
+                topic,
                 this.client.subscribe(topic, (message: Message) => {
                     this.handleIncomingMessage(message);
-                });
-            }
+                }),
+            );
         }
     }
 
@@ -77,6 +115,7 @@ class NotificationSocketService {
         }
 
         if (this.client?.active) {
+            // Already up (or coming up); just widen the subscriptions.
             if (this.client.connected) {
                 this.subscribeTopics();
             }
@@ -86,12 +125,28 @@ class NotificationSocketService {
         if (this.isConnecting) return;
 
         this.isConnecting = true;
-        const wsConfig = getWsConfig();
+        void this.openClient();
+    }
 
-        this.client = new Client({
+    /*
+     * Split out because the socket URL is only known after asking the server,
+     * so the client cannot be constructed synchronously.
+     */
+    private async openClient(): Promise<void> {
+        const credentials = await fetchCredentials();
+
+        // disconnect() may have landed while the fetch was in flight.
+        if (!this.isConnecting) return;
+
+        if (credentials?.subject) {
+            this.subject = credentials.subject;
+        }
+
+        const wsConfig = getWsConfig(credentials?.wsUrl ?? null);
+
+        const client = new Client({
             ...wsConfig,
-            connectHeaders: this.params.token ? { Authorization: `Bearer ${this.params.token}` } : {},
-            debug: (str) => {
+            debug: (str: string) => {
                 if (process.env.NODE_ENV === "development") {
                     console.log("[NotificationSocket]", str);
                 }
@@ -101,23 +156,52 @@ class NotificationSocketService {
             heartbeatOutgoing: 4000,
         });
 
-        this.client.onConnect = () => {
+        /*
+         * Re-runs before every reconnect, so a long-lived tab reconnects with
+         * a freshly minted token instead of the one captured at page load.
+         * The URL is deliberately not re-read here — stompjs has already built
+         * the socket factory by this point.
+         */
+        client.beforeConnect = async () => {
+            const fresh = await fetchCredentials(true);
+            const token = fresh?.accessToken ?? this.params.token;
+
+            if (fresh?.subject) {
+                this.subject = fresh.subject;
+            }
+
+            client.connectHeaders = token
+                ? { Authorization: `Bearer ${token}` }
+                : {};
+        };
+
+        client.connectHeaders = credentials?.accessToken
+            ? { Authorization: `Bearer ${credentials.accessToken}` }
+            : {};
+
+        client.onConnect = () => {
             this.isConnecting = false;
-            this.subscribedTopics.clear();
-            console.log("[NotificationSocket] Connected successfully");
+            // The old client's subscriptions died with the socket.
+            this.subscriptions.clear();
             this.subscribeTopics();
         };
 
-        this.client.onStompError = (frame) => {
+        client.onStompError = (frame) => {
             this.isConnecting = false;
-            console.error("[NotificationSocket] STOMP Error:", frame.headers["message"], frame.body);
+            console.error(
+                "[NotificationSocket] STOMP Error:",
+                frame.headers["message"],
+                frame.body,
+            );
         };
 
-        this.client.onWebSocketClose = () => {
+        client.onWebSocketClose = () => {
             this.isConnecting = false;
+            this.subscriptions.clear();
         };
 
-        this.client.activate();
+        this.client = client;
+        client.activate();
     }
 
     private handleIncomingMessage(message: Message) {
@@ -162,11 +246,15 @@ class NotificationSocketService {
         }
     }
 
-    public subscribe(callback: NotificationCallback, params?: SocketConnectParams): () => void {
+    public subscribe(
+        callback: NotificationCallback,
+        params?: SocketConnectParams,
+    ): () => void {
         this.callbacks.add(callback);
         if (params) {
             this.params = { ...this.params, ...params };
         }
+
         if (!this.client?.active && !this.isConnecting) {
             this.connect(this.params);
         } else if (this.client?.connected) {
@@ -175,20 +263,30 @@ class NotificationSocketService {
 
         return () => {
             this.callbacks.delete(callback);
-            if (this.callbacks.size === 0) {
-                this.disconnect();
-            }
+            /*
+             * Deliberately does NOT disconnect when the last listener leaves.
+             * The two listeners are an RTK Query cache entry and the toast
+             * listener, both of which churn on navigation and (in dev) on
+             * StrictMode's double-mount — tearing the socket down there meant
+             * reconnecting constantly and dropping messages in between.
+             * Teardown is `disconnect()`, called when the session goes away.
+             */
         };
     }
 
     public disconnect(): void {
-        if (this.client) {
-            this.client.deactivate();
-            this.client = null;
-            this.isConnecting = false;
-            this.subscribedTopics.clear();
-            console.log("[NotificationSocket] Disconnected");
-        }
+        const client = this.client;
+        if (!client) return;
+
+        this.client = null;
+        this.isConnecting = false;
+        this.subscriptions.clear();
+        this.subject = null;
+        this.processedIds.clear();
+
+        // Async: the socket is still closing after this returns, which is why
+        // `this.client` is cleared first so a racing connect() builds a new one.
+        void client.deactivate();
     }
 }
 

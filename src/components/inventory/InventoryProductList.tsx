@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
     ItemPreviewDialog,
     toPreviewItem,
@@ -41,6 +42,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/components/ui/toast";
 import {
     inventoryItemQuerySchema,
     itemTypes,
@@ -79,8 +81,8 @@ const sortLabels: Record<InventoryItemSort, string> = {
 
 function statusClassName(status: string | undefined) {
     return status === "ACTIVE"
-        ? "bg-primary/10 text-primary"
-        : "bg-[#ecefec] text-[#657064]";
+        ? "bg-success/10 text-success"
+        : "bg-muted text-muted-foreground";
 }
 
 function titleCase(value: string) {
@@ -98,12 +100,12 @@ function FilterChip({
     onRemove: () => void;
 }) {
     return (
-        <span className="inline-flex h-8 items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 text-xs font-medium text-[#31593b]">
+        <span className="inline-flex h-8 items-center gap-1 rounded-full border border-success/20 bg-success/5 px-3 text-xs font-medium text-success">
             {label}
             <button
                 type="button"
                 onClick={onRemove}
-                className="-mr-1 grid size-6 place-items-center rounded-full text-[#657064] outline-none hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="-mr-1 grid size-6 place-items-center rounded-full text-muted-foreground outline-none hover:bg-success/10 hover:text-success focus-visible:ring-2 focus-visible:ring-primary/30"
                 aria-label={`Remove ${label} filter`}
             >
                 <X className="size-3.5" />
@@ -114,6 +116,7 @@ function FilterChip({
 
 export function InventoryProductList() {
     const dispatch = useAppDispatch();
+    const { toast } = useToast();
     const {
         productSearch,
         productStatus,
@@ -130,6 +133,10 @@ export function InventoryProductList() {
     >({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{
+        id: string;
+        name: string;
+    } | null>(null);
 
     useEffect(() => {
         const timer = window.setTimeout(
@@ -181,6 +188,7 @@ export function InventoryProductList() {
     const groupsQuery = useGetItemGroupsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
     const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
 
     const items = data?.content ?? [];
     const currentPage = data?.page?.number ?? productPage;
@@ -262,6 +270,13 @@ export function InventoryProductList() {
             }
 
             setFilterErrors(nextErrors);
+            toast({
+                tone: "error",
+                title: "Filters not applied",
+                description:
+                    result.error.issues[0]?.message ||
+                    "Check the highlighted filters.",
+            });
             return;
         }
 
@@ -275,23 +290,35 @@ export function InventoryProductList() {
         dispatch(resetProductDraftFilters());
     }
 
-    async function handleDelete(itemId: string, name?: string) {
-        if (
-            !window.confirm(
-                `Delete ${name || "this item"}? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteItem(itemId).unwrap();
+            await deleteItem(deleteTarget.id).unwrap();
 
             if (items.length === 1 && productPage > 0) {
                 dispatch(setProductPage(productPage - 1));
             }
-        } catch {
-            // RTK Query exposes the request error below.
+            toast({
+                tone: "success",
+                title: "Item deleted",
+                description: deleteTarget.name
+                    ? `${deleteTarget.name} is no longer in your inventory.`
+                    : undefined,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Delete failed",
+                description: getApiErrorMessage(
+                    cause,
+                    "Unable to delete the item.",
+                ),
+            });
+        } finally {
+            // The outcome is a toast either way, so the dialog has nothing
+            // left to say once the request settles.
+            setDeleteTarget(null);
         }
     }
 
@@ -304,19 +331,19 @@ export function InventoryProductList() {
                     <Button
                         render={<Link href="/inventory/new" />}
                         nativeButton={false}
-                        size="lg"
+                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                     >
-                        <PackagePlus className="size-4" />
-                        Create item
+                        <PackagePlus className="size-4 shrink-0" />
+                        <span>Create item</span>
                     </Button>
                 }
             />
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-                <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4">
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="relative w-full xl:max-w-md">
-                            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="flex flex-col gap-3 border-b border-border p-4">
+                    <div className="flex flex-row items-center gap-2">
+                        <div className="relative min-w-0 flex-1">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={productSearch}
                                 onChange={(event) =>
@@ -324,13 +351,13 @@ export function InventoryProductList() {
                                         setProductSearch(event.target.value),
                                     )
                                 }
-                                placeholder="Search name, SKU, barcode or category"
-                                className={`${inventoryControlClassName} pl-10`}
+                                placeholder="Search items..."
+                                className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground"
                                 aria-label="Search items"
                             />
                         </div>
 
-                        <div className="grid w-full gap-3 sm:grid-cols-2 xl:flex xl:w-auto">
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                             <Select
                                 value={productStatus}
                                 onValueChange={(value) =>
@@ -345,8 +372,9 @@ export function InventoryProductList() {
                                 }
                             >
                                 <SelectTrigger
+                                    size="sm"
                                     aria-label="Filter items by status"
-                                    className={`${inventoryControlClassName} w-full xl:w-44`}
+                                    className="!h-9 sm:!h-10 py-0 min-w-[68px] sm:w-44 px-2 sm:px-3 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground justify-between items-center"
                                 >
                                     <SelectValue />
                                 </SelectTrigger>
@@ -366,17 +394,19 @@ export function InventoryProductList() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
+                                size="sm"
+                                aria-label="Advanced filters"
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
                                 onClick={() =>
                                     setFilterPanelOpen((open) => !open)
                                 }
+                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
                             >
-                                <SlidersHorizontal />
-                                Advanced filters
+                                <SlidersHorizontal className="size-4 shrink-0" />
+                                <span className="hidden sm:inline">Advanced filters</span>
                                 {advancedFilterCount ? (
-                                    <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-semibold text-white">
+                                    <span className="absolute -top-1 -right-1 sm:static grid size-4 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-[11px] font-semibold text-white">
                                         {advancedFilterCount}
                                     </span>
                                 ) : null}
@@ -385,11 +415,13 @@ export function InventoryProductList() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="lg"
+                                size="sm"
+                                aria-label="Scan barcode"
                                 onClick={() => setScannerOpen(true)}
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
                             >
-                                <ScanBarcode />
-                                Scan barcode
+                                <ScanBarcode className="size-4 shrink-0" />
+                                <span className="hidden sm:inline">Scan barcode</span>
                             </Button>
                         </div>
                     </div>
@@ -397,13 +429,13 @@ export function InventoryProductList() {
                     {filterPanelOpen ? (
                         <div
                             id="inventory-advanced-filters"
-                            className="rounded-2xl border border-[#e4eae2] bg-[#f8faf7] p-4 sm:p-5"
+                            className="rounded-2xl border border-border bg-muted/40 p-4 sm:p-5"
                         >
                             <div className="flex flex-col gap-1">
-                                <h2 className="font-semibold text-[#161d16]">
+                                <h2 className="font-semibold text-foreground">
                                     Advanced filters
                                 </h2>
-                                <p className="text-sm text-[#657064]">
+                                <p className="text-sm text-muted-foreground">
                                     Narrow the catalogue, then apply all fields
                                     together.
                                 </p>
@@ -457,7 +489,7 @@ export function InventoryProductList() {
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.itemGroupId ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.itemGroupId}
                                         </p>
                                     ) : null}
@@ -501,7 +533,7 @@ export function InventoryProductList() {
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.unitId ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.unitId}
                                         </p>
                                     ) : null}
@@ -538,7 +570,7 @@ export function InventoryProductList() {
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.itemType ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.itemType}
                                         </p>
                                     ) : null}
@@ -600,7 +632,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.minPrice ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.minPrice}
                                         </p>
                                     ) : null}
@@ -629,7 +661,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.maxPrice ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.maxPrice}
                                         </p>
                                     ) : null}
@@ -650,7 +682,7 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.sku ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.sku}
                                         </p>
                                     ) : null}
@@ -675,26 +707,28 @@ export function InventoryProductList() {
                                         }
                                     />
                                     {filterErrors.barcode ? (
-                                        <p className="text-xs text-accent">
+                                        <p className="text-xs text-danger">
                                             {filterErrors.barcode}
                                         </p>
                                     ) : null}
                                 </div>
                             </div>
 
-                            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <div className="mt-5 flex flex-row items-center justify-end gap-2.5 sm:gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={handleApplyFilters}
+                                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
+                                >
+                                    Apply filters
+                                </Button>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={resetDraftFilters}
+                                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                                 >
                                     Reset fields
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={handleApplyFilters}
-                                >
-                                    Apply filters
                                 </Button>
                             </div>
                         </div>
@@ -702,7 +736,7 @@ export function InventoryProductList() {
 
                     {hasFilters ? (
                         <div className="flex flex-wrap items-center gap-2 pt-1">
-                            <span className="text-xs font-semibold text-[#657064]">
+                            <span className="text-xs font-semibold text-muted-foreground">
                                 Active filters
                             </span>
                             {debouncedSearch.trim() ? (
@@ -793,11 +827,11 @@ export function InventoryProductList() {
                     ) : null}
                 </div>
 
-                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[#edf0ec] bg-[#fbfcfa] px-5 py-2.5 text-sm text-[#657064]">
+                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-2.5 text-sm text-muted-foreground">
                     <p aria-live="polite">
                         {isFetching ? (
                             <span className="inline-flex items-center gap-2">
-                                <LoaderCircle className="size-4 animate-spin text-primary" />
+                                <LoaderCircle className="size-4 animate-spin text-success" />
                                 Updating items
                             </span>
                         ) : totalElements ? (
@@ -831,7 +865,7 @@ export function InventoryProductList() {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[820px] text-left text-sm">
-                            <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
+                            <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                 <tr>
                                     <th className="px-5 py-3">Name</th>
                                     <th className="px-5 py-3">Category</th>
@@ -844,26 +878,26 @@ export function InventoryProductList() {
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#edf0ec]">
+                            <tbody className="divide-y divide-border">
                                 {items.map((item) => (
                                     <tr
                                         key={item.id}
-                                        className="text-[#1a222b] hover:bg-[#fbfcfa]"
+                                        className="text-foreground hover:bg-muted/50"
                                     >
                                         <td className="px-5 py-4">
                                             <p className="font-semibold">
                                                 {item.name || "Unnamed"}
                                             </p>
-                                            <p className="mt-1 text-xs text-[#7b857a]">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 {item.sku ||
                                                     item.barcode ||
                                                     "No SKU or barcode"}
                                             </p>
                                         </td>
-                                        <td className="px-5 py-4 text-[#657064]">
+                                        <td className="px-5 py-4 text-muted-foreground">
                                             {item.itemGroup?.name || "—"}
                                         </td>
-                                        <td className="px-5 py-4 text-[#657064]">
+                                        <td className="px-5 py-4 text-muted-foreground">
                                             {item.itemType
                                                 ? titleCase(item.itemType)
                                                 : "—"}
@@ -871,7 +905,7 @@ export function InventoryProductList() {
                                         <td className="px-5 py-4 font-semibold">
                                             {formatMoney(item.price)}
                                         </td>
-                                        <td className="px-5 py-4 text-[#657064]">
+                                        <td className="px-5 py-4 text-muted-foreground">
                                             {item.unit?.name || "—"}
                                         </td>
                                         <td className="px-5 py-4">
@@ -916,10 +950,10 @@ export function InventoryProductList() {
                                                     aria-label={`Delete ${item.name || "item"}`}
                                                     disabled={deleteState.isLoading}
                                                     onClick={() =>
-                                                        handleDelete(
-                                                            item.id,
-                                                            item.name,
-                                                        )
+                                                        setDeleteTarget({
+                                                            id: item.id,
+                                                            name: item.name,
+                                                        })
                                                     }
                                                 >
                                                     <Trash2 />
@@ -936,96 +970,70 @@ export function InventoryProductList() {
                 {!error && totalElements ? (
                     <nav
                         aria-label="Item pages"
-                        className="flex flex-col gap-3 border-t border-[#edf0ec] px-5 py-4 md:flex-row md:items-center md:justify-between"
+                        className="flex flex-col gap-3 border-t border-border px-5 py-4 md:flex-row md:items-center md:justify-between"
                     >
-                        <div className="flex items-center gap-3 text-sm text-[#657064]">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <Label
                                 htmlFor="item-page-size"
-                                className="whitespace-nowrap text-sm font-normal"
+                                className="shrink-0 text-xs font-semibold text-muted-foreground"
                             >
                                 Items per page
                             </Label>
-                            <Select
-                                value={String(productPageSize)}
-                                onValueChange={(value) =>
+                            <select
+                                id="item-page-size"
+                                value={productPageSize}
+                                onChange={(e) =>
                                     dispatch(
                                         setProductPageSize(
-                                            Number(value || 20),
+                                            Number(e.target.value),
                                         ),
                                     )
                                 }
+                                className="h-9 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground outline-none focus:border-primary"
                             >
-                                <SelectTrigger
-                                    id="item-page-size"
-                                    size="sm"
-                                    className="w-20"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {pageSizes.map((size) => (
-                                        <SelectItem
-                                            key={size}
-                                            value={String(size)}
-                                        >
-                                            {size}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                            <span>
+                                Showing {firstResult}–{lastResult} of{" "}
+                                {totalElements}
+                            </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
-                            <p className="text-sm text-[#657064]">
-                                Page {currentPage + 1} of {Math.max(totalPages, 1)}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage === 0 || isFetching}
-                                    onClick={() =>
-                                        dispatch(
-                                            setProductPage(currentPage - 1),
-                                        )
-                                    }
-                                >
-                                    <ChevronLeft />
-                                    Previous
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={
-                                        currentPage + 1 >= totalPages ||
-                                        isFetching
-                                    }
-                                    onClick={() =>
-                                        dispatch(
-                                            setProductPage(currentPage + 1),
-                                        )
-                                    }
-                                >
-                                    Next
-                                    <ChevronRight />
-                                </Button>
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={currentPage <= 0 || isFetching}
+                                onClick={() =>
+                                    dispatch(setProductPage(currentPage - 1))
+                                }
+                            >
+                                <ChevronLeft className="size-4" />
+                                Previous
+                            </Button>
+                            <span className="px-2 text-xs font-medium text-muted-foreground">
+                                Page {currentPage + 1} of {totalPages || 1}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                    currentPage + 1 >= totalPages || isFetching
+                                }
+                                onClick={() =>
+                                    dispatch(setProductPage(currentPage + 1))
+                                }
+                            >
+                                Next
+                                <ChevronRight className="size-4" />
+                            </Button>
                         </div>
                     </nav>
-                ) : null}
-
-                {deleteState.error ? (
-                    <p
-                        className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-accent"
-                        role="alert"
-                    >
-                        {getApiErrorMessage(
-                            deleteState.error,
-                            "Unable to delete the item.",
-                        )}
-                    </p>
                 ) : null}
             </section>
 
@@ -1041,6 +1049,30 @@ export function InventoryProductList() {
             <BarcodeScannerDialog
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
+            />
+            <DestructiveConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete item?"}
+                description={
+                    deleteTarget?.name ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-foreground">
+                                {deleteTarget.name}
+                            </strong>
+                            ? This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this item? This action cannot be undone."
+                    )
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );

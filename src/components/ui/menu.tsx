@@ -18,7 +18,7 @@ const Menu = MenuPrimitive.Root;
 const MenuTrigger = MenuPrimitive.Trigger;
 
 const menuItemClass =
-    "flex w-full cursor-default items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[14px] text-[#161d16] outline-none select-none data-highlighted:bg-[#f2f5f1] [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-[#657064]";
+    "flex w-full cursor-default items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[14px] text-[#161d16] dark:text-[#f8fafc] outline-none select-none data-highlighted:bg-[#f2f5f1] dark:data-highlighted:bg-[#252a38] [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-[#657064] dark:[&_svg]:text-[#94a3b8]";
 
 function MenuContent({
     className,
@@ -39,7 +39,7 @@ function MenuContent({
                 <MenuPrimitive.Popup
                     data-slot="menu-content"
                     className={cn(
-                        "min-w-[228px] origin-[var(--transform-origin)] rounded-2xl border border-[#e4eae2] bg-white p-1.5 shadow-[0_18px_44px_rgba(15,26,18,0.16)] outline-none transition-[transform,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
+                        "min-w-[228px] origin-[var(--transform-origin)] rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1e2330] p-1.5 shadow-[0_18px_44px_rgba(15,26,18,0.16)] dark:shadow-[0_18px_44px_rgba(0,0,0,0.5)] outline-none transition-[transform,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
                         className,
                     )}
                     {...props}
@@ -77,7 +77,7 @@ function MenuSeparator({
     return (
         <MenuPrimitive.Separator
             data-slot="menu-separator"
-            className={cn("-mx-1.5 my-1.5 h-px bg-[#edf0ec]", className)}
+            className={cn("-mx-1.5 my-1.5 h-px bg-[#edf0ec] dark:bg-[#242937]", className)}
             {...props}
         />
     );

@@ -4,14 +4,15 @@ import { Building2, Delete, X, Calculator } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useToast } from "@/components/ui/toast";
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 
 export function CashRegister({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [amount, setAmount] = useState("0.00");
   const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDigit = (digit: string) => {
@@ -25,7 +26,6 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
       if (decimals && decimals.length >= 2) return prev;
       return prev + digit;
     });
-    setError("");
   };
 
   const handleDelete = () => {
@@ -36,12 +36,15 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
     const openingBalance = Number.parseFloat(amount);
 
     if (!Number.isFinite(openingBalance) || openingBalance < 0) {
-      setError("Enter the starting cash amount");
+      toast({
+        tone: "error",
+        title: "Register not opened",
+        description: "Enter the starting cash amount.",
+      });
       return;
     }
 
     setIsLoading(true);
-    setError("");
 
     try {
       const response = await fetch("/api/register/open", {
@@ -55,7 +58,11 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        setError(payload?.message ?? "Could not open the register.");
+        toast({
+          tone: "error",
+          title: "Register not opened",
+          description: payload?.message ?? "Could not open the register.",
+        });
         setIsLoading(false);
         return;
       }
@@ -64,7 +71,11 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
       // `replace` so Back can't return to a register that is already open.
       router.replace(POS_ROUTES.terminal);
     } catch {
-      setError("Could not reach the server. Check your connection.");
+      toast({
+        tone: "error",
+        title: "Register not opened",
+        description: "Could not reach the server. Check your connection.",
+      });
       setIsLoading(false);
     }
   };
@@ -117,11 +128,6 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               </span>
             </div>
           </div>
-
-          {/* Error */}
-          {error && (
-            <p className="text-xs text-red-500 text-center -mt-3">{error}</p>
-          )}
 
           {/* Keypad */}
           <div className="grid grid-cols-3 gap-2.5">

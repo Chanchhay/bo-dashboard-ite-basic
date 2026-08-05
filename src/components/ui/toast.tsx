@@ -2,6 +2,7 @@
 
 import {
     createContext,
+    type PointerEvent as ReactPointerEvent,
     useCallback,
     useContext,
     useEffect,
@@ -27,7 +28,7 @@ type ToastInput = {
     tone?: ToastTone;
     title: string;
     description?: string;
-    /** Milliseconds before auto-dismiss. Errors stay until dismissed. */
+    /** Milliseconds before auto-dismiss. */
     duration?: number;
     onClick?: () => void;
 };
@@ -38,23 +39,151 @@ type ToastContextValue = {
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+const DEFAULT_TOAST_DURATION = 3500;
+/** Horizontal travel, in px, past which releasing the pointer dismisses. */
+const SWIPE_DISMISS_DISTANCE = 80;
 
+/*
+ * The light values are the original ones — a white card whose only tone signal
+ * is the icon and a 1px tinted ring. Dark just re-points those two at brighter
+ * variants that survive the #1a1e29 surface; the shape stays identical.
+ */
 const TONES: Record<
     ToastTone,
     { icon: typeof CircleCheck; iconClass: string; ring: string }
 > = {
     success: {
         icon: CircleCheck,
-        iconClass: "text-[#00932a]",
-        ring: "ring-[#cfe7d6]",
+        iconClass: "text-primary",
+        ring: "ring-[#cfe7d6] dark:ring-primary/40",
     },
     error: {
         icon: CircleAlert,
-        iconClass: "text-[#b3352f]",
-        ring: "ring-[#f2cfcd]",
+        iconClass: "text-[#b3352f] dark:text-[#f87171]",
+        ring: "ring-[#f2cfcd] dark:ring-[#f87171]/40",
     },
-    info: { icon: Info, iconClass: "text-[#8a5f00]", ring: "ring-[#f0d9a8]" },
+    info: {
+        icon: Info,
+        iconClass: "text-[#8a5f00] dark:text-[#fbbf24]",
+        ring: "ring-[#f0d9a8] dark:ring-[#fbbf24]/40",
+    },
 };
+
+function ToastItem({
+    item,
+    onDismiss,
+}: {
+    item: Toast;
+    onDismiss: (id: number) => void;
+}) {
+    const [dragOffset, setDragOffset] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const pointerStart = useRef<number | null>(null);
+    /* Mirrors dragOffset so finishSwipe reads the latest value without waiting
+       for a re-render. */
+    const dragOffsetRef = useRef(0);
+    const { icon: Icon, iconClass, ring } = TONES[item.tone];
+
+    function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+        if (event.button !== 0) {
+            return;
+        }
+
+        pointerStart.current = event.clientX;
+        setIsDragging(true);
+        event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+        if (pointerStart.current === null) {
+            return;
+        }
+
+        const nextOffset = event.clientX - pointerStart.current;
+        dragOffsetRef.current = nextOffset;
+        setDragOffset(nextOffset);
+    }
+
+    function finishSwipe() {
+        if (pointerStart.current === null) {
+            return;
+        }
+
+        pointerStart.current = null;
+        setIsDragging(false);
+
+        if (Math.abs(dragOffsetRef.current) >= SWIPE_DISMISS_DISTANCE) {
+            onDismiss(item.id);
+            return;
+        }
+
+        dragOffsetRef.current = 0;
+        setDragOffset(0);
+    }
+
+    /* A swipe ends in a click event too, so only treat it as an activation if
+       the pointer barely moved. */
+    function handleClick() {
+        if (!item.onClick || Math.abs(dragOffsetRef.current) > 4) {
+            return;
+        }
+
+        item.onClick();
+        onDismiss(item.id);
+    }
+
+    return (
+        /* The entry animation lives on this wrapper and the swipe transform on
+           the child, so the two never write to the same `transform`. */
+        <div className="pointer-events-auto w-full max-w-sm animate-in fade-in slide-in-from-right-4 duration-200 motion-reduce:animate-none">
+            <div
+                role={item.tone === "error" ? "alert" : "status"}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={finishSwipe}
+                onPointerCancel={finishSwipe}
+                onClick={handleClick}
+                style={{
+                    opacity: Math.max(0.45, 1 - Math.abs(dragOffset) / 240),
+                    transform: `translateX(${dragOffset}px)`,
+                    transition: isDragging
+                        ? "none"
+                        : "transform 160ms ease-out, opacity 160ms ease-out",
+                }}
+                className={cn(
+                    "flex w-full touch-pan-y cursor-grab items-start gap-3 rounded-2xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(22,24,28,.45)] ring-1 select-none active:cursor-grabbing",
+                    "dark:bg-[#1a1e29] dark:shadow-[0_16px_40px_-16px_rgba(0,0,0,.75)]",
+                    item.onClick && "hover:shadow-lg",
+                    ring,
+                )}
+            >
+                <Icon
+                    className={cn("mt-0.5 size-5 shrink-0", iconClass)}
+                    aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-medium text-[#16181c] dark:text-[#f8fafc]">
+                        {item.title}
+                    </p>
+                    {item.description && (
+                        <p className="mt-0.5 text-[13px] text-[#5c6660] dark:text-[#94a3b8]">
+                            {item.description}
+                        </p>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => onDismiss(item.id)}
+                    aria-label="Dismiss notification"
+                    className="grid size-7 shrink-0 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-primary dark:text-[#94a3b8] dark:hover:bg-[#252a38] dark:hover:text-[#f8fafc]"
+                >
+                    <X className="size-4" aria-hidden="true" />
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);
@@ -75,18 +204,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             const id = nextId.current++;
             setToasts((current) => [...current, { id, tone, title, description, onClick }]);
 
-            // Errors usually need reading and acting on, so they persist.
-            const ttl = duration ?? (tone === "error" ? 0 : 4500);
+            const ttl = duration ?? DEFAULT_TOAST_DURATION;
             if (ttl > 0) {
                 timers.current.set(
                     id,
-                    setTimeout(
-                        () =>
-                            setToasts((current) =>
-                                current.filter((item) => item.id !== id),
-                            ),
-                        ttl,
-                    ),
+                    setTimeout(() => {
+                        timers.current.delete(id);
+                        setToasts((current) =>
+                            current.filter((item) => item.id !== id),
+                        );
+                    }, ttl),
                 );
             }
         },
@@ -115,54 +242,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div
                 aria-live="polite"
                 aria-atomic="false"
-                className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex flex-col items-center gap-2 p-4 sm:items-end"
+                aria-label="Notifications"
+                className="pointer-events-none fixed top-0 right-0 z-[100] flex w-full flex-col items-end gap-2 p-4 sm:max-w-md"
             >
-                {toasts.map((item) => {
-                    const { icon: Icon, iconClass, ring } = TONES[item.tone];
-
-                    return (
-                        <div
-                            key={item.id}
-                            onClick={() => {
-                                if (item.onClick) {
-                                    item.onClick();
-                                    dismiss(item.id);
-                                }
-                            }}
-                            className={cn(
-                                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl bg-white p-4 ring-1 shadow-[0_16px_40px_-20px_rgba(22,24,28,.45)] transition-all",
-                                item.onClick ? "cursor-pointer hover:shadow-lg" : "",
-                                ring,
-                            )}
-                        >
-                            <Icon
-                                className={cn("mt-0.5 size-5 shrink-0", iconClass)}
-                                aria-hidden="true"
-                            />
-                            <div className="min-w-0 flex-1">
-                                <p className="text-[14px] font-medium text-[#16181c]">
-                                    {item.title}
-                                </p>
-                                {item.description && (
-                                    <p className="mt-0.5 text-[13px] text-[#5c6660]">
-                                        {item.description}
-                                    </p>
-                                )}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    dismiss(item.id);
-                                }}
-                                aria-label="Dismiss notification"
-                                className="grid size-7 shrink-0 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a]"
-                            >
-                                <X className="size-4" aria-hidden="true" />
-                            </button>
-                        </div>
-                    );
-                })}
+                {toasts.map((item) => (
+                    <ToastItem
+                        key={item.id}
+                        item={item}
+                        onDismiss={dismiss}
+                    />
+                ))}
             </div>
         </ToastContext.Provider>
     );

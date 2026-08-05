@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -64,7 +65,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 onClick={() => setVisible((value) => !value)}
                 aria-label={visible ? "Hide password" : "Show password"}
                 aria-pressed={visible}
-                className="bg-transparent absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                className="bg-transparent absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
             >
                 {visible ? (
                     <EyeOff className="size-4" aria-hidden="true" />
@@ -83,12 +84,12 @@ export default function StaffTab() {
     const [createStaff, createState] = useCreateStaffMutation();
     const [updateStaff, updateState] = useUpdateStaffMutation();
     const [updateStatus] = useUpdateStaffStatusMutation();
-    const [deleteStaff] = useDeleteStaffMutation();
+    const [deleteStaff, deleteState] = useDeleteStaffMutation();
 
     const [search, setSearch] = useState("");
     const [editor, setEditor] = useState<Editor>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const [formError, setFormError] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
 
     const roles = useMemo(() => rolesQuery.data || [], [rolesQuery.data]);
     const roleNames = useMemo(
@@ -116,7 +117,6 @@ export default function StaffTab() {
     const closeEditor = () => {
         setEditor(null);
         setFieldErrors({});
-        setFormError(null);
     };
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -124,7 +124,6 @@ export default function StaffTab() {
         if (!editor) return;
 
         setFieldErrors({});
-        setFormError(null);
 
         const form = new FormData(event.currentTarget);
         const shared = {
@@ -149,7 +148,11 @@ export default function StaffTab() {
 
                 if (!parsed.success) {
                     setFieldErrors(issueMap(parsed.error.issues));
-                    setFormError("Check the highlighted fields.");
+                    toast({
+                        tone: "error",
+                        title: "Check the highlighted fields",
+                        description: parsed.error.issues[0]?.message,
+                    });
                     return;
                 }
 
@@ -163,7 +166,11 @@ export default function StaffTab() {
 
                 if (!parsed.success) {
                     setFieldErrors(issueMap(parsed.error.issues));
-                    setFormError("Check the highlighted fields.");
+                    toast({
+                        tone: "error",
+                        title: "Check the highlighted fields",
+                        description: parsed.error.issues[0]?.message,
+                    });
                     return;
                 }
 
@@ -176,15 +183,13 @@ export default function StaffTab() {
 
             closeEditor();
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to save the user.",
-            );
-            setFormError(message);
             toast({
                 tone: "error",
                 title: "Save failed",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to save the user.",
+                ),
             });
         }
     }
@@ -211,21 +216,16 @@ export default function StaffTab() {
         }
     }
 
-    async function remove(member: Staff) {
-        if (
-            !window.confirm(
-                `Remove ${staffFullName(member)}? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteStaff(member.id).unwrap();
+            await deleteStaff(deleteTarget.id).unwrap();
             toast({
                 title: "User removed",
-                description: staffFullName(member),
+                description: staffFullName(deleteTarget),
             });
+            setDeleteTarget(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -235,6 +235,7 @@ export default function StaffTab() {
                     "Unable to remove the user.",
                 ),
             });
+            setDeleteTarget(null);
         }
     }
 
@@ -430,15 +431,6 @@ export default function StaffTab() {
                             </FormField>
                         </div>
 
-                        {formError && (
-                            <p
-                                role="alert"
-                                className="text-[13px] text-[#b3352f]"
-                            >
-                                {formError}
-                            </p>
-                        )}
-
                         <div className="flex flex-wrap gap-3">
                             <Button
                                 type="submit"
@@ -473,19 +465,18 @@ export default function StaffTab() {
                             onClick={() => {
                                 setEditor({ mode: "create" });
                                 setFieldErrors({});
-                                setFormError(null);
                             }}
-
+                            className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
-                            <Plus className="size-4" aria-hidden="true" />
-                            Add user
+                            <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                            <span>Add user</span>
                         </Button>
                     }
                 />
 
                 <div className="relative mt-6 max-w-sm">
                     <Search
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8a8f89]"
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
                     />
                     <label htmlFor="staff-search" className="sr-only">
@@ -527,7 +518,7 @@ export default function StaffTab() {
                                 Users in this business
                             </caption>
                             <thead>
-                                <tr className="border-b border-[#eceeea] text-[12px] text-[#8a8f89]">
+                                <tr className="border-b border-border text-[12px] text-muted-foreground">
                                     <th
                                         scope="col"
                                         className="py-3 pr-4 font-medium"
@@ -564,25 +555,25 @@ export default function StaffTab() {
                                 {members.map((member) => (
                                     <tr
                                         key={member.id}
-                                        className="border-b border-[#f2f3f1] last:border-0"
+                                        className="border-b border-border last:border-0"
                                     >
                                         <td className="py-4 pr-4">
-                                            <p className="text-[15px] text-[#16181c]">
+                                            <p className="text-[15px] font-medium text-foreground">
                                                 {staffFullName(member)}
                                             </p>
                                             {member.username && (
-                                                <p className="text-[13px] text-[#8a8f89]">
+                                                <p className="text-[13px] text-muted-foreground">
                                                     @{member.username}
                                                 </p>
                                             )}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660]">
+                                        <td className="py-4 pr-4 text-[14px] text-muted-foreground">
                                             <p>{member.email || "—"}</p>
-                                            <p className="text-[13px] text-[#8a8f89]">
+                                            <p className="text-[13px] text-muted-foreground">
                                                 {member.phoneNumber || "—"}
                                             </p>
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660]">
+                                        <td className="py-4 pr-4 text-[14px] text-muted-foreground">
                                             {member.roleId
                                                 ? roleNames.get(
                                                       member.roleId,
@@ -618,7 +609,6 @@ export default function StaffTab() {
                                                             staff: member,
                                                         });
                                                         setFieldErrors({});
-                                                        setFormError(null);
                                                     }}
                                                     aria-label={`Edit ${staffFullName(member)}`}
                                                     variant="ghost"
@@ -632,11 +622,14 @@ export default function StaffTab() {
                                                 <Button
                                                     type="button"
                                                     onClick={() =>
-                                                        remove(member)
+                                                        setDeleteTarget(member)
                                                     }
                                                     aria-label={`Remove ${staffFullName(member)}`}
                                                     variant="destructive"
                                                     size="icon-sm"
+                                                    disabled={
+                                                        deleteState.isLoading
+                                                    }
                                                 >
                                                     <Trash2
                                                         className="size-4"
@@ -652,6 +645,31 @@ export default function StaffTab() {
                     </div>
                 )}
             </Panel>
+
+            <DestructiveConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget ? `Delete ${staffFullName(deleteTarget)}?` : "Delete staff member?"}
+                description={
+                    deleteTarget ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-foreground">
+                                {staffFullName(deleteTarget)}
+                            </strong>
+                            ? This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this staff member? This action cannot be undone."
+                    )
+                }
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
+            />
         </div>
     );
 }

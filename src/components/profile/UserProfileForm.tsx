@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     profilePictureRules,
     userProfileGenders,
@@ -159,7 +160,7 @@ function Field({
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -177,15 +178,15 @@ function AccountDetail({
     value?: string;
 }) {
     return (
-        <div className="flex gap-3 rounded-xl bg-[#f6f8f5] p-4">
+        <div className="flex gap-3 rounded-xl bg-[#f6f8f5] dark:bg-[#151821] border border-transparent dark:border-[#242937] p-4">
             <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 {icon}
             </span>
             <div className="min-w-0">
-                <p className="text-xs font-medium tracking-wide text-[#6b7569] uppercase">
+                <p className="text-xs font-medium tracking-wide text-[#6b7569] dark:text-[#94a3b8] uppercase">
                     {label}
                 </p>
-                <p className="mt-1 truncate text-sm font-semibold text-[#1a222b]">
+                <p className="mt-1 truncate text-sm font-semibold text-[#1a222b] dark:text-[#f8fafc]">
                     {value || "Not available"}
                 </p>
             </div>
@@ -213,10 +214,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     // to, rather than in the form's status line.
     const [pictureNote, setPictureNote] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-    const [status, setStatus] = useState<{
-        type: "success" | "error";
-        message: string;
-    } | null>(null);
+    const { toast } = useToast();
     const [updateUserProfile, { isLoading: isSaving }] =
         useUpdateUserProfileMutation();
     const [deleteProfilePicture, { isLoading: isRemovingPicture }] =
@@ -252,12 +250,14 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             publishProfile({ ...profile, profilePicture: "" });
             setPictureNote("Profile picture removed.");
         } catch (error) {
-            picture.setError(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Profile picture not removed",
+                description: getApiErrorMessage(
                     error,
                     "Unable to remove your profile picture.",
                 ),
-            );
+            });
         }
     }
 
@@ -268,12 +268,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         picture.reset();
         setFieldErrors({});
         setPictureNote(null);
-        setStatus(null);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const result = userProfileSchema.safeParse({
@@ -286,9 +284,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
         if (!result.success) {
             setFieldErrors(getFieldErrors(result.error));
-            setStatus({
-                type: "error",
-                message: "Check the highlighted fields and try again.",
+            toast({
+                tone: "error",
+                title: "Check the highlighted fields",
+                description: "Some details still need your attention.",
             });
             return;
         }
@@ -310,14 +309,16 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             );
             picture.reset();
             setPictureNote(null);
-            setStatus({
-                type: "success",
-                message: "Your profile was saved successfully.",
+            toast({
+                tone: "success",
+                title: "Profile saved",
+                description: "Your profile was saved successfully.",
             });
         } catch (error) {
-            setStatus({
-                type: "error",
-                message: getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Profile not saved",
+                description: getApiErrorMessage(
                     error,
                     "Unable to save your profile.",
                 ),
@@ -328,16 +329,21 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     return (
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="flex flex-col gap-5">
-                <section className="rounded-2xl border border-[#e4eae2] bg-white p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)]">
+                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <ImagePicker
                         rules={profilePictureRules}
                         disabled={isSaving}
-                        error={picture.error}
                         busy={isSaving && Boolean(picture.file)}
                         previewShape="circle"
                         label="Profile picture"
                         onPick={handlePicturePick}
-                        onError={picture.setError}
+                        onError={(message) =>
+                            toast({
+                                tone: "error",
+                                title: "Profile picture not selected",
+                                description: message,
+                            })
+                        }
                         preview={
                             <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
                                 {picture.preview ? (
@@ -411,11 +417,11 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     </div>
                 </section>
 
-                <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)]">
-                    <h2 className="text-base font-bold text-[#161d16]">
+                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <h2 className="text-base font-bold text-[#161d16] dark:text-[#f8fafc]">
                         Account information
                     </h2>
-                    <p className="mt-1 text-sm text-[#6b7569]">
+                    <p className="mt-1 text-sm text-[#6b7569] dark:text-[#94a3b8]">
                         These details are managed by your account provider.
                     </p>
                     <div className="mt-4 flex flex-col gap-3">
@@ -442,14 +448,14 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                 ref={formRef}
                 onSubmit={handleSubmit}
                 noValidate
-                className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.06)] sm:p-7"
+                className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7"
             >
-                <div className="flex items-start gap-3 border-b border-[#edf0ec] pb-5">
+                <div className="flex items-start gap-3 border-b border-[#edf0ec] dark:border-[#242937] pb-5">
                     <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <UserRound className="size-5" />
                     </span>
                     <div>
-                        <h2 className="text-lg font-bold text-[#161d16]">
+                        <h2 className="text-lg font-bold text-[#161d16] dark:text-[#f8fafc]">
                             Personal details
                         </h2>
                         <p className="mt-1 text-sm text-[#657064]">
@@ -568,7 +574,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                     aria-invalid={Boolean(
                                         fieldErrors.address,
                                     )}
-                                    className="min-h-28 rounded-xl border-[#e2e8e0] bg-white py-3 pr-4 pl-11 text-base text-[#1a222b] placeholder:text-[#7a8478] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15 md:text-base"
+                                    className="min-h-28 rounded-xl border-[#e2e8e0] bg-white py-3 pr-4 pl-11 text-base text-[#1a222b] placeholder:text-[#7a8478] focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 md:text-base"
                                 />
                             </div>
                         </Field>
@@ -577,27 +583,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                 </div>
 
                 <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] pt-6 sm:flex-row sm:items-center">
-                    <div
-                        className="min-h-5 flex-1 text-sm"
-                        aria-live="polite"
-                    >
-                        {status ? (
-                            <p
-                                className={
-                                    status.type === "success"
-                                        ? "text-primary"
-                                        : "text-accent"
-                                }
-                                role={
-                                    status.type === "error"
-                                        ? "alert"
-                                        : "status"
-                                }
-                            >
-                                {status.message}
-                            </p>
-                        ) : null}
-                    </div>
+                    <div className="flex-1" />
                     <Button
                         type="button"
                         variant="outline"
@@ -630,7 +616,7 @@ function ProfileQueryError({
 }) {
     return (
         <div
-            className="rounded-2xl border border-accent/20 bg-white p-6 text-[#1a222b] shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
+            className="rounded-2xl border border-danger/20 bg-card p-6 text-foreground shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
             role="alert"
         >
             <h2 className="text-lg font-bold">Unable to load your profile</h2>
@@ -652,7 +638,7 @@ export default function UserProfileForm() {
     if (profileQuery.isLoading) {
         return (
             <div
-                className="min-h-[620px] animate-pulse rounded-2xl bg-[#e8ede7]"
+                className="min-h-[620px] animate-pulse rounded-2xl bg-[#e8ede7] dark:bg-[#1a1e29] border border-transparent dark:border-[#242937]"
                 aria-label="Loading user profile"
             />
         );
@@ -682,3 +668,5 @@ export default function UserProfileForm() {
         />
     );
 }
+
+

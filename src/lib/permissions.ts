@@ -13,6 +13,7 @@ export const PERMISSIONS = {
     BUSINESS_MANAGE: "business:manage",
     BUSINESS_PROFILE: "business:profile",
     BUSINESS_CURRENCY: "business:currency",
+    BUSINESS_PAYMENTS: "business:payments",
     USERS_MANAGE: "users:manage",
     INVENTORY_MANAGE: "inventory:manage",
     INVENTORY_ITEMS: "inventory:items",
@@ -33,6 +34,7 @@ const BUSINESS_PERMISSIONS = [
     PERMISSIONS.BUSINESS_MANAGE,
     PERMISSIONS.BUSINESS_PROFILE,
     PERMISSIONS.BUSINESS_CURRENCY,
+    PERMISSIONS.BUSINESS_PAYMENTS,
 ] as const;
 
 const INVENTORY_PERMISSIONS = [
@@ -105,6 +107,9 @@ export function permissionsForRoles(roles: readonly string[]): Permission[] {
         } else if (resource === "currency") {
             granted.add(PERMISSIONS.BUSINESS_MANAGE);
             granted.add(PERMISSIONS.BUSINESS_CURRENCY);
+        } else if (resource === "bakong-setting") {
+            granted.add(PERMISSIONS.BUSINESS_MANAGE);
+            granted.add(PERMISSIONS.BUSINESS_PAYMENTS);
         } else if (resource === "member" || resource === "role") {
             granted.add(PERMISSIONS.USERS_MANAGE);
         } else if (resource === "item") {

@@ -40,10 +40,10 @@ export function ItemChannelTable({
     const channelLabel = selectedChannelCode || activeChannelCode;
 
     return (
-        <section className="overflow-hidden rounded-2xl border border-[#e4eae2] bg-white shadow-[0_8px_30px_rgba(26,34,43,0.05)]">
-            <div className="flex flex-col gap-3 border-b border-[#edf0ec] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-sm">
-                    <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
+                    <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder="Search item name or code"
                         value={searchQuery}
@@ -55,7 +55,7 @@ export function ItemChannelTable({
                     type="button"
                     onClick={onRefresh}
                     title="Refresh channels"
-                    className="inline-flex items-center justify-center rounded-lg border border-[#e4eae2] p-2.5 text-emerald-600 transition hover:bg-emerald-50"
+                    className="inline-flex items-center justify-center rounded-lg border border-border bg-card p-2.5 text-success transition hover:bg-muted shadow-xs"
                 >
                     <RefreshCw className="h-4 w-4" />
                     <span className="sr-only">Refresh channels</span>
@@ -72,7 +72,7 @@ export function ItemChannelTable({
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-190 text-left text-sm">
-                        <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
+                        <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                             <tr>
                                 <th className="px-5 py-3">Item</th>
                                 <th className="px-5 py-3">Price</th>
@@ -80,7 +80,7 @@ export function ItemChannelTable({
                                 <th className="px-5 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#edf0ec]">
+                        <tbody className="divide-y divide-border">
                             {inventoryItems.map((item) => {
                                 const isPublished = publishedItemIds.has(item.id);
                                 const isPending = pendingItemId === item.id;
@@ -88,18 +88,18 @@ export function ItemChannelTable({
                                 return (
                                     <tr
                                         key={item.id}
-                                        className="transition-colors hover:bg-gray-50/80"
+                                        className="transition-colors hover:bg-muted/50"
                                     >
                                         <td className="px-5 py-4">
-                                            <p className="font-semibold text-[#161d16]">
+                                            <p className="font-semibold text-foreground">
                                                 {item.name || "Unnamed"}
                                             </p>
-                                            <p className="mt-1 text-xs text-[#7b857a]">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 {item.code || item.sku || item.id}
                                             </p>
                                         </td>
 
-                                        <td className="px-5 py-4 font-semibold text-[#161d16]">
+                                        <td className="px-5 py-4 font-semibold text-foreground">
                                             {item.price != null
                                                 ? `$${item.price.toFixed(2)}`
                                                 : "-"}
@@ -107,12 +107,12 @@ export function ItemChannelTable({
 
                                         <td className="px-5 py-4">
                                             {isPublished ? (
-                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
                                                     <Check className="h-3.5 w-3.5" />
                                                     Published
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex rounded-full bg-[#f0f0ee] px-3 py-1 text-xs font-semibold text-[#657064]">
+                                                <span className="inline-flex rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
                                                     Not published
                                                 </span>
                                             )}
@@ -129,8 +129,8 @@ export function ItemChannelTable({
                                                 }
                                                 className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:opacity-50 ${
                                                     isPublished
-                                                        ? "border-[#e4eae2] text-[#657064] hover:bg-gray-50"
-                                                        : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                                        ? "border-border text-muted-foreground hover:bg-muted/50"
+                                                        : "border-success/30 bg-success/10 text-success hover:bg-success/20"
                                                 }`}
                                             >
                                                 {isPending ? (

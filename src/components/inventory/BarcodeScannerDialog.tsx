@@ -20,6 +20,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import { type InventoryItem } from "@/lib/api/inventory";
 import { useLazyFindInventoryItemByBarcodeQuery } from "@/services/inventoryApi";
 
@@ -36,13 +37,12 @@ export function BarcodeScannerDialog({
 }: BarcodeScannerDialogProps) {
     const [barcode, setBarcode] = useState("");
     const [foundItem, setFoundItem] = useState<InventoryItem | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
     const [findItem, findState] = useLazyFindInventoryItemByBarcodeQuery();
+    const { toast } = useToast();
 
     function reset() {
         setBarcode("");
         setFoundItem(null);
-        setMessage(null);
     }
 
     function handleOpenChange(nextOpen: boolean) {
@@ -60,11 +60,13 @@ export function BarcodeScannerDialog({
 
         if (!value) {
             setFoundItem(null);
-            setMessage("Scan or enter a barcode first.");
+            toast({
+                tone: "error",
+                title: "No barcode to look up",
+                description: "Scan or enter a barcode first.",
+            });
             return;
         }
-
-        setMessage(null);
 
         try {
             const item = await findItem(value, true).unwrap();
@@ -78,12 +80,14 @@ export function BarcodeScannerDialog({
             setFoundItem(item);
         } catch (error) {
             setFoundItem(null);
-            setMessage(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Item not found",
+                description: getApiErrorMessage(
                     error,
                     "No item could be found for that barcode.",
                 ),
-            );
+            });
         }
     }
 
@@ -111,7 +115,6 @@ export function BarcodeScannerDialog({
                             value={barcode}
                             onChange={(event) => {
                                 setBarcode(event.target.value);
-                                setMessage(null);
                                 setFoundItem(null);
                             }}
                             placeholder="Scan or enter barcode"
@@ -132,22 +135,13 @@ export function BarcodeScannerDialog({
                         </Button>
                     </div>
 
-                    {message ? (
-                        <p
-                            className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
-                            role="alert"
-                        >
-                            {message}
-                        </p>
-                    ) : null}
-
                     {foundItem ? (
-                        <section className="rounded-2xl border border-[#e4eae2] bg-[#f8faf7] p-4">
+                        <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf7] dark:bg-[#151821] p-4">
                             <div className="flex flex-col gap-1">
-                                <p className="text-lg font-semibold text-[#161d16]">
+                                <p className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
                                     {foundItem.name || "Unnamed item"}
                                 </p>
-                                <p className="text-sm text-[#657064]">
+                                <p className="text-sm text-[#657064] dark:text-[#94a3b8]">
                                     {foundItem.sku || "No SKU"} · {formatMoney(foundItem.price)}
                                 </p>
                             </div>

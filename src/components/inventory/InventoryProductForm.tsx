@@ -60,6 +60,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
     inventoryItemSchema,
@@ -111,13 +112,13 @@ function Field({ label, name, error, children }: FieldProps) {
         <div className="flex min-w-0 flex-col gap-2">
             <Label
                 htmlFor={name}
-                className="text-sm font-semibold text-[#424841]"
+                className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
             >
                 {label}
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -208,10 +209,10 @@ function SectionHeading({
 }) {
     return (
         <div>
-            <h2 className="text-lg font-semibold text-[#161d16]">
+            <h2 className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
                 {title}
             </h2>
-            <p className="mt-1 text-sm text-[#657064]">
+            <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                 {description}
             </p>
         </div>
@@ -337,6 +338,7 @@ function ProductEditor({
     initialItem?: InventoryItem;
 }) {
     const router = useRouter();
+    const { toast } = useToast();
     const { data: groups, error: groupsError } =
         useGetItemGroupsQuery();
     const { data: units, error: unitsError } =
@@ -360,9 +362,6 @@ function ProductEditor({
     const [barcodePreview, setBarcodePreview] = useState(
         initialItem?.barcode || "",
     );
-    const [barcodeGenerationError, setBarcodeGenerationError] = useState<
-        string | null
-    >(null);
     // Stored images belong to the server: they arrive with an id and are
     // deleted through their own endpoint. Picked files are held here until the
     // save carries them up.
@@ -374,7 +373,6 @@ function ProductEditor({
         [initialItem?.images],
     );
     const [pickedImages, setPickedImages] = useState<PickedImage[]>([]);
-    const [imageError, setImageError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const {
         create: createObjectUrl,
@@ -386,7 +384,6 @@ function ProductEditor({
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    const [status, setStatus] = useState<string | null>(null);
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [deleteImage, deleteImageState] = useDeleteItemImageMutation();
@@ -406,7 +403,6 @@ function ProductEditor({
     ].filter(Boolean);
 
     function handleImagesPicked(picked: File[]) {
-        setImageError(null);
         setPickedImages((current) => [
             ...current,
             ...picked.map((file) => ({
@@ -418,8 +414,6 @@ function ProductEditor({
     }
 
     async function handleGenerateBarcode() {
-        setBarcodeGenerationError(null);
-
         try {
             const result = await generateBarcode().unwrap();
             setBarcodePreview(result.barcode);
@@ -433,12 +427,14 @@ function ProductEditor({
                 return next;
             });
         } catch (error) {
-            setBarcodeGenerationError(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Barcode not generated",
+                description: getApiErrorMessage(
                     error,
                     "Unable to generate a unique barcode.",
                 ),
-            );
+            });
         }
     }
 
@@ -449,7 +445,6 @@ function ProductEditor({
 
             return current.filter((image) => image.id !== id);
         });
-        setImageError(null);
     }
 
     /**
@@ -466,17 +461,25 @@ function ProductEditor({
         const order = storedImages.map((image) => image.id || "");
         [order[index], order[target]] = [order[target], order[index]];
 
-        setImageError(null);
-
         try {
             await reorderImages({
                 itemId: initialItem.id,
                 imageIds: order,
             }).unwrap();
+            toast({
+                tone: "success",
+                title: "Images reordered",
+                description: "The item gallery order was updated.",
+            });
         } catch (error) {
-            setImageError(
-                getApiErrorMessage(error, "Unable to reorder the images."),
-            );
+            toast({
+                tone: "error",
+                title: "Images not reordered",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to reorder the images.",
+                ),
+            });
         }
     }
 
@@ -486,14 +489,21 @@ function ProductEditor({
             return;
         }
 
-        setImageError(null);
-
         try {
             await deleteImage({ itemId: initialItem.id, imageId }).unwrap();
+            toast({
+                tone: "success",
+                title: "Item image deleted",
+            });
         } catch (error) {
-            setImageError(
-                getApiErrorMessage(error, "Unable to remove that image."),
-            );
+            toast({
+                tone: "error",
+                title: "Item image not deleted",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to remove that image.",
+                ),
+            });
         }
     }
 
@@ -597,7 +607,6 @@ function ProductEditor({
 
     async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const attributeValues = attributes.map((attribute) => ({
@@ -649,7 +658,11 @@ function ProductEditor({
 
         if (!result.success) {
             setFieldErrors(fieldErrorsFromIssues(result.error.issues));
-            setStatus("Check the highlighted item information.");
+            toast({
+                tone: "error",
+                title: `Item not ${isEditing ? "updated" : "created"}`,
+                description: "Check the highlighted item information.",
+            });
             return;
         }
 
@@ -669,14 +682,21 @@ function ProductEditor({
             } else {
                 await createItem({ body: result.data, files }).unwrap();
             }
+            toast({
+                tone: "success",
+                title: `Item ${isEditing ? "updated" : "created"}`,
+                description: `${result.data.name} was saved successfully.`,
+            });
             router.push("/inventory");
         } catch (error) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: `Item not ${isEditing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
                     error,
                     `Unable to ${isEditing ? "update" : "create"} the item.`,
                 ),
-            );
+            });
         }
     }
 
@@ -720,7 +740,7 @@ function ProductEditor({
                 }
             />
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
                     title="Item information"
                     description="Core identifiers, pricing and sale configuration."
@@ -778,10 +798,9 @@ function ProductEditor({
                                 id="barcode"
                                 name="barcode"
                                 value={barcodePreview}
-                                onChange={(event) => {
-                                    setBarcodePreview(event.target.value);
-                                    setBarcodeGenerationError(null);
-                                }}
+                                onChange={(event) =>
+                                    setBarcodePreview(event.target.value)
+                                }
                                 placeholder="3547908987678"
                                 aria-invalid={Boolean(fieldErrors.barcode)}
                                 className={`${inventoryControlClassName} flex-1 font-mono`}
@@ -805,11 +824,6 @@ function ProductEditor({
                                 </Button>
                             ) : null}
                         </div>
-                        {barcodeGenerationError ? (
-                            <p className="text-xs text-accent" role="alert">
-                                {barcodeGenerationError}
-                            </p>
-                        ) : null}
                         {barcodePreview.trim() ? (
                             <div className="rounded-xl border border-[#e4eae2] bg-[#f8faf7] p-3">
                                 <BarcodePreview
@@ -1074,7 +1088,7 @@ function ProductEditor({
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Images"
@@ -1096,11 +1110,16 @@ function ProductEditor({
                     rules={itemImageRules}
                     inputRef={imageInputRef}
                     disabled={isSaving}
-                    error={imageError}
                     remaining={maxItemImages - galleryCount}
                     label="Add images of this item"
                     onPick={handleImagesPicked}
-                    onError={setImageError}
+                    onError={(message) => {
+                        toast({
+                            tone: "error",
+                            title: "Images not added",
+                            description: message,
+                        });
+                    }}
                 >
                     {galleryCount ? (
                         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
@@ -1154,7 +1173,7 @@ function ProductEditor({
                 </ImageDropzone>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Attributes"
@@ -1174,7 +1193,7 @@ function ProductEditor({
                         attributes.map((attribute) => (
                             <div
                                 key={attribute.id}
-                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] px-4 py-3"
+                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-4 py-3"
                             >
                                 {attribute.icon ? (
                                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -1191,7 +1210,7 @@ function ProductEditor({
                                 ) : null}
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <p className="font-medium text-[#1a222b]">
+                                        <p className="font-medium text-[#1a222b] dark:text-[#f8fafc]">
                                             {attribute.name}
                                         </p>
                                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
@@ -1201,7 +1220,7 @@ function ProductEditor({
                                                 ]
                                             }
                                         </span>
-                                        <span className="rounded-full bg-[#f2f3f1] px-2.5 py-0.5 text-xs font-medium text-[#657064]">
+                                        <span className="rounded-full bg-[#f2f3f1] dark:bg-[#252a38] px-2.5 py-0.5 text-xs font-medium text-[#657064] dark:text-[#cbd5e1]">
                                             {
                                                 itemAttributePlacementLabels[
                                                     attribute.placement
@@ -1209,7 +1228,7 @@ function ProductEditor({
                                             }
                                         </span>
                                     </div>
-                                    <p className="mt-1 truncate text-sm text-[#657064]">
+                                    <p className="mt-1 truncate text-sm text-[#657064] dark:text-[#94a3b8]">
                                         {describeAttribute(attribute)}
                                     </p>
                                 </div>
@@ -1243,12 +1262,12 @@ function ProductEditor({
                             </div>
                         ))
                     ) : (
-                        <p className="rounded-xl border border-dashed border-[#e8e8e8] px-4 py-6 text-center text-sm text-[#657064]">
+                        <p className="rounded-xl border border-dashed border-[#e8e8e8] dark:border-[#2a3042] px-4 py-6 text-center text-sm text-[#657064] dark:text-[#94a3b8]">
                             No attributes yet. Add one to describe this item.
                         </p>
                     )}
                     {fieldErrors.attributes ? (
-                        <p className="text-xs text-accent" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.attributes}
                         </p>
                     ) : null}
@@ -1268,7 +1287,7 @@ function ProductEditor({
                 />
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Variants"
@@ -1297,7 +1316,7 @@ function ProductEditor({
                     {variants.map((variant) => (
                         <div
                             key={variant.id}
-                            className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto_auto] sm:items-center"
+                            className="flex items-center gap-1.5 sm:gap-3 w-full"
                         >
                             <Input
                                 value={variant.name}
@@ -1308,7 +1327,7 @@ function ProductEditor({
                                 }
                                 aria-label="Variant name"
                                 placeholder="Variant name"
-                                className={inventoryControlClassName}
+                                className={`${inventoryControlClassName} !h-9 sm:!h-10 py-0 text-xs sm:text-sm flex-[2] min-w-0 px-2.5 sm:px-4 rounded-xl`}
                             />
                             <Input
                                 type="number"
@@ -1322,9 +1341,9 @@ function ProductEditor({
                                 }
                                 aria-label="Variant price"
                                 placeholder="Price"
-                                className={inventoryControlClassName}
+                                className={`${inventoryControlClassName} !h-9 sm:!h-10 py-0 text-xs sm:text-sm flex-1 min-w-0 px-2 sm:px-3 rounded-xl`}
                             />
-                            <label className="flex items-center gap-2 text-xs whitespace-nowrap text-[#6b7280]">
+                            <label className="flex items-center gap-1 sm:gap-1.5 text-xs whitespace-nowrap text-[#6b7280] dark:text-[#94a3b8] shrink-0 cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={!variant.available}
@@ -1333,9 +1352,9 @@ function ProductEditor({
                                             available: !event.target.checked,
                                         })
                                     }
-                                    className="size-3.5 accent-[#d14341]"
+                                    className="size-3.5 accent-danger"
                                 />
-                                Sold out
+                                <span className="text-[11px] sm:text-xs">Sold out</span>
                             </label>
                             <Button
                                 type="button"
@@ -1350,20 +1369,21 @@ function ProductEditor({
                                         ),
                                     )
                                 }
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-10 shrink-0 rounded-xl p-0 flex items-center justify-center"
                             >
-                                <Trash2 />
+                                <Trash2 className="size-4 shrink-0" />
                             </Button>
                         </div>
                     ))}
                     {fieldErrors.variants ? (
-                        <p className="text-xs text-accent" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.variants}
                         </p>
                     ) : null}
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] bg-white p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-7">
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
                     title="Store description layout"
                     description="Lay out the lower half of the store page: text, bullets, images and the spec grid."
@@ -1374,42 +1394,33 @@ function ProductEditor({
                         onChange={setBlocks}
                     />
                     {fieldErrors.descriptionBlocks ? (
-                        <p className="mt-3 text-xs text-accent" role="alert">
+                        <p className="mt-3 text-xs text-danger" role="alert">
                             {fieldErrors.descriptionBlocks}
                         </p>
                     ) : null}
                 </div>
             </section>
 
-            {status ? (
-                <p
-                    className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
-                    role="alert"
-                >
-                    {status}
-                </p>
-            ) : null}
-
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button
                     variant="outline"
                     render={<Link href="/inventory" />}
                     nativeButton={false}
-                    className="h-11 px-6"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={isSaving || isUploadingBlockImage}
-                    size="lg"
+                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                 >
                     {isSaving ? (
-                        <LoaderCircle className="animate-spin" />
+                        <LoaderCircle className="size-4 animate-spin shrink-0" />
                     ) : (
-                        <Save />
+                        <Save className="size-4 shrink-0" />
                     )}
-                    {isEditing ? "Save changes" : "Create item"}
+                    <span>{isEditing ? "Save changes" : "Create item"}</span>
                 </Button>
             </div>
 
