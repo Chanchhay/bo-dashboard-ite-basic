@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
     ItemPreviewDialog,
     toPreviewItem,
@@ -181,6 +182,7 @@ export function InventoryProductList() {
     const groupsQuery = useGetItemGroupsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
     const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
 
     const items = data?.content ?? [];
     const currentPage = data?.page?.number ?? productPage;
@@ -275,21 +277,16 @@ export function InventoryProductList() {
         dispatch(resetProductDraftFilters());
     }
 
-    async function handleDelete(itemId: string, name?: string) {
-        if (
-            !window.confirm(
-                `Delete ${name || "this item"}? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteItem(itemId).unwrap();
+            await deleteItem(deleteTarget.id).unwrap();
 
             if (items.length === 1 && productPage > 0) {
                 dispatch(setProductPage(productPage - 1));
             }
+            setDeleteTarget(null);
         } catch {
             // RTK Query exposes the request error below.
         }
@@ -923,10 +920,10 @@ export function InventoryProductList() {
                                                     aria-label={`Delete ${item.name || "item"}`}
                                                     disabled={deleteState.isLoading}
                                                     onClick={() =>
-                                                        handleDelete(
-                                                            item.id,
-                                                            item.name,
-                                                        )
+                                                        setDeleteTarget({
+                                                            id: item.id,
+                                                            name: item.name,
+                                                        })
                                                     }
                                                 >
                                                     <Trash2 />
@@ -948,85 +945,71 @@ export function InventoryProductList() {
                         <div className="flex items-center gap-3 text-sm text-[#657064]">
                             <Label
                                 htmlFor="item-page-size"
-                                className="whitespace-nowrap text-sm font-normal"
+                                className="shrink-0 text-xs font-semibold text-[#657064]"
                             >
                                 Items per page
                             </Label>
-                            <Select
-                                value={String(productPageSize)}
-                                onValueChange={(value) =>
+                            <select
+                                id="item-page-size"
+                                value={productPageSize}
+                                onChange={(e) =>
                                     dispatch(
                                         setProductPageSize(
-                                            Number(value || 20),
+                                            Number(e.target.value),
                                         ),
                                     )
                                 }
+                                className="h-9 rounded-lg border border-[#d9dfd8] bg-white px-2.5 text-xs text-[#1d241d] outline-none focus:border-[#00932a]"
                             >
-                                <SelectTrigger
-                                    id="item-page-size"
-                                    size="sm"
-                                    className="w-20"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {pageSizes.map((size) => (
-                                        <SelectItem
-                                            key={size}
-                                            value={String(size)}
-                                        >
-                                            {size}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                            <span>
+                                Showing {firstResult}–{lastResult} of{" "}
+                                {totalElements}
+                            </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
-                            <p className="text-sm text-[#657064]">
-                                Page {currentPage + 1} of {Math.max(totalPages, 1)}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage === 0 || isFetching}
-                                    onClick={() =>
-                                        dispatch(
-                                            setProductPage(currentPage - 1),
-                                        )
-                                    }
-                                >
-                                    <ChevronLeft />
-                                    Previous
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={
-                                        currentPage + 1 >= totalPages ||
-                                        isFetching
-                                    }
-                                    onClick={() =>
-                                        dispatch(
-                                            setProductPage(currentPage + 1),
-                                        )
-                                    }
-                                >
-                                    Next
-                                    <ChevronRight />
-                                </Button>
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={currentPage <= 0 || isFetching}
+                                onClick={() =>
+                                    dispatch(setProductPage(currentPage - 1))
+                                }
+                            >
+                                <ChevronLeft className="size-4" />
+                                Previous
+                            </Button>
+                            <span className="px-2 text-xs font-medium text-[#657064]">
+                                Page {currentPage + 1} of {totalPages || 1}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                    currentPage + 1 >= totalPages || isFetching
+                                }
+                                onClick={() =>
+                                    dispatch(setProductPage(currentPage + 1))
+                                }
+                            >
+                                Next
+                                <ChevronRight className="size-4" />
+                            </Button>
                         </div>
                     </nav>
                 ) : null}
 
-                {deleteState.error ? (
+                {deleteState.isError ? (
                     <p
-                        className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-accent"
                         role="alert"
+                        className="border-t border-[#edf0ec] px-5 py-3 text-xs text-[#d14341]"
                     >
                         {getApiErrorMessage(
                             deleteState.error,
@@ -1048,6 +1031,31 @@ export function InventoryProductList() {
             <BarcodeScannerDialog
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
+            />
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete item?"}
+                description={
+                    deleteTarget?.name ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {deleteTarget.name}
+                            </strong>
+                            ? This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this item? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                isLoading={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );

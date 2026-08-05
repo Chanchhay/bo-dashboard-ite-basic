@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
     EmptyState,
@@ -45,6 +46,7 @@ export default function RolesTab() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [nameError, setNameError] = useState<string | undefined>();
     const [formError, setFormError] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<BusinessRole | null>(null);
 
     const roles = rolesQuery.data || [];
 
@@ -148,26 +150,16 @@ export default function RolesTab() {
         }
     }
 
-    async function remove(role: BusinessRole) {
-        const assigned = assignedCounts.get(role.id) || 0;
-        const warning = assigned
-            ? ` ${assigned} user${assigned === 1 ? "" : "s"} will lose it.`
-            : "";
-
-        if (
-            !window.confirm(
-                `Delete ${role.name || "this role"}?${warning} This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteRole(role.id).unwrap();
+            await deleteRole(deleteTarget.id).unwrap();
             toast({
                 title: "Role deleted",
-                description: role.name || undefined,
+                description: deleteTarget.name || undefined,
             });
+            setDeleteTarget(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -414,7 +406,7 @@ export default function RolesTab() {
                                             </Button>
                                             <Button
                                                 type="button"
-                                                onClick={() => remove(role)}
+                                                onClick={() => setDeleteTarget(role)}
                                                 aria-label={`Delete ${role.name || "role"}`}
                                                 variant="destructive"
                                                     size="icon-sm"
@@ -453,6 +445,32 @@ export default function RolesTab() {
                     </p>
                 )}
             </Panel>
+
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget ? `Delete ${deleteTarget.name || "role"}?` : "Delete role?"}
+                description={
+                    deleteTarget ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {deleteTarget.name || "this role"}
+                            </strong>
+                            ? {assignedCounts.get(deleteTarget.id) ? `${assignedCounts.get(deleteTarget.id)} user(s) assigned to this role will lose it. ` : ""}
+                            This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this role? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                onConfirm={handleConfirmDelete}
+            />
         </div>
     );
 }

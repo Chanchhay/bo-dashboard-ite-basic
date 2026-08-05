@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -83,12 +84,13 @@ export default function StaffTab() {
     const [createStaff, createState] = useCreateStaffMutation();
     const [updateStaff, updateState] = useUpdateStaffMutation();
     const [updateStatus] = useUpdateStaffStatusMutation();
-    const [deleteStaff] = useDeleteStaffMutation();
+    const [deleteStaff, deleteState] = useDeleteStaffMutation();
 
     const [search, setSearch] = useState("");
     const [editor, setEditor] = useState<Editor>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [formError, setFormError] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
 
     const roles = useMemo(() => rolesQuery.data || [], [rolesQuery.data]);
     const roleNames = useMemo(
@@ -211,21 +213,16 @@ export default function StaffTab() {
         }
     }
 
-    async function remove(member: Staff) {
-        if (
-            !window.confirm(
-                `Remove ${staffFullName(member)}? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteStaff(member.id).unwrap();
+            await deleteStaff(deleteTarget.id).unwrap();
             toast({
                 title: "User removed",
-                description: staffFullName(member),
+                description: staffFullName(deleteTarget),
             });
+            setDeleteTarget(null);
         } catch (error) {
             toast({
                 tone: "error",
@@ -632,7 +629,7 @@ export default function StaffTab() {
                                                 <Button
                                                     type="button"
                                                     onClick={() =>
-                                                        remove(member)
+                                                        setDeleteTarget(member)
                                                     }
                                                     aria-label={`Remove ${staffFullName(member)}`}
                                                     variant="destructive"
@@ -652,6 +649,32 @@ export default function StaffTab() {
                     </div>
                 )}
             </Panel>
+
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget ? `Delete ${staffFullName(deleteTarget)}?` : "Delete staff member?"}
+                description={
+                    deleteTarget ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {staffFullName(deleteTarget)}
+                            </strong>
+                            ? This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this staff member? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                isLoading={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
+            />
         </div>
     );
 }

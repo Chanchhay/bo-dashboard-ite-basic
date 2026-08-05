@@ -20,6 +20,7 @@ import {
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -78,6 +79,7 @@ export function InventoryCategories() {
         useUpdateItemGroupMutation();
     const [deleteGroup, deleteState] =
         useDeleteItemGroupMutation();
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
     const [mode, setMode] = useState<"CATEGORY" | "SUBCATEGORY">(
         "CATEGORY",
     );
@@ -176,20 +178,15 @@ export function InventoryCategories() {
         }
     }
 
-    async function handleDelete(id: string, name: string) {
-        if (
-            !window.confirm(
-                `Delete ${name}? Items assigned to it may need to be updated.`,
-            )
-        ) {
-            return;
-        }
+    async function handleConfirmDelete() {
+        if (!deleteTarget) return;
 
         try {
-            await deleteGroup(id).unwrap();
-            if (editing?.id === id) {
+            await deleteGroup(deleteTarget.id).unwrap();
+            if (editing?.id === deleteTarget.id) {
                 resetForm();
             }
+            setDeleteTarget(null);
         } catch {
             // The mutation error is displayed below the table.
         }
@@ -286,7 +283,7 @@ export function InventoryCategories() {
                                             >
                                                 <Pencil />
                                             </Button>
-                                            <Button
+                                             <Button
                                                 type="button"
                                                 variant="destructive"
                                                 size="icon-sm"
@@ -295,11 +292,10 @@ export function InventoryCategories() {
                                                     deleteState.isLoading
                                                 }
                                                 onClick={() =>
-                                                    handleDelete(
-                                                        group.id,
-                                                        group.name ||
-                                                            "category",
-                                                    )
+                                                    setDeleteTarget({
+                                                        id: group.id,
+                                                        name: group.name || "category",
+                                                    })
                                                 }
                                             >
                                                 <Trash2 />
@@ -348,11 +344,10 @@ export function InventoryCategories() {
                                                             deleteState.isLoading
                                                         }
                                                         onClick={() =>
-                                                            handleDelete(
-                                                                subGroup.id,
-                                                                subGroup.name ||
-                                                                    "subcategory",
-                                                            )
+                                                            setDeleteTarget({
+                                                                id: subGroup.id,
+                                                                name: subGroup.name || "subcategory",
+                                                            })
                                                         }
                                                     >
                                                         <Trash2 />
@@ -528,6 +523,32 @@ export function InventoryCategories() {
                     </Button>
                 </form>
             </div>
+
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title={deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete category?"}
+                description={
+                    deleteTarget?.name ? (
+                        <>
+                            Are you sure you want to delete{" "}
+                            <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                                {deleteTarget.name}
+                            </strong>
+                            ? Items assigned to it may need to be updated. This action cannot be undone.
+                        </>
+                    ) : (
+                        "Are you sure you want to delete this category? This action cannot be undone."
+                    )
+                }
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                isLoading={deleteState.isLoading}
+                onConfirm={handleConfirmDelete}
+            />
         </div>
     );
 }
