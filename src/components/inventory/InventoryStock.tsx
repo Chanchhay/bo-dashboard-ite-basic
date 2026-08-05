@@ -219,7 +219,7 @@ export function InventoryStock() {
                                         Quantity
                                     </th>
                                     <th className="px-5 py-3">
-                                        Threshold
+                                        Low Stock
                                     </th>
                                     <th className="px-5 py-3">Value</th>
                                     <th className="px-5 py-3">State</th>
@@ -238,7 +238,7 @@ export function InventoryStock() {
                                                   : "In stock";
                                         const stateClass =
                                             quantity <= 0
-                                                ? "bg-accent/10 text-accent"
+                                                ? "bg-brand-red/10 text-brand-red"
                                                 : quantity <= threshold
                                                   ? "bg-[#fff4d6] text-[#9a6900]"
                                                   : "bg-primary/10 text-primary";
@@ -347,7 +347,7 @@ export function InventoryStock() {
                                     className={`font-semibold ${
                                         (entry.quantityChange || 0) >= 0
                                             ? "text-primary"
-                                            : "text-accent"
+                                            : "text-brand-red"
                                     }`}
                                 >
                                     {(entry.quantityChange || 0) > 0

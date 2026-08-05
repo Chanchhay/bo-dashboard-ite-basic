@@ -362,7 +362,7 @@ export function InventoryCategories() {
                     )}
                     {deleteState.error ? (
                         <p
-                            className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-accent"
+                            className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-brand-red"
                             role="alert"
                         >
                             {getApiErrorMessage(
@@ -501,7 +501,7 @@ export function InventoryCategories() {
 
                     {fieldError || status ? (
                         <p
-                            className="mt-4 rounded-xl border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-accent"
+                            className="mt-4 rounded-xl border border-brand-red/20 bg-brand-red/5 px-3 py-2 text-sm text-brand-red"
                             role="alert"
                         >
                             {fieldError || status}
