@@ -1,5 +1,4 @@
 import { Client, Message, StompSubscription } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import type { Notification } from "./api/notification";
 import { fetchSessionContext } from "./auth/session-context";
 
@@ -18,30 +17,6 @@ export interface SocketConnectParams {
  */
 function fetchCredentials(force = false) {
     return fetchSessionContext(force ? { force: true } : undefined);
-}
-
-/*
- * A Next rewrite proxies plain HTTP; it does not forward the Upgrade handshake
- * a raw WebSocket needs. SockJS's XHR transports are ordinary HTTP requests, so
- * they survive the proxy — hence pinning them here rather than letting SockJS
- * try `websocket` first and spend every connect on a handshake that cannot
- * succeed. Notification traffic is a trickle, so long-polling costs nothing
- * that matters.
- */
-const PROXY_SAFE_TRANSPORTS = ["xhr-streaming", "xhr-polling"];
-
-function getWsConfig(wsPath: string): { webSocketFactory: () => any } {
-    /*
-     * SockJS wants an absolute URL. Resolving against the page origin keeps it
-     * same-origin, which is the whole point: no CORS preflight, and the backend
-     * host never appears in the browser.
-     */
-    const url = new URL(wsPath, window.location.origin).toString();
-
-    return {
-        webSocketFactory: () =>
-            new SockJS(url, null, { transports: PROXY_SAFE_TRANSPORTS }),
-    };
 }
 
 class NotificationSocketService {
@@ -143,21 +118,26 @@ class NotificationSocketService {
         }
 
         /*
-         * No path means the server has no API_BASE_URL to proxy to. Opening a
-         * socket then would just retry a 404 every 5s forever.
+         * No URL means the server has no API_BASE_URL configured. Opening a
+         * socket then would just retry a dead address every 5s forever.
          */
-        if (!credentials?.wsPath) {
+        if (!credentials?.wsUrl) {
             this.isConnecting = false;
             console.warn(
-                "[NotificationSocket] No socket path configured; realtime disabled.",
+                "[NotificationSocket] No socket URL configured; realtime disabled.",
             );
             return;
         }
 
-        const wsConfig = getWsConfig(credentials.wsPath);
-
+        /*
+         * A raw WebSocket, not SockJS. SockJS opens with an XHR to /info, which
+         * is a CORS-preflighted cross-origin request; the upgrade handshake is
+         * not preflighted, so the backend's Origin check is the only gate. It
+         * also cannot be proxied through this app — Vercel forwards neither a
+         * WebSocket upgrade nor a long-lived streaming response.
+         */
         const client = new Client({
-            ...wsConfig,
+            brokerURL: credentials.wsUrl,
             debug: (str: string) => {
                 if (process.env.NODE_ENV === "development") {
                     console.log("[NotificationSocket]", str);
