@@ -1,18 +1,23 @@
 "use client";
 
+import Link from "next/link";
+
 export interface PosCardType {
   id: string | number;
   name: string;
   price: number;
   image: string;
   category: string;
+  onClick?: () => void;
 }
 
 export default function MenuCard({
+  id,
   name,
   price,
   image,
   category,
+  onClick,
 }: PosCardType) {
   const formattedPrice =
     typeof price === "number"
@@ -20,7 +25,11 @@ export default function MenuCard({
       : parseFloat(String(price) || "0").toFixed(2);
 
   return (
-    <div className="group relative flex flex-col gap-3 transition-transform duration-200 hover:-translate-y-1">
+    <Link
+      href={`/menu/${id}`}
+      onClick={onClick}
+      className="group relative flex flex-col gap-3 transition-transform duration-200 hover:-translate-y-1 cursor-pointer"
+    >
       {/* Image Rounded Container */}
       <div className="relative aspect-square w-full overflow-hidden rounded-[28px] bg-[#f0f0f0] p-4 flex items-center justify-center border border-gray-100 shadow-xs group-hover:shadow-md transition-shadow">
         <img
@@ -43,11 +52,11 @@ export default function MenuCard({
           {name}
         </h3>
         <div className="flex items-center justify-between mt-1">
-          <span className="text-base sm:text-lg font-extrabold text-[#e53e3e]">
+          <span className="text-base sm:text-lg font-extrabold text-primary">
             ${formattedPrice}
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

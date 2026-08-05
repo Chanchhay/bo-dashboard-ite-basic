@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
     Bell,
     CheckCheck,
@@ -143,9 +144,14 @@ export function NotificationMenu({ className }: { className?: string }) {
         }
     };
 
+    const router = useRouter();
+
     const handleItemClick = (notification: Notification) => {
         if (!notification.read) {
             markAsRead(notification.id);
+        }
+        if (notification.deepLink && notification.deepLink !== "#") {
+            router.push(notification.deepLink);
         }
     };
 

@@ -43,4 +43,17 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         return backendErrorResponse(error);
     }
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const response = await backendRequest("/api/v1/notifications", {
+            method: "POST",
+            body: JSON.stringify(body),
+        });
+        return Response.json(response, { status: 201 });
+    } catch (error) {
+        return backendErrorResponse(error);
+    }
 }

@@ -1,47 +1,47 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import StoreProvider from "@/app/StoreProvider";
 import MenuNavbar from "@/components/menu/menu-navbar";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
 import { useGetChannelItemsQuery } from "@/services/salesChannelApi";
-import { Filter, ShoppingBag } from "lucide-react";
+import type { InventoryItem } from "@/lib/api/inventory";
+import { ShoppingBag } from "lucide-react";
 
-export type MenuItem = {
+export type MenuItemEntry = {
   id: string;
   name: string;
   category: string;
   price: number;
   image: string;
-  code?: string;
-  barcode?: string;
-  sku?: string;
+  rawItem: InventoryItem;
 };
 
 function StaticMenuContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Category");
+  const router = useRouter();
 
   // Fetch POS sales channel published items
   const { data: channelItems = [], isLoading } = useGetChannelItemsQuery("POS");
 
   // Map POS channel items strictly from backend API
-  const items = useMemo<MenuItem[]>(() => {
+  const items = useMemo<MenuItemEntry[]>(() => {
     return channelItems.map((entry) => {
-      const thumbnail = [...(entry.item.images ?? [])]
+      const raw = entry.item as unknown as InventoryItem;
+      const thumbnail = [...(raw.images ?? [])]
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
         .find((img) => img.url)?.url;
 
       return {
-        id: entry.item.id,
-        name: entry.item.name || "Unnamed Item",
-        category: entry.item.itemGroup?.name || "General",
-        price: entry.item.price ?? 0,
+        id: raw.id,
+        name: raw.name || "Unnamed Item",
+        category: raw.itemGroup?.name || "General",
+        price: raw.price ?? 0,
         image: thumbnail || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80",
-        code: entry.item.code || entry.item.id,
-        barcode: entry.item.barcode || entry.item.sku || entry.item.code,
-        sku: entry.item.sku,
+        rawItem: raw,
       };
     });
   }, [channelItems]);
@@ -67,13 +67,20 @@ function StaticMenuContent() {
         !q ||
         item.name.toLowerCase().includes(q) ||
         item.category.toLowerCase().includes(q) ||
-        (item.code && item.code.toLowerCase().includes(q)) ||
-        (item.barcode && item.barcode.toLowerCase().includes(q)) ||
-        (item.sku && item.sku.toLowerCase().includes(q));
+        (item.rawItem.code && item.rawItem.code.toLowerCase().includes(q)) ||
+        (item.rawItem.barcode && item.rawItem.barcode.toLowerCase().includes(q)) ||
+        (item.rawItem.sku && item.rawItem.sku.toLowerCase().includes(q));
 
       return matchCategory && matchSearch;
     });
   }, [items, selectedCategory, searchQuery]);
+
+  const handleCardClick = (entry: MenuItemEntry) => {
+    // Client-side soft navigation to /menu/[itemId]
+    // Next.js will trigger the Intercepting Route @modal/(.)[itemId] -> Modal Popup!
+    // On page refresh (F5), Next.js renders the full page /menu/[itemId]!
+    router.push(`/menu/${entry.id}`);
+  };
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-gray-900 flex flex-col font-sans">
@@ -135,6 +142,7 @@ function StaticMenuContent() {
                   category={item.category}
                   price={item.price}
                   image={item.image}
+                  onClick={() => handleCardClick(item)}
                 />
               ))}
             </div>

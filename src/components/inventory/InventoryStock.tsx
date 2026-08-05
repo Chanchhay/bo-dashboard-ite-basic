@@ -23,11 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setStockSearch } from "@/store/inventoryUiSlice";
-import {
-    useGetCurrentStockQuery,
-    useGetInventoryItemOptionsQuery,
-    useGetStockEntriesQuery,
-} from "@/services/inventoryApi";
+import { useGetCurrentStockQuery, useGetInventoryItemOptionsQuery, useGetStockEntriesQuery } from "@/services/inventoryApi";
+import { useCreateNotificationMutation } from "@/services/notificationApi";
+import { authClient } from "@/lib/auth/auth-client";
+import { useToast } from "@/components/ui/toast";
 
 function metricCard(
     label: string,
@@ -60,6 +59,9 @@ export function InventoryStock() {
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const stockQuery = useGetCurrentStockQuery();
     const entriesQuery = useGetStockEntriesQuery();
+    const [createNotification, { isLoading: isNotifying }] = useCreateNotificationMutation();
+    const { data: session } = authClient.useSession();
+    const { toast } = useToast();
 
     if (itemsQuery.isLoading || stockQuery.isLoading) {
         return <InventoryLoading label="Loading stock" />;
@@ -126,20 +128,63 @@ export function InventoryStock() {
         )
         .slice(0, 6);
 
+    const handleBroadcastLowStockAlert = async () => {
+        if (!session?.user?.id) return;
+        if (lowStock.length === 0 && outOfStock.length === 0) {
+            toast({ tone: "info", title: "All stock levels normal", description: "No items are currently low or out of stock." });
+            return;
+        }
+
+        try {
+            const count = lowStock.length + outOfStock.length;
+            const names = [...lowStock, ...outOfStock].map((r) => r.item.name || "Item").slice(0, 3).join(", ");
+            const extra = count > 3 ? ` and ${count - 3} more` : "";
+
+            await createNotification({
+                senderId: session.user.id,
+                senderName: session.user.name || "Inventory Manager",
+                receiverIds: [session.user.id],
+                type: "INVENTORY",
+                title: `Low Stock Warning (${count} item${count > 1 ? "s" : ""})`,
+                content: `Attention: ${names}${extra} ${count > 1 ? "are" : "is"} low or out of stock!`,
+                deepLink: "/inventory/stock",
+            }).unwrap();
+
+            toast({ tone: "success", title: "Notification Sent", description: `Alerted team about ${count} low stock item(s).` });
+        } catch (err) {
+            toast({ tone: "error", title: "Failed to send alert", description: getApiErrorMessage(err, "Please try again.") });
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Stock"
                 description="Monitor quantities, value and recent inventory movements."
                 action={
-                    <Button
-                        render={<Link href="/inventory/stock/adjust" />}
-                        nativeButton={false}
-                        size="lg"
-                    >
-                        <SlidersHorizontal />
-                        Adjust stock
-                    </Button>
+                    <div className="flex items-center gap-2.5">
+                        {(lowStock.length > 0 || outOfStock.length > 0) && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                disabled={isNotifying}
+                                onClick={handleBroadcastLowStockAlert}
+                                className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                            >
+                                <AlertTriangle className="size-4.5 text-amber-600" />
+                                <span>{isNotifying ? "Sending..." : "Alert Low Stock"}</span>
+                            </Button>
+                        )}
+                        <Button
+                            render={<Link href="/inventory/stock/adjust" />}
+                            nativeButton={false}
+                            size="lg"
+                        >
+                            <SlidersHorizontal />
+                            Adjust stock
+                        </Button>
+                    </div>
                 }
             />
 

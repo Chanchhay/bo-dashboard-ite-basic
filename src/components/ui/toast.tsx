@@ -20,6 +20,7 @@ type Toast = {
     tone: ToastTone;
     title: string;
     description?: string;
+    onClick?: () => void;
 };
 
 type ToastInput = {
@@ -28,6 +29,7 @@ type ToastInput = {
     description?: string;
     /** Milliseconds before auto-dismiss. Errors stay until dismissed. */
     duration?: number;
+    onClick?: () => void;
 };
 
 type ToastContextValue = {
@@ -69,9 +71,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const toast = useCallback(
-        ({ tone = "success", title, description, duration }: ToastInput) => {
+        ({ tone = "success", title, description, duration, onClick }: ToastInput) => {
             const id = nextId.current++;
-            setToasts((current) => [...current, { id, tone, title, description }]);
+            setToasts((current) => [...current, { id, tone, title, description, onClick }]);
 
             // Errors usually need reading and acting on, so they persist.
             const ttl = duration ?? (tone === "error" ? 0 : 4500);
@@ -121,8 +123,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     return (
                         <div
                             key={item.id}
+                            onClick={() => {
+                                if (item.onClick) {
+                                    item.onClick();
+                                    dismiss(item.id);
+                                }
+                            }}
                             className={cn(
-                                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl bg-white p-4 ring-1 shadow-[0_16px_40px_-20px_rgba(22,24,28,.45)]",
+                                "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl bg-white p-4 ring-1 shadow-[0_16px_40px_-20px_rgba(22,24,28,.45)] transition-all",
+                                item.onClick ? "cursor-pointer hover:shadow-lg" : "",
                                 ring,
                             )}
                         >
@@ -142,7 +151,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => dismiss(item.id)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    dismiss(item.id);
+                                }}
                                 aria-label="Dismiss notification"
                                 className="grid size-7 shrink-0 place-items-center rounded-lg text-[#8a8f89] outline-none hover:bg-[#f2f3f1] hover:text-[#16181c] focus-visible:ring-2 focus-visible:ring-[#00932a]"
                             >

@@ -172,6 +172,26 @@ export const notificationApi = createApi({
             },
             invalidatesTags: ["Notification"],
         }),
+
+        createNotification: builder.mutation<
+            { id: string; count: number },
+            {
+                senderId: string;
+                senderName?: string;
+                receiverIds: string[];
+                type: "ORDER" | "PAYMENT" | "INVENTORY" | "SYSTEM" | "PROMOTION";
+                title: string;
+                content?: string;
+                deepLink?: string;
+            }
+        >({
+            query: (body) => ({
+                url: "/notification",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["Notification"],
+        }),
     }),
 });
 
@@ -180,4 +200,5 @@ export const {
     useMarkAsReadMutation,
     useMarkAllAsReadMutation,
     useDeleteNotificationMutation,
+    useCreateNotificationMutation,
 } = notificationApi;
