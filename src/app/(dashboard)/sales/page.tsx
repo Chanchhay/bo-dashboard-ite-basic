@@ -26,7 +26,11 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency } from "@/lib/money";
 import type { PosOrder } from "@/lib/api/pos-order";
-import { useGetOrderHistoryQuery } from "@/services/posOrderApi";
+import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
+import {
+    useGetOrderHistoryQuery,
+    useGetOrderSummaryQuery,
+} from "@/services/posOrderApi";
 import {
     useGetBusinessProfileQuery,
     useGetStorefrontStatusQuery,
@@ -62,8 +66,6 @@ const STATUS_STYLES: Record<PosOrder["status"], string> = {
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
-
-const ROWS_PER_PAGE = 50;
 
 function rangeStart(filter: DateFilter): string | undefined {
     const start = new Date();
