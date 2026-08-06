@@ -39,19 +39,19 @@ export function ChannelHeader({
                             variant="outline"
                             onClick={() => setIsQRModalOpen(true)}
                             size="lg"
-                            className="inline-flex items-center gap-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50 shadow-2xs"
+                            className="inline-flex items-center gap-2 border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 dark:bg-[#1a1e29] shadow-2xs"
                         >
-                            <QrCode className="w-4 h-4 text-[#00a651]" />
+                            <QrCode className="w-4 h-4 text-[#00a651] dark:text-emerald-400" />
                             Menu QR Code
                         </Button>
                         <Link
                             href="/menu"
                             className={cn(
                                 buttonVariants({ variant: "outline", size: "lg" }),
-                                "inline-flex items-center gap-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50 shadow-2xs"
+                                "inline-flex items-center gap-2 border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 dark:bg-[#1a1e29] shadow-2xs"
                             )}
                         >
-                            <ExternalLink className="w-4 h-4 text-[#00a651]" />
+                            <ExternalLink className="w-4 h-4 text-[#00a651] dark:text-emerald-400" />
                             View Live Menu
                         </Link>
                         <Button

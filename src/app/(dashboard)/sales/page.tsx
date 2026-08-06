@@ -134,9 +134,9 @@ export default function SalesOrdersPage() {
                 <button
                     type="button"
                     onClick={() => setIsQRModalOpen(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-[#1a1e29] border border-emerald-300 dark:border-emerald-700/60 px-4 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-2xs hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
                 >
-                    <QrCode className="h-4 w-4 text-[#00a651]" />
+                    <QrCode className="h-4 w-4 text-[#00a651] dark:text-emerald-400" />
                     Get Menu QR Code
                 </button>
                 <Link

@@ -20,17 +20,17 @@ export default function DineInHeader({
           <Utensils className="h-6 w-6" />
         </div>
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{tableName}</h2>
-          <p className="text-xs sm:text-sm font-medium text-gray-500">Table #{tableNumber} • Dynamic POS Menu</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{tableName}</h2>
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Table #{tableNumber} • Dynamic POS Menu</p>
         </div>
       </div>
       {onShowMenuQR && (
         <button
           type="button"
           onClick={onShowMenuQR}
-          className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 shadow-2xs hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-2 rounded-xl bg-white dark:bg-[#1a1e29] px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-[#2a3042] shadow-2xs hover:bg-gray-50 dark:hover:bg-[#242937] transition-colors"
         >
-          <QrCode className="h-4 w-4 text-primary" />
+          <QrCode className="h-4 w-4 text-primary dark:text-emerald-400" />
           <span className="hidden sm:inline">Menu QR Code</span>
         </button>
       )}

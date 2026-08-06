@@ -71,9 +71,9 @@ export function Navbar({
   }, []);
 
   return (
-    <nav className="scrollbar-hide sticky top-0 z-50 flex h-16 items-center border-b border-[#d9d9d9] bg-white/90 px-3 min-[901px]:overflow-x-auto min-[901px]:px-0">
-      <div className="flex min-w-0 flex-1 items-center gap-2 min-[901px]:h-full min-[901px]:flex-[0_0_56.6%] min-[901px]:gap-[45px] min-[901px]:px-[30px]">
-        {/* 0–900px: hamburger opens the "everything else" dropdown */}
+    <nav className="scrollbar-hide sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#d9d9d9] bg-white/90 dark:bg-[#0f1219]/90 px-3 sm:px-4 lg:px-6">
+      {/* Left section: Hamburger (mobile) + Brand Logo */}
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <MobileMenu
           router={router}
           time={time}
@@ -82,74 +82,67 @@ export function Navbar({
           onCategoryChange={onCategoryChange}
         />
 
-        {/* The logo is also the unobtrusive way back to Sales in the reference toolbar. */}
         <button
           type="button"
           onClick={() => router.push(SALES_HOME)}
           title="Back to sales dashboard"
           aria-label="Back to sales dashboard"
-          className="flex h-7 sm:h-9 w-20 min-[901px]:w-[148px] shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex h-7 sm:h-9 w-auto shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-7 min-[901px]:h-8 w-auto shrink-0" />
+          <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-7 lg:h-8 w-auto shrink-0" />
         </button>
-
-        <div className="hidden min-w-0 flex-1 items-center gap-2 min-[901px]:flex">
-          <div className="flex h-9 w-[323px] min-w-0 shrink-0 items-center gap-2 rounded-full border border-brand-yellow bg-white/90 px-3 shadow-sm">
-            <Search className="h-4 w-4 shrink-0 text-gray-500" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => onSearchQueryChange(event.target.value)}
-              placeholder="Search for a product..."
-              className="w-full min-w-0 bg-transparent text-sm text-gray-600 placeholder:text-gray-500 focus:outline-none"
-            />
-          </div>
-
-          <CategorySelect
-            categories={categories}
-            selectedCategoryId={selectedCategoryId}
-            onCategoryChange={onCategoryChange}
-          />
-
-          {/* Monitor toggle — kept local, purely UI state, no data behind it */}
-          <MonitorToggle />
-        </div>
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-3 min-[901px]:ml-0 min-[901px]:h-full min-[901px]:min-w-0 min-[901px]:flex-1 min-[901px]:justify-end min-[901px]:gap-8 min-[901px]:px-3">
-        {/* 0–900px: icon-only search trigger, sits next to bell like the reference header */}
+      {/* Center section: Search Bar + Category Selector (1025px+) */}
+      <div className="hidden min-w-0 flex-1 items-center justify-center gap-2.5 px-3 min-[1025px]:flex">
+        <div className="flex h-9 flex-1 min-w-[160px] max-w-[320px] items-center gap-2 rounded-full border border-brand-yellow bg-white/90 dark:bg-[#1a1e29] px-3 shadow-sm">
+          <Search className="h-4 w-4 shrink-0 text-brand-yellow" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            placeholder="Search for a product..."
+            className="w-full min-w-0 bg-transparent text-sm text-gray-600 dark:text-gray-200 placeholder:text-gray-500 focus:outline-none"
+          />
+        </div>
+
+        <CategorySelect
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onCategoryChange={onCategoryChange}
+        />
+
+        <MonitorToggle />
+      </div>
+
+      {/* Right section: Controls, Avatar, Bell, Online Badge */}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 lg:gap-3.5">
         <MobileSearchTrigger
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
         />
 
-        {/* It looks like the register status from the design and remains the
-            existing action that takes the cashier to close the drawer. */}
         <button
           type="button"
           onClick={() => router.push(POS_ROUTES.closeRegister)}
           title="Close register"
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-primary px-2.5 text-sm font-semibold text-primary outline-none transition-colors hover:bg-primary hover:text-white focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="flex h-8 sm:h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary px-2.5 sm:px-3 text-xs sm:text-sm font-semibold text-primary outline-none transition-colors hover:bg-primary hover:text-white focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="hidden min-[901px]:inline">Cash Register Open</span>
-          <span className="sr-only min-[901px]:hidden">Close register</span>
+          <span className="hidden sm:inline">Cash Register Open</span>
+          <span className="sr-only sm:hidden">Close register</span>
         </button>
 
-        {/* Clock */}
-        <div className="hidden items-center gap-1.5 text-sm text-[#020409] min-[901px]:flex">
-          <Clock className="h-4 w-4" />
-          {time}
+        <div className="hidden items-center gap-1.5 text-xs lg:text-sm text-gray-700 dark:text-gray-200 font-medium xl:flex">
+          <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+          <span>{time}</span>
         </div>
 
-        {/* Same API-backed profile and POST logout control as the dashboard. */}
         <UserMenu name={managerName} compact />
 
-        {/* Notifications — visible at every size, matches reference header */}
         <NotificationMenu />
 
-        {/* Online status */}
-        <div className="hidden h-8 w-[97px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-white min-[901px]:flex">
+        <div className="hidden h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-white xl:flex">
           <Wifi className="h-3.5 w-3.5" />
           Online
         </div>
@@ -184,14 +177,14 @@ function MobileMenu({
   }, [isOpen]);
 
   return (
-    <div className="min-[901px]:hidden">
+    <div className="flex items-center min-[901px]:hidden">
       <button
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Open menu"
-        className="shrink-0 text-secondary"
+        className="flex size-10 shrink-0 items-center justify-center text-gray-700 dark:text-gray-200 hover:text-primary transition-colors"
       >
-        <Menu className="h-6 w-6" />
+        <Menu className="size-5.5" />
       </button>
 
       {isOpen && (
@@ -230,9 +223,9 @@ function MobileMenu({
               <MenuRow
                 icon={
                   isDisplayOn ? (
-                    <Monitor className="h-4.5 w-4.5 text-secondary" />
+                    <Monitor className="h-4.5 w-4.5 text-primary" />
                   ) : (
-                    <MonitorOff className="h-4.5 w-4.5 text-secondary" />
+                    <MonitorOff className="h-4.5 w-4.5 text-primary" />
                   )
                 }
                 label={
@@ -249,7 +242,7 @@ function MobileMenu({
               />
 
               <MenuRow
-                icon={<Clock className="h-4.5 w-4.5 text-secondary" />}
+                icon={<Clock className="h-4.5 w-4.5 text-primary" />}
                 label="Time"
                 right={<span className="text-sm text-gray-500">{time}</span>}
               />
@@ -348,14 +341,14 @@ function CategorySelect({
         aria-label="Filter by category"
         className={
           mobile
-            ? "h-12 w-full rounded-none border-0 bg-transparent px-4 py-0 text-sm font-medium text-gray-700 shadow-none hover:bg-gray-50 focus-visible:ring-0"
-            : "h-9 w-[190px] rounded-full border-0 bg-white/90 px-3 py-0 text-sm font-normal text-gray-500 shadow-none focus-visible:ring-2 focus-visible:ring-brand-yellow/30"
+            ? "h-12 w-full justify-between rounded-none border-0 bg-transparent px-4 py-0 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:ring-0"
+            : "h-9 w-[170px] shrink-0 justify-between gap-2 rounded-full border-0 bg-white/90 dark:bg-[#1a1e29] px-3.5 py-0 text-sm font-normal text-gray-600 dark:text-gray-200 shadow-none outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/30 *:data-[slot=select-value]:flex-1 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
         }
       >
         <LayoutGrid
           className={
             mobile
-              ? "size-4.5 shrink-0 text-secondary"
+              ? "size-4.5 shrink-0 text-primary"
               : "size-4 shrink-0 text-brand-yellow"
           }
           aria-hidden="true"
@@ -366,10 +359,10 @@ function CategorySelect({
       <SelectContent
         align="start"
         alignItemWithTrigger={false}
-        sideOffset={4}
-        className="max-h-96 min-w-(--anchor-width) rounded-xl border border-[#334155] bg-white/90 p-px text-[#636b74] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] ring-0 backdrop-blur-sm"
+        sideOffset={6}
+        className="max-h-96 min-w-[200px] rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-[#1a1e29]/95 p-1.5 shadow-xl shadow-black/10 backdrop-blur-md transition-all"
       >
-        <SelectGroup className="px-0 py-2">
+        <SelectGroup className="space-y-1 p-0">
           <CategorySelectItem value="ALL">All categories</CategorySelectItem>
           {categories.map((category) => (
             <CategorySelectItem key={category.id} value={category.id}>
@@ -392,16 +385,14 @@ function CategorySelectItem({
   return (
     <SelectItem
       value={value}
-      className="group gap-0 rounded-none px-4 py-3 text-[18px] leading-7 font-normal text-[#636b74] focus:bg-[#f5f5f5]/70 focus:text-[#636b74] data-[selected]:text-[#636b74] [&>span:first-child]:gap-0 [&>span:last-child]:hidden"
+      className="group flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 data-[selected]:bg-emerald-50 dark:data-[selected]:bg-emerald-950/50 data-[selected]:text-emerald-700 dark:data-[selected]:text-emerald-400 data-[selected]:font-semibold [&>span:first-child]:flex [&>span:first-child]:w-full [&>span:first-child]:items-center [&>span:first-child]:justify-between [&>span:last-child]:hidden"
     >
-      <span className="mr-4 grid size-6 shrink-0 place-items-center rounded-[4px] border border-[#f5f5f5] bg-[#f5f5f5] group-data-[selected]:border-primary group-data-[selected]:bg-primary">
-        <Check
-          className="hidden size-4 text-white group-data-[selected]:block"
-          strokeWidth={3}
-          aria-hidden="true"
-        />
-      </span>
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
+      <Check
+        className="hidden size-4 shrink-0 text-primary dark:text-emerald-400 group-data-[selected]:block"
+        strokeWidth={2.5}
+        aria-hidden="true"
+      />
     </SelectItem>
   );
 }
@@ -433,14 +424,14 @@ function MobileSearchTrigger({
   }, [isOpen]);
 
   return (
-    <div className="min-[901px]:hidden">
+    <div className="flex items-center min-[901px]:hidden">
       <button
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Open search"
-        className="shrink-0 mt-1.5 text-secondary"
+        className="flex size-10 shrink-0 items-center justify-center text-brand-yellow hover:opacity-80 transition-opacity"
       >
-        <Search className="h-6 w-6" />
+        <Search className="size-5.5" />
       </button>
 
       {isOpen && (
@@ -449,16 +440,16 @@ function MobileSearchTrigger({
             className="fixed inset-0 z-50 bg-black/20"
             onClick={() => setIsOpen(false)}
           />
-          <div className="animate-in fade-in slide-in-from-top-2 fixed inset-x-0 top-0 z-50 flex items-center gap-2 border-b border-gray-100 bg-white px-3 py-2.5 shadow-sm duration-150">
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-gray-50 px-3.5 py-2">
-              <Search className="h-4 w-4 shrink-0 text-gray-400" />
+          <div className="animate-in fade-in slide-in-from-top-2 fixed inset-x-0 top-0 z-50 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1e29] px-3 py-2.5 shadow-sm duration-150">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-gray-50 dark:bg-[#12151e] border border-brand-yellow/40 px-3.5 py-2">
+              <Search className="h-4 w-4 shrink-0 text-brand-yellow" />
               <input
                 ref={inputRef}
                 type="search"
                 value={searchQuery}
                 onChange={(event) => onSearchQueryChange(event.target.value)}
                 placeholder="Search for an item..."
-                className="w-full min-w-0 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none"
+                className="w-full min-w-0 bg-transparent text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none"
               />
             </div>
             <button
