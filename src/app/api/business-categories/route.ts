@@ -7,7 +7,7 @@ import type { BusinessCategory } from "@/lib/api/business";
 export async function GET() {
     try {
         const categories = await backendRequest<BusinessCategory[]>(
-            "/api/v1/public/business-categories",
+            "/api/v1/business-categories",
         );
         return Response.json(categories);
     } catch (error) {
