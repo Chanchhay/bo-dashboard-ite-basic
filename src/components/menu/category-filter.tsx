@@ -42,7 +42,7 @@ export default function CategoryFilter({
             className={`shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all shadow-2xs active:scale-95 ${
               isActive
                 ? "bg-[#00a651] text-white shadow-md shadow-[#00a651]/20 border border-[#00a651]"
-                : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                : "border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
             }`}
           >
             {category}

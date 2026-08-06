@@ -110,18 +110,21 @@ export default function PublicMenuClient({
       </div>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6 space-y-6">
-        {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <CategoryFilter
-            categories={categories.length > 0 ? categories : undefined}
-            selectedCategory={selectedCategory}
-            onChange={setSelectedCategory}
-          />
-          <div className="w-full sm:w-auto flex justify-end">
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1 w-full min-w-[200px]">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder="Search......"
+              className="max-w-none sm:max-w-none"
+            />
+          </div>
+          <div className="w-full sm:w-auto shrink overflow-hidden max-w-full">
+            <CategoryFilter
+              categories={categories.length > 0 ? categories : undefined}
+              selectedCategory={selectedCategory}
+              onChange={setSelectedCategory}
             />
           </div>
         </div>
