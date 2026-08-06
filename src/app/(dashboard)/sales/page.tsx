@@ -110,7 +110,7 @@ export default function SalesOrdersPage() {
                 await disableStorefront().unwrap();
             }
         } catch (err) {
-            setStorefrontError(getApiErrorMessage(err));
+            setStorefrontError(getApiErrorMessage(err, "Failed to update digital menu status."));
         }
     };
 
@@ -135,7 +135,6 @@ export default function SalesOrdersPage() {
 
     const rows = matches.slice(0, visibleRows);
 
-    /** Any filter change starts the list from the top again. */
     function applyFilter<T>(set: (next: T) => void) {
         return (next: T) => {
             set(next);
@@ -145,7 +144,6 @@ export default function SalesOrdersPage() {
 
     return (
         <div className="flex flex-col gap-5 pb-4">
-            {/* Business Owner Digital Menu Banner */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
                 <div>
                     <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
@@ -401,10 +399,7 @@ function Stat({ label, value }: { label: string; value: string }) {
     );
 }
 
-/**
- * Segmented rather than a dropdown: there are few enough options that showing
- * them costs less than a click, and the current filter stays readable.
- */
+
 function FilterGroup<T extends string>({
     label,
     options,
