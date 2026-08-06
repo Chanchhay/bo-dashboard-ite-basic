@@ -15,47 +15,12 @@ const nextConfig: NextConfig = {
         // Nothing to proxy to; the socket simply won't connect.
         if (!apiBaseUrl) return [];
 
-        const dynamicRewrites = [
+        return [
             {
-                source: "/:path*",
-                has: [
-                    {
-                        type: "host" as const,
-                        value: "(?<subdomain>[^.]+)\\.fluxibiz\\.store",
-                    },
-                ],
-                destination: "/public-menu/:subdomain/:path*",
-            },
-            {
-                source: "/:path*",
-                has: [
-                    {
-                        type: "host" as const,
-                        value: "(?<subdomain>[^.]+)\\.localhost:3000",
-                    },
-                ],
-                destination: "/public-menu/:subdomain/:path*",
+                source: `${SOCKJS_PATH}/:path*`,
+                destination: `${apiBaseUrl}${SOCKJS_PATH}/:path*`,
             },
         ];
-
-        if (!apiBaseUrl) {
-            return {
-                beforeFiles: dynamicRewrites,
-                afterFiles: [],
-                fallback: [],
-            };
-        }
-
-        return {
-            beforeFiles: dynamicRewrites,
-            afterFiles: [
-                {
-                    source: `${SOCKJS_PATH}/:path*`,
-                    destination: `${apiBaseUrl}${SOCKJS_PATH}/:path*`,
-                },
-            ],
-            fallback: [],
-        };
     },
 };
 
