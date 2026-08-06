@@ -43,6 +43,7 @@ export default async function PosPage() {
       managerName={managerName}
       currentRegisterUser={currentRegisterUser}
       registerCashSales={session?.totalCashSales}
+      registerCurrency={session?.currency ?? undefined}
     />
   );
 }

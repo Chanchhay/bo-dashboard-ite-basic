@@ -58,6 +58,8 @@ export async function GET() {
             paidAmount: order.total,
             changeAmount: 0,
             currency: order.currency,
+            displayCurrency: order.displayCurrency,
+            displayExchangeRate: order.displayExchangeRate,
             paymentMethod: "DIGITAL",
             itemCount: order.items.reduce(
                 (count, line) => count + line.quantity,

@@ -1,3 +1,6 @@
+"use client";
+
+import { useMoney } from "@/hooks/useMoney";
 import { Check, Plus, RefreshCw, Search, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,7 @@ export function ItemChannelTable({
     onPublish,
     onUnpublish,
 }: ItemChannelTableProps) {
+    const { format } = useMoney();
     const channelLabel = selectedChannelCode || activeChannelCode;
 
     return (
@@ -99,7 +103,7 @@ export function ItemChannelTable({
 
                                         <td className="px-5 py-4 font-semibold text-foreground">
                                             {item.price != null
-                                                ? `$${item.price.toFixed(2)}`
+                                                ? format(item.price)
                                                 : "-"}
                                         </td>
 

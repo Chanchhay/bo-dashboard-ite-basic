@@ -24,7 +24,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
 import {
@@ -88,6 +88,7 @@ function rangeStart(filter: DateFilter): string | undefined {
 }
 
 export default function SalesOrdersPage() {
+    const { format } = useMoney();
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
@@ -207,7 +208,7 @@ export default function SalesOrdersPage() {
                 />
                 <Stat
                     label="Revenue"
-                    value={totals ? formatCurrency(totals.revenue) : "—"}
+                    value={totals ? format(totals.revenue) : "—"}
                 />
                 <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
                 <Stat
@@ -440,6 +441,7 @@ function matchesSearch(order: PosOrder, search: string) {
 }
 
 function OrderRow({ order }: { order: PosOrder }) {
+    const { format } = useMoney();
     const itemCount = order.items.reduce(
         (sum, item) => sum + item.quantity,
         0,
@@ -463,7 +465,7 @@ function OrderRow({ order }: { order: PosOrder }) {
                 {itemCount}
             </TableCell>
             <TableCell className="text-right font-semibold tabular-nums text-foreground">
-                {formatCurrency(order.total)}
+                {format(order.total, order.currency)}
             </TableCell>
             <TableCell>
                 <span

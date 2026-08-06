@@ -1,12 +1,13 @@
 "use client";
 
+import { useMoney } from "@/hooks/useMoney";
+
 import Link from "next/link";
 import { useState, type SubmitEvent } from "react";
 import { Download, LoaderCircle, ScanBarcode } from "lucide-react";
 
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
 import {
-    formatMoney,
     getApiErrorMessage,
     inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
@@ -35,6 +36,7 @@ export function BarcodeScannerDialog({
     onOpenChange,
     onItemFound,
 }: BarcodeScannerDialogProps) {
+    const { format: formatMoney } = useMoney();
     const [barcode, setBarcode] = useState("");
     const [foundItem, setFoundItem] = useState<InventoryItem | null>(null);
     const [findItem, findState] = useLazyFindInventoryItemByBarcodeQuery();
