@@ -182,6 +182,7 @@ export default function PublicMenuClient({
         open={previewItem !== null}
         onOpenChange={(open) => !open && setPreviewItem(null)}
         item={previewItem}
+        hideAddToCart={true}
       />
     </div>
   );
