@@ -3,6 +3,7 @@ import type {
     Business,
     BusinessCategory,
     BusinessProfileInput,
+    StorefrontStatus,
 } from "@/lib/api/business";
 
 /** Both pictures post the same single `file` part to their own route. */
@@ -23,10 +24,7 @@ export const businessApi = baseApi.injectEndpoints({
             query: () => "/business-categories",
             providesTags: ["BusinessCategories"],
         }),
-        updateBusinessProfile: builder.mutation<
-            Business,
-            BusinessProfileInput
-        >({
+        updateBusinessProfile: builder.mutation<Business, BusinessProfileInput>({
             query: (body) => ({
                 url: "/business-profile",
                 method: "PUT",
@@ -34,10 +32,6 @@ export const businessApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["Business"],
         }),
-        // The four picture endpoints deliberately skip `invalidatesTags`: the
-        // profile form runs them as one step of a save and the `PUT` that
-        // follows refreshes the cached business once, instead of remounting
-        // the form on top of a half-saved profile.
         uploadBusinessLogo: builder.mutation<Business, File>({
             query: (file) => uploadImage("/business-profile/logo", file),
         }),
@@ -56,6 +50,25 @@ export const businessApi = baseApi.injectEndpoints({
                 method: "DELETE",
             }),
         }),
+   
+        getStorefrontStatus: builder.query<StorefrontStatus, void>({
+            query: () => "/business-profile/storefront",
+            providesTags: ["Storefront"],
+        }),
+        enableStorefront: builder.mutation<StorefrontStatus, void>({
+            query: () => ({
+                url: "/business-profile/storefront/enable",
+                method: "PATCH",
+            }),
+            invalidatesTags: ["Storefront"],
+        }),
+        disableStorefront: builder.mutation<StorefrontStatus, void>({
+            query: () => ({
+                url: "/business-profile/storefront/disable",
+                method: "PATCH",
+            }),
+            invalidatesTags: ["Storefront"],
+        }),
     }),
 });
 
@@ -67,4 +80,7 @@ export const {
     useDeleteBusinessLogoMutation,
     useUploadBusinessThumbnailMutation,
     useDeleteBusinessThumbnailMutation,
+    useGetStorefrontStatusQuery,
+    useEnableStorefrontMutation,
+    useDisableStorefrontMutation,
 } = businessApi;

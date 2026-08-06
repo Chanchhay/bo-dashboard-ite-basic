@@ -3,7 +3,7 @@
 // import { useState } from "react";
 // import { CreditCard, Banknote } from "lucide-react";
 // import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
-// import { formatCurrency } from "@/lib/money";
+// import { useMoney } from "@/hooks/useMoney";
 // import { Order } from "@/types/pos-type";
 // import { AmountReceived } from "../amount-received";
 
@@ -73,7 +73,7 @@
 //                       {item.quantity}x {item.product_name}
 //                     </span>
 //                     <span className="font-semibold text-primary">
-//                       {formatCurrency(item.unit_price)}
+//                       {format(item.unit_price, order.currency)}
 //                     </span>
 //                   </div>
 //                 ))}
@@ -82,15 +82,15 @@
 //               <div className="mt-2 flex flex-col gap-3 border-t border-input pt-3 text-sm">
 //                 <div className="flex justify-between text-gray-600">
 //                   <span>Subtotal</span>
-//                   <span>{formatCurrency(subtotal)}</span>
+//                   <span>{format(subtotal, order.currency)}</span>
 //                 </div>
 //                 <div className="flex justify-between text-green-600">
 //                   <span>Discount</span>
-//                   <span>-{formatCurrency(discount)}</span>
+//                   <span>-{format(discount, order.currency)}</span>
 //                 </div>
 //                 <div className="flex justify-between border-t border-input pt-2 font-semibold">
 //                   <span>To pay</span>
-//                   <span>{formatCurrency(total)}</span>
+//                   <span>{format(total)}</span>
 //                 </div>
 //               </div>
 //             </div>
@@ -100,7 +100,7 @@
 //               <div className="text-center">
 //                 <p className="text-sm text-gray-500">To pay</p>
 //                 <p className="text-3xl font-bold text-primary">
-//                   {formatCurrency(total)}
+//                   {format(total)}
 //                 </p>
 //               </div>
 
@@ -175,7 +175,7 @@
 import { useState } from "react";
 import { CreditCard, Banknote } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import { Order } from "@/types/pos-type";
 import { AmountReceived } from "../amount-received";
 import { KhqrView } from "./khqr-view";
@@ -208,6 +208,7 @@ export function Payment({
   onDigitalPaid,
   isProcessing,
 }: PaymentProps) {
+  const { format, secondaryFor } = useMoney();
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [amountReceivedOpen, setAmountReceivedOpen] = useState(false);
   const [khqr, setKhqr] = useState<Khqr | null>(null);
@@ -235,6 +236,7 @@ export function Payment({
   const subtotal = parseFloat(order.subtotal);
   const discount = parseFloat(order.discount_amount);
   const total = parseFloat(order.total);
+  const totalSecondary = secondaryFor(total, order);
 
   function handleValidateClick() {
     if (method === "CASH") {
@@ -299,7 +301,7 @@ export function Payment({
                       {item.quantity}x&nbsp;&nbsp;{item.product_name}
                     </span>
                     <span className="shrink-0 font-semibold text-primary">
-                      {formatCurrency(item.unit_price)}
+                      {format(item.unit_price, order.currency)}
                     </span>
                   </div>
                 ))}
@@ -308,15 +310,15 @@ export function Payment({
               <div className="mt-8 flex flex-col gap-3 border-t border-[#1e293b] pt-3 text-sm sm:mt-auto sm:text-lg">
                 <div className="flex justify-between text-[#3f493e]">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span>{format(subtotal, order.currency)}</span>
                 </div>
                 <div className="flex justify-between text-[#00501a]">
                   <span>Discount</span>
-                  <span>-{formatCurrency(discount)}</span>
+                  <span>-{format(discount, order.currency)}</span>
                 </div>
                 <div className="mt-3 flex justify-between border-t border-[#1e293b] pt-4 font-semibold">
                   <span>To pay</span>
-                  <span className="text-primary">{formatCurrency(total)}</span>
+                  <span className="text-primary">{format(total, order.currency)}</span>
                 </div>
               </div>
             </div>
@@ -326,8 +328,13 @@ export function Payment({
               <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-[18px] bg-[#f5f5f5] p-6 text-center sm:min-h-36 sm:p-8">
                 <p className="text-sm text-[#020409] sm:text-lg">To pay</p>
                 <p className="text-4xl font-semibold leading-none text-primary sm:text-[40px]">
-                  {formatCurrency(total)}
+                  {format(total, order.currency)}
                 </p>
+                {totalSecondary && (
+                  <p className="text-base font-medium text-[#3f493e] sm:text-lg">
+                    {format(totalSecondary.amount, totalSecondary.currency.code)}
+                  </p>
+                )}
               </div>
 
               <div className="flex w-full flex-col gap-3 sm:gap-4">
@@ -394,6 +401,7 @@ export function Payment({
         open={amountReceivedOpen}
         onOpenChange={setAmountReceivedOpen}
         amountDue={total}
+        currency={order.currency}
         onValidate={handleAmountReceivedValidate}
         isProcessing={isProcessing}
       />

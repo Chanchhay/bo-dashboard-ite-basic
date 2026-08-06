@@ -2,8 +2,9 @@ import { baseApi } from "@/lib/baseApi";
 import type {
     AddOrderItemInput,
     Khqr,
-    OrderHistory,
     OrderHistoryQuery,
+    OrderPageQuery,
+    OrderSummary,
     ParkOrderInput,
     PaymentStatus,
     PayOrderInput,
@@ -21,6 +22,20 @@ import type {
  * straight into the cache. The panel updates from the same response that added
  * the line — no refetch, and no window where the two disagree.
  */
+/** "ALL" is the absence of a filter, so it is never sent. */
+function orderFilterParams(input: OrderHistoryQuery | void | null) {
+    return {
+        status:
+            input?.status && input.status !== "ALL" ? input.status : undefined,
+        channel:
+            input?.channel && input.channel !== "ALL"
+                ? input.channel
+                : undefined,
+        from: input?.from,
+        to: input?.to,
+    };
+}
+
 export const posOrderApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getCurrentOrder: builder.query<PosOrder | null, void>({
@@ -39,23 +54,27 @@ export const posOrderApi = baseApi.injectEndpoints({
             ],
         }),
 
-        /** Sale Management's order list — every status, not just the open cart. */
-        getOrderHistory: builder.query<OrderHistory, OrderHistoryQuery | void>({
+        /** Sale Management's order list — every status, one page at a time. */
+        getOrderHistory: builder.query<PosOrderPage, OrderPageQuery | void>({
             query: (input) => ({
                 url: "/orders",
                 params: {
-                    // "ALL" is the absence of a filter, so it is never sent.
-                    status:
-                        input?.status && input.status !== "ALL"
-                            ? input.status
-                            : undefined,
-                    channel:
-                        input?.channel && input.channel !== "ALL"
-                            ? input.channel
-                            : undefined,
-                    from: input?.from,
-                    to: input?.to,
+                    ...orderFilterParams(input),
+                    page: input?.page ?? 0,
+                    size: input?.size ?? 25,
                 },
+            }),
+            providesTags: ["PosOrderHistory"],
+        }),
+
+        /**
+         * The stat cards above that list. Kept apart from the page so paging
+         * reads rows only — the totals stay cached on the filters alone.
+         */
+        getOrderSummary: builder.query<OrderSummary, OrderHistoryQuery | void>({
+            query: (input) => ({
+                url: "/orders/summary",
+                params: orderFilterParams(input),
             }),
             providesTags: ["PosOrderHistory"],
         }),
@@ -257,6 +276,7 @@ export const {
     useGetCurrentOrderQuery,
     useGetOpenOrdersQuery,
     useGetOrderHistoryQuery,
+    useGetOrderSummaryQuery,
     useGetReceiptsQuery,
     useGetReceiptQuery,
     useParkOrderMutation,

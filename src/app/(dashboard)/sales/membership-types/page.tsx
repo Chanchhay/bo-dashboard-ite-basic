@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { MembershipTypeResponse } from "@/lib/api/membership-type";
 import {
     useActivateMembershipTypeMutation,
@@ -48,6 +48,7 @@ import { useGetDiscountsQuery } from "@/services/discountApi";
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
 
 export default function MembershipTypesPage() {
+    const { format, base } = useMoney();
     const [searchQuery, setSearchQuery] = useState("");
 
     // --- Column Visibility State ---
@@ -256,7 +257,7 @@ export default function MembershipTypesPage() {
                                                     {t.discount.name} (
                                                     {t.discount.type === "PERCENTAGE"
                                                         ? `${t.discount.value}%`
-                                                        : formatCurrency(t.discount.value)}
+                                                        : format(t.discount.value)}
                                                     )
                                                 </div>
                                             ) : (
@@ -347,7 +348,7 @@ export default function MembershipTypesPage() {
                                 <option value="">None (No special discount)</option>
                                 {discounts.map((d) => (
                                     <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : `$${d.value}`})
+                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
                                     </option>
                                 ))}
                             </select>

@@ -13,12 +13,15 @@ export interface PosTerminalProps {
   managerName: string;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
+  /** Currency the till was counted in, fixed when it opened. */
+  registerCurrency?: string;
 }
 
 export function PosTerminal({
   managerName,
   currentRegisterUser,
   registerCashSales,
+  registerCurrency,
 }: PosTerminalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("ALL");
@@ -73,6 +76,7 @@ export function PosTerminal({
           onClearFilters={clearFilters}
           currentRegisterUser={currentRegisterUser}
           registerCashSales={registerCashSales}
+          registerCurrency={registerCurrency}
         />
       </main>
     </section>

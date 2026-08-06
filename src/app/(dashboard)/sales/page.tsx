@@ -3,12 +3,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+    ChevronLeft,
+    ChevronRight,
     Receipt,
     RefreshCw,
     Search,
     QrCode,
     ExternalLink,
 } from "lucide-react";
+
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 import {
     Table,
@@ -19,21 +24,21 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
-import { useGetOrderHistoryQuery } from "@/services/posOrderApi";
+import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
+import {
+    useGetOrderHistoryQuery,
+    useGetOrderSummaryQuery,
+} from "@/services/posOrderApi";
+import {
+    useGetBusinessProfileQuery,
+    useGetStorefrontStatusQuery,
+    useEnableStorefrontMutation,
+    useDisableStorefrontMutation,
+} from "@/services/businessApi";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 
-/**
- * Orders — the record of what was sold, and nothing else. Getting to other
- * pages is the sidebar's job, so this page never links sideways; every pixel
- * answers "what happened in my store".
- *
- * Status, channel and date are the server's to filter: they decide which orders
- * exist, and so which totals are true. The search box is the client's, because
- * it only narrows what is already on screen and should not cost a round trip
- * per keystroke.
- */
 
 const STATUS_FILTERS = [
     "ALL",
@@ -55,7 +60,6 @@ const DATE_FILTERS = ["Today", "7 days", "30 days", "All time"] as const;
 
 type DateFilter = (typeof DATE_FILTERS)[number];
 
-/** Status pill colours. Paid is the only success; pending is the only wait. */
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
@@ -63,10 +67,6 @@ const STATUS_STYLES: Record<PosOrder["status"], string> = {
     FAILED: "bg-danger/10 text-danger",
 };
 
-/** How many rows are rendered before the list asks to be extended. */
-const ROWS_PER_PAGE = 50;
-
-/** The start of the chosen window, or nothing at all for "All time". */
 function rangeStart(filter: DateFilter): string | undefined {
     const start = new Date();
 
@@ -88,27 +88,53 @@ function rangeStart(filter: DateFilter): string | undefined {
 }
 
 export default function SalesOrdersPage() {
+    const { format } = useMoney();
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
         useState<(typeof CHANNEL_FILTERS)[number]>("ALL");
     const [range, setRange] = useState<DateFilter>("Today");
     const [query, setQuery] = useState("");
-    const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
-    // Recomputed only when the range changes, so a re-render never looks like a
-    // new query to RTK Query and refetches the list.
     const from = useMemo(() => rangeStart(range), [range]);
 
+    const { data: businessProfile } = useGetBusinessProfileQuery();
+    const { data: storefrontStatus } = useGetStorefrontStatusQuery();
+    const [enableStorefront, { isLoading: isEnabling }] = useEnableStorefrontMutation();
+    const [disableStorefront, { isLoading: isDisabling }] = useDisableStorefrontMutation();
+    const [storefrontError, setStorefrontError] = useState<string | null>(null);
+
+    const handleMenuToggle = async (checked: boolean) => {
+        setStorefrontError(null);
+        try {
+            if (checked) {
+                await enableStorefront().unwrap();
+            } else {
+                await disableStorefront().unwrap();
+            }
+        } catch (err) {
+            setStorefrontError(getApiErrorMessage(err, "Failed to update digital menu status."));
+        }
+    };
+
+    const subdomainUrl = businessProfile?.slug 
+        ? `https://${businessProfile.slug}.fluxibiz.store` 
+        : "#";
+
     const { data, error, isLoading, isFetching, refetch } =
-        useGetOrderHistoryQuery({ status, channel, from });
+        useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
+    // Cached on the filters alone, so turning a page never recounts the range.
+    const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
     const orders = useMemo(() => data?.content ?? [], [data]);
-    const totals = data?.totals;
+    const totals = summaryQuery.data?.totals;
+    const metadata = data?.page;
 
     const search = query.trim().toLowerCase();
-    const matches = useMemo(
+    const rows = useMemo(
         () =>
             search
                 ? orders.filter((order) => matchesSearch(order, search))
@@ -116,20 +142,61 @@ export default function SalesOrdersPage() {
         [orders, search],
     );
 
-    const rows = matches.slice(0, visibleRows);
+    const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
+    const totalElements = metadata?.totalElements ?? rows.length;
+    const firstRow = totalElements === 0 ? 0 : page * pageSize + 1;
+    const lastRow = Math.min(page * pageSize + orders.length, totalElements);
 
-    /** Any filter change starts the list from the top again. */
+    /** Any filter change starts the list from the first page again. */
     function applyFilter<T>(set: (next: T) => void) {
         return (next: T) => {
             set(next);
-            setVisibleRows(ROWS_PER_PAGE);
+            setPage(0);
         };
     }
 
     return (
         <div className="flex flex-col gap-5 pb-4">
-            {/* Business Owner Digital Menu Banner */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div>
+                    <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
+                    <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                    {storefrontError && (
+                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                    )}
+                </div>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 mr-4">
+                        <Switch
+                            id="menu-toggle"
+                            checked={Boolean(storefrontStatus?.listed)}
+                            disabled={isEnabling || isDisabling}
+                            onCheckedChange={handleMenuToggle}
+                        />
+                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Enable Menu</Label>
+                    </div>
 
+                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                        <button
+                            type="button"
+                            onClick={() => setIsQRModalOpen(true)}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
+                        >
+                            <QrCode className="h-4 w-4 text-[#00a651]" />
+                            QR Code
+                        </button>
+                        <Link
+                            href={subdomainUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Live Menu
+                        </Link>
+                    </div>
+                </div>
+            </div>
 
             <section
                 aria-label="Totals"
@@ -141,7 +208,7 @@ export default function SalesOrdersPage() {
                 />
                 <Stat
                     label="Revenue"
-                    value={totals ? formatCurrency(totals.revenue) : "—"}
+                    value={totals ? format(totals.revenue) : "—"}
                 />
                 <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
                 <Stat
@@ -150,9 +217,18 @@ export default function SalesOrdersPage() {
                 />
             </section>
 
+            {summaryQuery.data?.truncated && (
+                <p className="-mt-2 text-[13px] text-muted-foreground">
+                    Totals cover the most recent orders in this range only.
+                    Narrow the dates for exact figures — the table below still
+                    pages through every order.
+                </p>
+            )}
+
             <MenuQRModal
                 isOpen={isQRModalOpen}
                 onClose={() => setIsQRModalOpen(false)}
+                menuUrl={subdomainUrl !== "#" ? subdomainUrl : undefined}
             />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -166,11 +242,8 @@ export default function SalesOrdersPage() {
                         <input
                             type="search"
                             value={query}
-                            onChange={(e) => {
-                                setQuery(e.target.value);
-                                setVisibleRows(ROWS_PER_PAGE);
-                            }}
-                            placeholder="Search invoice, order name or item"
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Search this page by invoice, order name or item"
                             className="h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
                         />
                     </label>
@@ -201,67 +274,157 @@ export default function SalesOrdersPage() {
                     </p>
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
-                ) : matches.length === 0 ? (
-                    <EmptyState searching={Boolean(search)} />
                 ) : (
-                    /* The table scrolls inside its own box so the page never
-                       scrolls sideways on a narrow screen. */
+                  
                     <>
-                        <div
-                            className="overflow-x-auto"
-                            aria-busy={isFetching}
-                        >
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Invoice</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Channel</TableHead>
-                                        <TableHead>Order</TableHead>
-                                        <TableHead className="text-right">
-                                            Items
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            Total
-                                        </TableHead>
-                                        <TableHead>Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {rows.map((order) => (
-                                        <OrderRow
-                                            key={order.id}
-                                            order={order}
-                                        />
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        {rows.length === 0 ? (
+                            <EmptyState searching={Boolean(search)} />
+                        ) : (
+                            <div
+                                className="overflow-x-auto"
+                                aria-busy={isFetching}
+                            >
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Invoice</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Channel</TableHead>
+                                            <TableHead>Order</TableHead>
+                                            <TableHead className="text-right">
+                                                Items
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Total
+                                            </TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {rows.map((order) => (
+                                            <OrderRow
+                                                key={order.id}
+                                                order={order}
+                                            />
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
 
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
-                            <p className="text-[13px] text-muted-foreground">
-                                Showing {rows.length} of {matches.length}
-                                {data?.truncated
-                                    ? " — the most recent orders in this range. Narrow the dates to see the rest."
-                                    : ""}
-                            </p>
-                            {rows.length < matches.length && (
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setVisibleRows(
-                                            (shown) => shown + ROWS_PER_PAGE,
-                                        )
-                                    }
-                                    className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"
-                                >
-                                    Show more
-                                </button>
-                            )}
-                        </div>
+                        {/* The pager stays put even when a search empties the
+                            page, so the way back to the rest is never hidden. */}
+                        <Pager
+                            page={page}
+                            pageCount={pageCount}
+                            pageSize={pageSize}
+                            first={firstRow}
+                            last={lastRow}
+                            total={totalElements}
+                            busy={isFetching}
+                            filtered={
+                                search ? orders.length - rows.length : 0
+                            }
+                            onPage={setPage}
+                            onPageSize={(next) => {
+                                setPageSize(next);
+                                setPage(0);
+                            }}
+                        />
                     </>
                 )}
             </section>
+        </div>
+    );
+}
+
+/**
+ * Where in the range the table is, and how to move through it.
+ *
+ * Page numbers stay out of it: an owner looking for a sale reaches for the
+ * date filter, not page 14. Position, a step either way, and how many rows at
+ * a time is the whole of what this needs to say.
+ */
+function Pager({
+    page,
+    pageCount,
+    pageSize,
+    first,
+    last,
+    total,
+    busy,
+    filtered,
+    onPage,
+    onPageSize,
+}: {
+    page: number;
+    pageCount: number;
+    pageSize: number;
+    first: number;
+    last: number;
+    total: number;
+    busy: boolean;
+    /** Rows the search hid on this page, so the count is not a mystery. */
+    filtered: number;
+    onPage: (next: number) => void;
+    onPageSize: (next: number) => void;
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+            <p className="text-[13px] text-muted-foreground">
+                {total === 0
+                    ? "No orders"
+                    : `Showing ${first}–${last} of ${total}`}
+                {filtered > 0
+                    ? ` — ${filtered} hidden by the search on this page`
+                    : ""}
+            </p>
+
+            <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    Rows
+                    <select
+                        value={pageSize}
+                        onChange={(event) =>
+                            onPageSize(Number(event.target.value))
+                        }
+                        className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                        {ORDER_PAGE_SIZES.map((size) => (
+                            <option key={size} value={size}>
+                                {size}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => onPage(Math.max(0, page - 1))}
+                        disabled={page === 0 || busy}
+                        aria-label="Previous page"
+                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <ChevronLeft className="size-4" aria-hidden="true" />
+                    </button>
+                    <span
+                        className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground"
+                        aria-live="polite"
+                    >
+                        Page {page + 1} of {pageCount}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => onPage(page + 1)}
+                        disabled={page + 1 >= pageCount || busy}
+                        aria-label="Next page"
+                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <ChevronRight className="size-4" aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -278,6 +441,7 @@ function matchesSearch(order: PosOrder, search: string) {
 }
 
 function OrderRow({ order }: { order: PosOrder }) {
+    const { format } = useMoney();
     const itemCount = order.items.reduce(
         (sum, item) => sum + item.quantity,
         0,
@@ -301,7 +465,7 @@ function OrderRow({ order }: { order: PosOrder }) {
                 {itemCount}
             </TableCell>
             <TableCell className="text-right font-semibold tabular-nums text-foreground">
-                {formatCurrency(order.total)}
+                {format(order.total, order.currency)}
             </TableCell>
             <TableCell>
                 <span
@@ -345,10 +509,7 @@ function Stat({ label, value }: { label: string; value: string }) {
     );
 }
 
-/**
- * Segmented rather than a dropdown: there are few enough options that showing
- * them costs less than a click, and the current filter stays readable.
- */
+
 function FilterGroup<T extends string>({
     label,
     options,

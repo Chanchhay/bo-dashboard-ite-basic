@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleCheck, Loader2, QrCode, RefreshCw } from "lucide-react";
 
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { Khqr, Sale } from "@/lib/api/pos-order";
 import { useGetPaymentStatusQuery } from "@/services/posOrderApi";
 
@@ -32,6 +32,7 @@ export function KhqrView({
     onRegenerate,
     isRegenerating,
 }: KhqrViewProps) {
+    const { format: formatAmount } = useMoney();
     const secondsLeft = useCountdown(khqr.expiresAt);
     const expired = secondsLeft === 0;
 
@@ -61,7 +62,7 @@ export function KhqrView({
             <div className="text-center">
                 <p className="text-sm text-gray-500">To pay</p>
                 <p className="text-3xl font-bold text-primary">
-                    {formatCurrency(khqr.amount)}
+                    {formatAmount(khqr.amount, khqr.currency)}
                 </p>
                 {khqr.billNumber && (
                     <p className="mt-1 text-xs text-gray-400">

@@ -6,7 +6,6 @@ import type { Business } from "@/lib/api/business";
 import {
     businessCurrencyConfigurationSchema,
     normalizeCurrencyConfiguration,
-    type BusinessCurrency,
     type BusinessCurrencyConfiguration,
 } from "@/lib/api/currency";
 
@@ -53,88 +52,32 @@ export async function PUT(request: Request) {
             );
         }
 
+        const desired = result.data;
         const businessId = await getBusinessId();
-        const current = normalizeCurrencyConfiguration(
-            await backendRequest<BusinessCurrencyConfiguration>(
-                currencyPath(businessId),
-            ),
+
+        // One atomic call: the backend owns the ordering and rebasing, so a
+        // failure here leaves the configuration untouched rather than half
+        // applied. The currency list is the desired end state — codes left out
+        // of it are removed.
+        const updated = await backendRequest<BusinessCurrencyConfiguration>(
+            `${currencyPath(businessId)}/configuration`,
+            {
+                method: "PUT",
+                body: JSON.stringify({
+                    baseCurrency: desired.baseCurrency,
+                    displayCurrency:
+                        desired.displayCurrency || desired.baseCurrency,
+                    currencies: desired.currencies.map((currency) => ({
+                        code: currency.code,
+                        name: currency.name,
+                        symbol: currency.symbol,
+                        exchangeRate: currency.exchangeRate,
+                        decimalPlaces: currency.decimalPlaces,
+                    })),
+                }),
+            },
         );
-        const currentByCode = new Map(
-            current.currencies.map((currency) => [
-                currency.code,
-                currency,
-            ]),
-        );
-        const desiredCodes = new Set(
-            result.data.currencies.map((currency) => currency.code),
-        );
 
-        for (const currency of result.data.currencies) {
-            const payload: Omit<
-                BusinessCurrency,
-                "id" | "baseCurrency" | "displayCurrency"
-            > = {
-                code: currency.code,
-                name: currency.name,
-                symbol: currency.symbol,
-                exchangeRate: currency.exchangeRate,
-                decimalPlaces: currency.decimalPlaces,
-            };
-
-            if (currentByCode.has(currency.code)) {
-                const { code: _code, ...updatePayload } = payload;
-                void _code;
-                await backendRequest<BusinessCurrencyConfiguration>(
-                    currencyPath(businessId, currency.code),
-                    {
-                        method: "PUT",
-                        body: JSON.stringify(updatePayload),
-                    },
-                );
-            } else {
-                await backendRequest<BusinessCurrencyConfiguration>(
-                    currencyPath(businessId),
-                    {
-                        method: "POST",
-                        body: JSON.stringify(payload),
-                    },
-                );
-            }
-        }
-
-        if (current.baseCurrency !== result.data.baseCurrency) {
-            await backendRequest<BusinessCurrencyConfiguration>(
-                `${currencyPath(businessId, result.data.baseCurrency)}/base`,
-                { method: "PUT" },
-            );
-        }
-
-        const displayCurrency = desiredCodes.has(
-            current.displayCurrency || "",
-        )
-            ? current.displayCurrency
-            : result.data.baseCurrency;
-
-        if (displayCurrency !== current.displayCurrency) {
-            await backendRequest<BusinessCurrencyConfiguration>(
-                `${currencyPath(businessId, displayCurrency)}/display`,
-                { method: "PUT" },
-            );
-        }
-
-        for (const currency of current.currencies) {
-            if (!desiredCodes.has(currency.code)) {
-                await backendRequest<BusinessCurrencyConfiguration>(
-                    currencyPath(businessId, currency.code),
-                    { method: "DELETE" },
-                );
-            }
-        }
-
-        const updated =
-            await backendRequest<BusinessCurrencyConfiguration>(
-                currencyPath(businessId),
-            );
         return Response.json(normalizeCurrencyConfiguration(updated));
     } catch (error) {
         return backendErrorResponse(error);

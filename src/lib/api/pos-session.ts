@@ -22,6 +22,12 @@ export type RegisterSession = {
     businessId: string | null;
     openedAt: string | null;
     closedAt: string | null;
+    /**
+     * The currency this till was counted in, fixed when it opened. Null on
+     * sessions recorded before the field existed; those fall back to the
+     * business base currency.
+     */
+    currency?: string | null;
     openingBalance: number;
     totalCashSales: number;
     totalPaidIn: number;

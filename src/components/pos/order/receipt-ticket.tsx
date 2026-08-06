@@ -5,7 +5,12 @@ import { Building2 } from "lucide-react";
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
 import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
-import { formatCurrencyAmount } from "@/lib/money";
+import {
+  findCurrency,
+  formatMoney,
+  getRecordedSecondaryAmount,
+  getSecondaryAmount,
+} from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 interface ReceiptTicketProps {
@@ -27,34 +32,6 @@ function businessInitials(name: string) {
     .join("");
 }
 
-function getDisplayTotal(
-  amount: number,
-  sourceCode: string,
-  configuration?: BusinessCurrencyConfiguration,
-) {
-  if (!configuration?.displayCurrency) return null;
-
-  const source = configuration.currencies.find(
-    (currency) => currency.code === sourceCode,
-  );
-  const display = configuration.currencies.find(
-    (currency) => currency.code === configuration.displayCurrency,
-  );
-
-  if (
-    !source ||
-    !display ||
-    source.code === display.code ||
-    source.exchangeRate <= 0 ||
-    display.exchangeRate <= 0
-  ) {
-    return null;
-  }
-
-  const rate = display.exchangeRate / source.exchangeRate;
-  return { currency: display.code, rate, amount: amount * rate };
-}
-
 export function ReceiptTicket({
   business,
   order,
@@ -68,12 +45,19 @@ export function ReceiptTicket({
     receipt?.invoiceNumber || sale?.invoiceNumber || order.invoiceNumber || "—";
   const issuedAtValue = sale?.soldAt || receipt?.issuedAt || order.createdDate;
   const issuedAt = issuedAtValue ? new Date(issuedAtValue) : null;
-  const currency = sale?.currency || order.currency;
+  const currencyCode = sale?.currency || order.currency;
+  // Prefer the business's own symbol and decimal places over the CLDR default.
+  const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const subtotal = sale?.subtotal ?? order.subtotal;
   const discount = sale?.discountAmount ?? order.discountAmount;
   const total = sale?.totalAmount ?? order.total;
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
-  const displayTotal = getDisplayTotal(total, currency, currencies);
+  // The settled record carries the rate it was priced at; only an order still
+  // open has to fall back to whatever is configured right now.
+  const record = sale ?? order;
+  const displayTotal =
+    getRecordedSecondaryAmount(total, record, currencies) ??
+    getSecondaryAmount(total, currencyCode, currencies);
   const location = [business.address, business.cityOrProvince]
     .filter(Boolean)
     .join(", ");
@@ -169,14 +153,14 @@ export function ReceiptTicket({
                 {item.itemName}
               </p>
               <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
-                {formatCurrencyAmount(item.unitPrice, currency)} ea
+                {formatMoney(item.unitPrice, currency)} ea
               </p>
             </div>
             <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
               {item.quantity}
             </span>
             <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
-              {formatCurrencyAmount(item.lineTotal, currency)}
+              {formatMoney(item.lineTotal, currency)}
             </span>
           </div>
         ))}
@@ -186,7 +170,7 @@ export function ReceiptTicket({
         <div className="flex justify-between gap-4">
           <dt>Subtotal</dt>
           <dd className="font-mono text-[#0e140e]">
-            {formatCurrencyAmount(subtotal, currency)}
+            {formatMoney(subtotal, currency)}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
@@ -195,7 +179,7 @@ export function ReceiptTicket({
             {discount > 0 ? ` (${discountPercent.toFixed(0)}%)` : ""}
           </dt>
           <dd className="font-mono text-[#d14341]">
-            -{formatCurrencyAmount(discount, currency)}
+            -{formatMoney(discount, currency)}
           </dd>
         </div>
       </dl>
@@ -204,16 +188,16 @@ export function ReceiptTicket({
         <div className="flex items-center justify-between gap-4">
           <dt className="text-sm font-bold uppercase">Total</dt>
           <dd className="font-mono text-xl font-bold leading-none">
-            {formatCurrencyAmount(total, currency)}
+            {formatMoney(total, currency)}
           </dd>
         </div>
         {displayTotal && (
           <div className="mt-1 flex justify-between gap-4 text-xs text-[#3d4a3c]">
             <dt>
-              សរុប ({displayTotal.currency}) · @ {displayTotal.rate.toLocaleString()}
+              សរុប ({displayTotal.currency.code}) · @ {displayTotal.rate.toLocaleString()}
             </dt>
             <dd className="font-mono font-bold text-[#0e140e]">
-              {formatCurrencyAmount(displayTotal.amount, displayTotal.currency)}
+              {formatMoney(displayTotal.amount, displayTotal.currency)}
             </dd>
           </div>
         )}
@@ -228,7 +212,7 @@ export function ReceiptTicket({
               : ""}
           </dt>
           <dd className="font-mono text-[#0e140e]">
-            {formatCurrencyAmount(
+            {formatMoney(
               sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
               currency,
             )}
@@ -238,7 +222,7 @@ export function ReceiptTicket({
           <div className="flex justify-between gap-4">
             <dt>Change / អាប់</dt>
             <dd className="font-mono text-[#0e140e]">
-              {formatCurrencyAmount(sale.changeAmount, currency)}
+              {formatMoney(sale.changeAmount, currency)}
             </dd>
           </div>
         )}

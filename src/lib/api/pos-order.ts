@@ -24,6 +24,9 @@ export type PosOrder = {
     discountAmount: number;
     total: number;
     currency: string;
+    /** The second currency this order was priced against, frozen at creation. */
+    displayCurrency: string | null;
+    displayExchangeRate: number | null;
     note: string | null;
     items: PosOrderItem[];
     createdDate: string | null;
@@ -40,19 +43,19 @@ export type PosOrderPage = {
 };
 
 /**
- * Every order in a date range, whatever its status — what Sale Management
- * shows. Totals are counted over the whole range rather than the rows on
- * screen, so the stat cards and the table can never disagree.
+ * What Sale Management's stat cards read.
+ *
+ * Counted over the whole filtered range rather than the page on screen, so the
+ * cards keep meaning the same thing as the cashier pages through the table.
  */
-export type OrderHistory = {
-    content: PosOrder[];
+export type OrderSummary = {
     totals: {
         orders: number;
         revenue: number;
         paid: number;
         pending: number;
     };
-    /** True when the range holds more orders than one request will load. */
+    /** True when the range holds more orders than one read will total up. */
     truncated: boolean;
 };
 
@@ -66,6 +69,18 @@ export type OrderHistoryQuery = {
     from?: string;
     to?: string;
 };
+
+/** The same filters, plus the page of them the table is showing. */
+export type OrderPageQuery = OrderHistoryQuery & {
+    page?: number;
+    size?: number;
+};
+
+/** Page sizes the orders table offers. */
+export const ORDER_PAGE_SIZES = [10, 25, 50] as const;
+
+/** The size the orders table opens on, before the owner picks another. */
+export const DEFAULT_PAGE_SIZE: (typeof ORDER_PAGE_SIZES)[number] = 25;
 
 /** Metadata the backend records when it issues or prints an order receipt. */
 export type PosReceipt = {
@@ -176,6 +191,13 @@ export type Sale = {
     /** What to hand back. Calculated by the backend, never re-derived here. */
     changeAmount: number;
     currency: string;
+    /**
+     * The second currency shown at the time of sale, with the rate it was
+     * priced at. Frozen by the backend so a later rate change cannot alter
+     * figures already printed on a receipt.
+     */
+    displayCurrency: string | null;
+    displayExchangeRate: number | null;
     paymentMethod: "CASH" | "DIGITAL";
     itemCount: number;
     note: string | null;

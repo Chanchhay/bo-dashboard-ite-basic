@@ -136,12 +136,14 @@
 import { useState } from "react";
 import { Banknote, X, Delete } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 
 export interface AmountReceivedDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   amountDue: number;
+  /** The order's own currency, which a base-currency change must not relabel. */
+  currency?: string;
   onValidate: (receivedAmount: number) => void;
   isProcessing?: boolean;
 }
@@ -152,13 +154,18 @@ export function AmountReceived({
   open,
   onOpenChange,
   amountDue,
+  currency,
   onValidate,
   isProcessing,
 }: AmountReceivedDialogProps) {
+  const { format, secondary } = useMoney();
   const [received, setReceived] = useState("");
 
   const receivedAmount = parseFloat(received || "0");
   const changeToGive = receivedAmount - amountDue;
+  const dueSecondary = secondary(amountDue, currency);
+  // Change is handed over in cash, so the second currency matters most here.
+  const changeSecondary = secondary(Math.max(changeToGive, 0), currency);
 
   function handleKey(key: string) {
     if (key === "back") {
@@ -201,8 +208,15 @@ export function AmountReceived({
           {/* To pay */}
           <div className="flex items-center justify-between text-base sm:text-lg">
             <span className="font-semibold text-[#3c4a42]">To pay</span>
-            <span className="text-xl font-bold text-primary sm:text-[25px]">
-              {formatCurrency(amountDue)}
+            <span className="flex flex-col items-end">
+              <span className="text-xl font-bold text-primary sm:text-[25px]">
+                {format(amountDue, currency)}
+              </span>
+              {dueSecondary && (
+                <span className="text-sm font-medium text-[#3c4a42]">
+                  {format(dueSecondary.amount, dueSecondary.currency.code)}
+                </span>
+              )}
             </span>
           </div>
 
@@ -213,7 +227,7 @@ export function AmountReceived({
                 received ? "text-primary" : "text-gray-300"
               }`}
             >
-              {formatCurrency(receivedAmount)}
+              {format(receivedAmount, currency)}
             </span>
           </div>
 
@@ -221,8 +235,13 @@ export function AmountReceived({
           <div className="mt-3 flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-[#006c49]/10 bg-[#006c49]/5 px-5 py-3 min-[400px]:min-h-[96px] sm:min-h-[109px] sm:gap-3">
             <span className="text-base text-[#3c4a42] sm:text-lg">Change to give</span>
             <span className="text-3xl font-black text-brand-red sm:text-[40px]">
-              {formatCurrency(Math.max(changeToGive, 0))}
+              {format(Math.max(changeToGive, 0), currency)}
             </span>
+            {changeSecondary && (
+              <span className="text-lg font-bold text-[#3c4a42]">
+                {format(changeSecondary.amount, changeSecondary.currency.code)}
+              </span>
+            )}
           </div>
 
           {/* Keypad */}

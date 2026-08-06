@@ -1,3 +1,6 @@
+"use client";
+
+import { useMoney } from "@/hooks/useMoney";
 import { Check, Plus, RefreshCw, Search, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -14,9 +17,7 @@ interface ItemChannelTableProps {
     searchQuery: string;
     inventoryLoading: boolean;
     inventoryItems: InventoryItem[];
-    /** Ids already published to the selected channel. */
     publishedItemIds: Set<string>;
-    /** The row currently mid-request, so only that one shows a busy state. */
     pendingItemId: string;
     onSearchChange: (value: string) => void;
     onRefresh: () => void;
@@ -37,6 +38,7 @@ export function ItemChannelTable({
     onPublish,
     onUnpublish,
 }: ItemChannelTableProps) {
+    const { format } = useMoney();
     const channelLabel = selectedChannelCode || activeChannelCode;
 
     return (
@@ -101,7 +103,7 @@ export function ItemChannelTable({
 
                                         <td className="px-5 py-4 font-semibold text-foreground">
                                             {item.price != null
-                                                ? `$${item.price.toFixed(2)}`
+                                                ? format(item.price)
                                                 : "-"}
                                         </td>
 
