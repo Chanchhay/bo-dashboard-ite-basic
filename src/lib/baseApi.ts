@@ -28,6 +28,7 @@ export const baseApi = createApi({
         "PosOpenOrders",
         "PosOrderHistory",
         "PosReceipts",
+        "Storefront",
         "Discounts",
         "Coupons",
         "MembershipTypes",
