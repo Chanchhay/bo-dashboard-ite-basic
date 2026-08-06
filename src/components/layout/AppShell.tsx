@@ -57,7 +57,15 @@ export default function AppShell({
                 Skip to content
             </a>
 
-            <div className="flex min-h-dvh gap-0 bg-[#f7f7f6] dark:bg-[#151821] lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px] border border-transparent dark:border-[#242937] shadow-2xl">
+            {/*
+             * The border is deliberately a low-alpha white rather than a solid
+             * grey: at #242937 it was lighter than both the page behind it and
+             * the panel itself, so it read as a drawn outline instead of an
+             * edge. It also only applies from `lg`, where the panel is inset
+             * and rounded — below that the panel is full-bleed and the border
+             * was landing as a hairline against the viewport edge.
+             */}
+            <div className="flex min-h-dvh gap-0 bg-shell lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px] border border-transparent lg:dark:border-white/6 shadow-2xl dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)]">
                 <Sidebar
                     open={navOpen}
                     onClose={() => setNavOpen(false)}

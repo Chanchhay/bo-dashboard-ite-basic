@@ -91,7 +91,7 @@ export function KhqrView({
 
                 {expired && (
                     <div className="absolute inset-0 grid place-items-center rounded-2xl bg-white/90">
-                        <p className="text-sm font-bold text-accent">
+                        <p className="text-sm font-bold text-brand-red">
                             Code expired
                         </p>
                     </div>
@@ -137,7 +137,7 @@ export function KhqrView({
                     type="button"
                     onClick={onCancel}
                     disabled={settled}
-                    className="flex-1 rounded-xl border border-accent py-3 text-sm font-bold text-accent transition-colors hover:bg-accent hover:text-white disabled:opacity-50"
+                    className="flex-1 rounded-xl border border-brand-red py-3 text-sm font-bold text-brand-red transition-colors hover:bg-brand-red hover:text-white disabled:opacity-50"
                 >
                     Cancel
                 </button>

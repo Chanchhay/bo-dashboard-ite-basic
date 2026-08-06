@@ -59,7 +59,13 @@ body {
 :root {
     --radius: 0.625rem;
 
-    /* your brand colors — use as bg-brand-green, text-brand-red, etc. */
+    /* your brand colors — use as bg-brand-green, text-brand-red, etc.
+     *
+     * `--brand-red` is the *filled* red: it holds the same value in both themes
+     * because white text sits on it (bg-brand-red text-white), and lightening
+     * it would drop that pairing from ~4.5:1 to ~2.5:1. For red *text*,
+     * borders, icons and /5–/20 tints use `--danger` instead — it brightens in
+     * dark, where #d14341 only reaches ~3.6:1 against the card. */
     --brand-green: #00932a;
     --brand-yellow: #feb90d;
     --brand-red: #d14341;
@@ -86,6 +92,16 @@ body {
     --border: #e4e4e7;
     --input: #d9d9d9;
     --ring: #00932a;
+
+    /* The app-shell panel: the surface between the page background and the
+       content cards, shared by AppShell and the Sidebar drawer. */
+    --shell: #f7f7f6;
+
+    /* Status colors. Tuned for legibility on light surfaces; pair with a
+       /10 alpha background (e.g. `bg-success/10 text-success`). */
+    --success: #00932a;
+    --warning: #9a6900;
+    --danger: #d14341;
 }
 
 .dark {
@@ -108,6 +124,17 @@ body {
     --border: #262c3b;
     --input: #262c3b;
     --ring: #00932a;
+
+    /* Sits between --background (#0f1219) and --card (#1a1e29) so the shell
+       reads as raised off the page without competing with the cards on it. */
+    --shell: #151821;
+
+    /* Brightened so they stay readable on the dark card surface — the light
+       values sit at roughly 2.6:1 against #1a1e29. Success stays on the brand
+       green in both themes so it never reads as a second, different green. */
+    --success: var(--primary);
+    --warning: #fbbf24;
+    --danger: #f87171;
 }
 
 @theme inline {
@@ -130,6 +157,12 @@ body {
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+
+    --color-shell: var(--shell);
+
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-danger: var(--danger);
 
     --color-brand-green: var(--brand-green);
     --color-brand-yellow: var(--brand-yellow);

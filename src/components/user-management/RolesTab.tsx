@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import {
     EmptyState,
@@ -40,12 +40,11 @@ export default function RolesTab() {
     const staffQuery = useGetStaffQuery();
     const [createRole, createState] = useCreateBusinessRoleMutation();
     const [updateRole, updateState] = useUpdateBusinessRoleMutation();
-    const [deleteRole] = useDeleteBusinessRoleMutation();
+    const [deleteRole, deleteState] = useDeleteBusinessRoleMutation();
 
     const [editor, setEditor] = useState<Editor>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [nameError, setNameError] = useState<string | undefined>();
-    const [formError, setFormError] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<BusinessRole | null>(null);
 
     const roles = rolesQuery.data || [];
@@ -67,14 +66,12 @@ export default function RolesTab() {
             new Set(next.mode === "edit" ? next.role.permissions || [] : []),
         );
         setNameError(undefined);
-        setFormError(null);
     };
 
     const closeEditor = () => {
         setEditor(null);
         setSelected(new Set());
         setNameError(undefined);
-        setFormError(null);
     };
 
     const toggle = (value: string) =>
@@ -100,7 +97,6 @@ export default function RolesTab() {
         if (!editor) return;
 
         setNameError(undefined);
-        setFormError(null);
 
         const form = new FormData(event.currentTarget);
         const parsed = businessRoleSchema.safeParse({
@@ -109,11 +105,16 @@ export default function RolesTab() {
         });
 
         if (!parsed.success) {
-            setNameError(
-                parsed.error.issues.find((issue) => issue.path[0] === "name")
-                    ?.message,
-            );
-            setFormError("Check the highlighted fields.");
+            const nameIssue = parsed.error.issues.find(
+                (issue) => issue.path[0] === "name",
+            )?.message;
+
+            setNameError(nameIssue);
+            toast({
+                tone: "error",
+                title: "Check the highlighted fields",
+                description: nameIssue || parsed.error.issues[0]?.message,
+            });
             return;
         }
 
@@ -137,15 +138,13 @@ export default function RolesTab() {
 
             closeEditor();
         } catch (error) {
-            const message = getApiErrorMessage(
-                error,
-                "Unable to save the role.",
-            );
-            setFormError(message);
             toast({
                 tone: "error",
                 title: "Save failed",
-                description: message,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to save the role.",
+                ),
             });
         }
     }
@@ -169,6 +168,7 @@ export default function RolesTab() {
                     "Unable to delete the role.",
                 ),
             });
+            setDeleteTarget(null);
         }
     }
 
@@ -282,7 +282,7 @@ export default function RolesTab() {
                                                                         permission.value,
                                                                     )
                                                                 }
-                                                                className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-[#00932a] dark:accent-[#10b981] cursor-pointer"
+                                                                className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-success cursor-pointer"
                                                             />
                                                             {permission.label}
                                                         </label>
@@ -294,15 +294,6 @@ export default function RolesTab() {
                                 })}
                             </div>
                         </div>
-
-                        {formError && (
-                            <p
-                                role="alert"
-                                className="text-[13px] text-[#b3352f]"
-                            >
-                                {formError}
-                            </p>
-                        )}
 
                         <div className="flex flex-wrap gap-3">
                             <Button
@@ -409,7 +400,8 @@ export default function RolesTab() {
                                                 onClick={() => setDeleteTarget(role)}
                                                 aria-label={`Delete ${role.name || "role"}`}
                                                 variant="destructive"
-                                                    size="icon-sm"
+                                                size="icon-sm"
+                                                disabled={deleteState.isLoading}
                                             >
                                                 <Trash2
                                                     className="size-4"
@@ -438,15 +430,9 @@ export default function RolesTab() {
                         })}
                     </ul>
                 )}
-
-                {formError && !editor && (
-                    <p role="alert" className="mt-4 text-[13px] text-[#b3352f]">
-                        {formError}
-                    </p>
-                )}
             </Panel>
 
-            <ConfirmDialog
+            <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
@@ -466,9 +452,9 @@ export default function RolesTab() {
                         "Are you sure you want to delete this role? This action cannot be undone."
                     )
                 }
-                confirmText="Delete"
-                cancelText="Cancel"
-                variant="danger"
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

@@ -1,9 +1,10 @@
 
 
-export default function SettingPage(){
+ export default function SettingPage(){
     return(
         <>
-        
+
+        SettingPage
         </>
     )
-}
+ }

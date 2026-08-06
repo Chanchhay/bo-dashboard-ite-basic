@@ -17,7 +17,7 @@ export default async function BusinessCurrencyPage() {
     // the sidebar already links Profile and Currency.
     return (
         <div className="pb-4">
-            <p className="max-w-2xl text-[15px] text-[#5c6660]">
+            <p className="max-w-2xl text-[15px] text-muted-foreground">
                 Configure the currencies your business trades in.
             </p>
 

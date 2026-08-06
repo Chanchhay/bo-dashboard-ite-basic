@@ -20,7 +20,7 @@ import {
     inventoryTextareaClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,6 +31,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     itemGroupSchema,
     type ItemGroup,
@@ -71,6 +72,7 @@ function categoryRows(groups: ItemGroup[]) {
 }
 
 export function InventoryCategories() {
+    const { toast } = useToast();
     const { data, error, isLoading, refetch } =
         useGetItemGroupsQuery();
     const [createGroup, createState] =
@@ -88,8 +90,12 @@ export function InventoryCategories() {
         () => new Set(),
     );
     const [formKey, setFormKey] = useState(0);
-    const [status, setStatus] = useState<string | null>(null);
     const [fieldError, setFieldError] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{
+        id: string;
+        name: string;
+        kind: "category" | "subcategory";
+    } | null>(null);
     const groups = data || [];
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
@@ -111,7 +117,6 @@ export function InventoryCategories() {
     function resetForm() {
         setEditing(null);
         setMode("CATEGORY");
-        setStatus(null);
         setFieldError(null);
         setFormKey((current) => current + 1);
     }
@@ -129,14 +134,12 @@ export function InventoryCategories() {
             parentId,
         });
         setMode(parentId ? "SUBCATEGORY" : "CATEGORY");
-        setStatus(null);
         setFieldError(null);
         setFormKey((current) => current + 1);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
         setFieldError(null);
 
         const formData = new FormData(event.currentTarget);
@@ -151,10 +154,15 @@ export function InventoryCategories() {
         const result = itemGroupSchema.safeParse(input);
 
         if (!result.success) {
-            setFieldError(
+            const message =
                 result.error.issues[0]?.message ||
-                    "Check the category information.",
-            );
+                "Check the category information.";
+            setFieldError(message);
+            toast({
+                tone: "error",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} not ${editing ? "updated" : "created"}`,
+                description: message,
+            });
             return;
         }
 
@@ -167,14 +175,21 @@ export function InventoryCategories() {
             } else {
                 await createGroup(result.data).unwrap();
             }
+            toast({
+                tone: "success",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} ${editing ? "updated" : "created"}`,
+                description: `${result.data.name} was saved successfully.`,
+            });
             resetForm();
         } catch (mutationError) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: `${mode === "CATEGORY" ? "Category" : "Subcategory"} not ${editing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
                     mutationError,
                     `Unable to ${editing ? "update" : "create"} the category.`,
                 ),
-            );
+            });
         }
     }
 
@@ -186,9 +201,22 @@ export function InventoryCategories() {
             if (editing?.id === deleteTarget.id) {
                 resetForm();
             }
+            toast({
+                tone: "success",
+                title: "Category deleted",
+                description: deleteTarget.name || undefined,
+            });
             setDeleteTarget(null);
-        } catch {
-            // The mutation error is displayed below the table.
+        } catch (mutationError) {
+            toast({
+                tone: "error",
+                title: "Delete failed",
+                description: getApiErrorMessage(
+                    mutationError,
+                    "Unable to delete the category.",
+                ),
+            });
+            setDeleteTarget(null);
         }
     }
 
@@ -233,144 +261,138 @@ export function InventoryCategories() {
                             description="Use the form to add the first item category."
                         />
                     ) : (
-                        <div className="divide-y divide-[#edf0ec]">
-                            {groups.map((group) => (
-                                <div key={group.id}>
-                                    <div className="flex items-center gap-4 px-5 py-4">
-                                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                                            <FolderPlus className="size-4" />
-                                        </span>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">
-                                                {group.name ||
-                                                    "Unnamed category"}
-                                            </p>
-                                            <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                                                {group.note ||
-                                                    `${group.subGroups?.length || 0} subcategories`}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {(group.subGroups?.length || 0) >
-                                            0 ? (
+                        <div className="divide-y divide-[#edf0ec] dark:divide-[#242937]">
+                            {groups.map((group) => {
+                                const subGroups = group.subGroups || [];
+                                const isCollapsed = collapsedGroupIds.has(group.id);
+                                const hasSubGroups = subGroups.length > 0;
+
+                                return (
+                                    <div key={group.id} className="py-1">
+                                        <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#f8faf8] dark:hover:bg-[#202533]/50 transition-colors rounded-xl">
+                                            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                                <FolderPlus className="size-4" />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">
+                                                    {group.name ||
+                                                        "Unnamed category"}
+                                                </p>
+                                                <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                                    {group.note ||
+                                                        `${subGroups.length} subcategories`}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {hasSubGroups ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${group.name || "category"}`}
+                                                        aria-expanded={!isCollapsed}
+                                                        onClick={() =>
+                                                            toggleGroup(group.id)
+                                                        }
+                                                    >
+                                                        <ChevronDown
+                                                            className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                                                        />
+                                                    </Button>
+                                                ) : null}
                                                 <Button
                                                     type="button"
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="icon-sm"
-                                                    aria-label={`${collapsedGroupIds.has(group.id) ? "Expand" : "Collapse"} ${group.name || "category"}`}
-                                                    aria-expanded={
-                                                        !collapsedGroupIds.has(
-                                                            group.id,
-                                                        )
-                                                    }
+                                                    aria-label={`Edit ${group.name || "category"}`}
                                                     onClick={() =>
-                                                        toggleGroup(group.id)
+                                                        startEditing(group)
                                                     }
                                                 >
-                                                    <ChevronDown
-                                                        className={`transition-transform ${collapsedGroupIds.has(group.id) ? "-rotate-90" : ""}`}
-                                                    />
+                                                    <Pencil />
                                                 </Button>
-                                            ) : null}
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon-sm"
-                                                aria-label={`Edit ${group.name || "category"}`}
-                                                onClick={() =>
-                                                    startEditing(group)
-                                                }
-                                            >
-                                                <Pencil />
-                                            </Button>
-                                             <Button
-                                                type="button"
-                                                variant="destructive"
-                                                size="icon-sm"
-                                                aria-label={`Delete ${group.name || "category"}`}
-                                                disabled={
-                                                    deleteState.isLoading
-                                                }
-                                                onClick={() =>
-                                                    setDeleteTarget({
-                                                        id: group.id,
-                                                        name: group.name || "category",
-                                                    })
-                                                }
-                                            >
-                                                <Trash2 />
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {(group.subGroups || []).map(
-                                        (subGroup) => (
-                                            <div
-                                                key={subGroup.id}
-                                                className={`${collapsedGroupIds.has(group.id) ? "hidden" : "flex"} ml-10 items-center gap-4 border-t border-[#f2f4f1] px-5 py-3`}
-                                            >
-                                                <span className="h-7 w-1 rounded-full bg-[#c9d7c6] dark:bg-[#384252]" />
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
-                                                        {subGroup.name ||
-                                                            "Unnamed subcategory"}
-                                                    </p>
-                                                    <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                                                        {subGroup.note ||
-                                                            `Under ${group.name || "category"}`}
-                                                    </p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        aria-label={`Edit ${subGroup.name || "subcategory"}`}
-                                                        onClick={() =>
-                                                            startEditing(
-                                                                subGroup,
-                                                                group.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Pencil />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="destructive"
-                                                        size="icon-sm"
-                                                        aria-label={`Delete ${subGroup.name || "subcategory"}`}
-                                                        disabled={
-                                                            deleteState.isLoading
-                                                        }
-                                                        onClick={() =>
-                                                            setDeleteTarget({
-                                                                id: subGroup.id,
-                                                                name: subGroup.name || "subcategory",
-                                                            })
-                                                        }
-                                                    >
-                                                        <Trash2 />
-                                                    </Button>
-                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="icon-sm"
+                                                    aria-label={`Delete ${group.name || "category"}`}
+                                                    disabled={
+                                                        deleteState.isLoading
+                                                    }
+                                                    onClick={() =>
+                                                        setDeleteTarget({
+                                                            id: group.id,
+                                                            name: group.name || "category",
+                                                        })
+                                                    }
+                                                >
+                                                    <Trash2 />
+                                                </Button>
                                             </div>
-                                        ),
-                                    )}
-                                </div>
-                            ))}
+                                        </div>
+
+                                        {hasSubGroups && !isCollapsed ? (
+                                            <div className="relative ml-9 border-l-2 border-primary/20 dark:border-primary/30 my-1.5 pl-4 space-y-1">
+                                                {subGroups.map((subGroup) => (
+                                                    <div
+                                                        key={subGroup.id}
+                                                        className="relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                                    >
+                                                        {/* Horizontal branch indicator line */}
+                                                        <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
+                                                        
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
+                                                                {subGroup.name ||
+                                                                    "Unnamed subcategory"}
+                                                            </p>
+                                                            <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                                                {subGroup.note ||
+                                                                    `Under ${group.name || "category"}`}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                aria-label={`Edit ${subGroup.name || "subcategory"}`}
+                                                                onClick={() =>
+                                                                    startEditing(
+                                                                        subGroup,
+                                                                        group.id,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil />
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="destructive"
+                                                                size="icon-sm"
+                                                                aria-label={`Delete ${subGroup.name || "subcategory"}`}
+                                                                disabled={
+                                                                    deleteState.isLoading
+                                                                }
+                                                                onClick={() =>
+                                                                    setDeleteTarget({
+                                                                        id: subGroup.id,
+                                                                        name: subGroup.name || "subcategory",
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Trash2 />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
-                    {deleteState.error ? (
-                        <p
-                            className="border-t border-accent/20 bg-accent/5 px-5 py-3 text-sm text-brand-red"
-                            role="alert"
-                        >
-                            {getApiErrorMessage(
-                                deleteState.error,
-                                "Unable to delete the category.",
-                            )}
-                        </p>
-                    ) : null}
                 </section>
 
                 <form
@@ -499,15 +521,6 @@ export function InventoryCategories() {
                         </div>
                     </div>
 
-                    {fieldError || status ? (
-                        <p
-                            className="mt-4 rounded-xl border border-brand-red/20 bg-brand-red/5 px-3 py-2 text-sm text-brand-red"
-                            role="alert"
-                        >
-                            {fieldError || status}
-                        </p>
-                    ) : null}
-
                     <Button
                         type="submit"
                         disabled={isSaving}
@@ -524,7 +537,7 @@ export function InventoryCategories() {
                 </form>
             </div>
 
-            <ConfirmDialog
+            <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
@@ -543,10 +556,9 @@ export function InventoryCategories() {
                         "Are you sure you want to delete this category? This action cannot be undone."
                     )
                 }
-                confirmText="Delete"
-                cancelText="Cancel"
-                variant="danger"
-                isLoading={deleteState.isLoading}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

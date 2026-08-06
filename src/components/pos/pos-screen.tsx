@@ -17,6 +17,9 @@ import PosButton, { type PosTab } from "@/components/pos/pos-button";
 import { OrderTable } from "@/components/pos/order/order-table";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { authClient } from "@/lib/auth/auth-client";
+import { useSessionSubject } from "@/lib/auth/session-context";
+import { useCreateNotificationMutation } from "@/services/notificationApi";
 import {
   useAddOrderItemMutation,
   useGetCurrentOrderQuery,
@@ -126,13 +129,59 @@ export function PosScreen({
   const cartTotal = currentOrder?.total ?? 0;
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
+  const [createNotification] = useCreateNotificationMutation();
+  const { data: session } = authClient.useSession();
+  /* The backend matches receiverId against the Keycloak subject, not against
+     Better Auth's local user.id. */
+  const subject = useSessionSubject();
+
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
     setPaidReceipt({ order, sale });
     setActiveTab("Point of Sale");
     setMobileCartOpen(false);
     setEditingOrderId(null);
-    // No clear-up here: paying already closed the order and dropped the cart,
-    // so the next tap starts a fresh one.
+
+    // Dispatch Sale Completed notification to POS / Business users
+    if (subject) {
+      const orderRef = order.invoiceNumber || (order.id ? order.id.slice(0, 8) : "POS");
+      const totalVal = sale.totalAmount ?? order.total ?? 0;
+      const formattedTotal = formatCurrency(totalVal);
+      const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || order.items?.length || 0;
+
+      // 1. Dispatch Sale Completed Notification
+      createNotification({
+        senderId: subject,
+        senderName: session?.user?.name || "POS Cashier",
+        receiverIds: [subject],
+        type: "ORDER",
+        title: `Sale Completed (#${orderRef})`,
+        content: `Completed sale of ${itemCount} item(s) total ${formattedTotal}.`,
+        deepLink: "/dashboard/pos",
+      }).catch(() => {});
+
+      // 2. Check sold items for low stock warnings
+      if (order.items && order.items.length > 0) {
+        order.items.forEach((line) => {
+          const itemMatch = channelItems.find(
+            (ci) => ci.item.id === line.itemId || ci.item.name?.toLowerCase() === line.itemName?.toLowerCase()
+          );
+
+          const lowThreshold = (itemMatch?.item as any)?.lowStockDefault ?? 5;
+          const itemName = line.itemName || itemMatch?.item?.name || "Product";
+
+          // Dispatch real-time low stock warning for Business Owner / Team
+          createNotification({
+            senderId: subject,
+            senderName: "Inventory System",
+            receiverIds: [subject],
+            type: "INVENTORY",
+            title: `Low Stock Warning: ${itemName}`,
+            content: `Item "${itemName}" stock updated after sale. Check inventory to restock!`,
+            deepLink: "/inventory/stock",
+          }).catch(() => {});
+        });
+      }
+    }
   };
 
   const handleOrderCreated = () => {

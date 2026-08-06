@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
+import { useToast } from "@/components/ui/toast";
 import {
     attributeIcon,
     attributeIconKeys,
@@ -169,12 +170,22 @@ function AttributeForm({
         draft.values.length ? draft.values : [emptyValue()],
     );
     const [error, setError] = useState<string | null>(null);
+    const { toast } = useToast();
 
     const takesValues = type !== "TOGGLE";
     const single = isSingleValue(placement);
     const showsIcon = placement === "HIGHLIGHT" || placement === "SPECIFICATION";
     const copy = valueCopy(type, placement);
     const visibleValues = single ? values.slice(0, 1) : values;
+
+    function showError(message: string) {
+        setError(message);
+        toast({
+            tone: "error",
+            title: `Attribute not ${isEditing ? "updated" : "added"}`,
+            description: message,
+        });
+    }
 
     function updateValue(
         index: number,
@@ -206,12 +217,12 @@ function AttributeForm({
         const trimmedName = name.trim();
 
         if (!trimmedName) {
-            setError("Attribute name is required.");
+            showError("Attribute name is required.");
             return;
         }
 
         if (existingNames.includes(trimmedName.toLowerCase())) {
-            setError("An attribute with this name already exists.");
+            showError("An attribute with this name already exists.");
             return;
         }
 
@@ -231,12 +242,12 @@ function AttributeForm({
             (type === "SELECTION" || type === "COLOR") &&
             !cleaned.length
         ) {
-            setError("Add at least one option for shoppers to choose from.");
+            showError("Add at least one option for shoppers to choose from.");
             return;
         }
 
         if (type === "COLOR" && cleaned.some((value) => !value.colorHex)) {
-            setError("Every colour needs a hex value such as #3a3a3c.");
+            showError("Every colour needs a hex value such as #3a3a3c.");
             return;
         }
 
@@ -244,7 +255,7 @@ function AttributeForm({
             type === "NUMBER" &&
             cleaned.some((value) => Number.isNaN(Number(value.value)))
         ) {
-            setError("Number attributes only accept numeric values.");
+            showError("Number attributes only accept numeric values.");
             return;
         }
 
@@ -417,7 +428,7 @@ function AttributeForm({
                                             size="icon-lg"
                                             aria-label={`Remove value ${index + 1}`}
                                             onClick={() => removeValue(index)}
-                                            className="shrink-0 text-[#657064] dark:text-[#94a3b8] hover:text-accent"
+                                            className="shrink-0 text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                                         >
                                             <Trash2 />
                                         </Button>
@@ -434,7 +445,7 @@ function AttributeForm({
                                                         !event.target.checked,
                                                 })
                                             }
-                                            className="size-3.5 accent-[#d14341]"
+                                            className="size-3.5 accent-danger"
                                         />
                                         Sold out — show but do not allow
                                         selecting
@@ -467,18 +478,12 @@ function AttributeForm({
                 </p>
             )}
 
-            {error ? (
-                <p className="text-xs text-accent" role="alert">
-                    {error}
-                </p>
-            ) : null}
-
             <DialogFooter>
                 <Button
                     type="button"
                     size="lg"
                     onClick={onClose}
-                    className="rounded-full bg-accent px-8 text-white hover:bg-accent/90 focus-visible:ring-accent/30"
+                    className="rounded-full bg-brand-red px-8 text-white hover:bg-brand-red/90 focus-visible:ring-danger/30"
                 >
                     Cancel
                 </Button>

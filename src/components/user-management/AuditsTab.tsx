@@ -58,15 +58,15 @@ export default function AuditsTab({
         return (
             <Panel>
                 <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center">
-                    <span className="grid size-11 place-items-center rounded-full bg-[#f2f3f1] dark:bg-[#252a38] text-[#5c6660] dark:text-[#94a3b8]">
+                    <span className="grid size-11 place-items-center rounded-full bg-muted text-muted-foreground">
                         <Lock className="size-5" aria-hidden="true" />
                     </span>
-                    <p className="text-[15px] font-medium text-[#16181c] dark:text-[#f8fafc]">
+                    <p className="text-[15px] font-medium text-foreground">
                         You don&apos;t have access to the audit log
                     </p>
-                    <p className="max-w-md text-[14px] text-[#8a8f89] dark:text-[#94a3b8]">
+                    <p className="max-w-md text-[14px] text-muted-foreground">
                         Viewing audits needs the{" "}
-                        <code className="rounded bg-[#f2f3f1] dark:bg-[#252a38] text-[#16181c] dark:text-[#f8fafc] border border-transparent dark:border-[#333b4f] px-1.5 py-0.5 text-[13px]">
+                        <code className="rounded bg-muted text-foreground border border-border px-1.5 py-0.5 text-[13px]">
                             admin-audit:read
                         </code>{" "}
                         permission. Ask a platform administrator to grant it.
@@ -96,7 +96,7 @@ export default function AuditsTab({
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
                 <div className="relative">
                     <Search
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8a8f89]"
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
                     />
                     <label htmlFor="audit-keyword" className="sr-only">
@@ -186,7 +186,7 @@ export default function AuditsTab({
                                 Administrative audit entries
                             </caption>
                             <thead>
-                                <tr className="border-b border-[#eceeea] dark:border-[#242937] text-[12px] text-[#8a8f89] dark:text-[#94a3b8]">
+                                <tr className="border-b border-border text-[12px] text-muted-foreground">
                                     <th
                                         scope="col"
                                         className="py-3 pr-4 font-medium"
@@ -223,32 +223,32 @@ export default function AuditsTab({
                                 {logs.map((log) => (
                                     <tr
                                         key={log.id}
-                                        className="border-b border-[#f2f3f1] dark:border-[#242937] align-top last:border-0"
+                                        className="border-b border-border align-top last:border-0"
                                     >
-                                        <td className="py-4 pr-4 text-[14px] whitespace-nowrap text-[#5c6660] dark:text-[#cbd5e1]">
+                                        <td className="py-4 pr-4 text-[14px] whitespace-nowrap text-muted-foreground">
                                             {formatTimestamp(log.createdAt)}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#16181c] dark:text-[#f8fafc]">
+                                        <td className="py-4 pr-4 text-[14px] text-foreground">
                                             {log.actorUsername ||
                                                 log.actorId ||
                                                 "—"}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#16181c] dark:text-[#f8fafc]">
+                                        <td className="py-4 pr-4 text-[14px] text-foreground">
                                             {humanizeEnum(log.actionType)}
                                         </td>
-                                        <td className="py-4 pr-4 text-[14px] text-[#5c6660] dark:text-[#cbd5e1]">
+                                        <td className="py-4 pr-4 text-[14px] text-muted-foreground">
                                             <p>{log.targetLabel || "—"}</p>
-                                            <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
+                                            <p className="text-[13px] text-muted-foreground">
                                                 {humanizeEnum(log.targetType)}
                                             </p>
                                         </td>
-                                        <td className="py-4 text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
+                                        <td className="py-4 text-[13px] text-muted-foreground">
                                             {log.previousState ||
                                             log.newState ? (
                                                 <span>
                                                     {log.previousState || "—"}
                                                     {" → "}
-                                                    <span className="text-[#16181c] dark:text-[#f8fafc]">
+                                                    <span className="text-foreground">
                                                         {log.newState || "—"}
                                                     </span>
                                                 </span>
@@ -266,7 +266,7 @@ export default function AuditsTab({
                         aria-label="Audit pages"
                         className="mt-5 flex flex-wrap items-center justify-between gap-3"
                     >
-                        <p className="text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
+                        <p className="text-[13px] text-muted-foreground">
                             Page {page + 1} of {Math.max(totalPages, 1)} ·{" "}
                             {totalElements} entr
                             {totalElements === 1 ? "y" : "ies"}

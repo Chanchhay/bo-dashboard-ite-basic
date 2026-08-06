@@ -39,6 +39,34 @@ export type PosOrderPage = {
     };
 };
 
+/**
+ * Every order in a date range, whatever its status — what Sale Management
+ * shows. Totals are counted over the whole range rather than the rows on
+ * screen, so the stat cards and the table can never disagree.
+ */
+export type OrderHistory = {
+    content: PosOrder[];
+    totals: {
+        orders: number;
+        revenue: number;
+        paid: number;
+        pending: number;
+    };
+    /** True when the range holds more orders than one request will load. */
+    truncated: boolean;
+};
+
+export type OrderStatusFilter = PosOrder["status"] | "ALL";
+export type OrderChannelFilter = PosOrder["channel"] | "ALL";
+
+export type OrderHistoryQuery = {
+    status?: OrderStatusFilter;
+    channel?: OrderChannelFilter;
+    /** ISO-8601. Orders created before this are left out. */
+    from?: string;
+    to?: string;
+};
+
 /** Metadata the backend records when it issues or prints an order receipt. */
 export type PosReceipt = {
     id: string;

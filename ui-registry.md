@@ -34,9 +34,64 @@ Last audited: 2026-07-28
   and low-opacity shadows.
 - Form controls use rounded corners, white backgrounds, muted placeholders,
   and a green focus border/ring.
+- Validation errors, failed-state panels, invalid-control borders, and
+  destructive feedback use `text-brand-red`, `bg-brand-red/5` or
+  `bg-brand-red/10`, and `border-brand-red/20`. Reserve the semantic `accent`
+  token for neutral hover, focus, and selected states.
 - Existing feature-specific Figma screens use some hardcoded colors and custom
   radii. Preserve those values within their original screens; use theme tokens
   for shared interactive states in new work.
+
+### Toast Notification
+
+File: src/components/ui/toast.tsx
+Last updated: 2026-08-03
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white` |
+| Border           | `ring-1`; tone rings `ring-[#cfe7d6]`, `ring-[#f2cfcd]`, and `ring-[#f0d9a8]` |
+| Border radius    | `rounded-2xl`; `rounded-lg` for the close button |
+| Text — primary   | `text-[14px] font-medium text-[#16181c]` |
+| Text — secondary | `text-[13px] text-[#5c6660]` |
+| Spacing          | `p-4`, `gap-3`, and `gap-2` between stacked toasts |
+| Hover state      | `hover:bg-[#f2f3f1] hover:text-[#16181c]` on the close button |
+| Shadow           | `shadow-[0_16px_40px_-20px_rgba(22,24,28,.45)]` |
+| Accent usage     | Green success, red error, and amber info icons with matching subtle rings |
+
+**Pattern notes:**
+Use the single root-level `ToastProvider` for transient form and mutation
+outcomes. Toasts stack at the top-right, auto-dismiss after 3.5 seconds by
+default, enter from the right, and remain closable with the visible X button or
+an 80px horizontal swipe. Preserve nearby field messages for precise validation
+guidance, while the toast summarizes why the overall action did not complete.
+Only announce success after a persisted API mutation has resolved; do not use a
+success toast for an unsaved local draft.
+
+### Destructive Confirmation Dialog
+
+File: src/components/ui/destructive-confirm-dialog.tsx
+Last updated: 2026-08-03
+
+| Property         | Class |
+| ---------------- | ----- |
+| Background       | `bg-white`; warning icon container `bg-red-50` |
+| Border           | `border border-red-100` |
+| Border radius    | `rounded-3xl`; `rounded-2xl` for the warning icon container |
+| Text — primary   | `text-2xl font-bold text-[#191c1e]` |
+| Text — secondary | `text-sm leading-6 text-[#636b74]` |
+| Spacing          | `p-5 sm:p-7`, `mt-4`, `mt-6`, and `gap-3` |
+| Hover state      | `hover:bg-brand-red/90` for destructive confirmation |
+| Shadow           | `shadow-[0_24px_60px_rgba(15,26,18,0.22)]` |
+| Accent usage     | `text-brand-red` warning icon and `bg-brand-red text-white` confirmation |
+
+**Pattern notes:**
+Use this controlled dialog for every irreversible confirmation; never use the
+browser-native `window.confirm` or `window.alert`. Name the affected record in
+the description, explain the consequence, provide a neutral Keep/Cancel action
+first and a red destructive action second, and prevent dismissal while the API
+mutation is pending. Close after the mutation resolves and report the persisted
+success or API failure through the shared toast provider.
 
 ### User Profile
 

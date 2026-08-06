@@ -129,10 +129,12 @@ export function ItemPreviewDialog({
     open,
     onOpenChange,
     item,
+    hideAddToCart = false,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item: PreviewItem | null;
+    hideAddToCart?: boolean;
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -141,6 +143,7 @@ export function ItemPreviewDialog({
                     <Storefront
                         item={item}
                         onClose={() => onOpenChange(false)}
+                        hideAddToCart={hideAddToCart}
                     />
                 ) : null}
             </DialogContent>
@@ -155,9 +158,11 @@ function displayOf(value: PreviewValue) {
 function Storefront({
     item,
     onClose,
+    hideAddToCart = false,
 }: {
     item: PreviewItem;
     onClose: () => void;
+    hideAddToCart?: boolean;
 }) {
     // `placement` decides which part of the page each attribute feeds.
     const options = item.attributes.filter(
@@ -241,7 +246,7 @@ function Storefront({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-2xl font-bold text-[#d14341] dark:text-[#f87171]">
+                        <span className="text-2xl font-bold text-danger">
                             {formatMoney(activePrice)}
                         </span>
                         {discount ? (
@@ -376,49 +381,53 @@ function Storefront({
                         </label>
                     ))}
 
-                    <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-[#1a222b] dark:text-[#f8fafc]">
-                        <button
-                            type="button"
-                            aria-label="Decrease quantity"
-                            onClick={() =>
-                                setQuantity((current) =>
-                                    Math.max(1, current - 1),
-                                )
-                            }
-                            className="text-[#d14341] dark:text-[#f87171]"
-                        >
-                            <Minus className="size-4" />
-                        </button>
-                        <span className="min-w-6 text-center text-sm font-medium">
-                            {quantity}
-                        </span>
-                        <button
-                            type="button"
-                            aria-label="Increase quantity"
-                            onClick={() =>
-                                setQuantity((current) => current + 1)
-                            }
-                            className="text-primary"
-                        >
-                            <Plus className="size-4" />
-                        </button>
-                    </div>
+                    {!hideAddToCart && (
+                        <>
+                            <div className="flex items-center gap-3 self-start rounded-full border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-[#1a222b] dark:text-[#f8fafc]">
+                                <button
+                                    type="button"
+                                    aria-label="Decrease quantity"
+                                    onClick={() =>
+                                        setQuantity((current) =>
+                                            Math.max(1, current - 1),
+                                        )
+                                    }
+                                    className="text-danger"
+                                >
+                                    <Minus className="size-4" />
+                                </button>
+                                <span className="min-w-6 text-center text-sm font-medium">
+                                    {quantity}
+                                </span>
+                                <button
+                                    type="button"
+                                    aria-label="Increase quantity"
+                                    onClick={() =>
+                                        setQuantity((current) => current + 1)
+                                    }
+                                    className="text-primary"
+                                >
+                                    <Plus className="size-4" />
+                                </button>
+                            </div>
 
-                    {/*
-                     * Inert on purpose: this is a rendering of the storefront,
-                     * not the storefront, so the button must not look clickable
-                     * to whoever is reviewing the layout.
-                     */}
-                    <div
-                        aria-disabled
-                        className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-white shadow-md shadow-primary/20"
-                    >
-                        <ShoppingBag className="size-4" />
-                        Add to Cart
-                    </div>
-                    <p className="text-center text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                        Preview only — nothing here is live yet.
-                    </p>
+                            {/*
+                             * Inert on purpose: this is a rendering of the storefront,
+                             * not the storefront, so the button must not look clickable
+                             * to whoever is reviewing the layout.
+                             */}
+                            <div
+                                aria-disabled
+                                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-white shadow-md shadow-primary/20"
+                            >
+                                <ShoppingBag className="size-4" />
+                                Add to Cart
+                            </div>
+                            <p className="text-center text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                Preview only — nothing here is live yet.
+                            </p>
+                        </>
+                    )}
 
                     {highlights.length ? (
                         <div className="grid gap-4 border-t border-[#e4eae2] dark:border-[#242937] pt-4 sm:grid-cols-3">
@@ -622,10 +631,10 @@ function Gallery({
 }) {
     if (!images.length) {
         return (
-            <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center">
+            <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center shadow-xs">
                 <div className="flex flex-col items-center gap-2 text-[#a3aca1] dark:text-[#64748b]">
                     <ImageOff className="size-8" />
-                    <p className="text-sm">No image yet</p>
+                    <p className="text-sm font-medium">No image available</p>
                 </div>
             </div>
         );
@@ -634,8 +643,8 @@ function Gallery({
     const active = images[Math.min(index, images.length - 1)];
 
     return (
-        <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex flex-row sm:flex-col gap-3 overflow-x-auto sm:overflow-y-auto max-w-full">
+        <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-row sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-w-full shrink-0">
                 {images.map((image, position) => (
                     <button
                         key={`${image}-${position}`}
@@ -644,10 +653,10 @@ function Gallery({
                         aria-pressed={position === index}
                         onClick={() => onSelect(position)}
                         className={cn(
-                            "size-16 overflow-hidden rounded-xl border-2 bg-white dark:bg-[#1a1e29] transition-colors",
+                            "relative size-14 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer",
                             position === index
-                                ? "border-primary"
-                                : "border-transparent dark:border-[#2a3042] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
+                                ? "border-primary ring-2 ring-primary/20 shadow-xs scale-[1.02]"
+                                : "border-transparent dark:border-[#242937] hover:border-primary/40 opacity-70 hover:opacity-100",
                         )}
                     >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -659,12 +668,12 @@ function Gallery({
                     </button>
                 ))}
             </div>
-            <div className="flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29]">
+            <div className="relative aspect-square flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf8] dark:bg-[#151821] shadow-xs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={active}
                     alt={name || "Item image"}
-                    className="aspect-square w-full object-contain"
+                    className="size-full object-cover transition-all duration-300"
                 />
             </div>
         </div>

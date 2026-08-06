@@ -191,9 +191,9 @@ export default async function DashboardPage() {
                                             )}
                                         </span>
                                     </div>
-                                    <div className="mt-2 h-2.5 w-full rounded-[4px] bg-[#eceeea] dark:bg-[#252a38]">
+                                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-[4px] bg-[#eceeea] dark:bg-[#252a38]">
                                         <div
-                                            className="h-full rounded-r-[4px] bg-[#00932a] dark:bg-[#10b981]"
+                                            className="h-full rounded-[4px] bg-primary"
                                             style={{
                                                 width: `${Math.max(
                                                     (entry.quantity /
@@ -237,7 +237,7 @@ function Stat({
                     className={
                         alert
                             ? "grid size-9 sm:size-11 place-items-center rounded-xl bg-[#fff4d6] dark:bg-[#d14341]/20 text-[#8a5f00] dark:text-[#f87171]"
-                            : "grid size-9 sm:size-11 place-items-center rounded-xl bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]"
+                            : "grid size-9 sm:size-11 place-items-center rounded-xl bg-primary/10 dark:bg-[#00932a]/20 text-primary"
                     }
                 >
                     <Icon className="size-4 sm:size-5" />
@@ -264,7 +264,7 @@ function EmptyState({ hasItems }: { hasItems: boolean }) {
         <div className="mt-7 rounded-2xl bg-[#f7f7f6] dark:bg-[#151821] border border-transparent dark:border-[#242937] px-6 py-10 text-center">
             <span
                 aria-hidden="true"
-                className="mx-auto grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]"
+                className="mx-auto grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary"
             >
                 <Boxes className="size-5" />
             </span>

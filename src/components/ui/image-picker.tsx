@@ -268,7 +268,7 @@ export function ImagePicker({
                     {busy ? (
                         <span
                             className={cn(
-                                "absolute inset-0 grid place-items-center bg-white/70 dark:bg-[#1a1e29]/80 text-xs font-semibold text-primary dark:text-[#10b981]",
+                                "absolute inset-0 grid place-items-center bg-white/70 dark:bg-[#1a1e29]/80 text-xs font-semibold text-primary",
                                 previewShape === "circle"
                                     ? "rounded-full"
                                     : "rounded-xl",
@@ -295,7 +295,7 @@ export function ImagePicker({
 
             <div className="min-h-4" aria-live="polite">
                 {error ? (
-                    <p className="text-xs text-accent" role="alert">
+                    <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
                 ) : null}
@@ -401,7 +401,7 @@ export function ImageDropzone({
 
             <div className="min-h-4" aria-live="polite">
                 {error ? (
-                    <p className="text-xs text-accent" role="alert">
+                    <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
                 ) : null}

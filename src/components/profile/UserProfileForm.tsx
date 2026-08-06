@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
     profilePictureRules,
     userProfileGenders,
@@ -153,13 +154,13 @@ function Field({
         <div className="flex min-w-0 flex-col gap-2">
             <Label
                 htmlFor={name}
-                className="text-sm font-semibold text-[#424841]"
+                className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
             >
                 {label}
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -178,7 +179,7 @@ function AccountDetail({
 }) {
     return (
         <div className="flex gap-3 rounded-xl bg-[#f6f8f5] dark:bg-[#151821] border border-transparent dark:border-[#242937] p-4">
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:text-[#10b981]">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 {icon}
             </span>
             <div className="min-w-0">
@@ -213,10 +214,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     // to, rather than in the form's status line.
     const [pictureNote, setPictureNote] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-    const [status, setStatus] = useState<{
-        type: "success" | "error";
-        message: string;
-    } | null>(null);
+    const { toast } = useToast();
     const [updateUserProfile, { isLoading: isSaving }] =
         useUpdateUserProfileMutation();
     const [deleteProfilePicture, { isLoading: isRemovingPicture }] =
@@ -252,12 +250,14 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             publishProfile({ ...profile, profilePicture: "" });
             setPictureNote("Profile picture removed.");
         } catch (error) {
-            picture.setError(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Profile picture not removed",
+                description: getApiErrorMessage(
                     error,
                     "Unable to remove your profile picture.",
                 ),
-            );
+            });
         }
     }
 
@@ -268,12 +268,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         picture.reset();
         setFieldErrors({});
         setPictureNote(null);
-        setStatus(null);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const result = userProfileSchema.safeParse({
@@ -286,9 +284,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
         if (!result.success) {
             setFieldErrors(getFieldErrors(result.error));
-            setStatus({
-                type: "error",
-                message: "Check the highlighted fields and try again.",
+            toast({
+                tone: "error",
+                title: "Check the highlighted fields",
+                description: "Some details still need your attention.",
             });
             return;
         }
@@ -310,14 +309,16 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             );
             picture.reset();
             setPictureNote(null);
-            setStatus({
-                type: "success",
-                message: "Your profile was saved successfully.",
+            toast({
+                tone: "success",
+                title: "Profile saved",
+                description: "Your profile was saved successfully.",
             });
         } catch (error) {
-            setStatus({
-                type: "error",
-                message: getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Profile not saved",
+                description: getApiErrorMessage(
                     error,
                     "Unable to save your profile.",
                 ),
@@ -332,31 +333,38 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     <ImagePicker
                         rules={profilePictureRules}
                         disabled={isSaving}
-                        error={picture.error}
                         busy={isSaving && Boolean(picture.file)}
                         previewShape="circle"
                         label="Profile picture"
                         onPick={handlePicturePick}
-                        onError={picture.setError}
+                        onError={(message) =>
+                            toast({
+                                tone: "error",
+                                title: "Profile picture not selected",
+                                description: message,
+                            })
+                        }
                         preview={
-                            <span className="relative flex size-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] text-3xl font-bold text-primary shadow-[0_6px_22px_rgba(0,147,42,0.18)]">
-                                {picture.preview ? (
-                                    // The API supplies this URL dynamically and
-                                    // the staged preview uses a blob URL.
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={picture.preview}
-                                        alt={`${profileName} profile`}
-                                        className="size-full object-cover"
-                                    />
-                                ) : (
-                                    getInitials(
-                                        firstName,
-                                        lastName,
-                                        profile.username,
-                                    )
-                                )}
-                                <span className="absolute right-0 bottom-0 grid size-9 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-[0_4px_12px_rgba(0,147,42,0.35)]">
+                            <span className="relative inline-flex size-28 items-center justify-center">
+                                <span className="flex size-full items-center justify-center overflow-hidden rounded-full border-4 border-white dark:border-[#1a1e29] bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] dark:bg-[linear-gradient(145deg,#153e1a,#1e5426)] text-3xl font-bold text-primary dark:text-[#6ee7b7] shadow-md">
+                                    {picture.preview ? (
+                                        // The API supplies this URL dynamically and
+                                        // the staged preview uses a blob URL.
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={picture.preview}
+                                            alt={`${profileName} profile`}
+                                            className="size-full object-cover"
+                                        />
+                                    ) : (
+                                        getInitials(
+                                            firstName,
+                                            lastName,
+                                            profile.username,
+                                        )
+                                    )}
+                                </span>
+                                <span className="absolute right-0 bottom-0 z-10 grid size-9 place-items-center rounded-full border-2 border-white dark:border-[#1a1e29] bg-primary text-white shadow-md">
                                     <Camera
                                         className="size-4"
                                         aria-hidden="true"
@@ -396,10 +404,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         }
                     />
 
-                    <h2 className="mt-4 text-xl font-bold text-[#161d16]">
+                    <h2 className="mt-4 text-xl font-bold text-[#161d16] dark:text-[#f8fafc]">
                         {profileName}
                     </h2>
-                    <p className="mt-1 text-sm text-[#657064]">
+                    <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                         {profile.role || "Team member"}
                     </p>
                     <div className="min-h-4" aria-live="polite">
@@ -445,14 +453,14 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                 className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7"
             >
                 <div className="flex items-start gap-3 border-b border-[#edf0ec] dark:border-[#242937] pb-5">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:text-[#10b981]">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <UserRound className="size-5" />
                     </span>
                     <div>
                         <h2 className="text-lg font-bold text-[#161d16] dark:text-[#f8fafc]">
                             Personal details
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
                             Keep your contact and profile information current.
                         </p>
                     </div>
@@ -503,7 +511,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         error={fieldErrors.phoneNumber}
                     >
                         <div className="relative">
-                            <Phone className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7a8478]" />
+                            <Phone className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7a8478] dark:text-[#94a3b8]" />
                             <Input
                                 id="phoneNumber"
                                 name="phoneNumber"
@@ -558,7 +566,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                             error={fieldErrors.address}
                         >
                             <div className="relative">
-                                <MapPin className="pointer-events-none absolute top-4 left-4 size-4 text-[#7a8478]" />
+                                <MapPin className="pointer-events-none absolute top-4 left-4 size-4 text-[#7a8478] dark:text-[#94a3b8]" />
                                 <Textarea
                                     id="address"
                                     name="address"
@@ -568,7 +576,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                     aria-invalid={Boolean(
                                         fieldErrors.address,
                                     )}
-                                    className="min-h-28 rounded-xl border-[#e2e8e0] bg-white py-3 pr-4 pl-11 text-base text-[#1a222b] placeholder:text-[#7a8478] focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 md:text-base"
+                                    className="min-h-28 rounded-xl border border-[#e2e8e0] dark:border-[#242937] bg-white dark:bg-[#1e2330] py-3 pr-4 pl-11 text-base text-[#1a222b] dark:text-[#f8fafc] placeholder:text-[#7a8478] dark:placeholder:text-[#94a3b8] focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 md:text-base"
                                 />
                             </div>
                         </Field>
@@ -576,28 +584,8 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
                 </div>
 
-                <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] pt-6 sm:flex-row sm:items-center">
-                    <div
-                        className="min-h-5 flex-1 text-sm"
-                        aria-live="polite"
-                    >
-                        {status ? (
-                            <p
-                                className={
-                                    status.type === "success"
-                                        ? "text-primary"
-                                        : "text-accent"
-                                }
-                                role={
-                                    status.type === "error"
-                                        ? "alert"
-                                        : "status"
-                                }
-                            >
-                                {status.message}
-                            </p>
-                        ) : null}
-                    </div>
+                <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] dark:border-[#242937] pt-6 sm:flex-row sm:items-center">
+                    <div className="flex-1" />
                     <Button
                         type="button"
                         variant="outline"
@@ -630,7 +618,7 @@ function ProfileQueryError({
 }) {
     return (
         <div
-            className="rounded-2xl border border-accent/20 bg-white p-6 text-[#1a222b] shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
+            className="rounded-2xl border border-danger/20 bg-card p-6 text-foreground shadow-[0_8px_30px_rgba(26,34,43,0.06)]"
             role="alert"
         >
             <h2 className="text-lg font-bold">Unable to load your profile</h2>

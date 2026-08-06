@@ -60,6 +60,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
     inventoryItemSchema,
@@ -117,7 +118,7 @@ function Field({ label, name, error, children }: FieldProps) {
             </Label>
             {children}
             {error ? (
-                <p className="text-xs text-accent" role="alert">
+                <p className="text-xs text-danger" role="alert">
                     {error}
                 </p>
             ) : null}
@@ -337,6 +338,7 @@ function ProductEditor({
     initialItem?: InventoryItem;
 }) {
     const router = useRouter();
+    const { toast } = useToast();
     const { data: groups, error: groupsError } =
         useGetItemGroupsQuery();
     const { data: units, error: unitsError } =
@@ -360,9 +362,6 @@ function ProductEditor({
     const [barcodePreview, setBarcodePreview] = useState(
         initialItem?.barcode || "",
     );
-    const [barcodeGenerationError, setBarcodeGenerationError] = useState<
-        string | null
-    >(null);
     // Stored images belong to the server: they arrive with an id and are
     // deleted through their own endpoint. Picked files are held here until the
     // save carries them up.
@@ -374,7 +373,6 @@ function ProductEditor({
         [initialItem?.images],
     );
     const [pickedImages, setPickedImages] = useState<PickedImage[]>([]);
-    const [imageError, setImageError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const {
         create: createObjectUrl,
@@ -386,7 +384,6 @@ function ProductEditor({
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    const [status, setStatus] = useState<string | null>(null);
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [deleteImage, deleteImageState] = useDeleteItemImageMutation();
@@ -406,7 +403,6 @@ function ProductEditor({
     ].filter(Boolean);
 
     function handleImagesPicked(picked: File[]) {
-        setImageError(null);
         setPickedImages((current) => [
             ...current,
             ...picked.map((file) => ({
@@ -418,8 +414,6 @@ function ProductEditor({
     }
 
     async function handleGenerateBarcode() {
-        setBarcodeGenerationError(null);
-
         try {
             const result = await generateBarcode().unwrap();
             setBarcodePreview(result.barcode);
@@ -433,12 +427,14 @@ function ProductEditor({
                 return next;
             });
         } catch (error) {
-            setBarcodeGenerationError(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: "Barcode not generated",
+                description: getApiErrorMessage(
                     error,
                     "Unable to generate a unique barcode.",
                 ),
-            );
+            });
         }
     }
 
@@ -449,7 +445,6 @@ function ProductEditor({
 
             return current.filter((image) => image.id !== id);
         });
-        setImageError(null);
     }
 
     /**
@@ -466,17 +461,25 @@ function ProductEditor({
         const order = storedImages.map((image) => image.id || "");
         [order[index], order[target]] = [order[target], order[index]];
 
-        setImageError(null);
-
         try {
             await reorderImages({
                 itemId: initialItem.id,
                 imageIds: order,
             }).unwrap();
+            toast({
+                tone: "success",
+                title: "Images reordered",
+                description: "The item gallery order was updated.",
+            });
         } catch (error) {
-            setImageError(
-                getApiErrorMessage(error, "Unable to reorder the images."),
-            );
+            toast({
+                tone: "error",
+                title: "Images not reordered",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to reorder the images.",
+                ),
+            });
         }
     }
 
@@ -486,14 +489,21 @@ function ProductEditor({
             return;
         }
 
-        setImageError(null);
-
         try {
             await deleteImage({ itemId: initialItem.id, imageId }).unwrap();
+            toast({
+                tone: "success",
+                title: "Item image deleted",
+            });
         } catch (error) {
-            setImageError(
-                getApiErrorMessage(error, "Unable to remove that image."),
-            );
+            toast({
+                tone: "error",
+                title: "Item image not deleted",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to remove that image.",
+                ),
+            });
         }
     }
 
@@ -597,7 +607,6 @@ function ProductEditor({
 
     async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        setStatus(null);
 
         const formData = new FormData(event.currentTarget);
         const attributeValues = attributes.map((attribute) => ({
@@ -649,7 +658,11 @@ function ProductEditor({
 
         if (!result.success) {
             setFieldErrors(fieldErrorsFromIssues(result.error.issues));
-            setStatus("Check the highlighted item information.");
+            toast({
+                tone: "error",
+                title: `Item not ${isEditing ? "updated" : "created"}`,
+                description: "Check the highlighted item information.",
+            });
             return;
         }
 
@@ -669,14 +682,21 @@ function ProductEditor({
             } else {
                 await createItem({ body: result.data, files }).unwrap();
             }
+            toast({
+                tone: "success",
+                title: `Item ${isEditing ? "updated" : "created"}`,
+                description: `${result.data.name} was saved successfully.`,
+            });
             router.push("/inventory");
         } catch (error) {
-            setStatus(
-                getApiErrorMessage(
+            toast({
+                tone: "error",
+                title: `Item not ${isEditing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
                     error,
                     `Unable to ${isEditing ? "update" : "create"} the item.`,
                 ),
-            );
+            });
         }
     }
 
@@ -778,10 +798,9 @@ function ProductEditor({
                                 id="barcode"
                                 name="barcode"
                                 value={barcodePreview}
-                                onChange={(event) => {
-                                    setBarcodePreview(event.target.value);
-                                    setBarcodeGenerationError(null);
-                                }}
+                                onChange={(event) =>
+                                    setBarcodePreview(event.target.value)
+                                }
                                 placeholder="3547908987678"
                                 aria-invalid={Boolean(fieldErrors.barcode)}
                                 className={`${inventoryControlClassName} flex-1 font-mono`}
@@ -805,11 +824,6 @@ function ProductEditor({
                                 </Button>
                             ) : null}
                         </div>
-                        {barcodeGenerationError ? (
-                            <p className="text-xs text-accent" role="alert">
-                                {barcodeGenerationError}
-                            </p>
-                        ) : null}
                         {barcodePreview.trim() ? (
                             <div className="rounded-xl border border-[#e4eae2] bg-[#f8faf7] p-3">
                                 <BarcodePreview
@@ -1096,11 +1110,16 @@ function ProductEditor({
                     rules={itemImageRules}
                     inputRef={imageInputRef}
                     disabled={isSaving}
-                    error={imageError}
                     remaining={maxItemImages - galleryCount}
                     label="Add images of this item"
                     onPick={handleImagesPicked}
-                    onError={setImageError}
+                    onError={(message) => {
+                        toast({
+                            tone: "error",
+                            title: "Images not added",
+                            description: message,
+                        });
+                    }}
                 >
                     {galleryCount ? (
                         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
@@ -1248,7 +1267,7 @@ function ProductEditor({
                         </p>
                     )}
                     {fieldErrors.attributes ? (
-                        <p className="text-xs text-accent" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.attributes}
                         </p>
                     ) : null}
@@ -1333,7 +1352,7 @@ function ProductEditor({
                                             available: !event.target.checked,
                                         })
                                     }
-                                    className="size-3.5 accent-[#d14341]"
+                                    className="size-3.5 accent-danger"
                                 />
                                 <span className="text-[11px] sm:text-xs">Sold out</span>
                             </label>
@@ -1357,7 +1376,7 @@ function ProductEditor({
                         </div>
                     ))}
                     {fieldErrors.variants ? (
-                        <p className="text-xs text-accent" role="alert">
+                        <p className="text-xs text-danger" role="alert">
                             {fieldErrors.variants}
                         </p>
                     ) : null}
@@ -1375,21 +1394,12 @@ function ProductEditor({
                         onChange={setBlocks}
                     />
                     {fieldErrors.descriptionBlocks ? (
-                        <p className="mt-3 text-xs text-accent" role="alert">
+                        <p className="mt-3 text-xs text-danger" role="alert">
                             {fieldErrors.descriptionBlocks}
                         </p>
                     ) : null}
                 </div>
             </section>
-
-            {status ? (
-                <p
-                    className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent"
-                    role="alert"
-                >
-                    {status}
-                </p>
-            ) : null}
 
             <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button

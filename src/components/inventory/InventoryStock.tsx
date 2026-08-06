@@ -23,11 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setStockSearch } from "@/store/inventoryUiSlice";
-import {
-    useGetCurrentStockQuery,
-    useGetInventoryItemOptionsQuery,
-    useGetStockEntriesQuery,
-} from "@/services/inventoryApi";
+import { useGetCurrentStockQuery, useGetInventoryItemOptionsQuery, useGetStockEntriesQuery } from "@/services/inventoryApi";
+import { useCreateNotificationMutation } from "@/services/notificationApi";
+import { authClient } from "@/lib/auth/auth-client";
+import { useSessionSubject } from "@/lib/auth/session-context";
+import { useToast } from "@/components/ui/toast";
 
 function metricCard(
     label: string,
@@ -38,14 +38,14 @@ function metricCard(
     const Icon = icon;
 
     return (
-        <div className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div
                 className={`grid size-10 place-items-center rounded-xl ${accent}`}
             >
                 <Icon className="size-5" />
             </div>
-            <p className="mt-4 text-sm text-[#657064] dark:text-[#94a3b8]">{label}</p>
-            <p className="mt-1 text-2xl font-semibold text-[#161d16] dark:text-[#f8fafc]">
+            <p className="mt-4 text-sm text-muted-foreground">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">
                 {value}
             </p>
         </div>
@@ -60,6 +60,12 @@ export function InventoryStock() {
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const stockQuery = useGetCurrentStockQuery();
     const entriesQuery = useGetStockEntriesQuery();
+    const [createNotification, { isLoading: isNotifying }] = useCreateNotificationMutation();
+    const { data: session } = authClient.useSession();
+    /* The backend matches receiverId against the Keycloak subject, not against
+       Better Auth's local user.id. */
+    const subject = useSessionSubject();
+    const { toast } = useToast();
 
     if (itemsQuery.isLoading || stockQuery.isLoading) {
         return <InventoryLoading label="Loading stock" />;
@@ -126,20 +132,62 @@ export function InventoryStock() {
         )
         .slice(0, 6);
 
+    const handleBroadcastLowStockAlert = async () => {
+        if (!subject) return;
+        if (lowStock.length === 0 && outOfStock.length === 0) {
+            toast({ tone: "info", title: "All stock levels normal", description: "No items are currently low or out of stock." });
+            return;
+        }
+
+        try {
+            const count = lowStock.length + outOfStock.length;
+            const names = [...lowStock, ...outOfStock].map((r) => r.item.name || "Item").slice(0, 3).join(", ");
+            const extra = count > 3 ? ` and ${count - 3} more` : "";
+
+            await createNotification({
+                senderId: subject,
+                senderName: session?.user?.name || "Inventory Manager",
+                receiverIds: [subject],
+                type: "INVENTORY",
+                title: `Low Stock Warning (${count} item${count > 1 ? "s" : ""})`,
+                content: `Attention: ${names}${extra} ${count > 1 ? "are" : "is"} low or out of stock!`,
+                deepLink: "/inventory/stock",
+            }).unwrap();
+
+            toast({ tone: "success", title: "Notification Sent", description: `Alerted team about ${count} low stock item(s).` });
+        } catch (err) {
+            toast({ tone: "error", title: "Failed to send alert", description: getApiErrorMessage(err, "Please try again.") });
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Stock"
                 description="Monitor quantities, value and recent inventory movements."
                 action={
-                    <Button
-                        render={<Link href="/inventory/stock/adjust" />}
-                        nativeButton={false}
-                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                    >
-                        <SlidersHorizontal className="size-4 shrink-0" />
-                        <span>Adjust stock</span>
-                    </Button>
+                    <div className="flex items-center gap-2 sm:gap-2.5">
+                        {(lowStock.length > 0 || outOfStock.length > 0) && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isNotifying}
+                                onClick={handleBroadcastLowStockAlert}
+                                className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0 border-warning/40 bg-warning/10 text-warning hover:bg-warning/20"
+                            >
+                                <AlertTriangle className="size-4 shrink-0" />
+                                <span>{isNotifying ? "Sending..." : "Alert Low Stock"}</span>
+                            </Button>
+                        )}
+                        <Button
+                            render={<Link href="/inventory/stock/adjust" />}
+                            nativeButton={false}
+                            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                        >
+                            <SlidersHorizontal className="size-4 shrink-0" />
+                            <span>Adjust stock</span>
+                        </Button>
+                    </div>
                 }
             />
 
@@ -148,40 +196,40 @@ export function InventoryStock() {
                     "Total items",
                     String(items.length),
                     Boxes,
-                    "bg-primary/10 dark:bg-[#00932a]/20 text-primary dark:text-[#10b981]",
+                    "bg-success/10 text-success",
                 )}
                 {metricCard(
                     "Inventory value",
                     formatMoney(inventoryValue),
                     CircleDollarSign,
-                    "bg-[#feb90d]/15 dark:bg-[#feb90d]/20 text-[#8a6500] dark:text-[#feb90d]",
+                    "bg-warning/10 text-warning",
                 )}
                 {metricCard(
                     "Low stock",
                     String(lowStock.length),
                     AlertTriangle,
-                    "bg-[#fff4d6] dark:bg-[#f59e0b]/20 text-[#9a6900] dark:text-[#fbbf24]",
+                    "bg-warning/15 text-warning",
                 )}
                 {metricCard(
                     "Out of stock",
                     String(outOfStock.length),
                     PackageX,
-                    "bg-accent/10 dark:bg-[#d14341]/20 text-accent dark:text-[#f87171]",
+                    "bg-danger/10 text-danger",
                 )}
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="flex flex-col gap-3 border-b border-[#edf0ec] dark:border-[#242937] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
+                        <h2 className="font-semibold text-foreground">
                             Current stock
                         </h2>
-                        <p className="mt-1 text-sm text-[#657064]">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             Quantity on hand for each configured item.
                         </p>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
-                        <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-[#7b857a]" />
+                        <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={stockSearch}
                             onChange={(event) =>
@@ -211,7 +259,7 @@ export function InventoryStock() {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[760px] text-left text-sm">
-                            <thead className="bg-[#f8faf7] text-xs font-semibold tracking-wide text-[#657064] uppercase">
+                            <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                 <tr>
                                     <th className="px-5 py-3">Item</th>
                                     <th className="px-5 py-3">Category</th>
@@ -225,7 +273,7 @@ export function InventoryStock() {
                                     <th className="px-5 py-3">State</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#edf0ec]">
+                            <tbody className="divide-y divide-border">
                                 {filteredRows.map(
                                     ({ item, quantity }) => {
                                         const threshold =
@@ -238,38 +286,38 @@ export function InventoryStock() {
                                                   : "In stock";
                                         const stateClass =
                                             quantity <= 0
-                                                ? "bg-brand-red/10 text-brand-red"
+                                                ? "bg-danger/10 text-danger"
                                                 : quantity <= threshold
-                                                  ? "bg-[#fff4d6] text-[#9a6900]"
-                                                  : "bg-primary/10 text-primary";
+                                                  ? "bg-warning/15 text-warning"
+                                                  : "bg-success/10 text-success";
 
                                         return (
                                             <tr
                                                 key={item.id}
-                                                className="text-[#1a222b] hover:bg-[#fbfcfa]"
+                                                className="text-foreground hover:bg-muted/50"
                                             >
                                                 <td className="px-5 py-4">
                                                     <p className="font-semibold">
                                                         {item.name ||
                                                             "Unnamed"}
                                                     </p>
-                                                    <p className="mt-1 text-xs text-[#7b857a]">
+                                                    <p className="mt-1 text-xs text-muted-foreground">
                                                         {item.sku ||
                                                             "No SKU"}
                                                     </p>
                                                 </td>
-                                                <td className="px-5 py-4 text-[#657064]">
+                                                <td className="px-5 py-4 text-muted-foreground">
                                                     {item.itemGroup?.name ||
                                                         "—"}
                                                 </td>
                                                 <td className="px-5 py-4 font-semibold">
                                                     {quantity}{" "}
-                                                    <span className="font-normal text-[#7b857a]">
+                                                    <span className="font-normal text-muted-foreground">
                                                         {item.unit?.name ||
                                                             ""}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-4 text-[#657064]">
+                                                <td className="px-5 py-4 text-muted-foreground">
                                                     {threshold}
                                                 </td>
                                                 <td className="px-5 py-4">
@@ -296,12 +344,12 @@ export function InventoryStock() {
                 )}
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="border-b border-[#edf0ec] dark:border-[#242937] px-5 py-4">
-                    <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <div className="border-b border-border px-5 py-4">
+                    <h2 className="font-semibold text-foreground">
                         Recent stock activity
                     </h2>
-                    <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
+                    <p className="mt-1 text-sm text-muted-foreground">
                         Latest entries returned by the stock-entry API.
                     </p>
                 </div>
@@ -321,19 +369,19 @@ export function InventoryStock() {
                         description="Stock adjustments will appear here."
                     />
                 ) : (
-                    <div className="divide-y divide-[#edf0ec]">
+                    <div className="divide-y divide-border">
                         {recentEntries.map((entry) => (
                             <div
                                 key={entry.id}
                                 className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-6"
                             >
                                 <div>
-                                    <p className="font-semibold text-[#1a222b]">
+                                    <p className="font-semibold text-foreground">
                                         {itemNames.get(
                                             entry.itemId || "",
                                         ) || "Unknown item"}
                                     </p>
-                                    <p className="mt-1 text-xs text-[#7b857a]">
+                                    <p className="mt-1 text-xs text-muted-foreground">
                                         {entry.entryType
                                             ?.toLowerCase()
                                             .replaceAll("_", " ") ||
@@ -347,7 +395,7 @@ export function InventoryStock() {
                                     className={`font-semibold ${
                                         (entry.quantityChange || 0) >= 0
                                             ? "text-primary"
-                                            : "text-brand-red"
+                                            : "text-danger"
                                     }`}
                                 >
                                     {(entry.quantityChange || 0) > 0
@@ -355,7 +403,7 @@ export function InventoryStock() {
                                         : ""}
                                     {entry.quantityChange || 0}
                                 </p>
-                                <p className="text-xs text-[#7b857a]">
+                                <p className="text-xs text-muted-foreground">
                                     {entry.createdDate
                                         ? new Intl.DateTimeFormat(
                                               "en-US",
