@@ -33,6 +33,22 @@ export type Business = {
     displayCurrency?: string;
 };
 
+export type StorefrontRequirement = {
+    code: string;
+    label: string;
+    satisfied: boolean;
+    blocking: boolean;
+};
+
+export type StorefrontStatus = {
+    businessId: string;
+    slug?: string;
+    storefrontUrl?: string;
+    listed: boolean;
+    readyToPublish: boolean;
+    requirements: StorefrontRequirement[];
+};
+
 const optionalEmailSchema = z
     .string()
     .trim()

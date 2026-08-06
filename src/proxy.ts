@@ -13,9 +13,25 @@ const protectedRoutes = [
 const authRoutes = ["/login", "/callback"];
 
 export function proxy(request: NextRequest) {
-    const { pathname } = request.nextUrl;
+    const url = request.nextUrl;
+    const { pathname, host } = url;
     const sessionCookie = getSessionCookie(request);
-    console.log(`===============>, `, sessionCookie)
+
+    const isLocalhost = host.includes("localhost:3000");
+    const isFluxibiz = host.includes(".fluxibiz.store");
+
+    if (isLocalhost || isFluxibiz) {
+        const subdomain = host.split(".")[0];
+        if (
+            subdomain !== "www" && 
+            subdomain !== "administrator" && 
+            subdomain !== "business" &&
+            host !== "fluxibiz.store" &&
+            host !== "localhost:3000"
+        ) {
+            return NextResponse.rewrite(new URL(`/public-menu/${subdomain}${pathname}`, request.url));
+        }
+    }
 
     if (protectedRoutes.some((route) => pathname.startsWith(route))) {
         if (!sessionCookie) {
@@ -32,15 +48,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        "/",
-        "/login",
-        "/callback",
-        "/apps/:path*",
-        "/dashboard/:path*",
-        "/business/:path*",
-        "/inventory/:path*",
-        "/sales/:path*",
-        "/pos/:path*",
-        "/profile/:path*",
+        "/((?!api|_next/static|_next/image|favicon.ico).*)",
     ],
 };

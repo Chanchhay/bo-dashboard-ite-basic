@@ -12,6 +12,9 @@ import {
     ExternalLink,
 } from "lucide-react";
 
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+
 import {
     Table,
     TableBody,
@@ -22,24 +25,20 @@ import {
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency } from "@/lib/money";
-import { ORDER_PAGE_SIZES, type PosOrder } from "@/lib/api/pos-order";
+import type { PosOrder } from "@/lib/api/pos-order";
+import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
 import {
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
 } from "@/services/posOrderApi";
+import {
+    useGetBusinessProfileQuery,
+    useGetStorefrontStatusQuery,
+    useEnableStorefrontMutation,
+    useDisableStorefrontMutation,
+} from "@/services/businessApi";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 
-/**
- * Orders — the record of what was sold, and nothing else. Getting to other
- * pages is the sidebar's job, so this page never links sideways; every pixel
- * answers "what happened in my store".
- *
- * Status, channel and date are the server's to filter: they decide which orders
- * exist, and so which totals are true. The server pages the rows too, so a busy
- * store loads one page rather than a thousand orders. The search box is the
- * client's — it narrows the page already on screen, and should not cost a round
- * trip per keystroke.
- */
 
 const STATUS_FILTERS = [
     "ALL",
@@ -61,7 +60,6 @@ const DATE_FILTERS = ["Today", "7 days", "30 days", "All time"] as const;
 
 type DateFilter = (typeof DATE_FILTERS)[number];
 
-/** Status pill colours. Paid is the only success; pending is the only wait. */
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
@@ -69,10 +67,6 @@ const STATUS_STYLES: Record<PosOrder["status"], string> = {
     FAILED: "bg-danger/10 text-danger",
 };
 
-/** Rows per request until the owner picks otherwise. */
-const DEFAULT_PAGE_SIZE = 25;
-
-/** The start of the chosen window, or nothing at all for "All time". */
 function rangeStart(filter: DateFilter): string | undefined {
     const start = new Date();
 
@@ -104,9 +98,30 @@ export default function SalesOrdersPage() {
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
-    // Recomputed only when the range changes, so a re-render never looks like a
-    // new query to RTK Query and refetches the list.
     const from = useMemo(() => rangeStart(range), [range]);
+
+    const { data: businessProfile } = useGetBusinessProfileQuery();
+    const { data: storefrontStatus } = useGetStorefrontStatusQuery();
+    const [enableStorefront, { isLoading: isEnabling }] = useEnableStorefrontMutation();
+    const [disableStorefront, { isLoading: isDisabling }] = useDisableStorefrontMutation();
+    const [storefrontError, setStorefrontError] = useState<string | null>(null);
+
+    const handleMenuToggle = async (checked: boolean) => {
+        setStorefrontError(null);
+        try {
+            if (checked) {
+                await enableStorefront().unwrap();
+            } else {
+                await disableStorefront().unwrap();
+            }
+        } catch (err) {
+            setStorefrontError(getApiErrorMessage(err, "Failed to update digital menu status."));
+        }
+    };
+
+    const subdomainUrl = businessProfile?.slug 
+        ? `https://${businessProfile.slug}.fluxibiz.store` 
+        : "#";
 
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
@@ -141,24 +156,45 @@ export default function SalesOrdersPage() {
 
     return (
         <div className="flex flex-col gap-5 pb-4">
-            {/* Business Owner Digital Menu Banner */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div>
+                    <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
+                    <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                    {storefrontError && (
+                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                    )}
+                </div>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 mr-4">
+                        <Switch
+                            id="menu-toggle"
+                            checked={Boolean(storefrontStatus?.listed)}
+                            disabled={isEnabling || isDisabling}
+                            onCheckedChange={handleMenuToggle}
+                        />
+                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Enable Menu</Label>
+                    </div>
 
-            <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                <button
-                    type="button"
-                    onClick={() => setIsQRModalOpen(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
-                >
-                    <QrCode className="h-4 w-4 text-[#00a651]" />
-                    Get Menu QR Code
-                </button>
-                <Link
-                    href="/menu"
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
-                >
-                    <ExternalLink className="h-4 w-4" />
-                    View Live Menu
-                </Link>
+                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                        <button
+                            type="button"
+                            onClick={() => setIsQRModalOpen(true)}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
+                        >
+                            <QrCode className="h-4 w-4 text-[#00a651]" />
+                            QR Code
+                        </button>
+                        <Link
+                            href={subdomainUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Live Menu
+                        </Link>
+                    </div>
+                </div>
             </div>
 
             <section
@@ -191,6 +227,7 @@ export default function SalesOrdersPage() {
             <MenuQRModal
                 isOpen={isQRModalOpen}
                 onClose={() => setIsQRModalOpen(false)}
+                menuUrl={subdomainUrl !== "#" ? subdomainUrl : undefined}
             />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -237,8 +274,7 @@ export default function SalesOrdersPage() {
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
-                    /* The table scrolls inside its own box so the page never
-                       scrolls sideways on a narrow screen. */
+                  
                     <>
                         {rows.length === 0 ? (
                             <EmptyState searching={Boolean(search)} />
@@ -471,10 +507,7 @@ function Stat({ label, value }: { label: string; value: string }) {
     );
 }
 
-/**
- * Segmented rather than a dropdown: there are few enough options that showing
- * them costs less than a click, and the current filter stays readable.
- */
+
 function FilterGroup<T extends string>({
     label,
     options,
