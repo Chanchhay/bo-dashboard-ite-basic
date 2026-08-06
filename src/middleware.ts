@@ -23,8 +23,13 @@ export function middleware(request: NextRequest) {
 
     if (isLocalhost || isFluxibiz) {
         const subdomain = host.split(".")[0];
-        // Exclude root domain and special domains
-        if (subdomain !== "www" && subdomain !== "administrator" && host !== "fluxibiz.store") {
+        // Exclude root domains and special domains
+        if (
+            subdomain !== "www" && 
+            subdomain !== "administrator" && 
+            host !== "fluxibiz.store" &&
+            host !== "localhost:3000"
+        ) {
             // Rewrite to /public-menu/[subdomain]/[path]
             return NextResponse.rewrite(new URL(`/public-menu/${subdomain}${pathname}`, request.url));
         }
