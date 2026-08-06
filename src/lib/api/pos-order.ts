@@ -76,6 +76,9 @@ export type OrderPageQuery = OrderHistoryQuery & {
 /** Page sizes the orders table offers. */
 export const ORDER_PAGE_SIZES = [10, 25, 50] as const;
 
+/** The size the orders table opens on, before the owner picks another. */
+export const DEFAULT_PAGE_SIZE: (typeof ORDER_PAGE_SIZES)[number] = 25;
+
 /** Metadata the backend records when it issues or prints an order receipt. */
 export type PosReceipt = {
     id: string;
