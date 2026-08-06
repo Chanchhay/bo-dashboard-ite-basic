@@ -53,10 +53,10 @@ export default function CategoryFilter({
             key={category}
             type="button"
             onClick={() => handleSelect(category)}
-            className={`shrink-0 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 shadow-2xs active:scale-95 ${
+            className={`shrink-0 rounded-2xl px-4.5 py-2 text-sm font-bold transition-all duration-200 shadow-2xs active:scale-95 ${
               isActive
-                ? "bg-[#00a651] text-white shadow-md shadow-[#00a651]/25 border border-[#00a651] scale-[1.02]"
-                : "border border-gray-200/90 dark:border-gray-700/80 bg-white dark:bg-[#1e2330] text-gray-700 dark:text-gray-200 hover:border-primary/60 dark:hover:border-gray-500 hover:bg-primary/5 dark:hover:bg-[#282f42] hover:text-primary dark:hover:text-white"
+                ? "bg-[#00932a] text-white shadow-md shadow-[#00932a]/25 border border-[#00932a]"
+                : "border border-[#00932a]/60 dark:border-[#00932a]/70 bg-white dark:bg-[#1a1e29] text-[#00932a] dark:text-[#00932a] hover:bg-[#00932a]/10 dark:hover:bg-[#00932a]/20 hover:border-[#00932a]"
             }`}
           >
             {category}

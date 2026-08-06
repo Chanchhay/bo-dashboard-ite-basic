@@ -39,26 +39,26 @@ export function ChannelHeader({
                             variant="outline"
                             onClick={() => setIsQRModalOpen(true)}
                             size="lg"
-                            className="inline-flex items-center gap-2 border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 dark:bg-[#1a1e29] shadow-2xs"
+                            className="inline-flex items-center gap-2 border-[#00932a]/60 dark:border-[#00932a]/70 text-[#00932a] dark:text-[#00932a] hover:bg-[#00932a]/10 dark:hover:bg-[#00932a]/20 dark:bg-[#1a1e29] shadow-2xs font-bold"
                         >
-                            <QrCode className="w-4 h-4 text-[#00a651] dark:text-emerald-400" />
+                            <QrCode className="w-4 h-4 text-[#00932a] dark:text-[#00932a]" />
                             Menu QR Code
                         </Button>
                         <Link
                             href="/menu"
                             className={cn(
                                 buttonVariants({ variant: "outline", size: "lg" }),
-                                "inline-flex items-center gap-2 border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 dark:bg-[#1a1e29] shadow-2xs"
+                                "inline-flex items-center gap-2 border-[#00932a]/60 dark:border-[#00932a]/70 text-[#00932a] dark:text-[#00932a] hover:bg-[#00932a]/10 dark:hover:bg-[#00932a]/20 dark:bg-[#1a1e29] shadow-2xs font-bold"
                             )}
                         >
-                            <ExternalLink className="w-4 h-4 text-[#00a651] dark:text-emerald-400" />
+                            <ExternalLink className="w-4 h-4 text-[#00932a] dark:text-[#00932a]" />
                             View Live Menu
                         </Link>
                         <Button
                             onClick={onOpenDialog}
                             disabled={disabled}
                             size="lg"
-                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                            className="inline-flex items-center gap-2 bg-[#00932a] hover:bg-[#00932a]/90 text-white shadow-sm font-bold"
                         >
                             <Plus className="w-4 h-4" />
                             Add item to {selectedChannelCode || activeChannelCode}

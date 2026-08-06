@@ -134,14 +134,14 @@ export default function SalesOrdersPage() {
                 <button
                     type="button"
                     onClick={() => setIsQRModalOpen(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-[#1a1e29] border border-emerald-300 dark:border-emerald-700/60 px-4 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-2xs hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-2xl bg-white dark:bg-[#1a1e29] border border-[#00932a]/60 dark:border-[#00932a]/70 px-4 py-2.5 text-xs font-bold text-[#00932a] dark:text-[#00932a] shadow-2xs hover:bg-[#00932a]/10 dark:hover:bg-[#00932a]/20 transition-colors"
                 >
-                    <QrCode className="h-4 w-4 text-[#00a651] dark:text-emerald-400" />
+                    <QrCode className="h-4 w-4 text-[#00932a] dark:text-[#00932a]" />
                     Get Menu QR Code
                 </button>
                 <Link
                     href="/menu"
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-2xl bg-[#00932a] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#00932a]/90 transition-colors"
                 >
                     <ExternalLink className="h-4 w-4" />
                     View Live Menu
