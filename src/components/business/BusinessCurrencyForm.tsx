@@ -177,6 +177,9 @@ function CurrencyEditor({
     const [baseCurrency, setBaseCurrency] = useState(
         normalized.baseCurrency,
     );
+    const [displayCurrency, setDisplayCurrency] = useState(
+        normalized.displayCurrency || normalized.baseCurrency,
+    );
     const [selectedTarget, setSelectedTarget] = useState(
         normalized.currencies.find(
             (currency) => currency.code !== normalized.baseCurrency,
@@ -265,6 +268,9 @@ function CurrencyEditor({
             (currency) => currency.code !== code,
         );
         setCurrencies(remaining);
+        if (displayCurrency === code) {
+            setDisplayCurrency(baseCurrency);
+        }
         if (selectedTarget === code) {
             setSelectedTarget(
                 remaining.find(
@@ -319,6 +325,9 @@ function CurrencyEditor({
     function resetForm() {
         setCurrencies(normalized.currencies);
         setBaseCurrency(normalized.baseCurrency);
+        setDisplayCurrency(
+            normalized.displayCurrency || normalized.baseCurrency,
+        );
         setSelectedTarget(
             normalized.currencies.find(
                 (currency) =>
@@ -333,6 +342,7 @@ function CurrencyEditor({
 
         const result = businessCurrencyConfigurationSchema.safeParse({
             baseCurrency,
+            displayCurrency,
             currencies,
         });
 
@@ -352,6 +362,7 @@ function CurrencyEditor({
             const next = normalizeCurrencyConfiguration(updated);
             setCurrencies(next.currencies);
             setBaseCurrency(next.baseCurrency);
+            setDisplayCurrency(next.displayCurrency || next.baseCurrency);
             setSelectedTarget(
                 next.currencies.find(
                     (currency) => currency.code !== next.baseCurrency,
@@ -432,6 +443,32 @@ function CurrencyEditor({
                                 { value: "3", label: "3 decimals" },
                             ]}
                         />
+                    </div>
+
+                    <div>
+                        <Label
+                            htmlFor="display-currency"
+                            className="mb-3 ml-1 block text-base font-medium text-foreground"
+                        >
+                            Display Currency
+                        </Label>
+                        <SelectField
+                            id="display-currency"
+                            value={displayCurrency}
+                            onValueChange={(value) =>
+                                value && setDisplayCurrency(value)
+                            }
+                            className="rounded-xl border-border bg-popover text-base shadow-none data-[size=default]:h-14"
+                            options={currencies.map((currency) => ({
+                                value: currency.code,
+                                label: `${currency.name} (${currency.code})`,
+                            }))}
+                        />
+                        <p className="mt-2 ml-1 text-sm text-muted-foreground">
+                            {displayCurrency === baseCurrency
+                                ? "Matches the base currency, so no converted amount is shown."
+                                : `Totals and receipts also show the ${displayCurrency} equivalent.`}
+                        </p>
                     </div>
                 </div>
 

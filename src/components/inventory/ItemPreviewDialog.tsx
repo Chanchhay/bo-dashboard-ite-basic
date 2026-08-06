@@ -1,5 +1,7 @@
 "use client";
 
+import { useMoney } from "@/hooks/useMoney";
+
 import { useState } from "react";
 import {
     Check,
@@ -10,7 +12,6 @@ import {
     ShoppingBag,
 } from "lucide-react";
 
-import { formatMoney } from "@/components/inventory/InventoryUi";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
@@ -164,6 +165,7 @@ function Storefront({
     onClose: () => void;
     hideAddToCart?: boolean;
 }) {
+    const { format: formatMoney } = useMoney();
     // `placement` decides which part of the page each attribute feeds.
     const options = item.attributes.filter(
         (attribute) =>

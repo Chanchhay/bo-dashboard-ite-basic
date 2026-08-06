@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { MapPin, ImageOff } from "lucide-react";
 
+import { formatMoney } from "@/lib/money";
+
 export default async function PublicMenu({
   params,
 }: {
@@ -42,6 +44,9 @@ export default async function PublicMenu({
   }
 
   const storeDetail = await storeRes.json();
+  // The public payload carries the shop's currency; the configured symbol and
+  // decimals are not exposed here, so Intl defaults for the code apply.
+  const storeCurrency: string = storeDetail?.baseCurrency || "USD";
 
   // Fetch store items — the backend now returns whatever is published to
   // the "POS" channel, the same set the till sells.
@@ -135,7 +140,7 @@ export default async function PublicMenu({
                             {item.name}
                           </h3>
                           <span className="font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                            $ {item.price ? Number(item.price).toFixed(2) : "0.00"}
+                            {formatMoney(item.price ?? 0, storeCurrency)}
                           </span>
                         </div>
                         <p className="line-clamp-2 text-sm text-gray-500 dark:text-gray-400">

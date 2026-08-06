@@ -7,7 +7,7 @@ import { CircleCheck } from "lucide-react";
 import { CloseRegister } from "@/components/pos/close-register";
 import { useToast } from "@/components/ui/toast";
 import type { RegisterSession } from "@/lib/api/pos-session";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import { POS_ROUTES } from "@/lib/pos-routes";
 
 /**
@@ -108,6 +108,7 @@ export default function PosCloseRegisterPage() {
       openedAt={formatOpenedAt(session!.openedAt)}
       openingAmount={session!.openingBalance}
       revenue={session!.totalCashSales}
+      currency={session!.currency ?? undefined}
       orderCount={session!.orderCount ?? 0}
       onConfirm={handleConfirm}
       isProcessing={isClosing}
@@ -120,6 +121,7 @@ export default function PosCloseRegisterPage() {
  * does not recompute the difference it just reported.
  */
 function Reconciliation({ session }: { session: RegisterSession }) {
+  const { format } = useMoney();
   const router = useRouter();
   const difference = session.differenceAmount ?? 0;
 
@@ -146,20 +148,20 @@ function Reconciliation({ session }: { session: RegisterSession }) {
         </div>
 
         <dl className="flex flex-col gap-2 border-t border-gray-100 pt-4 text-sm">
-          <Row label="Opening amount" value={formatCurrency(session.openingBalance)} />
+          <Row label="Opening amount" value={format(session.openingBalance, session.currency ?? undefined)} />
           <Row label="Orders" value={String(session.orderCount ?? 0)} />
-          <Row label="Cash sales" value={formatCurrency(session.totalCashSales)} />
-          <Row label="Paid in" value={formatCurrency(session.totalPaidIn)} />
-          <Row label="Paid out" value={formatCurrency(session.totalPaidOut)} />
-          <Row label="Expected" value={formatCurrency(session.expectedAmount)} />
-          <Row label="Counted" value={formatCurrency(session.actualAmount)} />
+          <Row label="Cash sales" value={format(session.totalCashSales, session.currency ?? undefined)} />
+          <Row label="Paid in" value={format(session.totalPaidIn, session.currency ?? undefined)} />
+          <Row label="Paid out" value={format(session.totalPaidOut, session.currency ?? undefined)} />
+          <Row label="Expected" value={format(session.expectedAmount, session.currency ?? undefined)} />
+          <Row label="Counted" value={format(session.actualAmount, session.currency ?? undefined)} />
         </dl>
 
         <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
           <dt className="text-sm font-semibold text-gray-900">Difference</dt>
           <dd className={`text-lg font-bold tabular-nums ${tone}`}>
             {difference > 0 ? "+" : difference < 0 ? "−" : ""}
-            {formatCurrency(Math.abs(difference))}
+            {format(Math.abs(difference), session.currency ?? undefined)}
           </dd>
         </div>
 

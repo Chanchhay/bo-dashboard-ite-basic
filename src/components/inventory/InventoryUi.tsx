@@ -15,14 +15,6 @@ export const inventoryTextareaClassName = textareaClassName;
 
 export { getApiErrorMessage } from "@/lib/api-error";
 
-export function formatMoney(value: number | undefined) {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 2,
-    }).format(value || 0);
-}
-
 export function InventoryPageHeader({
     title,
     description,

@@ -1,5 +1,7 @@
 "use client";
 
+import { useMoney } from "@/hooks/useMoney";
+
 import Link from "next/link";
 import {
     AlertTriangle,
@@ -11,7 +13,6 @@ import {
 } from "lucide-react";
 
 import {
-    formatMoney,
     getApiErrorMessage,
     InventoryEmpty,
     InventoryError,
@@ -53,6 +54,7 @@ function metricCard(
 }
 
 export function InventoryStock() {
+    const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
     const stockSearch = useAppSelector(
         (state) => state.inventoryUi.stockSearch,
