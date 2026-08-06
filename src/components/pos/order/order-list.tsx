@@ -158,26 +158,22 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
                   onClick={() => void handleEdit(order.id)}
                   disabled={isLoadingEdit || isCancelling}
                   aria-label={`Edit ${name}`}
-                  className="flex min-h-36 w-full flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:pointer-events-none disabled:opacity-60 sm:p-5"
+                  className="flex min-h-36 w-full flex-col gap-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1e29] p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:pointer-events-none disabled:opacity-60 sm:p-5"
                 >
-                  <div className="flex w-full items-start justify-between gap-3">
+                  <div className="flex w-full items-start justify-between gap-3 pr-20">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+                      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
                         <UserRound className="size-6" aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-base font-bold text-gray-900">
+                        <span className="block truncate text-base font-bold text-gray-900 dark:text-gray-100">
                           {name}
                         </span>
-                        <span className="mt-0.5 block text-[11px] font-medium uppercase tracking-[-0.02em] text-gray-400">
+                        <span className="mt-0.5 block text-[11px] font-medium uppercase tracking-[-0.02em] text-gray-400 dark:text-gray-500">
                           Customer order
                         </span>
                       </span>
                     </div>
-                    <Pencil
-                      className="mr-11 size-5 shrink-0 text-brand-yellow"
-                      aria-hidden="true"
-                    />
                   </div>
 
                   <div className="grid w-full grid-cols-3 gap-2">
@@ -205,15 +201,30 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
                     />
                   </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderToCancel(order)}
-                  disabled={isLoadingEdit || isCancelling}
-                  aria-label={`Cancel ${name}`}
-                  className="absolute right-4 top-4 grid size-9 place-items-center rounded-xl border border-red-100 bg-red-50 text-brand-red outline-none transition-colors hover:border-red-200 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-brand-red/25 disabled:pointer-events-none disabled:opacity-50 sm:right-5 sm:top-5"
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </button>
+
+                {/* Consistent 1-Row Action Buttons */}
+                <div className="absolute right-4 top-4 sm:right-5 sm:top-5 flex items-center gap-1.5 z-10">
+                  <button
+                    type="button"
+                    onClick={() => void handleEdit(order.id)}
+                    disabled={isLoadingEdit || isCancelling}
+                    title="Edit order"
+                    aria-label={`Edit ${name}`}
+                    className="grid size-9 place-items-center rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 outline-none transition-colors hover:border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 focus-visible:ring-2 focus-visible:ring-amber-500/25 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <Pencil className="size-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderToCancel(order)}
+                    disabled={isLoadingEdit || isCancelling}
+                    title="Cancel order"
+                    aria-label={`Cancel ${name}`}
+                    className="grid size-9 place-items-center rounded-xl border border-red-100 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 text-brand-red dark:text-red-400 outline-none transition-colors hover:border-red-200 hover:bg-red-100 dark:hover:bg-red-900/60 focus-visible:ring-2 focus-visible:ring-brand-red/25 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </button>
+                </div>
               </article>
             );
           })}
@@ -236,7 +247,7 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
 function OrderMetric({
   label,
   value,
-  tone = "text-gray-700",
+  tone = "text-gray-700 dark:text-gray-200",
   emphasized = false,
 }: {
   label: string;
@@ -247,10 +258,12 @@ function OrderMetric({
   return (
     <span
       className={`flex min-w-0 flex-col items-center rounded-lg px-1.5 py-2 text-center ${
-        emphasized ? "border border-red-100 bg-red-50" : "bg-gray-50"
+        emphasized
+          ? "border border-red-100 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40"
+          : "bg-gray-50 dark:bg-[#12151e]"
       }`}
     >
-      <span className={`text-[10px] font-bold uppercase ${emphasized ? "text-red-300" : "text-gray-400"}`}>
+      <span className={`text-[10px] font-bold uppercase ${emphasized ? "text-red-400 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}>
         {label}
       </span>
       <span className={`mt-0.5 max-w-full truncate text-xs font-semibold ${tone}`}>

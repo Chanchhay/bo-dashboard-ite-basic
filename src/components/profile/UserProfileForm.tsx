@@ -634,16 +634,13 @@ function ProfileQueryError({
     );
 }
 
+import { FormSkeleton } from "@/components/ui/skeleton";
+
 export default function UserProfileForm() {
     const profileQuery = useGetUserProfileQuery();
 
     if (profileQuery.isLoading) {
-        return (
-            <div
-                className="min-h-[620px] animate-pulse rounded-2xl bg-[#e8ede7] dark:bg-[#1a1e29] border border-transparent dark:border-[#242937]"
-                aria-label="Loading user profile"
-            />
-        );
+        return <FormSkeleton rows={6} />;
     }
 
     if (profileQuery.error || !profileQuery.data) {

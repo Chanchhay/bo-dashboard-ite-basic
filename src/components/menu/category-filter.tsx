@@ -1,21 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { CategoryFilterSkeleton } from "@/components/ui/skeleton";
 
 type CategoryFilterProps = {
   categories?: string[];
   selectedCategory?: string;
   onChange?: (category: string) => void;
+  isLoading?: boolean;
 };
 
 export default function CategoryFilter({
   categories = [],
   selectedCategory,
   onChange,
+  isLoading = false,
 }: CategoryFilterProps) {
   const [internalActive, setInternalActive] = useState("All Category");
 
-  if (!categories || categories.length === 0) {
+  if (isLoading) {
+    return <CategoryFilterSkeleton />;
+  }
+
+  if (categories.length === 0) {
     return null;
   }
 
@@ -31,7 +38,7 @@ export default function CategoryFilter({
   };
 
   return (
-    <div className="category-scroll snap-x snap-mandatory scroll-smooth [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex w-full items-center justify-start gap-3 overflow-x-auto py-3 px-1">
+    <div className="category-scroll snap-x snap-mandatory scroll-smooth [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex w-full items-center justify-start gap-2.5 sm:gap-3 overflow-x-auto py-3 px-1">
       {list.map((category) => {
         const isActive = category === activeCategory;
         return (
@@ -39,10 +46,10 @@ export default function CategoryFilter({
             key={category}
             type="button"
             onClick={() => handleSelect(category)}
-            className={`shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all shadow-2xs active:scale-95 ${
+            className={`shrink-0 rounded-2xl px-4.5 py-2 text-sm font-bold transition-all duration-200 shadow-2xs active:scale-95 ${
               isActive
-                ? "bg-[#00a651] text-white shadow-md shadow-[#00a651]/20 border border-[#00a651]"
-                : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                ? "bg-[#00932a] text-white shadow-md shadow-[#00932a]/25 border border-[#00932a]"
+                : "border border-[#00932a]/60 dark:border-[#00932a]/70 bg-white dark:bg-[#1a1e29] text-[#00932a] dark:text-[#00932a] hover:bg-[#00932a]/10 dark:hover:bg-[#00932a]/20 hover:border-[#00932a]"
             }`}
           >
             {category}

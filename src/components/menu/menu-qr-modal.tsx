@@ -52,37 +52,37 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#2a3042] p-6 shadow-2xl transition-all">
         {/* Close Button */}
         <button
           onClick={onClose}
           type="button"
           aria-label="Close modal"
-          className="absolute right-4 top-4 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-gray-400 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#242937] hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
 
         {/* Title */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary dark:bg-emerald-500/20 dark:text-emerald-400">
             <QrCode className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Digital Menu QR Code</h3>
-            <p className="text-xs text-gray-500">Scan or download for your customers</p>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Digital Menu QR Code</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Scan or download for your customers</p>
           </div>
         </div>
 
         {/* QR Code Render Area */}
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-inner my-4">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 dark:border-[#2a3042] bg-gray-50 dark:bg-[#12151e] p-6 shadow-inner my-4">
           <img
             src={qrImageUrl}
             alt="Menu QR Code"
             className="h-52 w-52 rounded-xl bg-white p-2 shadow-sm object-contain"
           />
-          <p className="text-xs font-semibold text-gray-500 mt-3 text-center truncate max-w-full px-2">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-3 text-center truncate max-w-full px-2">
             {targetUrl}
           </p>
         </div>
@@ -103,9 +103,9 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
               type="button"
               onClick={handleCopyLink}
               title="Copy Menu URL"
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-98 transition-all"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 dark:border-[#2a3042] bg-white dark:bg-[#242937] px-3.5 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2c3243] active:scale-98 transition-all"
             >
-              {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              {copied ? <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-4 w-4" />}
             </button>
           </div>
 
@@ -113,7 +113,7 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
             href={targetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-[#2a3042] bg-gray-50 dark:bg-[#12151e] px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#242937] transition-colors"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Open Menu Page in New Tab

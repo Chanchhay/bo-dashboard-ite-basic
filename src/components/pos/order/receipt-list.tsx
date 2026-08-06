@@ -222,7 +222,7 @@ export function ReceiptsList({
         />
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:mt-[26px]">
+      <div className="mt-4 flex w-full items-center gap-2 overflow-x-auto scrollbar-none py-1 sm:gap-3 lg:mt-[26px]">
         <DateRangeFilter
           from={formatFilterDate(dateRange.from)}
           to={formatFilterDate(dateRange.to)}
@@ -244,10 +244,10 @@ export function ReceiptsList({
           onClick={() => void receiptsQuery.refetch()}
           disabled={receiptsQuery.isFetching}
           aria-label="Refresh receipts"
-          className="grid size-[50px] shrink-0 place-items-center self-end rounded-xl border border-[#c6c6cd] bg-white text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-50 sm:ml-auto sm:self-auto"
+          className="grid size-11 sm:size-[50px] shrink-0 place-items-center rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1a1e29] text-primary outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-50"
         >
           <RefreshCw
-            className={receiptsQuery.isFetching ? "size-5 animate-spin" : "size-5"}
+            className={receiptsQuery.isFetching ? "size-4 sm:size-5 animate-spin" : "size-4 sm:size-5"}
             aria-hidden="true"
           />
         </button>
