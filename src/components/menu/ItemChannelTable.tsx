@@ -14,9 +14,7 @@ interface ItemChannelTableProps {
     searchQuery: string;
     inventoryLoading: boolean;
     inventoryItems: InventoryItem[];
-    /** Ids already published to the selected channel. */
     publishedItemIds: Set<string>;
-    /** The row currently mid-request, so only that one shows a busy state. */
     pendingItemId: string;
     onSearchChange: (value: string) => void;
     onRefresh: () => void;
