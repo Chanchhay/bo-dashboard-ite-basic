@@ -14,47 +14,42 @@ export default async function PublicMenu({
   }
 
   // Fetch store details
-  const storeRes = await fetch(`${baseUrl}/api/v1/storefronts/${slug}`, {
+  const storeUrl = `${baseUrl}/api/v1/public/stores/${slug}`;
+  const storeRes = await fetch(storeUrl, {
     next: { revalidate: 60 }, // Cache for 60 seconds
   });
 
   if (!storeRes.ok) {
+    const bodyText = await storeRes.text().catch(() => "");
+    console.error(
+      `[public-menu] storefront lookup failed — slug="${slug}" url="${storeUrl}" status=${storeRes.status} body="${bodyText.slice(0, 300)}"`
+    );
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <h1 className="text-2xl font-bold text-gray-700 dark:text-gray-300">
-          Store not found
-        </h1>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-700 dark:text-gray-300">
+            Store not found
+          </h1>
+          {process.env.NODE_ENV !== "production" && (
+            <p className="mt-2 text-xs text-gray-400 break-all max-w-md">
+              slug="{slug}" · status={storeRes.status} · url={storeUrl}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
   const storeDetail = await storeRes.json();
 
-  // Fetch store items
-  const itemsRes = await fetch(`${baseUrl}/api/v1/storefronts/${slug}/items`, {
+  // Fetch store items — the backend now returns whatever is published to
+  // the "POS" channel, the same set the till sells.
+  const itemsRes = await fetch(`${baseUrl}/api/v1/public/stores/${slug}/items`, {
     next: { revalidate: 60 },
   });
-  
+
   const storeItems = itemsRes.ok ? await itemsRes.json() : [];
-
-  const isMenuEnabled = storeDetail?.socialLinks?.some(
-    (link: Record<string, string>) => link.menu_enabled === "true"
-  );
-
-  if (!isMenuEnabled) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-md">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Menu Not Available
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            This business has not enabled their digital menu yet.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // Group items by category
   const categoriesMap = new Map<string, any[]>();
@@ -79,11 +74,9 @@ export default async function PublicMenu({
         <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
             {storeDetail.logo ? (
-              <Image
+              <img
                 src={storeDetail.logo}
                 alt={storeDetail.displayName || storeDetail.name}
-                width={96}
-                height={96}
                 className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md bg-white"
               />
             ) : (

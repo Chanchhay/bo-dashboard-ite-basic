@@ -12,7 +12,7 @@ const protectedRoutes = [
 ];
 const authRoutes = ["/login", "/callback"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     const url = request.nextUrl;
     const { pathname, host } = url;
     const sessionCookie = getSessionCookie(request);
@@ -25,7 +25,6 @@ export function middleware(request: NextRequest) {
         if (
             subdomain !== "www" && 
             subdomain !== "administrator" && 
-            subdomain !== "business" &&
             host !== "fluxibiz.store" &&
             host !== "localhost:3000"
         ) {

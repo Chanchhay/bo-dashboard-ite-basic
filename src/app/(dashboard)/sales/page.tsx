@@ -25,19 +25,14 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency } from "@/lib/money";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { useGetOrderHistoryQuery } from "@/services/posOrderApi";
-import { useGetBusinessProfileQuery } from "@/services/businessApi";
+import {
+    useGetBusinessProfileQuery,
+    useGetStorefrontStatusQuery,
+    useEnableStorefrontMutation,
+    useDisableStorefrontMutation,
+} from "@/services/businessApi";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 
-/**
- * Orders — the record of what was sold, and nothing else. Getting to other
- * pages is the sidebar's job, so this page never links sideways; every pixel
- * answers "what happened in my store".
- *
- * Status, channel and date are the server's to filter: they decide which orders
- * exist, and so which totals are true. The search box is the client's, because
- * it only narrows what is already on screen and should not cost a round trip
- * per keystroke.
- */
 
 const STATUS_FILTERS = [
     "ALL",
@@ -59,7 +54,6 @@ const DATE_FILTERS = ["Today", "7 days", "30 days", "All time"] as const;
 
 type DateFilter = (typeof DATE_FILTERS)[number];
 
-/** Status pill colours. Paid is the only success; pending is the only wait. */
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
@@ -67,10 +61,8 @@ const STATUS_STYLES: Record<PosOrder["status"], string> = {
     FAILED: "bg-danger/10 text-danger",
 };
 
-/** How many rows are rendered before the list asks to be extended. */
 const ROWS_PER_PAGE = 50;
 
-/** The start of the chosen window, or nothing at all for "All time". */
 function rangeStart(filter: DateFilter): string | undefined {
     const start = new Date();
 
@@ -101,11 +93,27 @@ export default function SalesOrdersPage() {
     const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
     const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
-    // Recomputed only when the range changes, so a re-render never looks like a
-    // new query to RTK Query and refetches the list.
     const from = useMemo(() => rangeStart(range), [range]);
 
     const { data: businessProfile } = useGetBusinessProfileQuery();
+    const { data: storefrontStatus } = useGetStorefrontStatusQuery();
+    const [enableStorefront, { isLoading: isEnabling }] = useEnableStorefrontMutation();
+    const [disableStorefront, { isLoading: isDisabling }] = useDisableStorefrontMutation();
+    const [storefrontError, setStorefrontError] = useState<string | null>(null);
+
+    const handleMenuToggle = async (checked: boolean) => {
+        setStorefrontError(null);
+        try {
+            if (checked) {
+                await enableStorefront().unwrap();
+            } else {
+                await disableStorefront().unwrap();
+            }
+        } catch (err) {
+            setStorefrontError(getApiErrorMessage(err));
+        }
+    };
+
     const subdomainUrl = businessProfile?.slug 
         ? `https://${businessProfile.slug}.fluxibiz.store` 
         : "#";
@@ -142,10 +150,18 @@ export default function SalesOrdersPage() {
                 <div>
                     <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
                     <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                    {storefrontError && (
+                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                    )}
                 </div>
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                     <div className="flex items-center gap-2 mr-4">
-                        <Switch id="menu-toggle" defaultChecked />
+                        <Switch
+                            id="menu-toggle"
+                            checked={Boolean(storefrontStatus?.listed)}
+                            disabled={isEnabling || isDisabling}
+                            onCheckedChange={handleMenuToggle}
+                        />
                         <Label htmlFor="menu-toggle" className="text-sm font-medium">Enable Menu</Label>
                     </div>
 
@@ -245,8 +261,7 @@ export default function SalesOrdersPage() {
                 ) : matches.length === 0 ? (
                     <EmptyState searching={Boolean(search)} />
                 ) : (
-                    /* The table scrolls inside its own box so the page never
-                       scrolls sideways on a narrow screen. */
+                  
                     <>
                         <div
                             className="overflow-x-auto"
