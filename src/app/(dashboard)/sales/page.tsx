@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+    ChevronLeft,
+    ChevronRight,
     Receipt,
     RefreshCw,
     Search,
@@ -20,8 +22,11 @@ import {
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency } from "@/lib/money";
-import type { PosOrder } from "@/lib/api/pos-order";
-import { useGetOrderHistoryQuery } from "@/services/posOrderApi";
+import { ORDER_PAGE_SIZES, type PosOrder } from "@/lib/api/pos-order";
+import {
+    useGetOrderHistoryQuery,
+    useGetOrderSummaryQuery,
+} from "@/services/posOrderApi";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 
 /**
@@ -30,9 +35,10 @@ import MenuQRModal from "@/components/menu/menu-qr-modal";
  * answers "what happened in my store".
  *
  * Status, channel and date are the server's to filter: they decide which orders
- * exist, and so which totals are true. The search box is the client's, because
- * it only narrows what is already on screen and should not cost a round trip
- * per keystroke.
+ * exist, and so which totals are true. The server pages the rows too, so a busy
+ * store loads one page rather than a thousand orders. The search box is the
+ * client's — it narrows the page already on screen, and should not cost a round
+ * trip per keystroke.
  */
 
 const STATUS_FILTERS = [
@@ -63,8 +69,8 @@ const STATUS_STYLES: Record<PosOrder["status"], string> = {
     FAILED: "bg-danger/10 text-danger",
 };
 
-/** How many rows are rendered before the list asks to be extended. */
-const ROWS_PER_PAGE = 50;
+/** Rows per request until the owner picks otherwise. */
+const DEFAULT_PAGE_SIZE = 25;
 
 /** The start of the chosen window, or nothing at all for "All time". */
 function rangeStart(filter: DateFilter): string | undefined {
@@ -94,7 +100,8 @@ export default function SalesOrdersPage() {
         useState<(typeof CHANNEL_FILTERS)[number]>("ALL");
     const [range, setRange] = useState<DateFilter>("Today");
     const [query, setQuery] = useState("");
-    const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
     // Recomputed only when the range changes, so a re-render never looks like a
@@ -102,13 +109,16 @@ export default function SalesOrdersPage() {
     const from = useMemo(() => rangeStart(range), [range]);
 
     const { data, error, isLoading, isFetching, refetch } =
-        useGetOrderHistoryQuery({ status, channel, from });
+        useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
+    // Cached on the filters alone, so turning a page never recounts the range.
+    const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
     const orders = useMemo(() => data?.content ?? [], [data]);
-    const totals = data?.totals;
+    const totals = summaryQuery.data?.totals;
+    const metadata = data?.page;
 
     const search = query.trim().toLowerCase();
-    const matches = useMemo(
+    const rows = useMemo(
         () =>
             search
                 ? orders.filter((order) => matchesSearch(order, search))
@@ -116,13 +126,16 @@ export default function SalesOrdersPage() {
         [orders, search],
     );
 
-    const rows = matches.slice(0, visibleRows);
+    const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
+    const totalElements = metadata?.totalElements ?? rows.length;
+    const firstRow = totalElements === 0 ? 0 : page * pageSize + 1;
+    const lastRow = Math.min(page * pageSize + orders.length, totalElements);
 
-    /** Any filter change starts the list from the top again. */
+    /** Any filter change starts the list from the first page again. */
     function applyFilter<T>(set: (next: T) => void) {
         return (next: T) => {
             set(next);
-            setVisibleRows(ROWS_PER_PAGE);
+            setPage(0);
         };
     }
 
@@ -150,6 +163,14 @@ export default function SalesOrdersPage() {
                 />
             </section>
 
+            {summaryQuery.data?.truncated && (
+                <p className="-mt-2 text-[13px] text-muted-foreground">
+                    Totals cover the most recent orders in this range only.
+                    Narrow the dates for exact figures — the table below still
+                    pages through every order.
+                </p>
+            )}
+
             <MenuQRModal
                 isOpen={isQRModalOpen}
                 onClose={() => setIsQRModalOpen(false)}
@@ -166,11 +187,8 @@ export default function SalesOrdersPage() {
                         <input
                             type="search"
                             value={query}
-                            onChange={(e) => {
-                                setQuery(e.target.value);
-                                setVisibleRows(ROWS_PER_PAGE);
-                            }}
-                            placeholder="Search invoice, order name or item"
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Search this page by invoice, order name or item"
                             className="h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
                         />
                     </label>
@@ -201,67 +219,158 @@ export default function SalesOrdersPage() {
                     </p>
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
-                ) : matches.length === 0 ? (
-                    <EmptyState searching={Boolean(search)} />
                 ) : (
                     /* The table scrolls inside its own box so the page never
                        scrolls sideways on a narrow screen. */
                     <>
-                        <div
-                            className="overflow-x-auto"
-                            aria-busy={isFetching}
-                        >
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Invoice</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Channel</TableHead>
-                                        <TableHead>Order</TableHead>
-                                        <TableHead className="text-right">
-                                            Items
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            Total
-                                        </TableHead>
-                                        <TableHead>Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {rows.map((order) => (
-                                        <OrderRow
-                                            key={order.id}
-                                            order={order}
-                                        />
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        {rows.length === 0 ? (
+                            <EmptyState searching={Boolean(search)} />
+                        ) : (
+                            <div
+                                className="overflow-x-auto"
+                                aria-busy={isFetching}
+                            >
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Invoice</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Channel</TableHead>
+                                            <TableHead>Order</TableHead>
+                                            <TableHead className="text-right">
+                                                Items
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Total
+                                            </TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {rows.map((order) => (
+                                            <OrderRow
+                                                key={order.id}
+                                                order={order}
+                                            />
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
 
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
-                            <p className="text-[13px] text-muted-foreground">
-                                Showing {rows.length} of {matches.length}
-                                {data?.truncated
-                                    ? " — the most recent orders in this range. Narrow the dates to see the rest."
-                                    : ""}
-                            </p>
-                            {rows.length < matches.length && (
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setVisibleRows(
-                                            (shown) => shown + ROWS_PER_PAGE,
-                                        )
-                                    }
-                                    className="rounded-xl border border-border px-3 py-1.5 text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"
-                                >
-                                    Show more
-                                </button>
-                            )}
-                        </div>
+                        {/* The pager stays put even when a search empties the
+                            page, so the way back to the rest is never hidden. */}
+                        <Pager
+                            page={page}
+                            pageCount={pageCount}
+                            pageSize={pageSize}
+                            first={firstRow}
+                            last={lastRow}
+                            total={totalElements}
+                            busy={isFetching}
+                            filtered={
+                                search ? orders.length - rows.length : 0
+                            }
+                            onPage={setPage}
+                            onPageSize={(next) => {
+                                setPageSize(next);
+                                setPage(0);
+                            }}
+                        />
                     </>
                 )}
             </section>
+        </div>
+    );
+}
+
+/**
+ * Where in the range the table is, and how to move through it.
+ *
+ * Page numbers stay out of it: an owner looking for a sale reaches for the
+ * date filter, not page 14. Position, a step either way, and how many rows at
+ * a time is the whole of what this needs to say.
+ */
+function Pager({
+    page,
+    pageCount,
+    pageSize,
+    first,
+    last,
+    total,
+    busy,
+    filtered,
+    onPage,
+    onPageSize,
+}: {
+    page: number;
+    pageCount: number;
+    pageSize: number;
+    first: number;
+    last: number;
+    total: number;
+    busy: boolean;
+    /** Rows the search hid on this page, so the count is not a mystery. */
+    filtered: number;
+    onPage: (next: number) => void;
+    onPageSize: (next: number) => void;
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+            <p className="text-[13px] text-muted-foreground">
+                {total === 0
+                    ? "No orders"
+                    : `Showing ${first}–${last} of ${total}`}
+                {filtered > 0
+                    ? ` — ${filtered} hidden by the search on this page`
+                    : ""}
+            </p>
+
+            <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    Rows
+                    <select
+                        value={pageSize}
+                        onChange={(event) =>
+                            onPageSize(Number(event.target.value))
+                        }
+                        className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                        {ORDER_PAGE_SIZES.map((size) => (
+                            <option key={size} value={size}>
+                                {size}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => onPage(Math.max(0, page - 1))}
+                        disabled={page === 0 || busy}
+                        aria-label="Previous page"
+                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <ChevronLeft className="size-4" aria-hidden="true" />
+                    </button>
+                    <span
+                        className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground"
+                        aria-live="polite"
+                    >
+                        Page {page + 1} of {pageCount}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => onPage(page + 1)}
+                        disabled={page + 1 >= pageCount || busy}
+                        aria-label="Next page"
+                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <ChevronRight className="size-4" aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

@@ -40,19 +40,19 @@ export type PosOrderPage = {
 };
 
 /**
- * Every order in a date range, whatever its status — what Sale Management
- * shows. Totals are counted over the whole range rather than the rows on
- * screen, so the stat cards and the table can never disagree.
+ * What Sale Management's stat cards read.
+ *
+ * Counted over the whole filtered range rather than the page on screen, so the
+ * cards keep meaning the same thing as the cashier pages through the table.
  */
-export type OrderHistory = {
-    content: PosOrder[];
+export type OrderSummary = {
     totals: {
         orders: number;
         revenue: number;
         paid: number;
         pending: number;
     };
-    /** True when the range holds more orders than one request will load. */
+    /** True when the range holds more orders than one read will total up. */
     truncated: boolean;
 };
 
@@ -66,6 +66,15 @@ export type OrderHistoryQuery = {
     from?: string;
     to?: string;
 };
+
+/** The same filters, plus the page of them the table is showing. */
+export type OrderPageQuery = OrderHistoryQuery & {
+    page?: number;
+    size?: number;
+};
+
+/** Page sizes the orders table offers. */
+export const ORDER_PAGE_SIZES = [10, 25, 50] as const;
 
 /** Metadata the backend records when it issues or prints an order receipt. */
 export type PosReceipt = {
