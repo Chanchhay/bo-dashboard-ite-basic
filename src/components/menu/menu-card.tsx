@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 export interface PosCardType {
@@ -31,11 +32,13 @@ export default function MenuCard({
       className="group relative flex flex-col gap-3 transition-transform duration-200 hover:-translate-y-1 cursor-pointer"
     >
       {/* Image Rounded Container */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-[28px] bg-[#f0f0f0] dark:bg-gray-800 p-4 flex items-center justify-center border border-gray-100 dark:border-gray-700 shadow-xs group-hover:shadow-md transition-shadow">
-        <img
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-[#1a1e29] border border-gray-100 dark:border-gray-800/80 shadow-xs group-hover:shadow-md transition-all duration-300">
+        <Image
           src={image || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80"}
           alt={name}
-          className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal transition-transform duration-300 group-hover:scale-105"
+          width={100}
+          height={100}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
               "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80";
@@ -52,7 +55,7 @@ export default function MenuCard({
           {name}
         </h3>
         <div className="flex items-center justify-between mt-1">
-          <span className="text-base sm:text-lg font-extrabold text-primary">
+          <span className="text-base sm:text-lg font-extrabold text-[#d14341] dark:text-[#f87171]">
             ${formattedPrice}
           </span>
         </div>

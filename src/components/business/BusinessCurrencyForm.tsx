@@ -681,16 +681,13 @@ function CurrencyQueryError({
     );
 }
 
+import { FormSkeleton } from "@/components/ui/skeleton";
+
 export default function BusinessCurrencyForm() {
     const query = useGetBusinessCurrenciesQuery();
 
     if (query.isLoading) {
-        return (
-            <div
-                aria-label="Loading currency configuration"
-                className="min-h-[795px] animate-pulse rounded-2xl bg-muted/40 border border-border"
-            />
-        );
+        return <FormSkeleton rows={5} />;
     }
 
     if (query.error || !query.data) {

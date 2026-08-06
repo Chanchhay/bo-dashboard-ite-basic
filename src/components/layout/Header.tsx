@@ -50,7 +50,7 @@ export default function Header({
                 <label className="relative hidden md:block">
                     <span className="sr-only">Search</span>
                     <Search
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8a8f89] dark:text-[#94a3b8]"
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-brand-yellow dark:text-brand-yellow"
                         aria-hidden="true"
                     />
                     <input

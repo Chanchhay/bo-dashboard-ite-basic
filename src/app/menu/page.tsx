@@ -6,6 +6,7 @@ import StoreProvider from "@/app/StoreProvider";
 import MenuNavbar from "@/components/menu/menu-navbar";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
+import { MenuCardSkeleton, CategoryFilterSkeleton } from "@/components/ui/skeleton";
 import { useGetChannelItemsQuery } from "@/services/salesChannelApi";
 import type { InventoryItem } from "@/lib/api/inventory";
 import { ShoppingBag } from "lucide-react";
@@ -83,7 +84,7 @@ function StaticMenuContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] text-gray-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
       {/* Sticky Header with Search Bar */}
       <MenuNavbar
         searchQuery={searchQuery}
@@ -92,33 +93,27 @@ function StaticMenuContent() {
       />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6 space-y-6">
-        {/* Category Pills Filter Bar (Only shown after real items load) */}
-        {!isLoading && categories.length > 0 && (
-          <CategoryFilter
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onChange={setSelectedCategory}
-          />
-        )}
+        {/* Category Pills Filter Bar */}
+        <CategoryFilter
+          categories={categories.length > 0 ? categories : undefined}
+          selectedCategory={selectedCategory}
+          onChange={setSelectedCategory}
+          isLoading={isLoading}
+        />
 
         {/* Product Menu Grid */}
         <div>
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 sm:gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                <div key={n} className="flex flex-col gap-3 animate-pulse">
-                  <div className="aspect-square w-full rounded-[28px] bg-gray-200" />
-                  <div className="h-4 w-1/3 bg-gray-200 rounded-md" />
-                  <div className="h-5 w-2/3 bg-gray-200 rounded-md" />
-                  <div className="h-5 w-1/4 bg-gray-200 rounded-md" />
-                </div>
+                <MenuCardSkeleton key={n} />
               ))}
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-white py-16 text-center">
-              <ShoppingBag className="h-10 w-10 text-gray-400 mb-3" />
-              <h3 className="text-lg font-bold text-gray-800">No POS Items Found</h3>
-              <p className="text-sm text-gray-500 mt-1 max-w-md">
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 dark:border-gray-800 bg-white dark:bg-[#1a1e29] py-16 text-center">
+              <ShoppingBag className="h-10 w-10 text-gray-400 dark:text-gray-500 mb-3" />
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">No POS Items Found</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md">
                 No items match your search or category filter.
               </p>
               {(searchQuery || selectedCategory !== "All Category") && (
@@ -128,7 +123,7 @@ function StaticMenuContent() {
                     setSearchQuery("");
                     setSelectedCategory("All Category");
                   }}
-                  className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                  className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary/90 transition-all"
                 >
                   Reset Filters
                 </button>

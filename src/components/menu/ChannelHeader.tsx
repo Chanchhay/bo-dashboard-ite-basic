@@ -39,7 +39,7 @@ export function ChannelHeader({
                             variant="outline"
                             onClick={() => setIsQRModalOpen(true)}
                             size="lg"
-                            className="inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs"
+                            className="inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs font-bold"
                         >
                             <QrCode className="w-4 h-4 text-primary" />
                             Menu QR Code
@@ -48,7 +48,7 @@ export function ChannelHeader({
                             href="/menu"
                             className={cn(
                                 buttonVariants({ variant: "outline", size: "lg" }),
-                                "inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs"
+                                "inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs font-bold"
                             )}
                         >
                             <ExternalLink className="w-4 h-4 text-primary" />
@@ -58,7 +58,7 @@ export function ChannelHeader({
                             onClick={onOpenDialog}
                             disabled={disabled}
                             size="lg"
-                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm"
+                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm font-bold"
                         >
                             <Plus className="w-4 h-4" />
                             Add item to {selectedChannelCode || activeChannelCode}
