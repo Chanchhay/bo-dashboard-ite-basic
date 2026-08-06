@@ -611,17 +611,14 @@ function ProfileQueryError({
     );
 }
 
+import { FormSkeleton } from "@/components/ui/skeleton";
+
 export default function BusinessProfileForm() {
     const businessQuery = useGetBusinessProfileQuery();
     const categoriesQuery = useGetBusinessCategoriesQuery();
 
     if (businessQuery.isLoading) {
-        return (
-            <div
-                className="min-h-[847px] animate-pulse rounded-xl bg-[#f7f8f7] dark:bg-[#1a1e29] border border-transparent dark:border-[#242937]"
-                aria-label="Loading business profile"
-            />
-        );
+        return <FormSkeleton rows={6} />;
     }
 
     if (businessQuery.error || !businessQuery.data) {
