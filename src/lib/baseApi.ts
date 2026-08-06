@@ -29,6 +29,9 @@ export const baseApi = createApi({
         "PosOrderHistory",
         "PosReceipts",
         "Storefront",
+        "Discounts",
+        "Coupons",
+        "MembershipTypes",
     ],
     endpoints: () => ({}),
 });

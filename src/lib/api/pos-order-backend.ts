@@ -2,10 +2,89 @@ import { cookies } from "next/headers";
 
 import { BackendApiError, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
-import { POS_ORDER_COOKIE, type PosOrder } from "@/lib/api/pos-order";
+import {
+    POS_ORDER_COOKIE,
+    type PosOrder,
+    type PosOrderPage,
+} from "@/lib/api/pos-order";
 
 export function ordersPath(businessId: string, suffix = "") {
     return `/api/v1/businesses/${businessId}/orders${suffix}`;
+}
+
+/** One filter clause of the backend's search DTO. */
+export type OrderFilter = {
+    column: string;
+    value: string;
+    operation: string;
+};
+
+/**
+ * A page of orders as the backend sends it.
+ *
+ * `page` carries the page index in the documented `PageResponse`, but older
+ * builds sent a nested Spring `page` object or a bare `number` instead. All
+ * three are accepted here so the browser only ever sees one shape.
+ */
+type BackendOrderPage = {
+    content?: PosOrder[];
+    page?: number | Partial<PosOrderPage["page"]>;
+    number?: number;
+    size?: number;
+    totalElements?: number;
+    totalPages?: number;
+};
+
+function normalisePage(
+    result: BackendOrderPage,
+    requested: { page: number; size: number },
+): PosOrderPage["page"] {
+    const nested =
+        typeof result.page === "object" && result.page !== null
+            ? result.page
+            : null;
+    const index =
+        nested?.number ??
+        (typeof result.page === "number" ? result.page : result.number) ??
+        requested.page;
+    const size = nested?.size ?? result.size ?? requested.size;
+    const totalElements =
+        nested?.totalElements ??
+        result.totalElements ??
+        (result.content?.length ?? 0);
+
+    return {
+        size,
+        number: index,
+        totalElements,
+        totalPages:
+            nested?.totalPages ??
+            result.totalPages ??
+            Math.ceil(totalElements / Math.max(size, 1)),
+    };
+}
+
+/** One page of orders matching `filters`, newest first. */
+export async function filterOrders(
+    businessId: string,
+    filters: OrderFilter[],
+    pageable: { page: number; size: number },
+): Promise<PosOrderPage> {
+    const result = await backendRequest<BackendOrderPage>(
+        `${ordersPath(businessId, "/filter")}?page=${pageable.page}&size=${pageable.size}&sort=createdDate,desc`,
+        {
+            method: "POST",
+            body: JSON.stringify({
+                searchRequestDto: filters,
+                globalOperator: "AND",
+            }),
+        },
+    );
+
+    return {
+        content: result.content ?? [],
+        page: normalisePage(result, pageable),
+    };
 }
 
 /** A shift is a working day at most, and so is the cart inside it. */

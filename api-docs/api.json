@@ -3340,6 +3340,115 @@
         }
       }
     },
+    "/api/v1/user-profiles/me/picture": {
+      "post": {
+        "tags": [
+          "user-profile-controller"
+        ],
+        "operationId": "uploadProfilePicture",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "user-profile-controller"
+        ],
+        "operationId": "removeProfilePicture",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/storefront/checkout": {
       "post": {
         "tags": [
@@ -5140,7 +5249,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedModelOrderResponse"
+                  "$ref": "#/components/schemas/PageResponseOrderResponse"
                 }
               }
             }
@@ -6997,12 +7106,13 @@
         "operationId": "updateProfile",
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUserProfileRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -10245,218 +10355,6 @@
         }
       }
     },
-    "/api/v1/business-categories": {
-      "get": {
-        "tags": [
-          "public-business-category-controller"
-        ],
-        "operationId": "getBusinessCategories",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BusinessCategoryResponse"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/business-categories/tree": {
-      "get": {
-        "tags": [
-          "public-business-category-controller"
-        ],
-        "operationId": "getBusinessCategories_1",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BusinessCategoryResponse"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public/business-categories/tree": {
-      "get": {
-        "tags": [
-          "public-business-category-controller"
-        ],
-        "operationId": "getBusinessCategories_2",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BusinessCategoryResponse"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public/business-categories": {
-      "get": {
-        "tags": [
-          "public-business-category-controller"
-        ],
-        "operationId": "getBusinessCategories_3",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BusinessCategoryResponse"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/notifications/received": {
       "get": {
         "tags": [
@@ -11545,6 +11443,112 @@
         }
       }
     },
+    "/api/v1/business-categories": {
+      "get": {
+        "tags": [
+          "public-business-category-controller"
+        ],
+        "operationId": "getBusinessCategories",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessCategoryResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business-categories/tree": {
+      "get": {
+        "tags": [
+          "public-business-category-controller"
+        ],
+        "operationId": "getBusinessCategories_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessCategoryResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/platform-features": {
       "get": {
         "tags": [
@@ -12102,49 +12106,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Content Too Large",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/user-profiles/me/picture": {
-      "delete": {
-        "tags": [
-          "user-profile-controller"
-        ],
-        "operationId": "removeProfilePicture",
-        "responses": {
-          "204": {
-            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",
@@ -12815,8 +12776,7 @@
           "typeName": {
             "type": "string",
             "maxLength": 100,
-            "minLength": 0,
-            "pattern": "^[\\p{L}]+(?: [\\p{L}]+)*$"
+            "minLength": 0
           },
           "remark": {
             "type": "string",
@@ -13368,8 +13328,7 @@
           "name": {
             "type": "string",
             "maxLength": 150,
-            "minLength": 0,
-            "pattern": "^[\\\\p{L}]+(?: [\\\\p{L}]+)*$"
+            "minLength": 0
           },
           "description": {
             "type": "string",
@@ -13378,7 +13337,7 @@
           },
           "type": {
             "type": "string",
-            "pattern": "PERCENTAGE|FIXED_AMOUNT|BUY_X_GET_Y"
+            "pattern": "PERCENTAGE|FIXED_AMOUNT"
           },
           "ruleType": {
             "type": "string",
@@ -13416,8 +13375,7 @@
               "ORDER",
               "ITEM",
               "CATEGORY"
-            ],
-            "pattern": "ALL_ITEMS|SPECIFIC_ITEMS|SPECIFIC_CATEGORIES|SPECIFIC_MEMBERSHIP"
+            ]
           },
           "minOrderAmount": {
             "type": "number",
@@ -14065,6 +14023,41 @@
           },
           "callback_query": {
             "$ref": "#/components/schemas/TelegramCallbackQuery"
+          }
+        }
+      },
+      "UserProfileResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "profilePicture": {
+            "type": "string"
           }
         }
       },
@@ -15022,6 +15015,83 @@
           }
         }
       },
+      "PageResponseOrderResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "empty": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateMembershipTypeRequest": {
+        "type": "object",
+        "properties": {
+          "typeName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "remark": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "discountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ]
+          }
+        },
+        "required": [
+          "typeName"
+        ]
+      },
+      "UploadItemImagesRequest": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
       "PageMetadata": {
         "type": "object",
         "properties": {
@@ -15040,67 +15110,6 @@
           "totalPages": {
             "type": "integer",
             "format": "int64"
-          }
-        }
-      },
-      "PagedModelOrderResponse": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OrderResponse"
-            }
-          },
-          "page": {
-            "$ref": "#/components/schemas/PageMetadata"
-          }
-        }
-      },
-      "CreateMembershipTypeRequest": {
-        "type": "object",
-        "properties": {
-          "typeName": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 0,
-            "pattern": "^[\\p{L}]+(?: [\\p{L}]+)*$"
-          },
-          "remark": {
-            "type": "string",
-            "maxLength": 150,
-            "minLength": 0
-          },
-          "discountId": {
-            "type": "string",
-            "format": "uuid",
-            "minLength": 1
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "ACTIVE",
-              "INACTIVE"
-            ],
-            "minLength": 1
-          }
-        },
-        "required": [
-          "discountId",
-          "remark",
-          "status",
-          "typeName"
-        ]
-      },
-      "UploadItemImagesRequest": {
-        "type": "object",
-        "properties": {
-          "files": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "binary"
-            }
           }
         }
       },
@@ -15146,8 +15155,7 @@
           "name": {
             "type": "string",
             "maxLength": 150,
-            "minLength": 0,
-            "pattern": "^[\\p{L}]+(?: [\\p{L}]+)*$"
+            "minLength": 0
           },
           "description": {
             "type": "string",
@@ -15217,13 +15225,11 @@
           },
           "startsAt": {
             "type": "string",
-            "format": "date-time",
-            "minLength": 1
+            "format": "date-time"
           },
           "endsAt": {
             "type": "string",
-            "format": "date-time",
-            "minLength": 1
+            "format": "date-time"
           },
           "selectedDays": {
             "type": "array",
@@ -15243,8 +15249,7 @@
             "minItems": 0
           },
           "status": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "applicableChannels": {
             "type": "array",
@@ -15359,13 +15364,11 @@
           },
           "startsAt": {
             "type": "string",
-            "format": "date-time",
-            "minLength": 1
+            "format": "date-time"
           },
           "endsAt": {
             "type": "string",
-            "format": "date-time",
-            "minLength": 1
+            "format": "date-time"
           },
           "status": {
             "type": "string",
@@ -15374,8 +15377,7 @@
               "INACTIVE",
               "EXPIRED",
               "USED_UP"
-            ],
-            "minLength": 1
+            ]
           }
         },
         "required": [
@@ -15538,44 +15540,10 @@
           "address": {
             "type": "string"
           },
-          "file": {
-            "type": "string",
-            "format": "binary"
-          }
-        }
-      },
-      "UserProfileResponse": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
-          "phoneNumber": {
-            "type": "string"
-          },
-          "gender": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "address": {
-            "type": "string"
-          },
           "profilePicture": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 0
           }
         }
       },
@@ -16311,27 +16279,6 @@
           }
         }
       },
-      "BusinessCategoryResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "slug": {
-            "type": "string"
-          },
-          "subCategories": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BusinessSubCategoryResponse"
-            }
-          }
-        }
-      },
       "StaffResponse": {
         "type": "object",
         "properties": {
@@ -16575,6 +16522,27 @@
           },
           "previewUrl": {
             "type": "string"
+          }
+        }
+      },
+      "BusinessCategoryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "subCategories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessSubCategoryResponse"
+            }
           }
         }
       },
