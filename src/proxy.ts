@@ -25,6 +25,7 @@ export function proxy(request: NextRequest) {
         if (
             subdomain !== "www" && 
             subdomain !== "administrator" && 
+            subdomain !== "business" &&
             host !== "fluxibiz.store" &&
             host !== "localhost:3000"
         ) {
