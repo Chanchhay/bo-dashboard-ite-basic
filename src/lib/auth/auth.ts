@@ -10,6 +10,10 @@ export const auth = betterAuth({
     appName: "iPOS Business Dashboard",
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL,
+    trustedOrigins: [
+        "https://business.fluxibiz.store",
+        "https://fluxibiz.store",
+    ],
     plugins: [
         genericOAuth({
             config: [
