@@ -2,17 +2,6 @@
 
 import { useState } from "react";
 
-const DEFAULT_CATEGORIES = [
-  "All Category",
-  "Sneakers",
-  "Sports Shoes",
-  "Boots",
-  "Slippers",
-  "Heels",
-  "Kids' Shoes",
-  "Casual",
-];
-
 type CategoryFilterProps = {
   categories?: string[];
   selectedCategory?: string;
@@ -20,11 +9,15 @@ type CategoryFilterProps = {
 };
 
 export default function CategoryFilter({
-  categories = DEFAULT_CATEGORIES,
+  categories = [],
   selectedCategory,
   onChange,
 }: CategoryFilterProps) {
   const [internalActive, setInternalActive] = useState("All Category");
+
+  if (!categories || categories.length === 0) {
+    return null;
+  }
 
   const activeCategory = selectedCategory !== undefined ? selectedCategory : internalActive;
 

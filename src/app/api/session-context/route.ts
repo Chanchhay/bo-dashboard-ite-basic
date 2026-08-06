@@ -11,16 +11,20 @@ import { auth } from "@/lib/auth/auth";
  * is a different, local value, so anything addressed with that id is written
  * under a key the inbox will never look up.
  *
- * `wsPath` is a path on THIS origin, not a backend URL. next.config.ts
- * rewrites it to API_BASE_URL server-side, which keeps the backend host out of
- * the browser and means the socket is same-origin, so the backend's CORS
- * allow-list never has to know about a frontend deploy.
+ * `wsUrl` is the backend's WebSocket endpoint, which the browser dials
+ * directly. Proxying it through this app would be preferable, but Vercel
+ * cannot forward a WebSocket upgrade and times out long-lived streaming
+ * requests, so a rewrite gets as far as the SockJS handshake and then dies.
  *
- * Routing it through API_BASE_URL also guarantees the socket and the REST
- * proxy address the same backend. They must: notifications are created over
- * REST and published to that instance's in-process SimpleBroker, so a socket
- * pointed elsewhere subscribes to a broker that will never see them. That is
- * exactly what a separately configured NEXT_PUBLIC_WS_URL caused.
+ * Serving it from here rather than a NEXT_PUBLIC_ var is what is still worth
+ * doing: the host stays out of the JS bundle and out of anonymous page source,
+ * and is only handed to a request that already carries a session.
+ *
+ * Deriving it from API_BASE_URL also guarantees the socket and the REST proxy
+ * address the same backend. They must: notifications are created over REST and
+ * published to that instance's in-process SimpleBroker, so a socket pointed
+ * elsewhere subscribes to a broker that will never see them. That is exactly
+ * what a separately configured NEXT_PUBLIC_WS_URL caused.
  *
  * The token is sent for when the backend grows a STOMP auth interceptor (it
  * has none today, so the CONNECT frame is anonymous and `/user/queue/**` never
@@ -30,14 +34,20 @@ import { auth } from "@/lib/auth/auth";
  */
 
 /**
- * Same-origin path, proxied by the rewrite in next.config.ts. Null when there
- * is no API_BASE_URL to proxy to, so the client does not open a socket that
- * can only 404.
+ * The backend's raw STOMP endpoint as a ws:// or wss:// URL, derived from the
+ * REST target so the two can never address different backends. Null when
+ * API_BASE_URL is unset, so the client doesn't retry a socket forever.
+ *
+ * The raw endpoint rather than the SockJS one: SockJS opens with an XHR to
+ * /info, which is a CORS-preflighted cross-origin request. A WebSocket
+ * upgrade skips that, leaving the backend's Origin check as the only gate.
  */
-function getSocketPath(): string | null {
-    if (!process.env.API_BASE_URL?.trim()) return null;
+function getSocketUrl(): string | null {
+    const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, "");
 
-    return "/ws/notifications-sockjs";
+    if (!baseUrl) return null;
+
+    return `${baseUrl.replace(/^http/, "ws")}/ws/notifications`;
 }
 
 /** Reads the `sub` claim without verifying — the backend still verifies the token. */
@@ -88,7 +98,7 @@ export async function GET() {
         {
             accessToken,
             subject: accessToken ? readSubject(accessToken) : null,
-            wsPath: getSocketPath(),
+            wsUrl: getSocketUrl(),
         },
         { headers: { "Cache-Control": "no-store" } },
     );
