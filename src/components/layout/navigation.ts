@@ -182,6 +182,16 @@ export const NAVIGATION: NavSection[] = [
                 permission: PERMISSIONS.SALES_ORDERS,
             },
             {
+                label: "Discounts & Coupons",
+                href: "/sales/discounts",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                label: "Member Types",
+                href: "/sales/membership-types",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
                 label: "Sales Channels",
                 href: "/sales/channels",
                 permission: PERMISSIONS.SALES_POS,

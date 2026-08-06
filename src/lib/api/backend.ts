@@ -2,8 +2,14 @@ import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth/auth";
 
+type ApiErrorDetail = {
+    field?: string;
+    message?: string;
+};
+
 type ApiErrorResponse = {
     message?: string;
+    errorDetail?: ApiErrorDetail[];
 };
 
 export class BackendApiError extends Error {
@@ -66,6 +72,15 @@ async function getKeycloakAccessToken() {
 async function readErrorMessage(response: Response) {
     try {
         const payload = (await response.json()) as ApiErrorResponse;
+        if (Array.isArray(payload?.errorDetail) && payload.errorDetail.length > 0) {
+            const details = payload.errorDetail
+                .map((e) => (e.field ? `${e.field}: ${e.message}` : e.message))
+                .filter(Boolean)
+                .join("; ");
+            if (details) {
+                return `${payload.message || "Validation error"}: ${details}`;
+            }
+        }
         return payload.message;
     } catch {
         return undefined;
