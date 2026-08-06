@@ -14,7 +14,7 @@ export default async function PublicMenu({
   }
 
   // Fetch store details
-  const storeRes = await fetch(`${baseUrl}/api/v1/storefronts/${slug}`, {
+  const storeRes = await fetch(`${baseUrl}/api/v1/storefront/${slug}`, {
     next: { revalidate: 60 }, // Cache for 60 seconds
   });
 
@@ -31,7 +31,7 @@ export default async function PublicMenu({
   const storeDetail = await storeRes.json();
 
   // Fetch store items
-  const itemsRes = await fetch(`${baseUrl}/api/v1/storefronts/${slug}/items`, {
+  const itemsRes = await fetch(`${baseUrl}/api/v1/storefront/${slug}/items`, {
     next: { revalidate: 60 },
   });
   
