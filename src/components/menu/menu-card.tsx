@@ -9,7 +9,7 @@ export interface PosCardType {
   price: number;
   image: string;
   category: string;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
 export default function MenuCard({

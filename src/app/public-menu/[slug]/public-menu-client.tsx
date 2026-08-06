@@ -6,6 +6,11 @@ import MenuCard from "@/components/menu/menu-card";
 import { ShoppingBag, MapPin, ImageOff } from "lucide-react";
 import SearchBar from "@/components/menu/search-bar";
 import Image from "next/image";
+import {
+  ItemPreviewDialog,
+  toPreviewItem,
+  type PreviewItem,
+} from "@/components/inventory/ItemPreviewDialog";
 
 export type MenuItemEntry = {
   id: string;
@@ -25,6 +30,7 @@ export default function PublicMenuClient({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Category");
+  const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
 
   // Map store items strictly
   const items = useMemo<MenuItemEntry[]>(() => {
@@ -161,12 +167,22 @@ export default function PublicMenuClient({
                   category={item.category}
                   price={item.price}
                   image={item.image as string}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setPreviewItem(toPreviewItem(item.rawItem));
+                  }}
                 />
               ))}
             </div>
           )}
         </div>
       </main>
+
+      <ItemPreviewDialog
+        open={previewItem !== null}
+        onOpenChange={(open) => !open && setPreviewItem(null)}
+        item={previewItem}
+      />
     </div>
   );
 }
