@@ -20,7 +20,7 @@ import { EmployeeFilter } from "@/components/pos/order/employee-filter";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrencyAmount } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import { printReceipt } from "@/lib/print-receipt";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
@@ -33,6 +33,7 @@ export interface ReceiptsListProps {
   onOpenReceipt: (receiptId: string) => void;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
+  registerCurrency?: string;
 }
 
 const PAGE_SIZE = 10;
@@ -70,6 +71,7 @@ export function ReceiptsList({
   onOpenReceipt,
   currentRegisterUser,
   registerCashSales,
+  registerCurrency,
 }: ReceiptsListProps) {
   const [page, setPage] = useState(0);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("today");
@@ -86,6 +88,7 @@ export function ReceiptsList({
   });
   const businessQuery = useGetBusinessProfileQuery();
   const currenciesQuery = useGetBusinessCurrenciesQuery();
+  const { format } = useMoney();
   const printQuery = useGetReceiptQuery(printOrderId ?? "", {
     skip: printOrderId === null,
   });
@@ -179,7 +182,9 @@ export function ReceiptsList({
   const pageTotal = receipts.reduce((sum, order) => sum + order.total, 0);
   const currency =
     receipts[0]?.currency || businessQuery.data?.baseCurrency || "USD";
-  const cashCurrency = businessQuery.data?.baseCurrency || currency;
+  // The till's own currency when it recorded one; older sessions have none.
+  const cashCurrency =
+    registerCurrency || businessQuery.data?.baseCurrency || currency;
   const currentUserOptions = currentRegisterUser ? [currentRegisterUser] : [];
 
   return (
@@ -199,7 +204,7 @@ export function ReceiptsList({
           value={
             pageCurrencies.size > 1
               ? "Multiple currencies"
-              : formatCurrencyAmount(pageTotal, currency)
+              : format(pageTotal, currency)
           }
           sub={`${receipts.length} shown of ${metadata.totalElements}`}
           icon={<ReceiptText aria-hidden="true" />}
@@ -209,7 +214,7 @@ export function ReceiptsList({
           value={
             registerCashSales === undefined
               ? "—"
-              : formatCurrencyAmount(registerCashSales, cashCurrency)
+              : format(registerCashSales, cashCurrency)
           }
           sub="Current register"
           icon={<Banknote aria-hidden="true" />}
@@ -338,7 +343,7 @@ export function ReceiptsList({
                         —
                       </td>
                       <td className="px-4 text-lg font-bold text-[#191c1e] lg:px-6">
-                        {formatCurrencyAmount(order.total, order.currency)}
+                        {format(order.total, order.currency)}
                       </td>
                       <td className="px-4 lg:px-6">
                         <span className="rounded-full bg-primary/20 px-4 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-primary">
@@ -413,7 +418,7 @@ export function ReceiptsList({
                       {itemCount} {itemCount === 1 ? "item" : "items"}
                     </span>
                     <span className="text-base font-bold text-[#191c1e]">
-                      {formatCurrencyAmount(order.total, order.currency)}
+                      {format(order.total, order.currency)}
                     </span>
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-dashed border-[#bbcabf] pt-3">

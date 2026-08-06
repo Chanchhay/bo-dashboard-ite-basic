@@ -7,7 +7,7 @@ import type { Item } from "@/types/pos-type";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
 import type { ChannelItem } from "@/lib/api/sales-channels";
 
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import { PaidReceiptView } from "@/components/pos/order/pain-receipt-view";
 import PosCard from "@/components/pos/pos-card";
 import { ReceiptDetailView } from "@/components/pos/order/receipt-detail-view";
@@ -41,6 +41,7 @@ export interface PosScreenProps {
   onClearFilters: () => void;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
+  registerCurrency?: string;
 }
 
 export function PosScreen({
@@ -51,7 +52,9 @@ export function PosScreen({
   onClearFilters,
   currentRegisterUser,
   registerCashSales,
+  registerCurrency,
 }: PosScreenProps) {
+  const { format } = useMoney();
   const [activeTab, setActiveTab] = useState<PosTab>("Point of Sale");
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [paidReceipt, setPaidReceipt] = useState<PaidReceiptState | null>(null);
@@ -145,7 +148,7 @@ export function PosScreen({
     if (subject) {
       const orderRef = order.invoiceNumber || (order.id ? order.id.slice(0, 8) : "POS");
       const totalVal = sale.totalAmount ?? order.total ?? 0;
-      const formattedTotal = formatCurrency(totalVal);
+      const formattedTotal = format(totalVal, sale.currency ?? order.currency);
       const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || order.items?.length || 0;
 
       // 1. Dispatch Sale Completed Notification
@@ -286,6 +289,7 @@ export function PosScreen({
                 onOpenReceipt={setOpenReceiptId}
                 currentRegisterUser={currentRegisterUser}
                 registerCashSales={registerCashSales}
+                registerCurrency={registerCurrency}
               />
             ))}
         </div>
@@ -319,7 +323,7 @@ export function PosScreen({
             <ShoppingCart className="h-4 w-4" />
             {itemCount} {itemCount === 1 ? "item" : "items"}
           </span>
-          <span className="text-sm font-bold">{formatCurrency(cartTotal)}</span>
+          <span className="text-sm font-bold">{format(cartTotal)}</span>
         </button>
       )}
 

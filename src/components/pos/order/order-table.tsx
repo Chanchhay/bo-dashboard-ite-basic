@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 
 import type { Order } from "@/types/pos-type";
 import type { PosOrder, PosOrderItem, Sale } from "@/lib/api/pos-order";
@@ -70,6 +70,8 @@ function legacyOrderShape(order: PosOrder): Order {
 
 interface ItemRowProps {
   item: PosOrderItem;
+  /** The order's own currency — an order opened before a base change keeps it. */
+  currency?: string;
   onIncrease: () => void;
   onDecrease: () => void;
   onRemove: () => void;
@@ -79,11 +81,14 @@ interface ItemRowProps {
 
 function ItemRow({
   item,
+  currency,
   onIncrease,
   onDecrease,
   onRemove,
   busy,
 }: ItemRowProps) {
+  const { format } = useMoney();
+
   return (
     <tr className="align-middle">
       <td className="break-words px-2 py-2.5 text-xs text-gray-800 sm:px-4 sm:text-sm">
@@ -117,10 +122,10 @@ function ItemRow({
       </td>
 
       <td className="px-2 py-2.5 text-xs font-semibold text-brand-red sm:px-4 sm:text-sm">
-        {formatCurrency(item.lineTotal)}
+        {format(item.lineTotal, currency)}
         {item.quantity > 1 && (
           <span className="mt-0.5 block text-xs font-normal text-gray-400">
-            {formatCurrency(item.unitPrice)} each
+            {format(item.unitPrice, currency)} each
           </span>
         )}
       </td>
@@ -149,6 +154,7 @@ export function OrderTable({
   onOrderCreated,
   isEditingOrder = false,
 }: OrderTableProps) {
+  const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
   const { data: order, isLoading, error } = useGetCurrentOrderQuery();
   const [updateOrderItem] = useUpdateOrderItemMutation();
@@ -201,6 +207,7 @@ export function OrderTable({
     discount: order?.discountAmount ?? 0,
     total: order?.total ?? 0,
   };
+  const totalSecondary = secondaryFor(summary.total, order);
   /** Names and parks the current cart without cancelling it. */
   const handleCreateOrder = async (data: { name: string }) => {
     try {
@@ -267,6 +274,7 @@ export function OrderTable({
     <ItemRow
       key={item.id}
       item={item}
+      currency={order?.currency}
       busy={busyLineId === item.id}
       onIncrease={() =>
         runLineChange(
@@ -342,21 +350,28 @@ export function OrderTable({
         <div className="flex justify-between py-1">
           <span className="text-gray-600 min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">Subtotal</span>
           <span className="tabular-nums text-gray-800 min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
-            {formatCurrency(summary.subtotal)}
+            {format(summary.subtotal, order?.currency)}
           </span>
         </div>
         <div className="flex justify-between py-1">
           <span className="text-primary min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">Discount</span>
           <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
-            -{formatCurrency(summary.discount)}
+            -{format(summary.discount, order?.currency)}
           </span>
         </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-[#d9d9d9] px-4 py-3 min-[1025px]:h-16">
         <span className="text-base font-semibold text-gray-700 min-[1025px]:text-[25px]">Total</span>
-        <span className="text-xl font-bold tabular-nums text-brand-red min-[1025px]:text-[35px]">
-          {formatCurrency(summary.total)}
+        <span className="flex flex-col items-end">
+          <span className="text-xl font-bold tabular-nums text-brand-red min-[1025px]:text-[35px]">
+            {format(summary.total, order?.currency)}
+          </span>
+          {totalSecondary && (
+            <span className="text-sm font-semibold tabular-nums text-gray-600 min-[1025px]:text-base">
+              {format(totalSecondary.amount, totalSecondary.currency.code)}
+            </span>
+          )}
         </span>
       </div>
 

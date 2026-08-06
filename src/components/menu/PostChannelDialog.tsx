@@ -1,3 +1,6 @@
+"use client";
+
+import { useMoney } from "@/hooks/useMoney";
 import { LoaderCircle, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,10 +36,10 @@ interface PostChannelDialogProps {
 }
 
 /** What one item reads as, both in the list and in the closed trigger. */
-function itemLabel(item: InventoryItem) {
+function itemLabel(item: InventoryItem, format: (value: number) => string) {
     const code = item.code ? ` (${item.code})` : "";
 
-    return `${item.name || "Unnamed item"}${code} — $${item.price ?? 0}`;
+    return `${item.name || "Unnamed item"}${code} — ${format(item.price ?? 0)}`;
 }
 
 export function PostChannelDialog({
@@ -51,6 +54,8 @@ export function PostChannelDialog({
     onSelectItem,
     onSubmit,
 }: PostChannelDialogProps) {
+    const { format } = useMoney();
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent>
@@ -87,7 +92,7 @@ export function PostChannelDialog({
                             items={Object.fromEntries(
                                 inventoryItems.map((inv) => [
                                     inv.id,
-                                    itemLabel(inv),
+                                    itemLabel(inv, format),
                                 ]),
                             )}
                         >
@@ -99,7 +104,7 @@ export function PostChannelDialog({
                             <SelectContent>
                                 {inventoryItems.map((inv) => (
                                     <SelectItem key={inv.id} value={inv.id}>
-                                        {itemLabel(inv)}
+                                        {itemLabel(inv, format)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

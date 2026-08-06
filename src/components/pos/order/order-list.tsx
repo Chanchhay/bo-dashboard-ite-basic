@@ -12,7 +12,7 @@ import {
 import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { PosOrder } from "@/lib/api/pos-order";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import {
   useCancelOpenOrderMutation,
   useGetOpenOrdersQuery,
@@ -26,6 +26,7 @@ export interface OrdersListProps {
 }
 
 export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
+  const { format } = useMoney();
   const { toast } = useToast();
   const [orderToCancel, setOrderToCancel] = useState<PosOrder | null>(null);
   const {
@@ -195,7 +196,7 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
                     />
                     <OrderMetric
                       label="Total"
-                      value={formatCurrency(order.total)}
+                      value={format(order.total, order.currency)}
                       tone="text-red-500"
                       emphasized
                     />
