@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
 import { ShoppingBag, MapPin, ImageOff } from "lucide-react";
-import MenuNavbar from "@/components/menu/menu-navbar";
+import SearchBar from "@/components/menu/search-bar";
 import Image from "next/image";
 
 export type MenuItemEntry = {
@@ -76,12 +76,6 @@ export default function PublicMenuClient({
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] dark:bg-gray-900 text-gray-900 flex flex-col font-sans pb-20">
-      {/* Menu Navbar */}
-      <MenuNavbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        shopName={storeDetail.displayName || storeDetail.name}
-      />
 
       {/* Header / Banner */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -116,12 +110,21 @@ export default function PublicMenuClient({
       </div>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6 space-y-6">
-        {/* Category Pills Filter Bar */}
-        <CategoryFilter
-          categories={categories.length > 0 ? categories : undefined}
-          selectedCategory={selectedCategory}
-          onChange={setSelectedCategory}
-        />
+        {/* Filter and Search Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <CategoryFilter
+            categories={categories.length > 0 ? categories : undefined}
+            selectedCategory={selectedCategory}
+            onChange={setSelectedCategory}
+          />
+          <div className="w-full sm:w-auto flex justify-end">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search......"
+            />
+          </div>
+        </div>
 
         {/* Product Menu Grid */}
         <div>
