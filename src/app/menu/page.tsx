@@ -92,12 +92,14 @@ function StaticMenuContent() {
       />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6 space-y-6">
-        {/* Category Pills Filter Bar */}
-        <CategoryFilter
-          categories={categories.length > 0 ? categories : undefined}
-          selectedCategory={selectedCategory}
-          onChange={setSelectedCategory}
-        />
+        {/* Category Pills Filter Bar (Only shown after real items load) */}
+        {!isLoading && categories.length > 0 && (
+          <CategoryFilter
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onChange={setSelectedCategory}
+          />
+        )}
 
         {/* Product Menu Grid */}
         <div>

@@ -1,0 +1,1099 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+    Plus,
+    Tag,
+    Ticket,
+    Search,
+    Edit2,
+    Trash2,
+    Calendar,
+    Layers,
+    Percent,
+    DollarSign,
+    Loader2,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { formatCurrency } from "@/lib/money";
+import type {
+    CouponResponse,
+    CreateCouponInput,
+    CreateDiscountInput,
+    DiscountResponse,
+    DiscountRuleType,
+    DiscountScope,
+    DiscountType,
+    OrderChannel,
+} from "@/lib/api/discount";
+import {
+    useActivateCouponMutation,
+    useActivateDiscountMutation,
+    useCreateCouponMutation,
+    useCreateDiscountMutation,
+    useDeactivateCouponMutation,
+    useDeactivateDiscountMutation,
+    useDeleteCouponMutation,
+    useDeleteDiscountMutation,
+    useGetCouponsQuery,
+    useGetDiscountsQuery,
+    useUpdateCouponMutation,
+    useUpdateDiscountMutation,
+} from "@/services/discountApi";
+import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
+
+import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
+
+export default function DiscountsAndCouponsPage() {
+    const [activeTab, setActiveTab] = useState<"discounts" | "coupons">("discounts");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // --- Column Visibility States ---
+    const [discountCols, setDiscountCols] = useState([
+        { id: "name", label: "Rule Name", visible: true },
+        { id: "typeValue", label: "Type & Value", visible: true },
+        { id: "scope", label: "Scope & Targets", visible: true },
+        { id: "condition", label: "Condition", visible: true },
+        { id: "channels", label: "Channels", visible: true },
+        { id: "status", label: "Status", visible: true },
+    ]);
+
+    const [couponCols, setCouponCols] = useState([
+        { id: "code", label: "Coupon Code", visible: true },
+        { id: "discount", label: "Linked Discount", visible: true },
+        { id: "usage", label: "Usage Limits", visible: true },
+        { id: "minPurchase", label: "Min. Purchase", visible: true },
+        { id: "validity", label: "Validity Period", visible: true },
+        { id: "status", label: "Status", visible: true },
+    ]);
+
+    const isDiscColVisible = (id: string) => discountCols.find((c) => c.id === id)?.visible ?? true;
+    const isCoupColVisible = (id: string) => couponCols.find((c) => c.id === id)?.visible ?? true;
+
+    const toggleDiscountCol = (id: string) => {
+        setDiscountCols((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+        );
+    };
+
+    const toggleCouponCol = (id: string) => {
+        setCouponCols((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+        );
+    };
+
+    const resetDiscountCols = () => {
+        setDiscountCols((prev) => prev.map((c) => ({ ...c, visible: true })));
+    };
+
+    const resetCouponCols = () => {
+        setCouponCols((prev) => prev.map((c) => ({ ...c, visible: true })));
+    };
+
+    // --- RTK Queries & Mutations ---
+    const { data: discounts = [], isLoading: isDiscountsLoading, refetch: refetchDiscounts } = useGetDiscountsQuery();
+    const { data: coupons = [], isLoading: isCouponsLoading, refetch: refetchCoupons } = useGetCouponsQuery(undefined);
+    const { data: items = [] } = useGetInventoryItemOptionsQuery();
+
+    const [createDiscount, { isLoading: isCreatingDiscount }] = useCreateDiscountMutation();
+    const [updateDiscount, { isLoading: isUpdatingDiscount }] = useUpdateDiscountMutation();
+    const [activateDiscount] = useActivateDiscountMutation();
+    const [deactivateDiscount] = useDeactivateDiscountMutation();
+    const [deleteDiscount, { isLoading: isDeletingDiscount }] = useDeleteDiscountMutation();
+
+    const [createCoupon, { isLoading: isCreatingCoupon }] = useCreateCouponMutation();
+    const [updateCoupon, { isLoading: isUpdatingCoupon }] = useUpdateCouponMutation();
+    const [activateCoupon] = useActivateCouponMutation();
+    const [deactivateCoupon] = useDeactivateCouponMutation();
+    const [deleteCoupon, { isLoading: isDeletingCoupon }] = useDeleteCouponMutation();
+
+    // --- State for Discount Dialog ---
+    const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
+    const [editingDiscount, setEditingDiscount] = useState<DiscountResponse | null>(null);
+    const [discountFormError, setDiscountFormError] = useState("");
+
+    // Discount Form Data
+    const [dName, setDName] = useState("");
+    const [dDescription, setDDescription] = useState("");
+    const [dType, setDType] = useState<DiscountType>("PERCENTAGE");
+    const [dRuleType, setDRuleType] = useState<DiscountRuleType>("NO_CONDITION");
+    const [dValue, setDValue] = useState("");
+    const [dScope, setDScope] = useState<DiscountScope>("ORDER");
+    const [dMinOrderAmount, setDMinOrderAmount] = useState("");
+    const [dMaxDiscountAmount, setDMaxDiscountAmount] = useState("");
+    const [dBuyQty, setDBuyQty] = useState("");
+    const [dGetQty, setDGetQty] = useState("");
+    const [dMinQty, setDMinQty] = useState("");
+    const [dStartsAt, setDStartsAt] = useState("");
+    const [dEndsAt, setDEndsAt] = useState("");
+    const [dRequiresCoupon, setDRequiresCoupon] = useState(false);
+    const [dChannels, setDChannels] = useState<OrderChannel[]>(["POS", "WEB"]);
+    const [dSelectedItems, setDSelectedItems] = useState<string[]>([]);
+
+    // --- State for Coupon Dialog ---
+    const [isCouponDialogOpen, setIsCouponDialogOpen] = useState(false);
+    const [editingCoupon, setEditingCoupon] = useState<CouponResponse | null>(null);
+    const [couponFormError, setCouponFormError] = useState("");
+
+    const [cDiscountId, setCDiscountId] = useState("");
+    const [cCode, setCCode] = useState("");
+    const [cUsageLimit, setCUsageLimit] = useState("");
+    const [cUsageLimitCustomer, setCUsageLimitCustomer] = useState("");
+    const [cMinPurchase, setCMinPurchase] = useState("");
+    const [cStartsAt, setCStartsAt] = useState("");
+    const [cEndsAt, setCEndsAt] = useState("");
+
+    // --- Delete confirmation ---
+    const [deletingItem, setDeletingItem] = useState<{ id: string; type: "discount" | "coupon"; name: string } | null>(null);
+
+    // --- Filtered Data ---
+    const filteredDiscounts = useMemo(() => {
+        if (!searchQuery.trim()) return discounts;
+        const q = searchQuery.toLowerCase();
+        return discounts.filter(
+            (d) =>
+                d.name.toLowerCase().includes(q) ||
+                (d.description && d.description.toLowerCase().includes(q)) ||
+                d.type.toLowerCase().includes(q) ||
+                d.scope.toLowerCase().includes(q)
+        );
+    }, [discounts, searchQuery]);
+
+    const filteredCoupons = useMemo(() => {
+        if (!searchQuery.trim()) return coupons;
+        const q = searchQuery.toLowerCase();
+        return coupons.filter(
+            (c) =>
+                c.code.toLowerCase().includes(q) ||
+                (c.discount && c.discount.name.toLowerCase().includes(q))
+        );
+    }, [coupons, searchQuery]);
+
+    // --- Open Create/Edit Handlers ---
+    const openCreateDiscount = () => {
+        setEditingDiscount(null);
+        setDiscountFormError("");
+        setDName("");
+        setDDescription("");
+        setDType("PERCENTAGE");
+        setDRuleType("NO_CONDITION");
+        setDValue("10");
+        setDScope("ORDER");
+        setDMinOrderAmount("");
+        setDMaxDiscountAmount("");
+        setDBuyQty("");
+        setDGetQty("");
+        setDMinQty("");
+        setDStartsAt(new Date().toISOString().slice(0, 16));
+        setDEndsAt(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
+        setDRequiresCoupon(false);
+        setDChannels(["POS", "WEB"]);
+        setDSelectedItems([]);
+        setIsDiscountDialogOpen(true);
+    };
+
+    const openEditDiscount = (d: DiscountResponse) => {
+        setEditingDiscount(d);
+        setDiscountFormError("");
+        setDName(d.name);
+        setDDescription(d.description || "");
+        setDType(d.type);
+        setDRuleType(d.ruleType);
+        setDValue(String(d.value));
+        setDScope(d.scope);
+        setDMinOrderAmount(d.minOrderAmount ? String(d.minOrderAmount) : "");
+        setDMaxDiscountAmount(d.maxDiscountAmount ? String(d.maxDiscountAmount) : "");
+        setDBuyQty(d.buyQuantity ? String(d.buyQuantity) : "");
+        setDGetQty(d.getQuantity ? String(d.getQuantity) : "");
+        setDMinQty(d.minQuantity ? String(d.minQuantity) : "");
+        setDStartsAt(d.startsAt ? new Date(d.startsAt).toISOString().slice(0, 16) : "");
+        setDEndsAt(d.endsAt ? new Date(d.endsAt).toISOString().slice(0, 16) : "");
+        setDRequiresCoupon(d.requiresCoupon ?? false);
+        setDChannels(d.applicableChannels || ["POS", "WEB"]);
+        setDSelectedItems(d.targets?.filter((t) => t.targetType === "ITEM").map((t) => t.targetId) || []);
+        setIsDiscountDialogOpen(true);
+    };
+
+    const handleSaveDiscount = async () => {
+        setDiscountFormError("");
+        if (!dName.trim()) {
+            setDiscountFormError("Discount name is required.");
+            return;
+        }
+        if (!dValue || Number(dValue) <= 0) {
+            setDiscountFormError("A valid positive discount value is required.");
+            return;
+        }
+        if (!dStartsAt || !dEndsAt) {
+            setDiscountFormError("Start and End dates are required.");
+            return;
+        }
+
+        const scopePayload: DiscountScope =
+            dScope === "ITEM" || dScope === "SPECIFIC_ITEMS"
+                ? "SPECIFIC_ITEMS"
+                : "ALL_ITEMS";
+
+        const payload: CreateDiscountInput = {
+            name: dName.trim(),
+            description: dDescription.trim() || undefined,
+            type: dType,
+            ruleType: dRuleType,
+            value: Number(dValue),
+            scope: scopePayload,
+            minOrderAmount: dMinOrderAmount ? Number(dMinOrderAmount) : undefined,
+            maxDiscountAmount: dMaxDiscountAmount ? Number(dMaxDiscountAmount) : undefined,
+            buyQuantity: dBuyQty ? Number(dBuyQty) : undefined,
+            getQuantity: dGetQty ? Number(dGetQty) : undefined,
+            minQuantity: dMinQty ? Number(dMinQty) : undefined,
+            requiresCoupon: dRequiresCoupon,
+            startsAt: new Date(dStartsAt).toISOString(),
+            endsAt: new Date(dEndsAt).toISOString(),
+            status: editingDiscount ? editingDiscount.status : "ACTIVE",
+            applicableChannels: dChannels,
+            targetItemIds: (dScope === "ITEM" || dScope === "SPECIFIC_ITEMS") ? dSelectedItems : undefined,
+        };
+
+        try {
+            if (editingDiscount) {
+                await updateDiscount({ id: editingDiscount.id, body: payload }).unwrap();
+            } else {
+                await createDiscount(payload).unwrap();
+            }
+            setIsDiscountDialogOpen(false);
+            refetchDiscounts();
+        } catch (err) {
+            setDiscountFormError(getApiErrorMessage(err, "Failed to save discount rule."));
+        }
+    };
+
+    const openCreateCoupon = () => {
+        setEditingCoupon(null);
+        setCouponFormError("");
+        setCDiscountId(discounts[0]?.id || "");
+        setCCode(`SAVE${Math.floor(100 + Math.random() * 900)}`);
+        setCUsageLimit("100");
+        setCUsageLimitCustomer("1");
+        setCMinPurchase("0");
+        setCStartsAt(new Date().toISOString().slice(0, 16));
+        setCEndsAt(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
+        setIsCouponDialogOpen(true);
+    };
+
+    const openEditCoupon = (c: CouponResponse) => {
+        setEditingCoupon(c);
+        setCouponFormError("");
+        setCDiscountId(c.discountId);
+        setCCode(c.code);
+        setCUsageLimit(c.usageLimit ? String(c.usageLimit) : "");
+        setCUsageLimitCustomer(c.usageLimitPerCustomer ? String(c.usageLimitPerCustomer) : "");
+        setCMinPurchase(c.minPurchaseAmount ? String(c.minPurchaseAmount) : "");
+        setCStartsAt(c.startsAt ? new Date(c.startsAt).toISOString().slice(0, 16) : "");
+        setCEndsAt(c.endsAt ? new Date(c.endsAt).toISOString().slice(0, 16) : "");
+        setIsCouponDialogOpen(true);
+    };
+
+    const handleSaveCoupon = async () => {
+        setCouponFormError("");
+        if (!cDiscountId) {
+            setCouponFormError("Please select a discount rule to link.");
+            return;
+        }
+        if (!cCode.trim()) {
+            setCouponFormError("Coupon code is required.");
+            return;
+        }
+        if (!cStartsAt || !cEndsAt) {
+            setCouponFormError("Validity dates are required.");
+            return;
+        }
+
+        const payload: CreateCouponInput = {
+            discountId: cDiscountId,
+            code: cCode.trim().toUpperCase(),
+            usageLimit: cUsageLimit ? Number(cUsageLimit) : undefined,
+            usageLimitPerCustomer: cUsageLimitCustomer ? Number(cUsageLimitCustomer) : undefined,
+            minPurchaseAmount: cMinPurchase ? Number(cMinPurchase) : undefined,
+            startsAt: new Date(cStartsAt).toISOString(),
+            endsAt: new Date(cEndsAt).toISOString(),
+            status: editingCoupon ? editingCoupon.status : "ACTIVE",
+        };
+
+        try {
+            if (editingCoupon) {
+                await updateCoupon({ id: editingCoupon.id, body: payload }).unwrap();
+            } else {
+                await createCoupon(payload).unwrap();
+            }
+            setIsCouponDialogOpen(false);
+            refetchCoupons();
+        } catch (err) {
+            setCouponFormError(getApiErrorMessage(err, "Failed to save coupon code."));
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deletingItem) return;
+        try {
+            if (deletingItem.type === "discount") {
+                await deleteDiscount(deletingItem.id).unwrap();
+                refetchDiscounts();
+            } else {
+                await deleteCoupon(deletingItem.id).unwrap();
+                refetchCoupons();
+            }
+            setDeletingItem(null);
+        } catch (err) {
+            alert(getApiErrorMessage(err, `Failed to delete ${deletingItem.type}.`));
+        }
+    };
+
+    const handleToggleDiscountStatus = async (d: DiscountResponse) => {
+        try {
+            if (d.status === "ACTIVE") {
+                await deactivateDiscount(d.id).unwrap();
+            } else {
+                await activateDiscount(d.id).unwrap();
+            }
+            refetchDiscounts();
+        } catch (err) {
+            alert(getApiErrorMessage(err, "Failed to change status."));
+        }
+    };
+
+    const handleToggleCouponStatus = async (c: CouponResponse) => {
+        try {
+            if (c.status === "ACTIVE") {
+                await deactivateCoupon(c.id).unwrap();
+            } else {
+                await activateCoupon(c.id).unwrap();
+            }
+            refetchCoupons();
+        } catch (err) {
+            alert(getApiErrorMessage(err, "Failed to change coupon status."));
+        }
+    };
+
+    const toggleChannel = (channel: OrderChannel) => {
+        if (dChannels.includes(channel)) {
+            setDChannels(dChannels.filter((c) => c !== channel));
+        } else {
+            setDChannels([...dChannels, channel]);
+        }
+    };
+
+    const toggleSelectedItem = (itemId: string) => {
+        if (dSelectedItems.includes(itemId)) {
+            setDSelectedItems(dSelectedItems.filter((id) => id !== itemId));
+        } else {
+            setDSelectedItems([...dSelectedItems, itemId]);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Header section */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                        Discounts & Coupons
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
+                    </p>
+                </div>
+                <Button
+                    onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
+                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                >
+                    <Plus className="h-4 w-4" />
+                    {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
+                </Button>
+            </div>
+
+            {/* Navigation Tabs & Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border pb-3">
+                <div className="flex items-center space-x-2">
+                    <button
+                        onClick={() => setActiveTab("discounts")}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            activeTab === "discounts"
+                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                                : "text-muted-foreground hover:text-foreground"
+                        }`}
+                    >
+                        <Tag className="h-4 w-4" />
+                        Discounts ({discounts.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("coupons")}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            activeTab === "coupons"
+                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                                : "text-muted-foreground hover:text-foreground"
+                        }`}
+                    >
+                        <Ticket className="h-4 w-4" />
+                        Coupons ({coupons.length})
+                    </button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={`Search ${activeTab}...`}
+                            className="pl-9 text-sm"
+                        />
+                    </div>
+                    <ColumnSelectDropdown
+                        columns={activeTab === "discounts" ? discountCols : couponCols}
+                        onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
+                        onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
+                    />
+                </div>
+            </div>
+
+            {/* Discounts Table */}
+            {activeTab === "discounts" && (
+                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                    {isDiscountsLoading ? (
+                        <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin" /> Loading discount rules...
+                        </div>
+                    ) : filteredDiscounts.length === 0 ? (
+                        <div className="text-center py-16 text-muted-foreground space-y-2">
+                            <Tag className="h-8 w-8 mx-auto opacity-40" />
+                            <p className="font-medium text-base text-foreground">No discount rules found</p>
+                            <p className="text-xs">Create discount rules to offer promotional pricing across POS and storefront channels.</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/40">
+                                    {isDiscColVisible("name") && <TableHead>Rule Name</TableHead>}
+                                    {isDiscColVisible("typeValue") && <TableHead>Type & Value</TableHead>}
+                                    {isDiscColVisible("scope") && <TableHead>Scope</TableHead>}
+                                    {isDiscColVisible("condition") && <TableHead>Condition</TableHead>}
+                                    {isDiscColVisible("channels") && <TableHead>Channels</TableHead>}
+                                    {isDiscColVisible("status") && <TableHead>Status</TableHead>}
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredDiscounts.map((d) => (
+                                    <TableRow key={d.id} className="hover:bg-muted/30 transition-colors">
+                                        {isDiscColVisible("name") && (
+                                            <TableCell>
+                                                <div className="font-semibold text-foreground">{d.name}</div>
+                                                {d.description && (
+                                                    <div className="text-xs text-muted-foreground truncate max-w-xs">
+                                                        {d.description}
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                        )}
+                                        {isDiscColVisible("typeValue") && (
+                                            <TableCell>
+                                                <div className="inline-flex items-center gap-1 font-bold text-primary">
+                                                    {d.type === "PERCENTAGE"
+                                                        ? `${d.value}%`
+                                                        : formatCurrency(d.value)}
+                                                </div>
+                                            </TableCell>
+                                        )}
+                                        {isDiscColVisible("scope") && (
+                                            <TableCell>
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                                    {d.scope === "ALL_ITEMS" || d.scope === "ORDER"
+                                                        ? "All Items"
+                                                        : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM"
+                                                        ? "Specific Items"
+                                                        : d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY"
+                                                        ? "Specific Categories"
+                                                        : d.scope === "SPECIFIC_MEMBERSHIP"
+                                                        ? "Specific Members"
+                                                        : d.scope}
+                                                </span>
+                                            </TableCell>
+                                        )}
+                                        {isDiscColVisible("condition") && (
+                                            <TableCell>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {d.ruleType === "NO_CONDITION" && "No condition"}
+                                                    {d.ruleType === "MIN_ORDER_AMOUNT" && `Min. ${formatCurrency(d.minOrderAmount ?? 0)}`}
+                                                    {d.ruleType === "MIN_QUANTITY" && `Min. qty ${d.minQuantity}`}
+                                                    {d.ruleType === "BUY_X_GET_Y" && `Buy ${d.buyQuantity} get ${d.getQuantity}`}
+                                                </div>
+                                            </TableCell>
+                                        )}
+                                        {isDiscColVisible("channels") && (
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(d.applicableChannels && d.applicableChannels.length > 0
+                                                        ? d.applicableChannels
+                                                        : ["ALL"]
+                                                    ).map((ch) => (
+                                                        <span
+                                                            key={ch}
+                                                            className="px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium bg-muted text-muted-foreground rounded"
+                                                        >
+                                                            {ch}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </TableCell>
+                                        )}
+                                        {isDiscColVisible("status") && (
+                                            <TableCell>
+                                                <button
+                                                    onClick={() => handleToggleDiscountStatus(d)}
+                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                        d.status === "ACTIVE"
+                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                    }`}
+                                                >
+                                                    {d.status === "ACTIVE" ? "Active" : "Inactive"}
+                                                </button>
+                                            </TableCell>
+                                        )}
+                                        <TableCell className="text-right space-x-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => openEditDiscount(d)}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setDeletingItem({ id: d.id, type: "discount", name: d.name })}
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </div>
+            )}
+
+            {/* Coupons Table */}
+            {activeTab === "coupons" && (
+                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                    {isCouponsLoading ? (
+                        <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin" /> Loading coupons...
+                        </div>
+                    ) : filteredCoupons.length === 0 ? (
+                        <div className="text-center py-16 text-muted-foreground space-y-2">
+                            <Ticket className="h-8 w-8 mx-auto opacity-40" />
+                            <p className="font-medium text-base text-foreground">No promo coupons found</p>
+                            <p className="text-xs">Create coupon codes to share promo deals with customers.</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/40">
+                                    {isCoupColVisible("code") && <TableHead>Coupon Code</TableHead>}
+                                    {isCoupColVisible("discount") && <TableHead>Linked Discount Rule</TableHead>}
+                                    {isCoupColVisible("usage") && <TableHead>Usage Limits</TableHead>}
+                                    {isCoupColVisible("minPurchase") && <TableHead>Min. Purchase</TableHead>}
+                                    {isCoupColVisible("validity") && <TableHead>Validity</TableHead>}
+                                    {isCoupColVisible("status") && <TableHead>Status</TableHead>}
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredCoupons.map((c) => (
+                                    <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
+                                        {isCoupColVisible("code") && (
+                                            <TableCell>
+                                                <div className="font-mono font-bold text-base text-primary">
+                                                    {c.code}
+                                                </div>
+                                            </TableCell>
+                                        )}
+                                        {isCoupColVisible("discount") && (
+                                            <TableCell>
+                                                <div className="font-medium text-foreground">
+                                                    {c.discount?.name || "Linked Discount"}
+                                                </div>
+                                                {c.discount && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {c.discount.type === "PERCENTAGE" ? `${c.discount.value}% OFF` : `${formatCurrency(c.discount.value)} OFF`}
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                        )}
+                                        {isCoupColVisible("usage") && (
+                                            <TableCell>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {c.usedCount ?? 0} used / {c.usageLimit ?? "∞"} max
+                                                </div>
+                                            </TableCell>
+                                        )}
+                                        {isCoupColVisible("minPurchase") && (
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {c.minPurchaseAmount ? formatCurrency(c.minPurchaseAmount) : "None"}
+                                            </TableCell>
+                                        )}
+                                        {isCoupColVisible("validity") && (
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3 opacity-60" />
+                                                    {c.startsAt ? new Date(c.startsAt).toLocaleDateString() : "—"} to{" "}
+                                                    {c.endsAt ? new Date(c.endsAt).toLocaleDateString() : "—"}
+                                                </div>
+                                            </TableCell>
+                                        )}
+                                        {isCoupColVisible("status") && (
+                                            <TableCell>
+                                                <button
+                                                    onClick={() => handleToggleCouponStatus(c)}
+                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                        c.status === "ACTIVE"
+                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                    }`}
+                                                >
+                                                    {c.status === "ACTIVE" ? "Active" : "Inactive"}
+                                                </button>
+                                            </TableCell>
+                                        )}
+                                        <TableCell className="text-right space-x-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => openEditCoupon(c)}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setDeletingItem({ id: c.id, type: "coupon", name: c.code })}
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </div>
+            )}
+
+            {/* --- CREATE / EDIT DISCOUNT DIALOG --- */}
+            <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold">
+                            {editingDiscount ? "Edit Discount Rule" : "Create New Discount Rule"}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {discountFormError && (
+                        <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+                            {discountFormError}
+                        </div>
+                    )}
+
+                    <div className="space-y-4 py-2">
+                        {/* Name & Description */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="dName">Discount Name *</Label>
+                                <Input
+                                    id="dName"
+                                    value={dName}
+                                    onChange={(e) => setDName(e.target.value)}
+                                    placeholder="e.g. Summer Special 15%"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="dType">Discount Calculation Type *</Label>
+                                <select
+                                    id="dType"
+                                    value={dType}
+                                    onChange={(e) => setDType(e.target.value as DiscountType)}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                >
+                                    <option value="PERCENTAGE">Percentage (%)</option>
+                                    <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="dDesc">Description</Label>
+                            <Textarea
+                                id="dDesc"
+                                value={dDescription}
+                                onChange={(e) => setDDescription(e.target.value)}
+                                placeholder="Describe the discount promotion..."
+                                rows={2}
+                            />
+                        </div>
+
+                        {/* Value & Scope */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="dValue">
+                                    Discount Value ({dType === "PERCENTAGE" ? "%" : "$"}) *
+                                </Label>
+                                <Input
+                                    id="dValue"
+                                    type="number"
+                                    step="0.01"
+                                    value={dValue}
+                                    onChange={(e) => setDValue(e.target.value)}
+                                    placeholder="15"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="dScope">Scope *</Label>
+                                <select
+                                    id="dScope"
+                                    value={dScope}
+                                    onChange={(e) => setDScope(e.target.value as DiscountScope)}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                >
+                                    <option value="ORDER">Entire Order</option>
+                                    <option value="ITEM">Specific Products</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Specific Items Selection when scope = ITEM */}
+                        {dScope === "ITEM" && (
+                            <div className="space-y-1.5 border border-border p-3 rounded-lg bg-muted/20">
+                                <Label>Target Products</Label>
+                                <p className="text-xs text-muted-foreground mb-2">Select items this discount applies to:</p>
+                                <div className="max-h-36 overflow-y-auto space-y-1 border border-border p-2 rounded-md bg-background">
+                                    {items.map((item) => (
+                                        <label key={item.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 p-1 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={dSelectedItems.includes(item.id)}
+                                                onChange={() => toggleSelectedItem(item.id)}
+                                                className="h-4 w-4 rounded border-input text-primary accent-primary focus:ring-primary"
+                                            />
+                                            <span className="font-medium text-foreground">{item.name}</span>
+                                            <span className="text-muted-foreground">({formatCurrency(item.price)})</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Rule Conditions */}
+                        <div className="space-y-2 border border-border p-3 rounded-lg bg-muted/10">
+                            <Label htmlFor="dRuleType">Condition Rule Type</Label>
+                            <select
+                                id="dRuleType"
+                                value={dRuleType}
+                                onChange={(e) => setDRuleType(e.target.value as DiscountRuleType)}
+                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                            >
+                                <option value="NO_CONDITION">No Minimum Condition</option>
+                                <option value="MIN_ORDER_AMOUNT">Minimum Order Amount</option>
+                                <option value="MIN_QUANTITY">Minimum Quantity</option>
+                                <option value="BUY_X_GET_Y">Buy X Get Y Free</option>
+                            </select>
+
+                            {dRuleType === "MIN_ORDER_AMOUNT" && (
+                                <div className="pt-2">
+                                    <Label htmlFor="dMinOrder">Minimum Order Subtotal ($)</Label>
+                                    <Input
+                                        id="dMinOrder"
+                                        type="number"
+                                        step="0.01"
+                                        value={dMinOrderAmount}
+                                        onChange={(e) => setDMinOrderAmount(e.target.value)}
+                                        placeholder="50.00"
+                                    />
+                                </div>
+                            )}
+
+                            {dRuleType === "MIN_QUANTITY" && (
+                                <div className="pt-2">
+                                    <Label htmlFor="dMinQty">Minimum Quantity of Items</Label>
+                                    <Input
+                                        id="dMinQty"
+                                        type="number"
+                                        value={dMinQty}
+                                        onChange={(e) => setDMinQty(e.target.value)}
+                                        placeholder="3"
+                                    />
+                                </div>
+                            )}
+
+                            {dRuleType === "BUY_X_GET_Y" && (
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <div>
+                                        <Label htmlFor="dBuyQty">Buy Quantity (X)</Label>
+                                        <Input
+                                            id="dBuyQty"
+                                            type="number"
+                                            value={dBuyQty}
+                                            onChange={(e) => setDBuyQty(e.target.value)}
+                                            placeholder="2"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="dGetQty">Get Quantity Free (Y)</Label>
+                                        <Input
+                                            id="dGetQty"
+                                            type="number"
+                                            value={dGetQty}
+                                            onChange={(e) => setDGetQty(e.target.value)}
+                                            placeholder="1"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Dates */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="dStartsAt">Starts At *</Label>
+                                <Input
+                                    id="dStartsAt"
+                                    type="datetime-local"
+                                    value={dStartsAt}
+                                    onChange={(e) => setDStartsAt(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="dEndsAt">Ends At *</Label>
+                                <Input
+                                    id="dEndsAt"
+                                    type="datetime-local"
+                                    value={dEndsAt}
+                                    onChange={(e) => setDEndsAt(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Applicable Channels */}
+                        <div className="space-y-1.5">
+                            <Label>Applicable Channels</Label>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                {(["POS", "WEB", "TELEGRAM", "MESSENGER"] as OrderChannel[]).map((ch) => (
+                                    <button
+                                        key={ch}
+                                        type="button"
+                                        onClick={() => toggleChannel(ch)}
+                                        className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                                            dChannels.includes(ch)
+                                                ? "bg-primary text-primary-foreground border-primary"
+                                                : "bg-background text-muted-foreground border-input hover:text-foreground"
+                                        }`}
+                                    >
+                                        {ch}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Requires Coupon Checkbox */}
+                        <div className="flex items-center gap-2 pt-2">
+                            <input
+                                type="checkbox"
+                                id="dReqCoupon"
+                                checked={dRequiresCoupon}
+                                onChange={(e) => setDRequiresCoupon(e.target.checked)}
+                                className="h-4 w-4 rounded border-input text-primary accent-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="dReqCoupon" className="cursor-pointer text-xs">
+                                Requires Coupon Code to apply at checkout
+                            </Label>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveDiscount}
+                            disabled={isCreatingDiscount || isUpdatingDiscount}
+                            className="bg-primary hover:bg-primary/90 text-white"
+                        >
+                            {(isCreatingDiscount || isUpdatingDiscount) && (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            )}
+                            Save Discount
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- CREATE / EDIT COUPON DIALOG --- */}
+            <Dialog open={isCouponDialogOpen} onOpenChange={setIsCouponDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold">
+                            {editingCoupon ? "Edit Coupon Code" : "Create New Coupon Code"}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {couponFormError && (
+                        <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+                            {couponFormError}
+                        </div>
+                    )}
+
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="cDiscount">Linked Discount Rule *</Label>
+                            <select
+                                id="cDiscount"
+                                value={cDiscountId}
+                                onChange={(e) => setCDiscountId(e.target.value)}
+                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                            >
+                                <option value="">Select a Discount Rule...</option>
+                                {discounts.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : `$${d.value}`})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="cCode">Coupon Promo Code *</Label>
+                            <Input
+                                id="cCode"
+                                value={cCode}
+                                onChange={(e) => setCCode(e.target.value.toUpperCase())}
+                                placeholder="e.g. SAVE20"
+                                className="font-mono uppercase font-bold"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="cLimit">Total Usage Limit</Label>
+                                <Input
+                                    id="cLimit"
+                                    type="number"
+                                    value={cUsageLimit}
+                                    onChange={(e) => setCUsageLimit(e.target.value)}
+                                    placeholder="100"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="cLimitCust">Limit / Customer</Label>
+                                <Input
+                                    id="cLimitCust"
+                                    type="number"
+                                    value={cUsageLimitCustomer}
+                                    onChange={(e) => setCUsageLimitCustomer(e.target.value)}
+                                    placeholder="1"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="cMinPurchase">Minimum Purchase Amount ($)</Label>
+                            <Input
+                                id="cMinPurchase"
+                                type="number"
+                                step="0.01"
+                                value={cMinPurchase}
+                                onChange={(e) => setCMinPurchase(e.target.value)}
+                                placeholder="0.00"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="cStarts">Starts At *</Label>
+                                <Input
+                                    id="cStarts"
+                                    type="datetime-local"
+                                    value={cStartsAt}
+                                    onChange={(e) => setCStartsAt(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="cEnds">Ends At *</Label>
+                                <Input
+                                    id="cEnds"
+                                    type="datetime-local"
+                                    value={cEndsAt}
+                                    onChange={(e) => setCEndsAt(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveCoupon}
+                            disabled={isCreatingCoupon || isUpdatingCoupon}
+                            className="bg-primary hover:bg-primary/90 text-white"
+                        >
+                            {(isCreatingCoupon || isUpdatingCoupon) && (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            )}
+                            Save Coupon
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- DELETE CONFIRMATION DIALOG --- */}
+            <DestructiveConfirmDialog
+                open={Boolean(deletingItem)}
+                onOpenChange={(open) => !open && setDeletingItem(null)}
+                title={`Delete ${deletingItem?.type === "discount" ? "Discount Rule" : "Coupon Code"}`}
+                description={`Are you sure you want to delete "${deletingItem?.name}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                isPending={isDeletingDiscount || isDeletingCoupon}
+                onConfirm={handleDelete}
+            />
+        </div>
+    );
+}

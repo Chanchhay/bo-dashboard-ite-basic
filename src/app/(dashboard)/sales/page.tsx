@@ -130,23 +130,6 @@ export default function SalesOrdersPage() {
         <div className="flex flex-col gap-5 pb-4">
             {/* Business Owner Digital Menu Banner */}
 
-            <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                <button
-                    type="button"
-                    onClick={() => setIsQRModalOpen(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
-                >
-                    <QrCode className="h-4 w-4 text-[#00a651]" />
-                    Get Menu QR Code
-                </button>
-                <Link
-                    href="/menu"
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
-                >
-                    <ExternalLink className="h-4 w-4" />
-                    View Live Menu
-                </Link>
-            </div>
 
             <section
                 aria-label="Totals"
