@@ -32,6 +32,7 @@ export const baseApi = createApi({
         "Discounts",
         "Coupons",
         "MembershipTypes",
+        "TelegramBot",
     ],
     endpoints: () => ({}),
 });
