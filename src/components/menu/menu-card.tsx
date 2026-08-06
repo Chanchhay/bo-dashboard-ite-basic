@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 export interface PosCardType {
@@ -8,7 +9,7 @@ export interface PosCardType {
   price: number;
   image: string;
   category: string;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
 export default function MenuCard({
@@ -32,9 +33,11 @@ export default function MenuCard({
     >
       {/* Image Rounded Container */}
       <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-[#1a1e29] border border-gray-100 dark:border-gray-800/80 shadow-xs group-hover:shadow-md transition-all duration-300">
-        <img
+        <Image
           src={image || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80"}
           alt={name}
+          width={100}
+          height={100}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(e) => {
             (e.target as HTMLImageElement).src =

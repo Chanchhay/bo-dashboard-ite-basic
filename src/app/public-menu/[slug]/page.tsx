@@ -1,5 +1,4 @@
-import Image from "next/image";
-import { MapPin, ImageOff } from "lucide-react";
+import PublicMenuClient from "./public-menu-client";
 
 import { formatMoney } from "@/lib/money";
 

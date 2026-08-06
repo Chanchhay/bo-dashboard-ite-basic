@@ -6,21 +6,23 @@ type SearchBarProps = {
   value?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
+  className?: string;
 };
 
 export default function SearchBar({
   value = "",
   onChange,
-  placeholder = "Search...",
+  placeholder = "Search......",
+  className = "",
 }: SearchBarProps) {
   return (
-    <div className="group relative flex h-10 w-full max-w-xs sm:max-w-sm items-center rounded-xl sm:rounded-2xl border border-[#00932a]/60 dark:border-[#00932a]/70 bg-white dark:bg-[#1a1e29] px-3.5 shadow-2xs transition-all duration-200 focus-within:border-[#00932a] focus-within:ring-2 focus-within:ring-[#00932a]/25 hover:border-[#00932a]">
+    <div className={`relative flex h-10 w-full max-w-xs sm:max-w-sm items-center rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 shadow-2xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 hover:border-gray-400 dark:hover:border-gray-600 ${className}`}>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-transparent pr-7 text-sm font-medium text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:outline-none"
+        className="w-full bg-transparent pr-7 text-sm text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none"
       />
       {value ? (
         <button

@@ -99,6 +99,11 @@ export const NAVIGATION: NavSection[] = [
                 href: "/business/payments",
                 permission: PERMISSIONS.BUSINESS_PAYMENTS,
             },
+            {
+                label: "Telegram Bot",
+                href: "/business/telegram",
+                permission: PERMISSIONS.BUSINESS_MANAGE,
+            },
         ],
     },
     {
@@ -180,6 +185,11 @@ export const NAVIGATION: NavSection[] = [
                 href: "/sales",
                 exact: true,
                 permission: PERMISSIONS.SALES_ORDERS,
+            },
+            {
+                label: "Customers",
+                href: "/sales/customers",
+                permission: PERMISSIONS.SALES_MANAGE,
             },
             {
                 label: "Discounts & Coupons",

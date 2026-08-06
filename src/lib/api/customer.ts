@@ -1,0 +1,50 @@
+import type { MembershipTypeResponse } from "./membership-type";
+import type { SalesChannel } from "./sales-channels";
+
+export type GlobalCustomerResponse = {
+    id: string;
+    keycloakUserId?: string;
+    email?: string;
+    fullName?: string;
+    phoneNumber?: string;
+};
+
+export type CustomerResponse = {
+    id: string;
+    businessId: string;
+    globalCustomer?: GlobalCustomerResponse;
+    membershipType?: MembershipTypeResponse;
+    salesChannel?: SalesChannel;
+    address?: string;
+    totalSpend?: number;
+    becameMembershipAt?: string;
+    active: boolean;
+    createdDate?: string;
+    lastModifiedDate?: string;
+};
+
+export type CreateCustomerInput = {
+    keycloakUserId?: string;
+    email?: string;
+    fullName?: string;
+    phoneNumber?: string;
+    membershipTypeId?: string;
+    salesChannelId?: string;
+    address?: string;
+    totalSpend?: number;
+    becameMembershipAt?: string;
+    active?: boolean;
+};
+
+export type UpdateCustomerInput = {
+    keycloakUserId?: string;
+    email?: string;
+    fullName?: string;
+    phoneNumber?: string;
+    membershipTypeId?: string;
+    salesChannelId?: string;
+    address?: string;
+    totalSpend?: number;
+    becameMembershipAt?: string;
+    active?: boolean;
+};
