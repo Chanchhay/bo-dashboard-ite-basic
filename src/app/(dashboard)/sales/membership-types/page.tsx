@@ -186,7 +186,7 @@ export default function MembershipTypesPage() {
                         Member Types
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Define customer membership tiers (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
+                        Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
                     </p>
                 </div>
                 <Button
@@ -225,7 +225,7 @@ export default function MembershipTypesPage() {
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Award className="h-8 w-8 mx-auto opacity-40" />
                         <p className="font-medium text-base text-foreground">No member types found</p>
-                        <p className="text-xs">Create membership tiers (e.g. VIP, Regular) and attach discount rules to reward loyal customers.</p>
+                        <p className="text-xs">Create membership types (e.g. VIP, Regular) and attach discount rules to reward loyal customers.</p>
                     </div>
                 ) : (
                     <Table>
@@ -362,7 +362,7 @@ export default function MembershipTypesPage() {
                                 id="remark"
                                 value={remark}
                                 onChange={(e) => setRemark(e.target.value)}
-                                placeholder="Additional notes or criteria for this membership tier..."
+                                placeholder="Additional notes or criteria for this membership type..."
                                 rows={3}
                             />
                         </div>

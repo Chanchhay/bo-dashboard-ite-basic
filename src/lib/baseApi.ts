@@ -31,6 +31,7 @@ export const baseApi = createApi({
         "Discounts",
         "Coupons",
         "MembershipTypes",
+        "Customers",
     ],
     endpoints: () => ({}),
 });
