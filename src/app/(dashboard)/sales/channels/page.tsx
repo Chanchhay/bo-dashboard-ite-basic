@@ -11,6 +11,8 @@ import { ChannelSelector } from "@/components/menu/ChannelSelector";
 import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
 import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
 import { ChannelHeader } from "@/components/menu/ChannelHeader";
+import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
+import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
 import {
     useCreateItemChannelMutation,
     useDeleteItemChannelMutation,
@@ -73,6 +75,19 @@ export default function SalesChannelsPage() {
         itemId: string;
     } | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+
+    // State for Select Channels by Item dialog
+    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
+    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
+
+    function openMultiChannelDialog(itemId?: string) {
+        if (itemId) {
+            setMultiChannelTargetItemId(itemId);
+        } else {
+            setMultiChannelTargetItemId("");
+        }
+        setIsMultiChannelDialogOpen(true);
+    }
 
     /** Opens the confirmation dialog for one row action. */
     function askToConfirm(mode: "add" | "remove", itemId: string) {
@@ -280,11 +295,7 @@ export default function SalesChannelsPage() {
         <main className="w-full space-y-6">
             <ChannelHeader
                 title="Sales Channels"
-                description="Choose which items are sold on each sales channel."
-                selectedChannelCode={selectedSalesChannel?.code}
-                activeChannelCode={activeChannelCode}
-                onOpenDialog={() => setIsAddDialogOpen(true)}
-                disabled={!selectedSalesChannel || channelsLoading}
+                description="Choose which items are sold on each sales channel, or assign items to multiple channels at once."
             />
 
             {/* Only channels the backend actually has. Nothing can be sold on
@@ -314,25 +325,14 @@ export default function SalesChannelsPage() {
                 </section>
             ) : (
                 <>
-                <ChannelSelector
+                <ChannelMatrixTable
                     channels={activeChannels}
-                    activeChannelCode={activeChannelCode}
-                    selectedChannelCode={selectedSalesChannel?.code}
-                    onSelectChannel={setActiveChannelCode}
-                />
-
-                <ItemChannelTable
-                    activeChannelCode={activeChannelCode}
-                    selectedChannelCode={selectedSalesChannel?.code}
-                    searchQuery={searchQuery}
-                    inventoryLoading={inventoryLoading || channelItemsLoading}
-                    inventoryItems={filteredInventoryItems}
-                    publishedItemIds={publishedItemIds}
-                    pendingItemId={pendingItemId}
-                    onSearchChange={setSearchQuery}
+                    inventoryItems={activeInventoryItems}
+                    inventoryLoading={inventoryLoading}
                     onRefresh={() => refetchChannels()}
-                    onPublish={(itemId) => askToConfirm("add", itemId)}
-                    onUnpublish={(itemId) => askToConfirm("remove", itemId)}
+                    onManageItemChannels={(itemId) => openMultiChannelDialog(itemId)}
+                    onRemoveItemFromChannels={(itemId) => askToConfirm("remove", itemId)}
+                    onOpenMultiChannelDialog={(itemId) => openMultiChannelDialog(itemId)}
                 />
                 </>
             )}
@@ -350,6 +350,15 @@ export default function SalesChannelsPage() {
                 onClose={() => setIsAddDialogOpen(false)}
                 onSelectItem={setSelectedItemId}
                 onSubmit={handlePostItem}
+            />
+
+            <MultiChannelPublishDialog
+                open={isMultiChannelDialogOpen}
+                onClose={() => setIsMultiChannelDialogOpen(false)}
+                inventoryItems={activeInventoryItems}
+                salesChannels={activeChannels}
+                initialItemId={multiChannelTargetItemId}
+                onSuccess={() => refetchChannels()}
             />
 
             <DestructiveConfirmDialog
