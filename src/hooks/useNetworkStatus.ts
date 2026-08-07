@@ -54,14 +54,21 @@ export function useNetworkStatus() {
   }, [status]);
 
   useEffect(() => {
-    checkStatus();
+    // Schedule initial check asynchronously to avoid setState in effect warning
+    const timer = setTimeout(() => {
+      checkStatus();
+    }, 0);
 
     // Check every 15 seconds
     const interval = setInterval(checkStatus, 15000);
 
     const handleOffline = () => setStatus("offline");
-    const handleOnline = () => checkStatus();
-    const handleFocus = () => checkStatus();
+    const handleOnline = () => {
+      checkStatus();
+    };
+    const handleFocus = () => {
+      checkStatus();
+    };
 
     window.addEventListener("offline", handleOffline);
     window.addEventListener("online", handleOnline);
@@ -69,6 +76,7 @@ export function useNetworkStatus() {
     document.addEventListener("visibilitychange", handleFocus);
 
     return () => {
+      clearTimeout(timer);
       clearInterval(interval);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
@@ -77,5 +85,10 @@ export function useNetworkStatus() {
     };
   }, [checkStatus]);
 
-  return { status, isChecking, checkStatus };
+  return { 
+    status, 
+    isChecking, 
+    checkStatus,
+    isOnline: status === "online" 
+  };
 }

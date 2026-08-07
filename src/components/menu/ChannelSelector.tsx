@@ -62,18 +62,21 @@ export function ChannelSelector({
 }: ChannelSelectorProps) {
     return (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {channels.map((channel) => {
-                const codeUpper = channel.code.toUpperCase();
+            {channels.map((channel, index) => {
+                const codeUpper = (channel.code ?? "").toUpperCase();
                 const meta = CHANNEL_METADATA[codeUpper] || {
+                    name: channel.name || codeUpper,
+                    description: `Channel ${codeUpper}`,
                     icon: ShoppingBag,
                     color: "bg-gray-50 text-gray-700 border-gray-200",
                 };
                 const Icon = meta.icon;
-                const isActive = (selectedChannelCode || activeChannelCode).toUpperCase() === codeUpper;
+                const currentCode = (selectedChannelCode ?? activeChannelCode ?? "").toUpperCase();
+                const isActive = currentCode === codeUpper;
 
                 return (
                     <button
-                        key={channel.id || channel.code}
+                        key={channel.id || channel.code || index}
                         type="button"
                         onClick={() => onSelectChannel(channel.code)}
                         aria-pressed={isActive}

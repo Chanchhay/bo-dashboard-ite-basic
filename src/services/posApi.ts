@@ -1,17 +1,28 @@
-export const dummyMutation = (): [any, any] => [
-  async (args?: any) => ({ unwrap: async () => ({}) }),
+export const dummyMutation = (): [
+  (args?: unknown) => Promise<{ unwrap: () => Promise<Record<string, unknown>> }>,
+  { isLoading: boolean; isError: boolean; error: unknown }
+] => [
+  async (_args?: unknown) => ({ unwrap: async () => ({}) }),
   { isLoading: false, isError: false, error: null }
 ];
 
-export const dummyQuery = (): any => ({
+export const dummyQuery = (): {
+  data: unknown[];
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+} => ({
   data: [],
   isLoading: false,
   isFetching: false,
   error: null
 });
 
-export const dummyLazyQuery = (): [any, any] => [
-  async (args?: any) => ({ data: null, unwrap: async () => ({}) }),
+export const dummyLazyQuery = (): [
+  (args?: unknown) => Promise<{ data: unknown; unwrap: () => Promise<Record<string, unknown>> }>,
+  { data: unknown[]; isFetching: boolean; isLoading: boolean; error: unknown }
+] => [
+  async (_args?: unknown) => ({ data: null, unwrap: async () => ({}) }),
   { data: [], isFetching: false, isLoading: false, error: null }
 ];
 
@@ -40,5 +51,5 @@ export const useUpdatePosOrderMutation = dummyMutation;
 export const posApi = {
     reducerPath: 'posApi',
     reducer: () => ({}),
-    middleware: () => (next: any) => (action: any) => next(action),
+    middleware: () => (next: (action: unknown) => unknown) => (action: unknown) => next(action),
 };

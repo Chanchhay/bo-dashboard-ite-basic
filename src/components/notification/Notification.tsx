@@ -116,7 +116,7 @@ function getNotificationLink(notification: Notification): string | null {
         return "/inventory/stock";
     }
 
-    let link = notification.deepLink;
+    const link = notification.deepLink;
     if (link && link !== "#") {
         if (link.includes("/pos") || link.includes("/sales")) {
             return "/sales";
