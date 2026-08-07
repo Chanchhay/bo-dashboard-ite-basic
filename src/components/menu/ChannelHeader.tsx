@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Plus, QrCode, ExternalLink } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Plus, QrCode } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
-import { cn } from "@/lib/utils";
 
 interface ChannelHeaderProps {
     title: string;
@@ -38,27 +36,17 @@ export function ChannelHeader({
                             type="button"
                             variant="outline"
                             onClick={() => setIsQRModalOpen(true)}
-                            size="lg"
-                            className="inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs font-bold"
+                            size="default"
+                            className="inline-flex items-center gap-2 border-primary/30 text-primary bg-white dark:bg-card hover:bg-primary/10 dark:hover:bg-primary/15 dark:border-primary/40 shadow-xs font-bold transition-colors"
                         >
                             <QrCode className="w-4 h-4 text-primary" />
                             Menu QR Code
                         </Button>
-                        <Link
-                            href="/menu"
-                            className={cn(
-                                buttonVariants({ variant: "outline", size: "lg" }),
-                                "inline-flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-2xs font-bold"
-                            )}
-                        >
-                            <ExternalLink className="w-4 h-4 text-primary" />
-                            View Live Menu
-                        </Link>
                         <Button
                             onClick={onOpenDialog}
                             disabled={disabled}
-                            size="lg"
-                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm font-bold"
+                            size="default"
+                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm font-bold transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Add item to {selectedChannelCode || activeChannelCode}

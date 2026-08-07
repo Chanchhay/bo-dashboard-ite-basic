@@ -251,7 +251,7 @@ export default function CustomerManagement() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search by name, email, phone..."
-                        className="pl-9 text-sm"
+                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                     />
                 </div>
                 <ColumnSelectDropdown
