@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { CustomerResponse } from "@/lib/api/customer";
 import {
     useActivateCustomerMutation,
@@ -50,6 +50,8 @@ import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
 
 export default function CustomerManagement() {
     const [searchQuery, setSearchQuery] = useState("");
+    // Total spend is recorded in the business base currency.
+    const { format: formatMoney } = useMoney();
 
     // --- Column Visibility State ---
     const [customerCols, setCustomerCols] = useState([
@@ -388,7 +390,7 @@ export default function CustomerManagement() {
                                         {isColVisible("totalSpend") && (
                                             <TableCell>
                                                 <span className="font-semibold text-xs text-foreground">
-                                                    {formatCurrency(c.totalSpend ?? 0)}
+                                                    {formatMoney(c.totalSpend ?? 0)}
                                                 </span>
                                             </TableCell>
                                         )}
