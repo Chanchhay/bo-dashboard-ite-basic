@@ -193,7 +193,7 @@ function ImageTile({
                     onClick={onRemove}
                     className="size-8"
                 >
-                    <Trash2 />
+                    <Trash2 className="size-4 text-brand-red" />
                 </Button>
             </div>
         </li>
@@ -1257,7 +1257,7 @@ function ProductEditor({
                                         )
                                     }
                                 >
-                                    <Trash2 />
+                                    <Trash2 className="size-4 text-brand-red" />
                                 </Button>
                             </div>
                         ))
@@ -1371,7 +1371,7 @@ function ProductEditor({
                                 }
                                 className="!h-9 !w-9 sm:!h-10 sm:!w-10 shrink-0 rounded-xl p-0 flex items-center justify-center"
                             >
-                                <Trash2 className="size-4 shrink-0" />
+                                <Trash2 className="size-4 shrink-0 text-brand-red" />
                             </Button>
                         </div>
                     ))}

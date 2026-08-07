@@ -423,7 +423,7 @@ export default function CustomerManagement() {
                                                 onClick={() => setDeletingCustomer(c)}
                                                 className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4 text-brand-red" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>

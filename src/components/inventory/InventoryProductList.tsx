@@ -958,7 +958,7 @@ export function InventoryProductList() {
                                                         })
                                                     }
                                                 >
-                                                    <Trash2 />
+                                                    <Trash2 className="size-4 text-brand-red" />
                                                 </Button>
                                             </div>
                                         </td>

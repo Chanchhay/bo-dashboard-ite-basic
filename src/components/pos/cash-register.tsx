@@ -290,7 +290,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               disabled={isLoading}
               className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
-              <Delete className="h-5 w-5" />
+              <Delete className="h-5 w-5 text-brand-red" />
             </button>
           </div>
 

@@ -105,7 +105,7 @@ function getNotificationLink(notification: Notification): string | null {
         return "/inventory/stock";
     }
 
-    let link = notification.deepLink;
+    const link = notification.deepLink;
     if (link && link !== "#") {
         if (link.includes("/pos") || link.includes("/sales")) {
             return "/sales";
@@ -417,7 +417,7 @@ export default function NotificationsApp() {
                                             title="Delete notification"
                                             className="grid size-8 place-items-center rounded-xl text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
                                         >
-                                            <Trash2 className="size-4" />
+                                            <Trash2 className="size-4 text-brand-red" />
                                         </button>
                                     </div>
                                 </div>

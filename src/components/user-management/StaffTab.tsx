@@ -632,7 +632,7 @@ export default function StaffTab() {
                                                     }
                                                 >
                                                     <Trash2
-                                                        className="size-4"
+                                                        className="size-4 text-brand-red"
                                                         aria-hidden="true"
                                                     />
                                                 </Button>

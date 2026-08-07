@@ -472,7 +472,7 @@ function NotificationItem({
                     title="Delete notification"
                     className="hidden group-hover:grid size-9 place-items-center rounded-xl text-[#8a8f89] dark:text-[#94a3b8] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors outline-none"
                 >
-                    <Trash2 className="size-5" />
+                    <Trash2 className="size-5 text-brand-red" />
                 </button>
             </div>
         </div>

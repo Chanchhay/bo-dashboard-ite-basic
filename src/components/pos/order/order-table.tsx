@@ -139,7 +139,7 @@ function ItemRow({
             disabled={busy}
             className="grid size-9 place-items-center rounded-full text-brand-red transition hover:bg-red-50 active:scale-90 disabled:opacity-40 sm:size-8"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-brand-red" />
           </button>
         </div>
       </td>

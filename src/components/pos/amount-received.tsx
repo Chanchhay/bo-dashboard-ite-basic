@@ -240,7 +240,7 @@ export function AmountReceived({
                     key === "back" ? "text-brand-red" : ""
                   } ${isActive ? "ring-2 ring-primary bg-[#e2e6e9] scale-[0.97]" : ""}`}
                 >
-                  {key === "back" ? <Delete className="size-5" aria-hidden="true" /> : key}
+                  {key === "back" ? <Delete className="size-5 text-brand-red" aria-hidden="true" /> : key}
                 </button>
               );
             })}
