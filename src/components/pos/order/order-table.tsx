@@ -215,6 +215,8 @@ export function OrderTable({
         if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
           targetAmount = rule.maxDiscountAmount;
         }
+      } else if (rule.type === "FINAL_PRICE") {
+        targetAmount = Math.max(0, order.subtotal - rule.value);
       } else {
         targetAmount = rule.value;
       }
@@ -297,6 +299,8 @@ export function OrderTable({
       if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
         targetAmount = rule.maxDiscountAmount;
       }
+    } else if (rule.type === "FINAL_PRICE") {
+      targetAmount = Math.max(0, order.subtotal - rule.value);
     } else {
       targetAmount = rule.value;
     }

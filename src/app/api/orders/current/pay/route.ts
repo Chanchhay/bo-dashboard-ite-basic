@@ -41,11 +41,16 @@ export async function POST(request: Request) {
 
         const businessId = await getCurrentBusinessId();
 
-        // Calculate real effective subtotal, discount, and total
-        const subtotal = order.items.reduce(
+        // Calculate real financial flow breakdown
+        const grossSubtotal = order.items.reduce(
             (sum, item) => sum + item.unitPrice * item.quantity,
             0
-        ) || order.subtotal || 0;
+        );
+        const itemDiscount = order.items.reduce(
+            (sum, item) => sum + (item.discountAmount || 0),
+            0
+        );
+        const subtotal = Math.max(0, grossSubtotal - itemDiscount);
         const discountAmount = Math.max(0, order.discountAmount ?? 0);
         const effectiveTotal = Math.max(0, parseFloat((subtotal - discountAmount).toFixed(2)));
 
@@ -65,8 +70,46 @@ export async function POST(request: Request) {
             }
         }
 
-        // Send payment to Spring Java backend. Omitting receivedAmount when calling Spring backend
-        // forces Spring backend to use its internal total, avoiding any "Received X is less than total Y" Spring exceptions!
+        const paidVal = userReceived ?? effectiveTotal;
+
+        // Sync order item discounts to Spring Java backend prior to payment
+        if (discountAmount > 0 && order.items.length > 0) {
+            const itemsSubtotal = grossSubtotal || 1;
+            const discountRatio = discountAmount / itemsSubtotal;
+            let runningDiscountTotal = 0;
+
+            for (let i = 0; i < order.items.length; i++) {
+                const item = order.items[i];
+                const itemSubtotal = item.unitPrice * item.quantity;
+                let itemDisc = 0;
+                if (i === order.items.length - 1) {
+                    itemDisc = Math.max(0, parseFloat((discountAmount - runningDiscountTotal).toFixed(2)));
+                } else {
+                    itemDisc = Math.min(itemSubtotal, parseFloat((itemSubtotal * discountRatio).toFixed(2)));
+                    runningDiscountTotal += itemDisc;
+                }
+
+                try {
+                    await backendRequest<unknown>(
+                        ordersPath(
+                            businessId,
+                            `/${encodeURIComponent(order.id)}/items/${encodeURIComponent(item.id)}`
+                        ),
+                        {
+                            method: "PATCH",
+                            body: JSON.stringify({
+                                quantity: item.quantity,
+                                discountAmount: itemDisc,
+                            }),
+                        }
+                    );
+                } catch {
+                    // Ignore item patch error
+                }
+            }
+        }
+
+        // Send payment to Spring Java backend
         const sale = await backendRequest<Sale>(
             ordersPath(businessId, `/${encodeURIComponent(order.id)}/pay`),
             {
@@ -74,6 +117,7 @@ export async function POST(request: Request) {
                 body: JSON.stringify({
                     paymentMethod: result.data.paymentMethod,
                     note: result.data.note,
+                    receivedAmount: paidVal,
                 }),
             }
         );
@@ -82,7 +126,6 @@ export async function POST(request: Request) {
         await forgetOrder();
 
         // Ensure sale returned to frontend accurately reflects discount & effective total
-        const paidVal = userReceived ?? effectiveTotal;
         const changeVal = Math.max(0, parseFloat((paidVal - effectiveTotal).toFixed(2)));
 
         const formattedSale: Sale = {

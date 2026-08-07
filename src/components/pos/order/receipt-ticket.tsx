@@ -175,10 +175,9 @@ export function ReceiptTicket({
         </div>
 
         {order.items.map((item) => {
-          const itemLineSubtotal = item.unitPrice * item.quantity;
-          const itemOrderDiscount = itemLineSubtotal * discountRatio;
-          const totalItemDiscount = (item.discountAmount ?? 0) + itemOrderDiscount;
-          const finalLineTotal = Math.max(0, item.lineTotal - itemOrderDiscount);
+          const grossAmount = item.unitPrice * item.quantity;
+          const itemDisc = item.discountAmount ?? 0;
+          const netAmount = item.lineTotal ?? (grossAmount - itemDisc);
 
           return (
             <div
@@ -192,9 +191,9 @@ export function ReceiptTicket({
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
                 </p>
-                {totalItemDiscount > 0 && (
+                {itemDisc > 0 && (
                   <p className="font-mono text-[11px] font-medium text-[#d14341]">
-                    Disc: -{formatMoney(totalItemDiscount, currency)}
+                    Disc: -{formatMoney(itemDisc, currency)}
                   </p>
                 )}
               </div>
@@ -202,7 +201,7 @@ export function ReceiptTicket({
                 {item.quantity}
               </span>
               <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
-                {formatMoney(finalLineTotal, currency)}
+                {formatMoney(netAmount, currency)}
               </span>
             </div>
           );

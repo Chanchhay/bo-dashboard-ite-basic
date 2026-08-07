@@ -25,7 +25,7 @@ import { useMoney } from "@/hooks/useMoney";
 import { useGetDiscountsQuery, useGetCouponsQuery } from "@/services/discountApi";
 
 export type AppliedDiscountRule = {
-    type: "PERCENTAGE" | "FIXED";
+    type: "PERCENTAGE" | "FIXED" | "FINAL_PRICE";
     value: number;
     maxDiscountAmount?: number;
     discountId?: string;
@@ -62,7 +62,7 @@ export function DiscountSelectModal({
     const { data: coupons = [], isLoading: isCouponsLoading } = useGetCouponsQuery();
 
     // Custom discount state
-    const [customType, setCustomType] = useState<"PERCENTAGE" | "FIXED">("PERCENTAGE");
+    const [customType, setCustomType] = useState<"PERCENTAGE" | "FIXED" | "FINAL_PRICE">("PERCENTAGE");
     const [customValue, setCustomValue] = useState<string>("");
 
     // Coupon code state
@@ -79,7 +79,14 @@ export function DiscountSelectModal({
         if (customType === "PERCENTAGE") {
             return Math.min(subtotal, (subtotal * val) / 100);
         }
-        return Math.min(subtotal, val);
+        if (customType === "FIXED") {
+            return Math.min(subtotal, val);
+        }
+        if (customType === "FINAL_PRICE") {
+            if (val >= subtotal) return 0;
+            return Math.min(subtotal, Math.max(0, subtotal - val));
+        }
+        return 0;
     };
 
     const handleApplyRule = async (rule: AppliedDiscountRule | null) => {
@@ -94,7 +101,7 @@ export function DiscountSelectModal({
                 });
             } else {
                 toast({
-                    tone: "neutral",
+                    tone: "info",
                     title: "Discount removed",
                     description: "Removed discount from current order.",
                 });
@@ -117,9 +124,28 @@ export function DiscountSelectModal({
         if (isNaN(val) || val <= 0) {
             toast({
                 tone: "error",
-                title: "Invalid discount value",
-                description: "Please enter a positive discount value.",
+                title: "Invalid input",
+                description: "Please enter a positive value.",
             });
+            return;
+        }
+
+        if (customType === "FINAL_PRICE") {
+            if (val >= subtotal) {
+                toast({
+                    tone: "error",
+                    title: "Invalid final price",
+                    description: `The price after discount (${format(val, currency)}) must be less than the subtotal before discount (${format(subtotal, currency)}).`,
+                });
+                return;
+            }
+
+            const rule: AppliedDiscountRule = {
+                type: "FINAL_PRICE",
+                value: val,
+                label: `Price: ${format(val, currency)}`,
+            };
+            handleApplyRule(rule);
             return;
         }
 
@@ -157,7 +183,7 @@ export function DiscountSelectModal({
             return;
         }
 
-        const type = match.discount?.type ?? "PERCENTAGE";
+        const type = match.discount?.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED";
         const val = match.discount?.value ?? 10;
 
         const rule: AppliedDiscountRule = {
@@ -324,33 +350,50 @@ export function DiscountSelectModal({
 
                     {tab === "CUSTOM" && (
                         <form onSubmit={handleApplyCustom} className="space-y-4">
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                                 <button
                                     type="button"
                                     onClick={() => setCustomType("PERCENTAGE")}
-                                    className={`flex-1 h-11 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${customType === "PERCENTAGE"
-                                            ? "border-primary bg-primary/10 text-primary"
+                                    className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "PERCENTAGE"
+                                            ? "border-primary bg-primary/10 text-primary shadow-xs"
                                             : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                         }`}
                                 >
-                                    <Percent className="h-4 w-4" /> Percentage (%)
+                                    <Percent className="h-3.5 w-3.5" /> % OFF
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setCustomType("FIXED")}
-                                    className={`flex-1 h-11 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${customType === "FIXED"
-                                            ? "border-primary bg-primary/10 text-primary"
+                                    className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "FIXED"
+                                            ? "border-primary bg-primary/10 text-primary shadow-xs"
                                             : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                         }`}
                                 >
-                                    <DollarSign className="h-4 w-4" /> Fixed Amount ($)
+                                    <DollarSign className="h-3.5 w-3.5" /> $ OFF
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCustomType("FINAL_PRICE")}
+                                    className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "FINAL_PRICE"
+                                            ? "border-primary bg-primary/10 text-primary shadow-xs"
+                                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                        }`}
+                                >
+                                    <Tag className="h-3.5 w-3.5" /> Price After Discount
                                 </button>
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="custom-val" className="text-xs font-bold text-gray-700">
-                                    {customType === "PERCENTAGE" ? "Discount Percentage (%)" : "Discount Amount ($)"}
-                                </Label>
+                                <div className="flex justify-between items-center">
+                                    <Label htmlFor="custom-val" className="text-xs font-bold text-gray-700">
+                                        {customType === "PERCENTAGE" && "Discount Percentage (% OFF)"}
+                                        {customType === "FIXED" && "Discount Amount ($ OFF)"}
+                                        {customType === "FINAL_PRICE" && "Target Price After Discount ($)"}
+                                    </Label>
+                                    <span className="text-[11px] text-gray-500 font-medium">
+                                        Subtotal: {format(subtotal, currency)}
+                                    </span>
+                                </div>
                                 <Input
                                     id="custom-val"
                                     type="number"
@@ -358,18 +401,32 @@ export function DiscountSelectModal({
                                     min="0"
                                     value={customValue}
                                     onChange={(e) => setCustomValue(e.target.value)}
-                                    placeholder={customType === "PERCENTAGE" ? "e.g. 10" : "e.g. 5.00"}
+                                    placeholder={
+                                        customType === "PERCENTAGE"
+                                            ? "e.g. 10 (10% OFF)"
+                                            : customType === "FIXED"
+                                                ? "e.g. 5.00 ($5.00 OFF)"
+                                                : `e.g. 15.00 (Original is ${format(subtotal, currency)})`
+                                    }
                                     className="h-11 text-base font-bold rounded-xl"
                                     autoFocus
                                 />
                             </div>
 
-                            {/* Live Preview */}
-                            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-600">Current Order Preview:</span>
-                                <span className="text-base font-bold text-brand-red">
-                                    -{format(calculateCustomPreview(), currency)}
-                                </span>
+                            {/* Live Calculation Breakdown */}
+                            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <span>Price before discount:</span>
+                                    <span className="font-semibold text-gray-900">{format(subtotal, currency)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-brand-red font-bold">
+                                    <span>Calculated discount:</span>
+                                    <span>-{format(calculateCustomPreview(), currency)}</span>
+                                </div>
+                                <div className="pt-2 border-t border-gray-200 flex items-center justify-between text-sm font-extrabold text-primary">
+                                    <span>Price after discount:</span>
+                                    <span>{format(Math.max(0, subtotal - calculateCustomPreview()), currency)}</span>
+                                </div>
                             </div>
 
                             <Button
@@ -382,7 +439,7 @@ export function DiscountSelectModal({
                                 ) : (
                                     <Check className="h-4 w-4 mr-1" />
                                 )}
-                                Apply & Keep Active
+                                Apply Manual Discount
                             </Button>
                         </form>
                     )}
