@@ -45,19 +45,19 @@ export function ItemChannelTable({
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-sm">
-                    <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder="Search item name or code"
                         value={searchQuery}
                         onChange={(event) => onSearchChange(event.target.value)}
-                        className={`${inventoryControlClassName} pl-10`}
+                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground"
                     />
                 </div>
                 <button
                     type="button"
                     onClick={onRefresh}
                     title="Refresh channels"
-                    className="inline-flex items-center justify-center rounded-lg border border-border bg-card p-2.5 text-success transition hover:bg-muted shadow-xs"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-success transition hover:bg-muted shadow-xs shrink-0"
                 >
                     <RefreshCw className="h-4 w-4" />
                     <span className="sr-only">Refresh channels</span>

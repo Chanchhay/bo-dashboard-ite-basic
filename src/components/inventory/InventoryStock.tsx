@@ -231,7 +231,7 @@ export function InventoryStock() {
                         </p>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
-                        <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={stockSearch}
                             onChange={(event) =>
@@ -240,7 +240,7 @@ export function InventoryStock() {
                                 )
                             }
                             placeholder="Search items"
-                            className={`${inventoryControlClassName} pl-10`}
+                            className="h-10 pl-9 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground"
                         />
                     </div>
                 </div>
