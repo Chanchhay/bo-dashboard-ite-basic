@@ -76,7 +76,7 @@ export default function AppLauncher({
                 </header>
 
                 {apps.length > 0 ? (
-                    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {apps.map((section) => (
                             <li key={section.id}>
                                 <AppTile
@@ -211,3 +211,4 @@ function AppOpen({ section, cx, cy, size }: Opening) {
         </div>
     );
 }
+

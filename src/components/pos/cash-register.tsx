@@ -1,12 +1,34 @@
 "use client";
 
 import { Building2, Delete, X, Calculator } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
 import { useToast } from "@/components/ui/toast";
 import { useCurrencySymbol } from "@/hooks/useCurrencySymbol";
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
+
+function sanitizeAmount(raw: string): string {
+  if (!raw) return "0";
+
+  // Keep only digits and decimal dot
+  let val = raw.replace(/[^0-9.]/g, "");
+
+  // Keep only the first decimal point
+  const parts = val.split(".");
+  if (parts.length > 2) {
+    val = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  const [intPart, decPart] = val.split(".");
+  // Strip leading zeros before digits e.g. "03233" -> "3233"
+  let cleanInt = intPart.replace(/^0+(?=\d)/, "");
+  if (cleanInt === "") cleanInt = "0";
+
+  if (decPart !== undefined) {
+    return `${cleanInt}.${decPart.slice(0, 2)}`;
+  }
+  return cleanInt;
+}
 
 export function CashRegister({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
@@ -16,22 +38,85 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   const [amount, setAmount] = useState("0.00");
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDigit = (digit: string) => {
+    const input = inputRef.current;
+
     setAmount((prev) => {
-      if (prev === "0.00") {
+      if (prev === "0.00" || prev === "0") {
         return digit === "." ? "0." : digit;
       }
-      if (digit === "." && prev.includes(".")) return prev;
 
+      if (input && document.activeElement === input) {
+        const start = input.selectionStart ?? prev.length;
+        const end = input.selectionEnd ?? prev.length;
+
+        if (digit === "." && prev.includes(".") && !prev.slice(start, end).includes(".")) {
+          return prev;
+        }
+
+        const next = prev.slice(0, start) + digit + prev.slice(end);
+        const sanitized = sanitizeAmount(next);
+
+        setTimeout(() => {
+          const newPos = Math.min(start + 1, sanitized.length);
+          input.setSelectionRange(newPos, newPos);
+        }, 0);
+
+        return sanitized;
+      }
+
+      if (digit === "." && prev.includes(".")) return prev;
       const [, decimals] = prev.split(".");
       if (decimals && decimals.length >= 2) return prev;
-      return prev + digit;
+      return sanitizeAmount(prev + digit);
     });
   };
 
   const handleDelete = () => {
-    setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0.00"));
+    const input = inputRef.current;
+
+    setAmount((prev) => {
+      if (input && document.activeElement === input) {
+        const start = input.selectionStart ?? prev.length;
+        const end = input.selectionEnd ?? prev.length;
+
+        if (start !== end) {
+          const next = prev.slice(0, start) + prev.slice(end);
+          const sanitized = sanitizeAmount(next);
+          setTimeout(() => {
+            input.setSelectionRange(start, start);
+          }, 0);
+          return sanitized;
+        }
+
+        if (start > 0) {
+          const next = prev.slice(0, start - 1) + prev.slice(start);
+          const sanitized = sanitizeAmount(next);
+          const newPos = Math.max(0, start - 1);
+          setTimeout(() => {
+            input.setSelectionRange(newPos, newPos);
+          }, 0);
+          return sanitized;
+        }
+
+        return prev;
+      }
+
+      if (prev.length <= 1) return "0";
+      return sanitizeAmount(prev.slice(0, -1));
+    });
+  };
+
+  const handleBlur = () => {
+    // Format nicely with 2 decimal places on blur e.g. "3233" -> "3233.00"
+    const num = Number.parseFloat(amount);
+    if (!Number.isNaN(num) && num >= 0) {
+      setAmount(num.toFixed(2));
+    } else {
+      setAmount("0.00");
+    }
   };
 
   const handleOpenRegister = async () => {
@@ -69,8 +154,6 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
         return;
       }
 
-      // Straight to the terminal — the float is counted, the shift has begun.
-      // `replace` so Back can't return to a register that is already open.
       router.replace(POS_ROUTES.terminal);
     } catch {
       toast({
@@ -87,11 +170,37 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
       onClose();
       return;
     }
-
     router.replace(SALES_HOME);
   };
 
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === "TEXTAREA") {
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleOpenRegister();
+        return;
+      }
+
+      if (document.activeElement !== inputRef.current) {
+        if (/^[0-9.]$/.test(e.key)) {
+          e.preventDefault();
+          handleDigit(e.key);
+        } else if (e.key === "Backspace" || e.key === "Delete") {
+          e.preventDefault();
+          handleDelete();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleDigit, handleDelete, handleOpenRegister]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
@@ -107,13 +216,19 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
           <button
             type="button"
             onClick={handleClose}
-            className="text-gray-400 transition-colors hover:text-gray-600"
+            className="text-gray-400 transition-colors hover:text-gray-600 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex flex-col gap-5 px-6 py-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleOpenRegister();
+          }}
+          className="flex flex-col gap-5 px-6 py-6"
+        >
           <p className="text-center font-medium text-sm text-gray-500">
             Open a new cash register session to continue
           </p>
@@ -124,10 +239,16 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               STARTING CASH
             </label>
             <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
-              <span className="text-gray-400 font-bold">{symbol}</span>
-              <span className="text-lg font-semibold text-gray-800">
-                {amount}
-              </span>
+              <span className="text-gray-400 font-bold shrink-0">{symbol}</span>
+              <input
+                ref={inputRef}
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(sanitizeAmount(e.target.value))}
+                onBlur={handleBlur}
+                className="w-full bg-transparent text-right text-lg font-semibold text-gray-800 outline-none"
+              />
             </div>
           </div>
 
@@ -139,7 +260,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
                 type="button"
                 onClick={() => handleDigit(key)}
                 disabled={isLoading}
-                className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40"
+                className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
               >
                 {key}
               </button>
@@ -149,7 +270,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               type="button"
               onClick={() => handleDigit(".")}
               disabled={isLoading}
-              className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40"
+              className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
               .
             </button>
@@ -158,7 +279,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               type="button"
               onClick={() => handleDigit("0")}
               disabled={isLoading}
-              className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40"
+              className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
               0
             </button>
@@ -167,7 +288,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               type="button"
               onClick={handleDelete}
               disabled={isLoading}
-              className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40"
+              className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
               <Delete className="h-5 w-5" />
             </button>
@@ -189,15 +310,14 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
 
           {/* Submit */}
           <button
-            type="button"
-            onClick={handleOpenRegister}
+            type="submit"
             disabled={isLoading}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-bold text-white transition-transform active:scale-[0.98] active:bg-[#15803d] disabled:opacity-40"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-bold text-white transition-transform active:scale-[0.98] active:bg-[#15803d] disabled:opacity-40 cursor-pointer"
           >
             <Calculator className="h-4 w-4" />
             {isLoading ? "Opening..." : "Open Register"}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
