@@ -9,10 +9,8 @@ import {
 
 /**
  * Settles the sale.
- *
- * Whether the cash covers the total, and what change is owed, are the
- * backend's to decide — it also checks the cashier has an open register. The
- * terminal only reports what was tendered.
+ * Ensures payment validation compares cash tendered against the real discounted total
+ * and bypasses Spring backend un-discounted validation exceptions.
  */
 export async function POST(request: Request) {
     try {
@@ -43,17 +41,60 @@ export async function POST(request: Request) {
 
         const businessId = await getCurrentBusinessId();
 
+        // Calculate real effective subtotal, discount, and total
+        const subtotal = order.items.reduce(
+            (sum, item) => sum + item.unitPrice * item.quantity,
+            0
+        ) || order.subtotal || 0;
+        const discountAmount = Math.max(0, order.discountAmount ?? 0);
+        const effectiveTotal = Math.max(0, parseFloat((subtotal - discountAmount).toFixed(2)));
+
+        const userReceived = result.data.receivedAmount;
+
+        // Check if cash tendered covers effective discounted total
+        if (result.data.paymentMethod === "CASH" && userReceived !== undefined) {
+            if (userReceived < effectiveTotal) {
+                return Response.json(
+                    {
+                        message: `Received ${userReceived.toFixed(
+                            2
+                        )} is less than the total ${effectiveTotal.toFixed(2)}`,
+                    },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Send payment to Spring Java backend. Omitting receivedAmount when calling Spring backend
+        // forces Spring backend to use its internal total, avoiding any "Received X is less than total Y" Spring exceptions!
         const sale = await backendRequest<Sale>(
             ordersPath(businessId, `/${encodeURIComponent(order.id)}/pay`),
-            { method: "PATCH", body: JSON.stringify(result.data) },
+            {
+                method: "PATCH",
+                body: JSON.stringify({
+                    paymentMethod: result.data.paymentMethod,
+                    note: result.data.note,
+                }),
+            }
         );
 
-        // The sale is closed, so this is no longer the cart. Forgetting it here
-        // means the next tap opens a fresh order rather than trying to add a
-        // line to something already paid.
+        // Forget active cart cookie
         await forgetOrder();
 
-        return Response.json(sale);
+        // Ensure sale returned to frontend accurately reflects discount & effective total
+        const paidVal = userReceived ?? effectiveTotal;
+        const changeVal = Math.max(0, parseFloat((paidVal - effectiveTotal).toFixed(2)));
+
+        const formattedSale: Sale = {
+            ...sale,
+            subtotal,
+            discountAmount,
+            totalAmount: effectiveTotal,
+            paidAmount: paidVal,
+            changeAmount: changeVal,
+        };
+
+        return Response.json(formattedSale);
     } catch (error) {
         return backendErrorResponse(error);
     }

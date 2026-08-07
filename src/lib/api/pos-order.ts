@@ -153,6 +153,19 @@ export const payOrderSchema = z.object({
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;
 
+export const setOrderCustomerSchema = z.object({
+    customerId: z.string().nullable().optional(),
+});
+
+export const setOrderDiscountSchema = z.object({
+    discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
+    discountId: z.string().optional(),
+    discountCode: z.string().optional(),
+});
+
+export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;
+export type SetOrderDiscountInput = z.infer<typeof setOrderDiscountSchema>;
+
 /** A KHQR the customer scans to pay. */
 export type Khqr = {
     /** The raw EMV payload, if the terminal has to render its own code. */

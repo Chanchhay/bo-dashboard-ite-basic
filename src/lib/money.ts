@@ -101,6 +101,14 @@ export function formatMoney(
 }
 
 /**
+ * Compatibility helper for older call sites that expect a simple
+ * `formatCurrency(value)` API.
+ */
+export function formatCurrency(value: string | number | null | undefined): string {
+  return formatMoney(value, undefined);
+}
+
+/**
  * Formats using only an ISO code. Prefer `formatMoney` with the configured
  * currency; this is the fallback for records whose currency is not in the
  * business configuration.
