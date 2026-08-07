@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { auth } from "@/lib/auth/auth";
@@ -30,71 +29,46 @@ async function readIdToken(requestHeaders: Headers) {
     }
 }
 
-/** Returns the `Set-Cookie` headers that expire the session client-side. */
+/** Returns Better Auth's complete cookie cleanup, including chunked cookies. */
 async function clearSession(requestHeaders: Headers) {
-    try {
-        const { headers: responseHeaders } = await auth.api.signOut({
-            headers: requestHeaders,
-            returnHeaders: true,
-        });
+    const { headers: responseHeaders } = await auth.api.signOut({
+        headers: requestHeaders,
+        returnHeaders: true,
+    });
 
-        return responseHeaders.getSetCookie();
-    } catch {
-        return [];
-    }
+    return responseHeaders.getSetCookie();
 }
 
 export async function POST(request: NextRequest) {
-    const requestHeaders = await headers();
-
-    const baseUrl =
-        process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, "") ||
-        request.nextUrl.origin;
-    // Straight back to /login, which starts a fresh sign-in on arrival.
-    const loginUrl = `${baseUrl}/login`;
+    const requestHeaders = new Headers(request.headers);
+    const signedOutUrl = new URL("/login?loggedOut=1", request.nextUrl.origin);
 
     const idToken = await readIdToken(requestHeaders);
-    const setCookies = await clearSession(requestHeaders);
+    let setCookies: string[];
+
+    try {
+        setCookies = await clearSession(requestHeaders);
+    } catch {
+        return NextResponse.json(
+            { error: "Unable to clear the current session" },
+            { status: 500 },
+        );
+    }
 
     const target =
         (await keycloakLogoutUrl({
             idToken,
-            postLogoutRedirectUri: loginUrl,
-        })) ?? loginUrl;
+            postLogoutRedirectUri: signedOutUrl.toString(),
+        })) ?? signedOutUrl.toString();
 
     // 303 so the browser follows this POST with a GET.
     const response = NextResponse.redirect(target, 303);
 
-    // `nextCookies()` already writes these through `cookies()`; repeating them
-    // on the redirect keeps the session gone even if that write is skipped.
+    // Forward Better Auth's exact cookie cleanup onto the redirect response.
+    // This includes account_data and any chunked session/account cookies.
     for (const cookie of setCookies) {
         response.headers.append("set-cookie", cookie);
     }
 
-    const cookiesToClear = [
-        "better-auth.session_token",
-        "__Secure-better-auth.session_token",
-        "better-auth.session_data",
-        "__Secure-better-auth.session_data",
-        "better-auth.dont_remember",
-        "__Secure-better-auth.dont_remember",
-        "ipos_token",
-    ];
-
-    for (const cookieName of cookiesToClear) {
-        response.headers.append(
-            "set-cookie",
-            `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax`
-        );
-        response.headers.append(
-            "set-cookie",
-            `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax`
-        );
-    }
-
     return response;
-}
-
-export async function GET(request: NextRequest) {
-    return POST(request);
 }

@@ -39,6 +39,12 @@ export const businessCurrencyConfigurationSchema = z
             .trim()
             .length(3)
             .transform((code) => code.toUpperCase()),
+        displayCurrency: z
+            .string()
+            .trim()
+            .length(3)
+            .transform((code) => code.toUpperCase())
+            .optional(),
         currencies: z.array(businessCurrencySchema).min(1),
     })
     .superRefine((configuration, context) => {
@@ -51,6 +57,17 @@ export const businessCurrencyConfigurationSchema = z
                 code: "custom",
                 path: ["baseCurrency"],
                 message: "The base currency must be in the currency list.",
+            });
+        }
+
+        if (
+            configuration.displayCurrency &&
+            !codes.includes(configuration.displayCurrency)
+        ) {
+            context.addIssue({
+                code: "custom",
+                path: ["displayCurrency"],
+                message: "The display currency must be in the currency list.",
             });
         }
 

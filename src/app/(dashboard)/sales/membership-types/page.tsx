@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { MembershipTypeResponse } from "@/lib/api/membership-type";
 import {
     useActivateMembershipTypeMutation,
@@ -48,6 +48,7 @@ import { useGetDiscountsQuery } from "@/services/discountApi";
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
 
 export default function MembershipTypesPage() {
+    const { format, base } = useMoney();
     const [searchQuery, setSearchQuery] = useState("");
 
     // --- Column Visibility State ---
@@ -186,7 +187,7 @@ export default function MembershipTypesPage() {
                         Member Types
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Define customer membership tiers (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
+                        Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
                     </p>
                 </div>
                 <Button
@@ -205,7 +206,7 @@ export default function MembershipTypesPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search member type name or remark..."
-                        className="pl-9 text-sm"
+                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                     />
                 </div>
                 <ColumnSelectDropdown
@@ -225,7 +226,7 @@ export default function MembershipTypesPage() {
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Award className="h-8 w-8 mx-auto opacity-40" />
                         <p className="font-medium text-base text-foreground">No member types found</p>
-                        <p className="text-xs">Create membership tiers (e.g. VIP, Regular) and attach discount rules to reward loyal customers.</p>
+                        <p className="text-xs">Create membership types (e.g. VIP, Regular) and attach discount rules to reward loyal customers.</p>
                     </div>
                 ) : (
                     <Table>
@@ -256,7 +257,7 @@ export default function MembershipTypesPage() {
                                                     {t.discount.name} (
                                                     {t.discount.type === "PERCENTAGE"
                                                         ? `${t.discount.value}%`
-                                                        : formatCurrency(t.discount.value)}
+                                                        : format(t.discount.value)}
                                                     )
                                                 </div>
                                             ) : (
@@ -347,7 +348,7 @@ export default function MembershipTypesPage() {
                                 <option value="">None (No special discount)</option>
                                 {discounts.map((d) => (
                                     <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : `$${d.value}`})
+                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
                                     </option>
                                 ))}
                             </select>
@@ -362,7 +363,7 @@ export default function MembershipTypesPage() {
                                 id="remark"
                                 value={remark}
                                 onChange={(e) => setRemark(e.target.value)}
-                                placeholder="Additional notes or criteria for this membership tier..."
+                                placeholder="Additional notes or criteria for this membership type..."
                                 rows={3}
                             />
                         </div>

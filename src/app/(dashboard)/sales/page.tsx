@@ -8,7 +8,6 @@ import {
     Receipt,
     RefreshCw,
     Search,
-    QrCode,
     ExternalLink,
 } from "lucide-react";
 
@@ -24,7 +23,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
 import {
@@ -37,7 +36,6 @@ import {
     useEnableStorefrontMutation,
     useDisableStorefrontMutation,
 } from "@/services/businessApi";
-import MenuQRModal from "@/components/menu/menu-qr-modal";
 
 
 const STATUS_FILTERS = [
@@ -88,6 +86,7 @@ function rangeStart(filter: DateFilter): string | undefined {
 }
 
 export default function SalesOrdersPage() {
+    const { format } = useMoney();
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
@@ -96,7 +95,6 @@ export default function SalesOrdersPage() {
     const [query, setQuery] = useState("");
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
-    const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
     const from = useMemo(() => rangeStart(range), [range]);
 
@@ -176,14 +174,6 @@ export default function SalesOrdersPage() {
                     </div>
 
                     <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                        <button
-                            type="button"
-                            onClick={() => setIsQRModalOpen(true)}
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-white border border-emerald-300 px-4 py-2.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-colors"
-                        >
-                            <QrCode className="h-4 w-4 text-[#00a651]" />
-                            QR Code
-                        </button>
                         <Link
                             href={subdomainUrl}
                             target="_blank"
@@ -207,7 +197,7 @@ export default function SalesOrdersPage() {
                 />
                 <Stat
                     label="Revenue"
-                    value={totals ? formatCurrency(totals.revenue) : "—"}
+                    value={totals ? format(totals.revenue) : "—"}
                 />
                 <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
                 <Stat
@@ -223,12 +213,6 @@ export default function SalesOrdersPage() {
                     pages through every order.
                 </p>
             )}
-
-            <MenuQRModal
-                isOpen={isQRModalOpen}
-                onClose={() => setIsQRModalOpen(false)}
-                menuUrl={subdomainUrl !== "#" ? subdomainUrl : undefined}
-            />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
                 <div className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
@@ -440,6 +424,7 @@ function matchesSearch(order: PosOrder, search: string) {
 }
 
 function OrderRow({ order }: { order: PosOrder }) {
+    const { format } = useMoney();
     const itemCount = order.items.reduce(
         (sum, item) => sum + item.quantity,
         0,
@@ -463,7 +448,7 @@ function OrderRow({ order }: { order: PosOrder }) {
                 {itemCount}
             </TableCell>
             <TableCell className="text-right font-semibold tabular-nums text-foreground">
-                {formatCurrency(order.total)}
+                {format(order.total, order.currency)}
             </TableCell>
             <TableCell>
                 <span

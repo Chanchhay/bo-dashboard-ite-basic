@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { X, Delete, Calculator, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { formatCurrency } from "@/lib/money";
+import { useCurrencySymbol } from "@/hooks/useCurrencySymbol";
+import { useMoney } from "@/hooks/useMoney";
 import { POS_ROUTES } from "@/lib/pos-routes";
 
 export interface CloseRegisterProps {
@@ -11,6 +12,8 @@ export interface CloseRegisterProps {
   openedAt: string; // e.g. "24/07/2026 - 08:12"
   openingAmount: number;
   revenue: number;
+  /** The currency this till is counted in, fixed when it opened. */
+  currency?: string;
   orderCount: number;
   onConfirm: (totalCounted: number) => void;
   isProcessing?: boolean;
@@ -23,10 +26,14 @@ export function CloseRegister({
   openedAt,
   openingAmount,
   revenue,
+  currency,
   orderCount,
   onConfirm,
   isProcessing,
 }: CloseRegisterProps) {
+  const { format } = useMoney();
+  const { symbol: baseSymbol } = useCurrencySymbol(currency);
+  const symbol = baseSymbol;
   const router = useRouter();
   const [counted, setCounted] = useState("");
 
@@ -89,12 +96,12 @@ export function CloseRegister({
             <div className="flex justify-between">
               <span className="text-gray-500">Opening amount</span>
               <span className="font-semibold">
-                {formatCurrency(openingAmount)}
+                {format(openingAmount, currency)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Revenue</span>
-              <span className="font-semibold">{formatCurrency(revenue)}</span>
+              <span className="font-semibold">{format(revenue, currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Orders</span>
@@ -105,7 +112,7 @@ export function CloseRegister({
           <div className="mt-2 flex justify-between text-sm">
             <span className="font-semibold text-primary">Total Expected</span>
             <span className="text-lg font-bold text-primary">
-              {formatCurrency(totalExpected)}
+              {format(totalExpected, currency)}
             </span>
           </div>
 
@@ -114,7 +121,7 @@ export function CloseRegister({
               TOTAL COUNTED
             </p>
             <div className="flex items-center justify-between rounded-xl bg-gray-100 px-4 py-2.5">
-              <span className="text-xl font-bold text-gray-400">$</span>
+              <span className="text-xl font-bold text-gray-400">{symbol}</span>
               <span
                 className={`text-2xl font-bold tabular-nums ${
                   counted ? "text-black" : "text-gray-300"
@@ -135,7 +142,7 @@ export function CloseRegister({
                 }`}
               >
                 {totalDifferent >= 0 ? "+" : "-"}
-                {formatCurrency(Math.abs(totalDifferent))}
+                {format(Math.abs(totalDifferent), currency)}
               </span>
             </div>
           </div>

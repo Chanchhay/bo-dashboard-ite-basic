@@ -1,5 +1,7 @@
 "use client";
 
+import { useMoney } from "@/hooks/useMoney";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -24,7 +26,6 @@ import {
     type PreviewItem,
 } from "@/components/inventory/ItemPreviewDialog";
 import {
-    formatMoney,
     getApiErrorMessage,
     InventoryEmpty,
     InventoryError,
@@ -115,6 +116,7 @@ function FilterChip({
 }
 
 export function InventoryProductList() {
+    const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
     const { toast } = useToast();
     const {

@@ -24,6 +24,9 @@ export type PosOrder = {
     discountAmount: number;
     total: number;
     currency: string;
+    /** The second currency this order was priced against, frozen at creation. */
+    displayCurrency: string | null;
+    displayExchangeRate: number | null;
     note: string | null;
     items: PosOrderItem[];
     createdDate: string | null;
@@ -188,6 +191,13 @@ export type Sale = {
     /** What to hand back. Calculated by the backend, never re-derived here. */
     changeAmount: number;
     currency: string;
+    /**
+     * The second currency shown at the time of sale, with the rate it was
+     * priced at. Frozen by the backend so a later rate change cannot alter
+     * figures already printed on a receipt.
+     */
+    displayCurrency: string | null;
+    displayExchangeRate: number | null;
     paymentMethod: "CASH" | "DIGITAL";
     itemCount: number;
     note: string | null;

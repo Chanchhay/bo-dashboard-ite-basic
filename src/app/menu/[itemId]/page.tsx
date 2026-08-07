@@ -1,16 +1,18 @@
 "use client";
 
+import { useMoney } from "@/hooks/useMoney";
+
 import { use, useState } from "react";
 import Link from "next/link";
 import StoreProvider from "@/app/StoreProvider";
 import { useGetChannelItemsQuery } from "@/services/salesChannelApi";
-import { formatMoney } from "@/components/inventory/InventoryUi";
 import { attributeIcon } from "@/lib/api/attribute-icons";
 import type { InventoryItem } from "@/lib/api/inventory";
 import { ArrowLeft, Tag, ImageOff, Check } from "lucide-react";
 import { ProductDetailSkeleton } from "@/components/ui/skeleton";
 
 function FullProductItemContent({ itemId }: { itemId: string }) {
+  const { format: formatMoney } = useMoney();
   const { data: channelItems = [], isLoading } = useGetChannelItemsQuery("POS");
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 

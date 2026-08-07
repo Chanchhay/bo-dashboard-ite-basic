@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type {
     CouponResponse,
     CreateCouponInput,
@@ -66,6 +66,8 @@ import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
 
 export default function DiscountsAndCouponsPage() {
+    const { format, base } = useMoney();
+    const baseSymbol = base?.symbol ?? base?.code ?? "";
     const [activeTab, setActiveTab] = useState<"discounts" | "coupons">("discounts");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -466,7 +468,7 @@ export default function DiscountsAndCouponsPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={`Search ${activeTab}...`}
-                            className="pl-9 text-sm"
+                            className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                         />
                     </div>
                     <ColumnSelectDropdown
@@ -521,7 +523,7 @@ export default function DiscountsAndCouponsPage() {
                                                 <div className="inline-flex items-center gap-1 font-bold text-primary">
                                                     {d.type === "PERCENTAGE"
                                                         ? `${d.value}%`
-                                                        : formatCurrency(d.value)}
+                                                        : format(d.value)}
                                                 </div>
                                             </TableCell>
                                         )}
@@ -544,7 +546,7 @@ export default function DiscountsAndCouponsPage() {
                                             <TableCell>
                                                 <div className="text-xs text-muted-foreground">
                                                     {d.ruleType === "NO_CONDITION" && "No condition"}
-                                                    {d.ruleType === "MIN_ORDER_AMOUNT" && `Min. ${formatCurrency(d.minOrderAmount ?? 0)}`}
+                                                    {d.ruleType === "MIN_ORDER_AMOUNT" && `Min. ${format(d.minOrderAmount ?? 0)}`}
                                                     {d.ruleType === "MIN_QUANTITY" && `Min. qty ${d.minQuantity}`}
                                                     {d.ruleType === "BUY_X_GET_Y" && `Buy ${d.buyQuantity} get ${d.getQuantity}`}
                                                 </div>
@@ -650,7 +652,7 @@ export default function DiscountsAndCouponsPage() {
                                                 </div>
                                                 {c.discount && (
                                                     <div className="text-xs text-muted-foreground">
-                                                        {c.discount.type === "PERCENTAGE" ? `${c.discount.value}% OFF` : `${formatCurrency(c.discount.value)} OFF`}
+                                                        {c.discount.type === "PERCENTAGE" ? `${c.discount.value}% OFF` : `${format(c.discount.value)} OFF`}
                                                     </div>
                                                 )}
                                             </TableCell>
@@ -664,7 +666,7 @@ export default function DiscountsAndCouponsPage() {
                                         )}
                                         {isCoupColVisible("minPurchase") && (
                                             <TableCell className="text-xs text-muted-foreground">
-                                                {c.minPurchaseAmount ? formatCurrency(c.minPurchaseAmount) : "None"}
+                                                {c.minPurchaseAmount ? format(c.minPurchaseAmount) : "None"}
                                             </TableCell>
                                         )}
                                         {isCoupColVisible("validity") && (
@@ -753,7 +755,7 @@ export default function DiscountsAndCouponsPage() {
                                     className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                                 >
                                     <option value="PERCENTAGE">Percentage (%)</option>
-                                    <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
+                                    <option value="FIXED_AMOUNT">Fixed Amount ({baseSymbol})</option>
                                 </select>
                             </div>
                         </div>
@@ -773,7 +775,7 @@ export default function DiscountsAndCouponsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label htmlFor="dValue">
-                                    Discount Value ({dType === "PERCENTAGE" ? "%" : "$"}) *
+                                    Discount Value ({dType === "PERCENTAGE" ? "%" : baseSymbol}) *
                                 </Label>
                                 <Input
                                     id="dValue"
@@ -814,7 +816,7 @@ export default function DiscountsAndCouponsPage() {
                                                 className="h-4 w-4 rounded border-input text-primary accent-primary focus:ring-primary"
                                             />
                                             <span className="font-medium text-foreground">{item.name}</span>
-                                            <span className="text-muted-foreground">({formatCurrency(item.price)})</span>
+                                            <span className="text-muted-foreground">({format(item.price)})</span>
                                         </label>
                                     ))}
                                 </div>
@@ -838,7 +840,7 @@ export default function DiscountsAndCouponsPage() {
 
                             {dRuleType === "MIN_ORDER_AMOUNT" && (
                                 <div className="pt-2">
-                                    <Label htmlFor="dMinOrder">Minimum Order Subtotal ($)</Label>
+                                    <Label htmlFor="dMinOrder">Minimum Order Subtotal ({baseSymbol})</Label>
                                     <Input
                                         id="dMinOrder"
                                         type="number"
@@ -992,7 +994,7 @@ export default function DiscountsAndCouponsPage() {
                                 <option value="">Select a Discount Rule...</option>
                                 {discounts.map((d) => (
                                     <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : `$${d.value}`})
+                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
                                     </option>
                                 ))}
                             </select>
@@ -1033,7 +1035,7 @@ export default function DiscountsAndCouponsPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="cMinPurchase">Minimum Purchase Amount ($)</Label>
+                            <Label htmlFor="cMinPurchase">Minimum Purchase Amount ({baseSymbol})</Label>
                             <Input
                                 id="cMinPurchase"
                                 type="number"

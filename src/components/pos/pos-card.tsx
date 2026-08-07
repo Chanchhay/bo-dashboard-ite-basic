@@ -2,7 +2,7 @@
 
 import { ImageOff } from "lucide-react";
 
-import { formatCurrency } from "@/lib/money";
+import { useMoney } from "@/hooks/useMoney";
 import type { Item } from "@/types/pos-type";
 
 export interface PosCardProps {
@@ -21,13 +21,14 @@ export interface PosCardProps {
  * however many columns the breakpoint gives it.
  */
 const PosCard = ({ item, onSelect }: PosCardProps) => {
+  const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
 
   return (
     <button
       type="button"
       disabled={isDisabled}
-      aria-label={`${item.name}, ${formatCurrency(item.price)}`}
+      aria-label={`${item.name}, ${format(item.price)}`}
       onClick={() => onSelect?.(item.id)}
       className={`group flex w-full flex-col text-left outline-none transition focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
         isDisabled
@@ -54,7 +55,7 @@ const PosCard = ({ item, onSelect }: PosCardProps) => {
           {item.name}
         </span>
         <span className="text-base font-bold leading-7 text-brand-red">
-          {formatCurrency(item.price)}
+          {format(item.price)}
         </span>
       </span>
     </button>
