@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Delete, Calculator, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useCurrencySymbol } from "@/hooks/useCurrencySymbol";
 import { useMoney } from "@/hooks/useMoney";
 import { POS_ROUTES } from "@/lib/pos-routes";
 
@@ -31,6 +32,8 @@ export function CloseRegister({
   isProcessing,
 }: CloseRegisterProps) {
   const { format } = useMoney();
+  const { symbol: baseSymbol } = useCurrencySymbol(currency);
+  const symbol = baseSymbol;
   const router = useRouter();
   const [counted, setCounted] = useState("");
 
@@ -118,7 +121,7 @@ export function CloseRegister({
               TOTAL COUNTED
             </p>
             <div className="flex items-center justify-between rounded-xl bg-gray-100 px-4 py-2.5">
-              <span className="text-xl font-bold text-gray-400">$</span>
+              <span className="text-xl font-bold text-gray-400">{symbol}</span>
               <span
                 className={`text-2xl font-bold tabular-nums ${
                   counted ? "text-black" : "text-gray-300"

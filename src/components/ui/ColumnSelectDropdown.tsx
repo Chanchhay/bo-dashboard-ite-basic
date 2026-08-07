@@ -38,15 +38,14 @@ export function ColumnSelectDropdown({
     }, []);
 
     return (
-        <div className="relative inline-block text-left" ref={dropdownRef}>
+        <div className="relative inline-block text-left shrink-0" ref={dropdownRef}>
             <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => setIsOpen(!isOpen)}
-                className="gap-2 border-border text-foreground hover:bg-muted font-medium text-xs h-9 shadow-xs"
+                className="h-10 gap-2 rounded-xl border border-border bg-card px-3.5 text-sm font-medium text-foreground hover:bg-muted/80 shadow-xs transition-colors"
             >
-                <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
                 <span>Columns</span>
             </Button>
 

@@ -1,5 +1,6 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
+    BusinessCurrency,
     BusinessCurrencyConfiguration,
     BusinessCurrencyConfigurationInput,
 } from "@/lib/api/currency";
@@ -12,6 +13,12 @@ export const currencyApi = baseApi.injectEndpoints({
         >({
             query: () => "/business-currencies",
             providesTags: ["BusinessCurrencies"],
+        }),
+        getBusinessCurrencyByCode: builder.query<BusinessCurrency, string>({
+            query: (code) => `/business-currencies/${encodeURIComponent(code)}`,
+            providesTags: (_result, _error, code) => [
+                { type: "BusinessCurrencies", id: code },
+            ],
         }),
         updateBusinessCurrencies: builder.mutation<
             BusinessCurrencyConfiguration,
@@ -42,5 +49,8 @@ export const currencyApi = baseApi.injectEndpoints({
 
 export const {
     useGetBusinessCurrenciesQuery,
+    useGetBusinessCurrencyByCodeQuery,
+    useLazyGetBusinessCurrencyByCodeQuery,
     useUpdateBusinessCurrenciesMutation,
 } = currencyApi;
+
