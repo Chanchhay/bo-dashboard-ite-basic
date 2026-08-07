@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { auth } from "@/lib/auth/auth";
+import { ID_TOKEN_COOKIE } from "@/lib/auth/id-token-cookie";
 import { keycloakLogoutUrl } from "@/lib/auth/keycloak-logout";
 
 /*
@@ -15,8 +16,19 @@ import { keycloakLogoutUrl } from "@/lib/auth/keycloak-logout";
  * embedding an <img> tag pointed at it.
  */
 
-/** The ID token proves the session to Keycloak, so read it before signing out. */
-async function readIdToken(requestHeaders: Headers) {
+/**
+ * The ID token proves the session to Keycloak, so read it before signing out.
+ *
+ * The cookie is the reliable source: the account record Better Auth would
+ * otherwise serve this from is held in a per-process memory store (see
+ * `ID_TOKEN_COOKIE`), so it is routinely gone by the time anyone signs out.
+ * The account lookup stays as the fallback for sessions established before
+ * the cookie existed.
+ */
+async function readIdToken(request: NextRequest, requestHeaders: Headers) {
+    const fromCookie = request.cookies.get(ID_TOKEN_COOKIE)?.value;
+    if (fromCookie) return fromCookie;
+
     try {
         const tokens = await auth.api.getAccessToken({
             headers: requestHeaders,
@@ -53,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Straight back to /login, which starts a fresh sign-in on arrival.
     const loginUrl = `${baseUrl}/login`;
 
-    const idToken = await readIdToken(requestHeaders);
+    const idToken = await readIdToken(request, requestHeaders);
     const setCookies = await clearSession(requestHeaders);
 
     const target =
@@ -79,6 +91,7 @@ export async function POST(request: NextRequest) {
         "better-auth.dont_remember",
         "__Secure-better-auth.dont_remember",
         "ipos_token",
+        ID_TOKEN_COOKIE,
     ];
 
     for (const cookieName of cookiesToClear) {
