@@ -65,13 +65,14 @@ export async function keycloakLogoutUrl({
     url.searchParams.set("post_logout_redirect_uri", postLogoutRedirectUri);
 
     // Keycloak only honours `post_logout_redirect_uri` when the request can be
-    // tied to a client. The ID token proves which session is ending and logs
-    // out silently; `client_id` is the fallback, and it makes Keycloak render a
-    // "do you want to log out?" confirmation first.
+    // tied to a client. Keep client_id even when an ID token is available so
+    // the request still identifies the client if the token hint has expired.
+    if (process.env.KEYCLOAK_CLIENT_ID) {
+        url.searchParams.set("client_id", process.env.KEYCLOAK_CLIENT_ID);
+    }
+
     if (idToken) {
         url.searchParams.set("id_token_hint", idToken);
-    } else if (process.env.KEYCLOAK_CLIENT_ID) {
-        url.searchParams.set("client_id", process.env.KEYCLOAK_CLIENT_ID);
     }
 
     return url.toString();
