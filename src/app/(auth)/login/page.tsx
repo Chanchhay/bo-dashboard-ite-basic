@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import BrandLogo from "@/components/brand/BrandLogo";
 
-export default function LoginPage() {
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+type LoginState = "redirecting" | "signed-out";
 
-    useEffect(() => {
+function LoginContent() {
+    const searchParams = useSearchParams();
+    const wasLoggedOut = searchParams.get("loggedOut") === "1";
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [loginState, setLoginState] = useState<LoginState>(
+        wasLoggedOut ? "signed-out" : "redirecting",
+    );
+
+    const beginOAuthLogin = useCallback(() => {
         // Arms the one-shot welcome intro. The launcher reads this cookie
         // server-side and clears it, so the animation plays once per sign-in.
         document.cookie = "ipos_welcome=1; path=/; max-age=600; samesite=lax";
@@ -23,9 +31,22 @@ export default function LoginPage() {
             .then(({ error }) => {
                 if (error) {
                     setErrorMessage(error.message ?? "Unable to start login");
+                    setLoginState("signed-out");
                 }
             });
     }, []);
+
+    useEffect(() => {
+        if (!wasLoggedOut) beginOAuthLogin();
+    }, [beginOAuthLogin, wasLoggedOut]);
+
+    function startLogin() {
+        setErrorMessage(null);
+        setLoginState("redirecting");
+        beginOAuthLogin();
+    }
+
+    const isSignedOut = loginState === "signed-out";
 
     return (
         <main className="flex min-h-screen items-center justify-center px-6">
@@ -35,14 +56,35 @@ export default function LoginPage() {
                     className="mx-auto w-40"
                     preload
                 />
-                <h1 className="text-xl font-semibold">Redirecting to login</h1>
+                <h1 className="text-xl font-semibold">
+                    {isSignedOut ? "You are signed out" : "Redirecting to login"}
+                </h1>
                 <p className="text-sm text-muted-foreground">
-                    You are being sent to Keycloak.
+                    {isSignedOut
+                        ? "Sign in again when you are ready."
+                        : "You are being sent to Login page."}
                 </p>
                 {errorMessage ? (
                     <p className="text-sm text-destructive">{errorMessage}</p>
                 ) : null}
+                {isSignedOut ? (
+                    <button
+                        type="button"
+                        onClick={startLogin}
+                        className="inline-flex h-10 items-center justify-center rounded-lg bg-[#00932a] px-5 text-sm font-medium text-white transition-colors hover:bg-[#007f24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
+                    >
+                        Sign in
+                    </button>
+                ) : null}
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={null}>
+            <LoginContent />
+        </Suspense>
     );
 }
