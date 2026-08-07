@@ -1,8 +1,6 @@
-import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { auth } from "@/lib/auth/auth";
-import { ID_TOKEN_COOKIE } from "@/lib/auth/id-token-cookie";
 import { keycloakLogoutUrl } from "@/lib/auth/keycloak-logout";
 
 /*
@@ -16,19 +14,8 @@ import { keycloakLogoutUrl } from "@/lib/auth/keycloak-logout";
  * embedding an <img> tag pointed at it.
  */
 
-/**
- * The ID token proves the session to Keycloak, so read it before signing out.
- *
- * The cookie is the reliable source: the account record Better Auth would
- * otherwise serve this from is held in a per-process memory store (see
- * `ID_TOKEN_COOKIE`), so it is routinely gone by the time anyone signs out.
- * The account lookup stays as the fallback for sessions established before
- * the cookie existed.
- */
-async function readIdToken(request: NextRequest, requestHeaders: Headers) {
-    const fromCookie = request.cookies.get(ID_TOKEN_COOKIE)?.value;
-    if (fromCookie) return fromCookie;
-
+/** The ID token proves the session to Keycloak, so read it before signing out. */
+async function readIdToken(requestHeaders: Headers) {
     try {
         const tokens = await auth.api.getAccessToken({
             headers: requestHeaders,
@@ -42,72 +29,46 @@ async function readIdToken(request: NextRequest, requestHeaders: Headers) {
     }
 }
 
-/** Returns the `Set-Cookie` headers that expire the session client-side. */
+/** Returns Better Auth's complete cookie cleanup, including chunked cookies. */
 async function clearSession(requestHeaders: Headers) {
-    try {
-        const { headers: responseHeaders } = await auth.api.signOut({
-            headers: requestHeaders,
-            returnHeaders: true,
-        });
+    const { headers: responseHeaders } = await auth.api.signOut({
+        headers: requestHeaders,
+        returnHeaders: true,
+    });
 
-        return responseHeaders.getSetCookie();
-    } catch {
-        return [];
-    }
+    return responseHeaders.getSetCookie();
 }
 
 export async function POST(request: NextRequest) {
-    const requestHeaders = await headers();
+    const requestHeaders = new Headers(request.headers);
+    const signedOutUrl = new URL("/login?loggedOut=1", request.nextUrl.origin);
 
-    const baseUrl =
-        process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, "") ||
-        request.nextUrl.origin;
-    // Straight back to /login, which starts a fresh sign-in on arrival.
-    const loginUrl = `${baseUrl}/login`;
+    const idToken = await readIdToken(requestHeaders);
+    let setCookies: string[];
 
-    const idToken = await readIdToken(request, requestHeaders);
-    const setCookies = await clearSession(requestHeaders);
+    try {
+        setCookies = await clearSession(requestHeaders);
+    } catch {
+        return NextResponse.json(
+            { error: "Unable to clear the current session" },
+            { status: 500 },
+        );
+    }
 
     const target =
         (await keycloakLogoutUrl({
             idToken,
-            postLogoutRedirectUri: loginUrl,
-        })) ?? loginUrl;
+            postLogoutRedirectUri: signedOutUrl.toString(),
+        })) ?? signedOutUrl.toString();
 
     // 303 so the browser follows this POST with a GET.
     const response = NextResponse.redirect(target, 303);
 
-    // `nextCookies()` already writes these through `cookies()`; repeating them
-    // on the redirect keeps the session gone even if that write is skipped.
+    // Forward Better Auth's exact cookie cleanup onto the redirect response.
+    // This includes account_data and any chunked session/account cookies.
     for (const cookie of setCookies) {
         response.headers.append("set-cookie", cookie);
     }
 
-    const cookiesToClear = [
-        "better-auth.session_token",
-        "__Secure-better-auth.session_token",
-        "better-auth.session_data",
-        "__Secure-better-auth.session_data",
-        "better-auth.dont_remember",
-        "__Secure-better-auth.dont_remember",
-        "ipos_token",
-        ID_TOKEN_COOKIE,
-    ];
-
-    for (const cookieName of cookiesToClear) {
-        response.headers.append(
-            "set-cookie",
-            `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax`
-        );
-        response.headers.append(
-            "set-cookie",
-            `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax`
-        );
-    }
-
     return response;
-}
-
-export async function GET(request: NextRequest) {
-    return POST(request);
 }
