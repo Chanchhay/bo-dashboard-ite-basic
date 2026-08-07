@@ -5,11 +5,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useToast } from "@/components/ui/toast";
+import { useCurrencySymbol } from "@/hooks/useCurrencySymbol";
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 
 export function CashRegister({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { symbol } = useCurrencySymbol();
 
   const [amount, setAmount] = useState("0.00");
   const [notes, setNotes] = useState("");
@@ -122,7 +124,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
               STARTING CASH
             </label>
             <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
-              <span className="text-gray-400">$</span>
+              <span className="text-gray-400 font-bold">{symbol}</span>
               <span className="text-lg font-semibold text-gray-800">
                 {amount}
               </span>

@@ -206,7 +206,7 @@ export default function MembershipTypesPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search member type name or remark..."
-                        className="pl-9 text-sm"
+                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                     />
                 </div>
                 <ColumnSelectDropdown
