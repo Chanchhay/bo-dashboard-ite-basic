@@ -1,7 +1,16 @@
 "use client";
 
-import { memo, useState } from "react";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { memo, useEffect, useMemo, useState } from "react";
+import {
+  Crown,
+  Minus,
+  Plus,
+  Tag,
+  Trash2,
+  User,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { useMoney } from "@/hooks/useMoney";
 
 import type { Order } from "@/types/pos-type";
@@ -9,15 +18,23 @@ import type { PosOrder, PosOrderItem, Sale } from "@/lib/api/pos-order";
 
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { useGetCustomersQuery } from "@/services/customerApi";
 import {
   useGetCurrentOrderQuery,
   useParkOrderMutation,
   useRemoveOrderItemMutation,
   usePayOrderMutation,
   useUpdateOrderItemMutation,
+  useSetOrderCustomerMutation,
+  useSetOrderDiscountMutation,
 } from "@/services/posOrderApi";
 import { NewOrder } from "./new-order";
 import { Payment } from "./payment";
+import { CustomerSelectModal } from "../customer-select-modal";
+import {
+  DiscountSelectModal,
+  type AppliedDiscountRule,
+} from "../discount-select-modal";
 
 export interface OrderTableProps {
   onPaymentSuccess?: (paidOrder: PosOrder, sale: Sale) => void;
@@ -28,10 +45,12 @@ export interface OrderTableProps {
 
 /**
  * The payment dialog still speaks the older snake_case `Order`.
- * This adapts just enough of the real order for them, and goes away once those
- * screens are wired to the API directly.
  */
 function legacyOrderShape(order: PosOrder): Order {
+  const subtotalNum = order.subtotal ?? 0;
+  const discountNum = order.discountAmount ?? 0;
+  const computedTotal = Math.max(0, subtotalNum - discountNum);
+
   return {
     id: order.id,
     business_owner_id: order.businessId,
@@ -40,10 +59,10 @@ function legacyOrderShape(order: PosOrder): Order {
     cashier_id: null,
     channel: order.channel,
     status: order.status,
-    subtotal: String(order.subtotal),
-    discount_amount: String(order.discountAmount),
+    subtotal: String(subtotalNum),
+    discount_amount: String(discountNum),
     applied_discounts: null,
-    total: String(order.total),
+    total: String(computedTotal),
     currency: order.currency,
     note: order.note,
     comment: null,
@@ -156,17 +175,85 @@ export function OrderTable({
 }: OrderTableProps) {
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
+
   const { data: order, isLoading, error } = useGetCurrentOrderQuery();
+  const { data: customers = [] } = useGetCustomersQuery();
+
   const [updateOrderItem] = useUpdateOrderItemMutation();
   const [removeOrderItem] = useRemoveOrderItemMutation();
   const [parkOrder, { isLoading: isParking }] = useParkOrderMutation();
   const [payOrder, { isLoading: isPaying }] = usePayOrderMutation();
+  const [setOrderCustomer] = useSetOrderCustomerMutation();
+  const [setOrderDiscount] = useSetOrderDiscountMutation();
 
   // Which line is mid-request, so only its own buttons are held.
   const [busyLineId, setBusyLineId] = useState("");
 
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+
+  // Modals for POS customer & discount
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+
+  // Active persistent discount rule for current order
+  const [activeDiscountRule, setActiveDiscountRule] =
+    useState<AppliedDiscountRule | null>(null);
+
+  // Auto-sync & auto-recalculate discount whenever order items or subtotal change
+  useEffect(() => {
+    if (!order?.id) {
+      setActiveDiscountRule(null);
+      return;
+    }
+
+    const key = `pos_cart_discount_${order.id}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      setActiveDiscountRule(null);
+      return;
+    }
+
+    try {
+      const rule: AppliedDiscountRule = JSON.parse(raw);
+      setActiveDiscountRule(rule);
+
+      let targetAmount = 0;
+      if (rule.type === "PERCENTAGE") {
+        targetAmount = (order.subtotal * rule.value) / 100;
+        if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
+          targetAmount = rule.maxDiscountAmount;
+        }
+      } else if (rule.type === "FINAL_PRICE") {
+        targetAmount = Math.max(0, order.subtotal - rule.value);
+      } else {
+        targetAmount = rule.value;
+      }
+
+      targetAmount = Math.min(
+        order.subtotal,
+        Math.max(0, parseFloat(targetAmount.toFixed(2)))
+      );
+
+      // Auto-update discount if cart subtotal changed (e.g. new item added)
+      if (Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001) {
+        void setOrderDiscount({
+          discountAmount: targetAmount,
+          discountId: rule.discountId,
+          discountCode: rule.discountCode,
+        });
+      }
+    } catch {
+      localStorage.removeItem(key);
+      setActiveDiscountRule(null);
+    }
+  }, [order?.id, order?.subtotal, order?.discountAmount, setOrderDiscount]);
+
+  // Attached customer object matching order.customerId
+  const selectedCustomer = useMemo(() => {
+    if (!order?.customerId) return null;
+    return customers.find((c) => c.id === order.customerId) ?? null;
+  }, [customers, order?.customerId]);
 
   /** Runs one line change, reporting rather than silently swallowing failure. */
   async function runLineChange(
@@ -189,6 +276,56 @@ export function OrderTable({
     }
   }
 
+  const handleSelectCustomer = async (customerId: string | null) => {
+    try {
+      await setOrderCustomer({ customerId }).unwrap();
+    } catch (cause) {
+      toast({
+        tone: "error",
+        title: "Could not attach customer",
+        description: getApiErrorMessage(cause, "Please try again."),
+      });
+    }
+  };
+
+  const handleApplyDiscountRule = async (rule: AppliedDiscountRule | null) => {
+    if (!order?.id) return;
+    const key = `pos_cart_discount_${order.id}`;
+
+    if (!rule) {
+      localStorage.removeItem(key);
+      setActiveDiscountRule(null);
+      await setOrderDiscount({ discountAmount: 0 }).unwrap();
+      return;
+    }
+
+    localStorage.setItem(key, JSON.stringify(rule));
+    setActiveDiscountRule(rule);
+
+    let targetAmount = 0;
+    if (rule.type === "PERCENTAGE") {
+      targetAmount = (order.subtotal * rule.value) / 100;
+      if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
+        targetAmount = rule.maxDiscountAmount;
+      }
+    } else if (rule.type === "FINAL_PRICE") {
+      targetAmount = Math.max(0, order.subtotal - rule.value);
+    } else {
+      targetAmount = rule.value;
+    }
+
+    targetAmount = Math.min(
+      order.subtotal,
+      Math.max(0, parseFloat(targetAmount.toFixed(2)))
+    );
+
+    await setOrderDiscount({
+      discountAmount: targetAmount,
+      discountId: rule.discountId,
+      discountCode: rule.discountCode,
+    }).unwrap();
+  };
+
   if (isLoading) {
     return <div className="p-6 text-sm text-gray-400">Loading order…</div>;
   }
@@ -208,9 +345,13 @@ export function OrderTable({
     total: order?.total ?? 0,
   };
   const totalSecondary = secondaryFor(summary.total, order);
+
   /** Names and parks the current cart without cancelling it. */
   const handleCreateOrder = async (data: { name: string }) => {
     try {
+      if (order?.id) {
+        localStorage.removeItem(`pos_cart_discount_${order.id}`);
+      }
       await parkOrder({ note: data.name.trim() }).unwrap();
 
       setNewOrderOpen(false);
@@ -239,9 +380,6 @@ export function OrderTable({
 
   /**
    * Settles the sale.
-   *
-   * The order is captured before paying because the cart is cleared the moment
-   * the payment lands — the receipt still needs the lines that were sold.
    */
   const handleValidatePayment = async (
     method: "CASH" | "DIGITAL",
@@ -257,11 +395,13 @@ export function OrderTable({
         receivedAmount,
       }).unwrap();
 
+      if (sold.id) {
+        localStorage.removeItem(`pos_cart_discount_${sold.id}`);
+      }
+
       setPaymentOpen(false);
       onPaymentSuccess?.(sold, sale);
     } catch (cause) {
-      // Covers a closed register as well as short cash — the backend refuses
-      // a POS sale with no open session, and the cashier needs to know which.
       toast({
         tone: "error",
         title: "Payment failed",
@@ -287,8 +427,6 @@ export function OrderTable({
           "Could not change the quantity",
         )
       }
-      // The backend rejects a quantity of zero, so the last one down is a
-      // removal — which is also what a cashier means by it.
       onDecrease={() =>
         runLineChange(
           item.id,
@@ -296,9 +434,9 @@ export function OrderTable({
             item.quantity <= 1
               ? removeOrderItem(item.id).unwrap()
               : updateOrderItem({
-                    orderItemId: item.id,
-                    quantity: item.quantity - 1,
-                  }).unwrap(),
+                orderItemId: item.id,
+                quantity: item.quantity - 1,
+              }).unwrap(),
           "Could not change the quantity",
         )
       }
@@ -314,6 +452,77 @@ export function OrderTable({
 
   return (
     <div className="flex h-full flex-col bg-white/90">
+      {/* Customer Bar at top of POS cart */}
+      <div className="border-b border-[#d9d9d9] bg-gray-50/80 px-4 py-2.5">
+        {selectedCustomer ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
+                {(selectedCustomer.globalCustomer?.fullName || "C")
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="text-xs font-bold text-gray-900 truncate">
+                    {selectedCustomer.globalCustomer?.fullName || "Customer"}
+                  </span>
+                  {selectedCustomer.membershipType && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                      <Crown className="h-2.5 w-2.5" />
+                      {selectedCustomer.membershipType.typeName}
+                    </span>
+                  )}
+                  {selectedCustomer.salesChannel && (
+                    <span className="text-[9px] font-medium px-1 py-0.2 rounded bg-gray-200 text-gray-700">
+                      {selectedCustomer.salesChannel.name}
+                    </span>
+                  )}
+                </div>
+                {selectedCustomer.globalCustomer?.phoneNumber && (
+                  <p className="text-[11px] text-gray-500 truncate">
+                    {selectedCustomer.globalCustomer.phoneNumber}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0 ml-2">
+              <button
+                type="button"
+                onClick={() => setCustomerModalOpen(true)}
+                className="text-xs font-semibold text-primary hover:underline px-1.5 py-0.5"
+              >
+                Change
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSelectCustomer(null)}
+                className="grid size-6 place-items-center rounded-full text-gray-400 hover:bg-red-50 hover:text-brand-red"
+                title="Detach Customer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5 text-gray-400" />
+              No customer attached
+            </span>
+            <button
+              type="button"
+              onClick={() => setCustomerModalOpen(true)}
+              className="flex items-center gap-1 text-xs font-bold text-primary hover:bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/30 transition-all"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              + Add Customer
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* items — scrolls, header stays visible */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <table className="w-full table-fixed text-sm">
@@ -353,8 +562,34 @@ export function OrderTable({
             {format(summary.subtotal, order?.currency)}
           </span>
         </div>
-        <div className="flex justify-between py-1">
-          <span className="text-primary min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">Discount</span>
+
+        <div className="flex justify-between items-center py-1">
+          <div className="flex items-center gap-2">
+            <span className="text-primary min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">
+              Discount
+            </span>
+            {activeDiscountRule?.label && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-green-100 text-primary border border-green-200">
+                {activeDiscountRule.label}
+                <button
+                  type="button"
+                  onClick={() => void handleApplyDiscountRule(null)}
+                  className="hover:text-brand-red ml-0.5"
+                  title="Remove Discount"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setDiscountModalOpen(true)}
+              className="text-xs font-bold text-primary hover:bg-primary/10 px-2 py-0.5 rounded-md border border-primary/30 flex items-center gap-1 transition-all"
+            >
+              <Tag className="h-3 w-3" />
+              {summary.discount > 0 ? "Edit" : "+ Apply"}
+            </button>
+          </div>
           <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
             -{format(summary.discount, order?.currency)}
           </span>
@@ -406,8 +641,25 @@ export function OrderTable({
         />
       )}
 
-      {/* Payment still reads the legacy order shape. It is inert until the pay
-          endpoint is wired, so it is only mounted once there is a sale. */}
+      {/* Customer select modal */}
+      <CustomerSelectModal
+        open={customerModalOpen}
+        onOpenChange={setCustomerModalOpen}
+        selectedCustomerId={order?.customerId}
+        onSelectCustomer={handleSelectCustomer}
+      />
+
+      {/* Discount select modal */}
+      <DiscountSelectModal
+        open={discountModalOpen}
+        onOpenChange={setDiscountModalOpen}
+        subtotal={summary.subtotal}
+        currency={order?.currency}
+        currentDiscountAmount={summary.discount}
+        activeRule={activeDiscountRule}
+        onApplyDiscountRule={handleApplyDiscountRule}
+      />
+
       {paymentOpen && order && (
         <Payment
           open={paymentOpen}
@@ -415,8 +667,9 @@ export function OrderTable({
           order={legacyOrderShape(order)}
           onValidate={handleValidatePayment}
           onDigitalPaid={(sale) => {
-            // Bakong settled it; the sale already exists, so there is nothing
-            // to pay here — just show what was sold.
+            if (order.id) {
+              localStorage.removeItem(`pos_cart_discount_${order.id}`);
+            }
             setPaymentOpen(false);
             onPaymentSuccess?.(order, sale);
           }}
