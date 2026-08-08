@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { SearchableItemSelect } from "@/components/inventory/SearchableItemSelect";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -275,45 +276,33 @@ export function StockAdjustmentForm() {
                             hint={
                                 scannedItemName
                                     ? `${scannedItemName} selected by barcode.`
-                                    : "Choose an item or scan its barcode."
+                                    : "Search item by name, SKU, or barcode."
                             }
                             error={fieldErrors.itemId}
                         >
                             <div className="flex gap-2">
-                                <Select
-                                    name="itemId"
-                                    value={selectedItemId}
-                                    onValueChange={(value) => {
-                                        setSelectedItemId(value || "");
+                                <SearchableItemSelect
+                                    items={items}
+                                    selectedItemId={selectedItemId}
+                                    onSelect={(id) => {
+                                        setSelectedItemId(id);
                                         setScannedItemName(null);
+                                        setFieldErrors((current) => {
+                                            const next = { ...current };
+                                            delete next.itemId;
+                                            return next;
+                                        });
                                     }}
-                                    items={Object.fromEntries(
-                                        items.map((item) => [
-                                            item.id,
-                                            item.name || "Unnamed item",
+                                    stockSummaryMap={Object.fromEntries(
+                                        (stockQuery.data || []).map((s) => [
+                                            s.itemId,
+                                            s.quantityOnHand,
                                         ]),
                                     )}
-                                >
-                                    <SelectTrigger
-                                        id="itemId"
-                                        className={`${inventoryControlClassName} w-full flex-1`}
-                                        aria-invalid={Boolean(
-                                            fieldErrors.itemId,
-                                        )}
-                                    >
-                                        <SelectValue placeholder="Choose an item" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {items.map((item) => (
-                                            <SelectItem
-                                                key={item.id}
-                                                value={item.id}
-                                            >
-                                                {item.name || "Unnamed item"}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    placeholder="Search item by name, SKU, or barcode..."
+                                    ariaInvalid={Boolean(fieldErrors.itemId)}
+                                    className="flex-1"
+                                />
                                 <Button
                                     type="button"
                                     variant="outline"

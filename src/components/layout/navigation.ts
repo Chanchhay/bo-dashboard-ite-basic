@@ -23,6 +23,7 @@ type NavItemBase = {
 
 export type NavLink = NavItemBase & {
     href: string;
+    icon?: LucideIcon;
     /** Match the pathname exactly instead of by prefix. */
     exact?: boolean;
     /** Extra routes that should keep this entry highlighted. */
@@ -143,17 +144,57 @@ export const NAVIGATION: NavSection[] = [
             },
             {
                 label: "Stock",
-                href: "/inventory/stock",
                 permission: PERMISSIONS.INVENTORY_STOCK,
+                children: [
+                    {
+                        label: "Overview",
+                        href: "/inventory/stock",
+                        exact: true,
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                        alsoActiveOn: [/^\/inventory\/stock\/overview$/],
+                    },
+                    {
+                        label: "Stock in",
+                        href: "/inventory/stock/in",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
+                    {
+                        label: "Stock out",
+                        href: "/inventory/stock/out",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
+                ],
             },
             {
                 // Units, conversions, item groups, add-ons and option presets —
                 // the building blocks items are assembled from. Categories used
-                // to live at `/inventory/categories`, which now redirects here.
+                // to live at `/inventory/categories`, which now redirects to groups.
                 label: "Item config",
-                href: "/inventory/config",
                 permission: PERMISSIONS.INVENTORY_CATEGORIES,
-                alsoActiveOn: [/^\/inventory\/categories$/],
+                children: [
+                    {
+                        label: "Units",
+                        href: "/inventory/config/units",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                        alsoActiveOn: [/^\/inventory\/config$/],
+                    },
+                    {
+                        label: "Categories",
+                        href: "/inventory/config/groups",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                        alsoActiveOn: [/^\/inventory\/categories$/],
+                    },
+                    {
+                        label: "Add-ons",
+                        href: "/inventory/config/add-ons",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                    },
+                    {
+                        label: "Option presets",
+                        href: "/inventory/config/presets",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                    },
+                ],
             },
         ],
     },
@@ -379,7 +420,7 @@ export function getPageTitle(pathname: string): PageTitle {
                 return {
                     app,
                     page: child
-                        ? `${leaf.label} ${child.label.toLowerCase()}`
+                        ? `${leaf.label} — ${child.label}`
                         : leaf.label,
                 };
             }

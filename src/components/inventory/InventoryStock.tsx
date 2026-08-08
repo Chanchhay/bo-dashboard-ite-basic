@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
     AlertTriangle,
@@ -8,7 +7,6 @@ import {
     CircleDollarSign,
     PackageX,
     Search,
-    SlidersHorizontal,
 } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
@@ -34,7 +32,6 @@ import {
     StockTabs,
     type StockTabId,
 } from "@/components/inventory/stock/StockTabs";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
     latestUnitCosts,
@@ -304,28 +301,7 @@ export function InventoryStock() {
             <InventoryPageHeader
                 title="Stock"
                 description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."
-                action={
-                    // The row buttons cover the everyday case. This is the long
-                    // form: batch, lot, expiry and document references.
-                    <Button
-                        variant="outline"
-                        render={<Link href="/inventory/stock/adjust" />}
-                        nativeButton={false}
-                        className="h-9 shrink-0 gap-1.5 rounded-xl px-3 text-xs sm:h-10 sm:px-4 sm:text-sm"
-                    >
-                        <SlidersHorizontal className="size-4 shrink-0" />
-                        <span>Detailed entry</span>
-                    </Button>
-                }
             />
-
-            <p
-                className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning"
-                role="status"
-            >
-                Preview — movements you record here move the numbers on screen
-                but are not saved. The API is built once this flow is approved.
-            </p>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
@@ -365,7 +341,6 @@ export function InventoryStock() {
                 onChange={setTab}
                 counts={{
                     items: itemRows.length,
-                    "add-ons": addOnRows.length,
                     movements: drafts.length + entries.length,
                 }}
             />
@@ -380,12 +355,10 @@ export function InventoryStock() {
                     <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 className="font-semibold text-foreground">
-                                {tab === "items" ? "Items" : "Add-ons"}
+                                Items
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                {tab === "items"
-                                    ? "Counted in each item's base unit."
-                                    : "One balance each, shared by every item that offers them."}
+                                Counted in each item&apos;s base unit.
                             </p>
                         </div>
                         <div className="relative w-full sm:max-w-xs">
@@ -417,32 +390,6 @@ export function InventoryStock() {
                         }
                         valueColumnLabel="Value at cost"
                         formatValue={formatMoney}
-                        onStockIn={(id) => {
-                            const target = itemTarget(id);
-                            if (target) openMovement(target, "IN");
-                        }}
-                        onStockOut={(id) => {
-                            const target = itemTarget(id);
-                            if (target) openMovement(target, "OUT");
-                        }}
-                    />
-                ) : null}
-
-                {tab === "add-ons" ? (
-                    <StockLevelTable
-                        rows={addOnLevelRows}
-                        emptyTitle="No matching add-ons"
-                        emptyDescription="Change the search."
-                        valueColumnLabel="Value at cost"
-                        formatValue={formatMoney}
-                        onStockIn={(id) => {
-                            const target = addOnTarget(id);
-                            if (target) openMovement(target, "IN");
-                        }}
-                        onStockOut={(id) => {
-                            const target = addOnTarget(id);
-                            if (target) openMovement(target, "OUT");
-                        }}
                     />
                 ) : null}
 

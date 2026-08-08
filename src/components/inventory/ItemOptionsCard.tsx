@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { Layers, ListChecks, Pencil, Plus, Tag, Trash2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+    ChevronDown,
+    Eye,
+    EyeOff,
+    FolderTree,
+    Layers,
+    ListChecks,
+    Package,
+    Pencil,
+    Plus,
+    Tag,
+    Trash2,
+    X,
+} from "lucide-react";
 
 import type { AttributeDraft } from "@/components/inventory/ItemAttributeDialog";
 import { ItemPickerDialog } from "@/components/inventory/ItemPickerDialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { AttributeIcon } from "@/lib/api/attribute-icons";
 import {
     itemAttributePlacementLabels,
@@ -17,8 +31,9 @@ import {
     sampleOptionPresets,
     sampleUnits,
 } from "@/lib/inventory-config/sample-data";
-import type { OptionPreset } from "@/lib/inventory-config/types";
+import type { AddOn, OptionPreset } from "@/lib/inventory-config/types";
 import { formatAmount } from "@/lib/inventory-config/units";
+import { cn } from "@/lib/utils";
 
 function describeValues(attribute: AttributeDraft) {
     if (attribute.type === "TOGGLE") return "On or off";
@@ -137,6 +152,119 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
  * customer *picks* above, what is merely *true* below. Add-ons are a separate
  * shared library and only referenced here.
  */
+function AddOnCategoryDropdown({
+    setTitle,
+    items,
+    enabledMap,
+    onToggle,
+    onDetachAddOn,
+    unitSymbol,
+}: {
+    setTitle: string;
+    items: AddOn[];
+    enabledMap: Record<string, boolean>;
+    onToggle: (id: string, enabled: boolean) => void;
+    onDetachAddOn: (id: string) => void;
+    unitSymbol: (unitId: string) => string;
+}) {
+    const [open, setOpen] = useState(true);
+
+    const activeCount = items.filter((item) => enabledMap[item.id] !== false).length;
+
+    return (
+        <div className="rounded-2xl border border-border/80 bg-card p-3 shadow-sm transition-all">
+            {/* Category Dropdown Header matching exact screenshot */}
+            <div
+                onClick={() => setOpen((prev) => !prev)}
+                className="flex cursor-pointer items-center justify-between gap-4 rounded-xl px-2 py-1 transition-colors hover:bg-muted/40"
+            >
+                <div className="flex items-center gap-3.5 min-w-0">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                        <FolderTree className="size-5" />
+                    </span>
+                    <div className="min-w-0">
+                        <h5 className="font-semibold text-foreground text-sm truncate">
+                            {setTitle}
+                        </h5>
+                        <p className="truncate text-xs text-muted-foreground mt-0.5">
+                            {activeCount} of {items.length} subcategories visible
+                        </p>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    aria-label={`${open ? "Collapse" : "Expand"} ${setTitle}`}
+                    className="grid size-8 shrink-0 place-items-center rounded-full bg-muted/60 text-muted-foreground transition-all hover:bg-muted focus:outline-none"
+                >
+                    <ChevronDown
+                        className={cn(
+                            "size-4 transition-transform duration-200",
+                            !open ? "-rotate-90" : "rotate-0",
+                        )}
+                    />
+                </button>
+            </div>
+
+            {/* Subcategory Tree Branches matching exact screenshot */}
+            {open ? (
+                <div className="relative ml-9 border-l-2 border-primary/20 dark:border-primary/30 my-2.5 pl-4 space-y-1.5 pr-2">
+                    {items.map((addOn) => {
+                        const symbol = unitSymbol(addOn.baseUnitId);
+                        const isEnabled = enabledMap[addOn.id] !== false;
+
+                        return (
+                            <div
+                                key={addOn.id}
+                                className={cn(
+                                    "relative flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-muted/40 border border-transparent hover:border-border/40",
+                                    isEnabled
+                                        ? "opacity-100"
+                                        : "opacity-60 bg-muted/30",
+                                )}
+                            >
+                                {/* Horizontal branch line matching screenshot */}
+                                <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-foreground text-sm truncate">
+                                        {addOn.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                        {formatAmount(addOn.onHand)} {symbol} in stock · uses {formatAmount(addOn.usePerOrder)} {symbol} per order
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-3 shrink-0 ml-auto sm:ml-0">
+                                    {/* Toggle for allowing to see on item */}
+                                    <Switch
+                                        id={`toggle-${addOn.id}`}
+                                        checked={isEnabled}
+                                        onCheckedChange={(checked) =>
+                                            onToggle(addOn.id, checked)
+                                        }
+                                    />
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Remove ${addOn.name} from this item`}
+                                        onClick={() => onDetachAddOn(addOn.id)}
+                                        title="Detach add-on"
+                                    >
+                                        <X className="size-4 text-muted-foreground hover:text-danger" />
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 export function ItemOptionsCard({
     attributes,
     onAddOption,
@@ -163,6 +291,7 @@ export function ItemOptionsCard({
     const [presetPickerOpen, setPresetPickerOpen] = useState(false);
     const [setPickerOpen, setSetPickerOpen] = useState(false);
     const [addOnPickerOpen, setAddOnPickerOpen] = useState(false);
+    const [enabledAddOnMap, setEnabledAddOnMap] = useState<Record<string, boolean>>({});
 
     const options = attributes.filter(
         (attribute) => attribute.placement === "OPTION",
@@ -170,12 +299,47 @@ export function ItemOptionsCard({
     const facts = attributes.filter(
         (attribute) => attribute.placement !== "OPTION",
     );
-    const attached = attachedAddOnIds
-        .map((id) => sampleAddOns.find((addOn) => addOn.id === id))
-        .filter((addOn) => addOn !== undefined);
+
+    const attachedAddOns = useMemo(
+        () =>
+            attachedAddOnIds
+                .map((id) => sampleAddOns.find((addOn) => addOn.id === id))
+                .filter((addOn): addOn is AddOn => addOn !== undefined),
+        [attachedAddOnIds],
+    );
+
+    // Group attached add-ons into categories / sets
+    const addOnGroups = useMemo(() => {
+        const groups: { setName: string; addOns: AddOn[] }[] = [];
+        const processedIds = new Set<string>();
+
+        for (const set of sampleAddOnSets) {
+            const matching = attachedAddOns.filter(
+                (a) => set.addOnIds.includes(a.id) && !processedIds.has(a.id),
+            );
+            if (matching.length > 0) {
+                matching.forEach((a) => processedIds.add(a.id));
+                groups.push({ setName: set.name, addOns: matching });
+            }
+        }
+
+        const remaining = attachedAddOns.filter((a) => !processedIds.has(a.id));
+        if (remaining.length > 0) {
+            groups.push({ setName: "General Add-ons", addOns: remaining });
+        }
+
+        return groups;
+    }, [attachedAddOns]);
 
     const unitSymbol = (unitId: string) =>
         sampleUnits.find((unit) => unit.id === unitId)?.symbol ?? "";
+
+    function handleToggleAddOn(id: string, enabled: boolean) {
+        setEnabledAddOnMap((prev) => ({
+            ...prev,
+            [id]: enabled,
+        }));
+    }
 
     return (
         <section className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
@@ -236,7 +400,7 @@ export function ItemOptionsCard({
             <Group
                 icon={Layers}
                 title="Add-ons"
-                hint="Extras piled on top. Shared with every other item that offers them."
+                hint="Extras piled on top. Grouped into category & subcategory dropdowns with visibility toggles."
                 actions={
                     <>
                         <Button
@@ -260,47 +424,21 @@ export function ItemOptionsCard({
                     </>
                 }
             >
-                <span className="-mt-1 w-fit rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-semibold text-warning">
-                    Preview — not saved yet
-                </span>
-
-                {attached.length ? (
-                    <div className="flex flex-col gap-2">
-                        {attached.map((addOn) => {
-                            const symbol = unitSymbol(addOn.baseUnitId);
-
-                            return (
-                                <div
-                                    key={addOn.id}
-                                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
-                                >
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-medium text-foreground">
-                                            {addOn.name}
-                                        </p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {formatAmount(addOn.onHand)} {symbol}{" "}
-                                            in stock · uses{" "}
-                                            {formatAmount(addOn.usePerOrder)}{" "}
-                                            {symbol} per order
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label={`Remove ${addOn.name} from this item`}
-                                        onClick={() => onDetachAddOn(addOn.id)}
-                                    >
-                                        <X />
-                                    </Button>
-                                </div>
-                            );
-                        })}
-                        <p className="text-xs text-muted-foreground">
-                            Stock and pricing for these live in Item config and
-                            Sale Management — editing them there changes every
-                            item that offers them.
+                {attachedAddOns.length ? (
+                    <div className="flex flex-col gap-3">
+                        {addOnGroups.map((group) => (
+                            <AddOnCategoryDropdown
+                                key={group.setName}
+                                setTitle={group.setName}
+                                items={group.addOns}
+                                enabledMap={enabledAddOnMap}
+                                onToggle={handleToggleAddOn}
+                                onDetachAddOn={onDetachAddOn}
+                                unitSymbol={unitSymbol}
+                            />
+                        ))}
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Toggle &quot;Show on item&quot; to control which add-ons appear when customers view or customize this product.
                         </p>
                     </div>
                 ) : (

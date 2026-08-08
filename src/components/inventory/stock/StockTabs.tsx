@@ -4,7 +4,6 @@ import { History, Package, PlusCircle } from "lucide-react";
 
 export const stockTabs = [
     { id: "items", label: "Items", icon: Package },
-    { id: "add-ons", label: "Add-ons", icon: PlusCircle },
     { id: "movements", label: "Movements", icon: History },
 ] as const;
 

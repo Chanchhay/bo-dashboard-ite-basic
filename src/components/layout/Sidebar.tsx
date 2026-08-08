@@ -213,33 +213,69 @@ function SectionItem({
                                 >
                                     <summary
                                         className={cn(
-                                            "flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-[14px] outline-none transition-colors marker:hidden focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden",
+                                            "flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-[14px] font-medium outline-none transition-colors marker:hidden focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden",
                                             leafActive
                                                 ? "bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.25)] border border-transparent dark:border-[#2a3042]"
-                                                : "text-[#8a8f89] dark:text-[#94a3b8] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
+                                                : "text-[#5c6660] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
                                         )}
                                     >
                                         <span className="flex-1">
                                             {leaf.label}
                                         </span>
                                         <ChevronDown
-                                            className="size-4 transition-transform group-open/pos:rotate-180"
+                                            className="size-4 transition-transform group-open/pos:rotate-180 text-muted-foreground"
                                             aria-hidden="true"
                                         />
                                     </summary>
 
-                                    <ul className="mt-1 ml-3 flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-3">
-                                        {leaf.children.map((child) => (
-                                            <li key={child.href}>
-                                                <Link
-                                                    href={child.href}
-                                                    onClick={onNavigate}
-                                                    className="flex items-center justify-center rounded-full bg-primary px-3 py-2 text-[13px] font-semibold text-white outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-md shadow-primary/20"
-                                                >
-                                                    {child.label}
-                                                </Link>
-                                            </li>
-                                        ))}
+                                    <ul className="mt-1 ml-2 flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-2.5">
+                                        {leaf.children.map((child) => {
+                                            const childActive = isLeafActive(
+                                                child,
+                                                pathname,
+                                            );
+                                            const ChildIcon = child.icon;
+
+                                            return (
+                                                <li key={child.href}>
+                                                    <Link
+                                                        href={child.href}
+                                                        onClick={onNavigate}
+                                                        aria-current={
+                                                            childActive
+                                                                ? "page"
+                                                                : undefined
+                                                        }
+                                                        className={cn(
+                                                            "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
+                                                            childActive
+                                                                ? "bg-white dark:bg-[#1e2330] text-primary dark:text-primary font-semibold shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.25)] border border-transparent dark:border-[#2a3042]"
+                                                                : "text-[#5c6660] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
+                                                        )}
+                                                    >
+                                                        {ChildIcon && (
+                                                            <ChildIcon
+                                                                className={cn(
+                                                                    "size-4 shrink-0",
+                                                                    childActive
+                                                                        ? "text-primary"
+                                                                        : "text-[#8a8f89] dark:text-[#94a3b8]",
+                                                                )}
+                                                                aria-hidden="true"
+                                                            />
+                                                        )}
+                                                        <span className="flex-1">
+                                                            {child.label}
+                                                        </span>
+                                                        {child.badge !== undefined && (
+                                                            <span className="rounded-md bg-[#feb90d] px-1.5 py-0.5 text-[11px] font-medium text-[#3d2c00]">
+                                                                {child.badge}
+                                                            </span>
+                                                        )}
+                                                    </Link>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </details>
                             </li>
