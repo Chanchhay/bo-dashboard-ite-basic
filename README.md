@@ -67,17 +67,6 @@ Configure the required environment variables using a `.env` file or system confi
 | `FLUXIBIZ_WEBHOOK_SECRET` | **Yes** | `whsec_a1b2c3d4e5...` | Secret key used to verify incoming webhook signatures |
 | `DATABASE_URL` | **Yes** | `postgresql://user:pass@localhost:5432/fluxibiz` | Database connection string |
 
-### `.env.example` Template
-```env
-# Platform Configuration
-NEXT_PUBLIC_API_URL=[https://api.fluxibiz.com](https://api.fluxibiz.com)
-NEXT_PUBLIC_SCALAR_DOCS_URL=[https://api.fluxibiz.com/scalar/docs](https://api.fluxibiz.com/scalar/docs)
-
-# Security & Webhooks
-FLUXIBIZ_WEBHOOK_SECRET=your_webhook_secret_key
-
-# Database Link
-DATABASE_URL=postgresql://user:pass@localhost:5432/fluxibiz
 
 ## 🛠️ System Architecture & Channel Integration
 
