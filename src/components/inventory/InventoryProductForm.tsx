@@ -248,8 +248,8 @@ function describeAttribute(attribute: AttributeDraft) {
 
     return attribute.values.length
         ? attribute.values
-              .map((value) => value.label || value.value)
-              .join(", ")
+            .map((value) => value.label || value.value)
+            .join(", ")
         : "No values";
 }
 
@@ -535,8 +535,8 @@ function ProductEditor({
         setAttributes((current) =>
             draft.id
                 ? current.map((attribute) =>
-                      attribute.id === draft.id ? draft : attribute,
-                  )
+                    attribute.id === draft.id ? draft : attribute,
+                )
                 : [...current, { ...draft, id: createRowId() }],
         );
     }
@@ -1216,7 +1216,7 @@ function ProductEditor({
                                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                                             {
                                                 itemAttributeTypeLabels[
-                                                    attribute.type
+                                                attribute.type
                                                 ]
                                             }
                                         </span>

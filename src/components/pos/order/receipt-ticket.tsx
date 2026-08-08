@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { Building2 } from "lucide-react";
 
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
 import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
+import { useGetCustomersQuery } from "@/services/customerApi";
 import {
   findCurrency,
   formatMoney,
@@ -40,6 +42,8 @@ export function ReceiptTicket({
   currencies,
   className,
 }: ReceiptTicketProps) {
+  const { data: customers = [] } = useGetCustomersQuery();
+  const customer = customers.find((c) => c.id === order.customerId);
   const businessName = business.name?.trim() || "Your business";
   const invoiceNumber =
     receipt?.invoiceNumber || sale?.invoiceNumber || order.invoiceNumber || "—";
@@ -50,8 +54,26 @@ export function ReceiptTicket({
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const subtotal = sale?.subtotal ?? order.subtotal;
   const discount = sale?.discountAmount ?? order.discountAmount;
-  const total = sale?.totalAmount ?? order.total;
+  const total = Math.max(0, subtotal - discount);
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
+  const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
+
+  const storedRule = useMemo(() => {
+    if (!order?.id || typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }, [order?.id]);
+
+  const discountLabel = useMemo(() => {
+    if (storedRule?.label) return storedRule.label;
+    if (discount > 0) {
+      return discountPercent > 0 ? `${discountPercent.toFixed(0)}% OFF` : "Savings";
+    }
+    return null;
+  }, [storedRule, discount, discountPercent]);
   // The settled record carries the rate it was priced at; only an order still
   // open has to fall back to whatever is configured right now.
   const record = sale ?? order;
@@ -121,6 +143,15 @@ export function ReceiptTicket({
         <dd className="truncate text-right font-mono font-bold text-[#0e140e]">
           {invoiceNumber}
         </dd>
+        {customer && (
+          <>
+            <dt>Customer / អតិថិជន</dt>
+            <dd className="truncate text-right font-semibold text-[#006b26]">
+              {customer.globalCustomer?.fullName || "Valued Customer"}
+              {customer.membershipType && ` (${customer.membershipType.typeName})`}
+            </dd>
+          </>
+        )}
         <dt>Date / កាលបរិច្ឆេទ</dt>
         <dd className="text-right font-mono text-[#0e140e]">
           {issuedAt
@@ -143,45 +174,62 @@ export function ReceiptTicket({
           <span className="text-right">Amount</span>
         </div>
 
-        {order.items.map((item) => (
-          <div
-            key={item.id}
-            className="grid grid-cols-[minmax(0,1fr)_36px_82px] items-start gap-2 border-b border-dashed border-[#dde4d9] py-[5px]"
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium leading-[1.45] text-[#0e140e]">
-                {item.itemName}
-              </p>
-              <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
-                {formatMoney(item.unitPrice, currency)} ea
-              </p>
+        {order.items.map((item) => {
+          const grossAmount = item.unitPrice * item.quantity;
+          const itemDisc = item.discountAmount ?? 0;
+          const netAmount = item.lineTotal ?? (grossAmount - itemDisc);
+
+          return (
+            <div
+              key={item.id}
+              className="grid grid-cols-[minmax(0,1fr)_36px_82px] items-start gap-2 border-b border-dashed border-[#dde4d9] py-[5px]"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium leading-[1.45] text-[#0e140e]">
+                  {item.itemName}
+                </p>
+                <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
+                  {formatMoney(item.unitPrice, currency)} ea
+                </p>
+                {itemDisc > 0 && (
+                  <p className="font-mono text-[11px] font-medium text-[#d14341]">
+                    Disc: -{formatMoney(itemDisc, currency)}
+                  </p>
+                )}
+              </div>
+              <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
+                {item.quantity}
+              </span>
+              <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
+                {formatMoney(netAmount, currency)}
+              </span>
             </div>
-            <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
-              {item.quantity}
-            </span>
-            <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
-              {formatMoney(item.lineTotal, currency)}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <dl className="space-y-1 pt-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
         <div className="flex justify-between gap-4">
-          <dt>Subtotal</dt>
+          <dt>Subtotal / សរុបដើម</dt>
           <dd className="font-mono text-[#0e140e]">
             {formatMoney(subtotal, currency)}
           </dd>
         </div>
-        <div className="flex justify-between gap-4">
-          <dt>
-            Discount
-            {discount > 0 ? ` (${discountPercent.toFixed(0)}%)` : ""}
-          </dt>
-          <dd className="font-mono text-[#d14341]">
-            -{formatMoney(discount, currency)}
-          </dd>
-        </div>
+        {discount > 0 && (
+          <div className="flex justify-between gap-4 font-medium text-[#d14341]">
+            <dt className="flex items-center gap-1">
+              Discount / បញ្ចុះតម្លៃ
+              {discountLabel && (
+                <span className="font-semibold text-xs text-[#006b26]">
+                  ({discountLabel})
+                </span>
+              )}
+            </dt>
+            <dd className="font-mono font-bold">
+              -{formatMoney(discount, currency)}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">

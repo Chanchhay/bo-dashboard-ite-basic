@@ -1,5 +1,6 @@
-import { Globe, MessageSquare, Send, ShoppingBag, Store } from "lucide-react";
+"use client";
 
+import { Globe, MessageSquare, Send, ShoppingBag, Store } from "lucide-react";
 import type { SalesChannelCode } from "@/lib/api/sales-channels";
 
 interface SalesChannelOption {
@@ -18,39 +19,27 @@ interface ChannelSelectorProps {
 
 const CHANNEL_METADATA: Record<
     string,
-    { name: string; description: string; icon: React.ElementType; color: string }
+    { name: string; icon: React.ElementType }
 > = {
     POS: {
         name: "Point of Sale (POS)",
-        description: "Items available to sell at the in-store till.",
         icon: Store,
-        color: "bg-primary/10 text-primary border-primary/20",
     },
     TELEGRAM: {
-        name: "Telegram Bot / Store",
-        description: "Items synced to your Telegram shop and bot catalog.",
+        name: "Telegram Bot",
         icon: Send,
-        color: "bg-sky-50 text-sky-700 border-sky-200",
     },
     MESSENGER: {
         name: "Facebook Messenger",
-        description: "Items available for chat orders in Messenger.",
         icon: MessageSquare,
-        color: "bg-blue-50 text-blue-700 border-blue-200",
     },
-    // The backend seeds this one as ONLINE; WEB is kept as an alias so an
-    // older channel row still renders with the right icon and wording.
     ONLINE: {
         name: "Online Store",
-        description: "Items published to your public web store.",
         icon: Globe,
-        color: "bg-indigo-50 text-indigo-700 border-blue-200",
     },
     WEB: {
-        name: "Web E-Commerce Store",
-        description: "Items published to your public web store.",
+        name: "Web Store",
         icon: Globe,
-        color: "bg-indigo-50 text-indigo-700 border-blue-200",
     },
 };
 
@@ -60,16 +49,21 @@ export function ChannelSelector({
     selectedChannelCode,
     onSelectChannel,
 }: ChannelSelectorProps) {
+    const currentCodeUpper = (selectedChannelCode || activeChannelCode).toUpperCase();
+
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">
+                Active Channel:
+            </span>
             {channels.map((channel) => {
                 const codeUpper = channel.code.toUpperCase();
                 const meta = CHANNEL_METADATA[codeUpper] || {
+                    name: channel.name,
                     icon: ShoppingBag,
-                    color: "bg-gray-50 text-gray-700 border-gray-200",
                 };
                 const Icon = meta.icon;
-                const isActive = (selectedChannelCode || activeChannelCode).toUpperCase() === codeUpper;
+                const isActive = currentCodeUpper === codeUpper;
 
                 return (
                     <button
@@ -77,20 +71,22 @@ export function ChannelSelector({
                         type="button"
                         onClick={() => onSelectChannel(channel.code)}
                         aria-pressed={isActive}
-                        className={`flex flex-col items-start p-4 rounded-xl border transition-all text-left ${
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                             isActive
-                                ? "border-primary bg-primary/10 dark:bg-[#00932a]/20 ring-2 ring-primary/20 shadow-xs"
-                                : "border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] hover:border-gray-300 dark:hover:border-[#384252] hover:bg-gray-50/50 dark:hover:bg-[#252a38]"
+                                ? "bg-primary text-white shadow-xs ring-2 ring-primary/20 scale-[1.02]"
+                                : "bg-card border border-border text-foreground hover:bg-muted/70"
                         }`}
                     >
-                        <div className="flex items-center justify-between w-full">
-                            <span className={`p-2 rounded-lg ${meta.color}`}>
-                                <Icon className="w-5 h-5" />
-                            </span>
-                        </div>
-                        <span className="mt-3 font-semibold text-sm text-[#161d16] dark:text-[#f8fafc]">{channel.name}</span>
-                        <span className="text-xs text-gray-500 dark:text-[#94a3b8] font-mono mt-0.5">
-                            Code: {channel.code}
+                        <Icon className="w-4 h-4" />
+                        <span>{channel.name}</span>
+                        <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                                isActive
+                                    ? "bg-white/20 text-white"
+                                    : "bg-muted text-muted-foreground"
+                            }`}
+                        >
+                            {channel.code}
                         </span>
                     </button>
                 );

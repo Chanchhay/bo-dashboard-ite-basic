@@ -12,6 +12,8 @@ import type {
     PosOrderPage,
     PosReceiptDetail,
     Sale,
+    SetOrderCustomerInput,
+    SetOrderDiscountInput,
     UpdateOrderItemInput,
 } from "@/lib/api/pos-order";
 
@@ -228,6 +230,24 @@ export const posOrderApi = baseApi.injectEndpoints({
             },
         }),
 
+        setOrderCustomer: builder.mutation<PosOrder, SetOrderCustomerInput>({
+            query: (body) => ({
+                url: "/orders/current/customer",
+                method: "PATCH",
+                body,
+            }),
+            onQueryStarted: writeBackOrder,
+        }),
+
+        setOrderDiscount: builder.mutation<PosOrder, SetOrderDiscountInput>({
+            query: (body) => ({
+                url: "/orders/current/discount",
+                method: "PATCH",
+                body,
+            }),
+            onQueryStarted: writeBackOrder,
+        }),
+
         /** Settles the sale. The cart is gone afterwards, so the cache is dropped. */
         payOrder: builder.mutation<Sale, PayOrderInput>({
             query: (body) => ({
@@ -287,6 +307,8 @@ export const {
     useRemoveOrderItemMutation,
     useRenameOrderMutation,
     useClearOrderMutation,
+    useSetOrderCustomerMutation,
+    useSetOrderDiscountMutation,
     usePayOrderMutation,
     useGetBakongStatusQuery,
     useGenerateKhqrMutation,
