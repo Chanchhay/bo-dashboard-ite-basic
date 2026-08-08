@@ -24,8 +24,8 @@ const DEFAULT_BUSINESS_THUMBNAIL =
 
 export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps) {
   const { terminalId } = use(params);
-  const displayData = useCustomerDisplayListener(terminalId);
   const { data: businessProfile } = useGetBusinessProfileQuery();
+  const displayData = useCustomerDisplayListener(terminalId, businessProfile?.id);
   const { format, secondaryFor } = useMoney();
   const [isDarkMode, setIsDarkMode] = useState(false); // Default clean mode like POS terminal
 
