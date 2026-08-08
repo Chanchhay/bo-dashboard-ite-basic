@@ -137,9 +137,9 @@ function ItemRow({
             aria-label={`Remove ${item.itemName}`}
             onClick={onRemove}
             disabled={busy}
-            className="grid size-9 place-items-center rounded-full text-brand-red transition hover:bg-red-50 active:scale-90 disabled:opacity-40 sm:size-8"
+            className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-40 cursor-pointer"
           >
-            <Trash2 className="h-4 w-4 text-brand-red" />
+            <Trash2 className="size-4 text-brand-red" />
           </button>
         </div>
       </td>

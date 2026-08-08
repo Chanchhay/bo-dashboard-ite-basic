@@ -221,7 +221,7 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
                     disabled={isLoadingEdit || isCancelling}
                     title="Cancel order"
                     aria-label={`Cancel ${name}`}
-                    className="grid size-9 place-items-center rounded-xl border border-red-100 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 text-brand-red dark:text-red-400 outline-none transition-colors hover:border-red-200 hover:bg-red-100 dark:hover:bg-red-900/60 focus-visible:ring-2 focus-visible:ring-brand-red/25 disabled:pointer-events-none disabled:opacity-50"
+                    className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
                   >
                     <Trash2 className="size-4 text-brand-red" aria-hidden="true" />
                   </button>

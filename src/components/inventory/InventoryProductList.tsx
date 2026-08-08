@@ -947,8 +947,9 @@ export function InventoryProductList() {
                                                 </Button>
                                                 <Button
                                                     type="button"
-                                                    variant="destructive"
-                                                    size="icon-sm"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
                                                     aria-label={`Delete ${item.name || "item"}`}
                                                     disabled={deleteState.isLoading}
                                                     onClick={() =>
