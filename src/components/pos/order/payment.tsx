@@ -165,6 +165,7 @@ export function Payment({
               }}
               onPaid={(sale) => {
                 setKhqr(null);
+                onOpenChange(false);
                 onDigitalPaid?.(sale);
               }}
             />
