@@ -31,7 +31,6 @@ import {
     InventoryError,
     InventoryLoading,
     InventoryPageHeader,
-    inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,8 +69,6 @@ import {
     setProductStatus,
     type ProductAdvancedFilterKey,
 } from "@/store/inventoryUiSlice";
-
-const pageSizes = [10, 20, 50] as const;
 
 const sortLabels: Record<InventoryItemSort, string> = {
     "name,asc": "Name: A to Z",
@@ -135,10 +132,6 @@ export function InventoryProductList() {
     >({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<{
-        id: string;
-        name: string;
-    } | null>(null);
 
     useEffect(() => {
         const timer = window.setTimeout(

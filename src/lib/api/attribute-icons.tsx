@@ -1,3 +1,5 @@
+import { createElement } from "react";
+
 import {
     Apple,
     BatteryFull,
@@ -60,4 +62,22 @@ export const attributeIconKeys = Object.keys(iconsByKey);
 
 export function attributeIcon(key: string | undefined): LucideIcon {
     return (key && iconsByKey[key]) || Circle;
+}
+
+/**
+ * Renders an attribute's glyph.
+ *
+ * The icon is looked up from a fixed table, not constructed — but binding the
+ * result to a capitalized local inside a component reads as creating a
+ * component during render, which is a real footgun elsewhere and so is linted
+ * against. `createElement` keeps the distinction unambiguous.
+ */
+export function AttributeIcon({
+    icon,
+    className,
+}: {
+    icon?: string;
+    className?: string;
+}) {
+    return createElement(attributeIcon(icon), { className });
 }

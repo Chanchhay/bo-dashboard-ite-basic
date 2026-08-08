@@ -7,7 +7,6 @@ import {
     ArrowLeft,
     LoaderCircle,
     PackageOpen,
-    Save,
     ScanBarcode,
     SlidersHorizontal,
 } from "lucide-react";
@@ -32,12 +31,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    manualStockEntryTypes,
     stockEntrySchema,
-    stockEntryTypes,
+    stockEntryTypeLabels,
     type InventoryItem,
 } from "@/lib/api/inventory";
 import {
     useCreateStockEntryMutation,
+    useGetCurrentStockQuery,
     useGetInventoryItemOptionsQuery,
 } from "@/services/inventoryApi";
 
@@ -92,8 +93,10 @@ export function StockAdjustmentForm() {
     const router = useRouter();
     const { toast } = useToast();
     const itemsQuery = useGetInventoryItemOptionsQuery();
+    const stockQuery = useGetCurrentStockQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
+    const [quantityChange, setQuantityChange] = useState("");
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
@@ -118,6 +121,20 @@ export function StockAdjustmentForm() {
     }
 
     const items = itemsQuery.data || [];
+    const selectedItem = items.find((item) => item.id === selectedItemId);
+    const unitLabel = selectedItem?.unit?.name || "";
+    const onHand =
+        (stockQuery.data || []).find(
+            (summary) => summary.itemId === selectedItemId,
+        )?.quantityOnHand ?? 0;
+    const change = Number(quantityChange);
+    // Showing the balance this lands on is what turns "-40" from a guess into a
+    // decision — and it is the only place a negative result becomes visible
+    // before it is committed.
+    const resulting =
+        quantityChange.trim() !== "" && Number.isFinite(change)
+            ? onHand + change
+            : undefined;
 
     function handleScannedItem(item: InventoryItem) {
         setSelectedItemId(item.id);
@@ -216,7 +233,7 @@ export function StockAdjustmentForm() {
             >
             <InventoryPageHeader
                 title="Adjust stock"
-                description="Record a stock entry using the backend inventory contract."
+                description="Every change to stock is recorded as a movement, so the history stays complete."
                 action={
                     <Button
                         variant="outline"
@@ -317,6 +334,12 @@ export function StockAdjustmentForm() {
                             <Select
                                 name="entryType"
                                 defaultValue="ADJUSTMENT"
+                                items={Object.fromEntries(
+                                    manualStockEntryTypes.map((entryType) => [
+                                        entryType,
+                                        stockEntryTypeLabels[entryType],
+                                    ]),
+                                )}
                             >
                                 <SelectTrigger
                                     id="entryType"
@@ -325,17 +348,12 @@ export function StockAdjustmentForm() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {stockEntryTypes.map((entryType) => (
+                                    {manualStockEntryTypes.map((entryType) => (
                                         <SelectItem
                                             key={entryType}
                                             value={entryType}
                                         >
-                                            {entryType
-                                                .toLowerCase()
-                                                .replaceAll("_", " ")
-                                                .replace(/^\w/, (letter) =>
-                                                    letter.toUpperCase(),
-                                                )}
+                                            {stockEntryTypeLabels[entryType]}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -344,24 +362,69 @@ export function StockAdjustmentForm() {
                         <Field
                             label="Quantity change *"
                             name="quantityChange"
-                            hint="Use a positive number to increase stock and a negative number to decrease it."
+                            hint={
+                                selectedItemId
+                                    ? undefined
+                                    : "Positive adds stock, negative removes it."
+                            }
                             error={fieldErrors.quantityChange}
                         >
-                            <Input
-                                id="quantityChange"
-                                name="quantityChange"
-                                type="number"
-                                step="0.01"
-                                placeholder="10 or -3"
-                                aria-invalid={Boolean(
-                                    fieldErrors.quantityChange,
-                                )}
-                                className={inventoryControlClassName}
-                            />
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    id="quantityChange"
+                                    name="quantityChange"
+                                    type="number"
+                                    step="0.01"
+                                    value={quantityChange}
+                                    onChange={(event) =>
+                                        setQuantityChange(event.target.value)
+                                    }
+                                    placeholder="10 or -3"
+                                    aria-invalid={Boolean(
+                                        fieldErrors.quantityChange,
+                                    )}
+                                    className={`${inventoryControlClassName} flex-1`}
+                                />
+                                {unitLabel ? (
+                                    <span className="shrink-0 text-sm text-muted-foreground">
+                                        {unitLabel}
+                                    </span>
+                                ) : null}
+                            </div>
+                            {selectedItemId ? (
+                                <p
+                                    className={
+                                        resulting !== undefined && resulting < 0
+                                            ? "text-xs text-danger"
+                                            : "text-xs text-muted-foreground"
+                                    }
+                                    aria-live="polite"
+                                >
+                                    {resulting === undefined ? (
+                                        `${onHand} ${unitLabel} on hand. Positive adds, negative removes.`
+                                    ) : resulting < 0 ? (
+                                        <>
+                                            {onHand} → <strong>{resulting}</strong>{" "}
+                                            {unitLabel} — this takes stock below
+                                            zero.
+                                        </>
+                                    ) : (
+                                        <>
+                                            {onHand} → <strong>{resulting}</strong>{" "}
+                                            {unitLabel}
+                                        </>
+                                    )}
+                                </p>
+                            ) : null}
                         </Field>
                         <Field
                             label="Unit cost"
                             name="unitCost"
+                            hint={
+                                unitLabel
+                                    ? `What one ${unitLabel.toLowerCase()} cost you. Feeds stock value.`
+                                    : "What one unit cost you. Feeds stock value."
+                            }
                             error={fieldErrors.unitCost}
                         >
                             <Input
