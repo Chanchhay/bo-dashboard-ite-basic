@@ -24,13 +24,6 @@ export default function SalesPricingPage() {
                 description="Set what everything costs, then choose where it sells and whether that channel charges anything different."
             />
 
-            <p
-                className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning"
-                role="status"
-            >
-                Preview — sample catalogue, nothing is saved yet. The API is
-                built once this flow is approved.
-            </p>
 
             <div
                 role="tablist"

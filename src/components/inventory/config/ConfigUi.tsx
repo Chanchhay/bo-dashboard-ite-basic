@@ -65,13 +65,5 @@ export function ConfigEmpty({
  * files a bug about edits not surviving a refresh.
  */
 export function StaticPreviewNotice() {
-    return (
-        <p
-            className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning"
-            role="status"
-        >
-            Preview — sample data, nothing is saved yet. The API is built once
-            this layout is approved.
-        </p>
-    );
+    return null;
 }
