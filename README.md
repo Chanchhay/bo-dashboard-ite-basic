@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 FluxiBiz — Cloud-Native Retail & Commerce Management Platform
 
-## Getting Started
+![Platform](https://img.shields.io/badge/Platform-Cloud--Native-blue.svg)
+![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen.svg)
+![Architecture](https://img.shields.io/badge/Architecture-API--Driven-orange.svg)
 
-First, run the development server:
+**FluxiBiz** transforms traditional retail systems into a modern, cloud-native ecosystem that operates entirely through standard internet connectivity. By centralizing physical POS transactions, digital storefronts, and social commerce marketplaces into a single automated platform, FluxiBiz enables business owners and retail teams to manage inventory and sales proactively without geographical constraints. With support for real-time inventory reconciliation and webhook-driven multi-channel order synchronization.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Executive Summary & Core Value Proposition
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Modern retail requires businesses to operate across multiple digital and physical touchpoints. FluxiBiz eliminates operational silos by bridging in-store point-of-sale systems with online web stores and social marketplaces into a single real-time control center.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+* **Unified Omnichannel Operations:** Single pane of glass for physical stores, custom web shops, and social commerce (Telegram and Messenger).
+* **Automated Stock Reconciliation:** Instant inventory synchronization across every channel to prevent overselling and eliminate manual stock counts.
+* **Webhook-Driven Automation:** Event-driven order processing, inventory allocation, and automated fulfillment workflows.
+* **Geographic Flexibility:** Cloud-native access enables owners and operations managers to control multi-store setups remotely from anywhere.
+* **Enterprise Agility & Scalability:** Designed on secure, high-availability microservices architecture to adapt dynamically throughout your enterprise growth lifecycle.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 📚 Interactive API Documentation & Developer Tools
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+FluxiBiz is engineered API-first, allowing custom frontend store development, third-party ERP integrations, and custom payment gateway connections.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. Scalar Interactive Web UI
+Explore and test the complete set of OpenAPI endpoints using the interactive Scalar UI:
 
-## Deploy on Vercel
+* **Scalar API UI:** `https://api.fluxibiz.com/scalar/docs` *(or `http://localhost:8080/scalar/docs` for local development)*
+* **OpenAPI Specification (JSON):** `https://api.fluxibiz.com/v3/api-docs`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Postman Collection Support
+For developer testing and webhook simulation:
+1. Locate or download the collection file at [`./public/postman_collection.json`](./public/postman_collection.json) (or [`./postman_collection.json`](./postman_collection.json)).
+2. Open Postman $\rightarrow$ **Import** $\rightarrow$ **Upload Files** and select `postman_collection.json`.
+3. Set your active Postman environment variables:
+   * `baseUrl`: `https://api.fluxibiz.com` (or `http://localhost:8080`)
+   * `apiKey`: `<YOUR_FLUXIBIZ_BEARER_TOKEN>`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 💻 Installation Steps
+
+### Prerequisites
+* **Node.js:** v18+ or v20+
+* **Package Manager:** `npm`, `pnpm`, or `yarn`
+* **Backend Service:** Running instance of the `ite-sb-api` backend
+
+---
+
+### Step-by-Step Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/your-org/fluxibiz-dashboard.git](https://github.com/your-org/fluxibiz-dashboard.git)
+   cd fluxibiz-dashboard
+
+## ⚙️ Environment Configuration
+
+Configure the required environment variables using a `.env` file or system configuration:
+
+| Variable Name | Required | Default / Example | Description |
+| :--- | :---: | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | **Yes** | `https://api.fluxibiz.com` | Primary backend API gateway endpoint |
+| `NEXT_PUBLIC_SCALAR_DOCS_URL` | No | `https://api.fluxibiz.com/scalar/docs` | Live API reference URL |
+| `FLUXIBIZ_WEBHOOK_SECRET` | **Yes** | `whsec_a1b2c3d4e5...` | Secret key used to verify incoming webhook signatures |
+| `DATABASE_URL` | **Yes** | `postgresql://user:pass@localhost:5432/fluxibiz` | Database connection string |
+
+### `.env.example` Template
+```env
+# Platform Configuration
+NEXT_PUBLIC_API_URL=[https://api.fluxibiz.com](https://api.fluxibiz.com)
+NEXT_PUBLIC_SCALAR_DOCS_URL=[https://api.fluxibiz.com/scalar/docs](https://api.fluxibiz.com/scalar/docs)
+
+# Security & Webhooks
+FLUXIBIZ_WEBHOOK_SECRET=your_webhook_secret_key
+
+# Database Link
+DATABASE_URL=postgresql://user:pass@localhost:5432/fluxibiz
+
+## 🛠️ System Architecture & Channel Integration
+
+FluxiBiz connects your primary retail operations into a unified, event-driven network:
+
+```text
+                               ┌──────────────────────────────┐
+                               │    FluxiBiz Business Hub     │
+                               │     (Central Core Engine)    │
+                               └──────────────┬───────────────┘
+                                              │
+         ┌────────────────────────────────────┼────────────────────────────────────┐
+         │                                    │                                    │
+┌────────┴─────────┐                 ┌────────┴─────────┐                 ┌────────┴─────────┐
+│   Physical POS   │                 │ Web Storefronts  │                 │ Social Commerce  │
+│  (In-Store Sales)│                 │   (E-Commerce)   │                 │  (Marketplaces)  │
+└────────┴─────────┘                 └────────┴─────────┘                 └────────┴─────────┘
+         │                                    │                                    │
+         └────────────────────────────────────┼────────────────────────────────────┘
+                                              │
+                                   ┌──────────┴──────────────┐
+                                   │ Dynamic Synchronization │
+                                   │  - Real-Time Inventory  │
+                                   │  - Webhook Workflows    │
+                                   └─────────────────────────┘
+
