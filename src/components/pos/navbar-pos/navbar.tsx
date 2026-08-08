@@ -467,20 +467,20 @@ function MobileSearchTrigger({
 }
 
 function MonitorToggle() {
-  const [isDisplayOn, setIsDisplayOn] = useState(true);
+  const openCustomerDisplay = () => {
+    window.open("/customer-display/term_default", "_blank", "width=1280,height=800");
+  };
+
   return (
     <button
       type="button"
-      onClick={() => setIsDisplayOn((prev) => !prev)}
-      aria-pressed={isDisplayOn}
-      aria-label={isDisplayOn ? "Turn display off" : "Turn display on"}
-      className="hidden h-9 shrink-0 items-center justify-center rounded-lg bg-white/90 px-3 text-brand-yellow hover:text-brand-yellow min-[901px]:flex"
+      onClick={openCustomerDisplay}
+      title="Open Customer Display Window"
+      aria-label="Open Customer Display Window"
+      className="hidden h-9 shrink-0 items-center gap-1.5 rounded-lg border border-brand-yellow/30 bg-white/90 dark:bg-[#1a1e29] px-3 text-xs font-semibold text-brand-yellow hover:bg-brand-yellow/10 transition-colors min-[901px]:flex"
     >
-      {isDisplayOn ? (
-        <Monitor className="h-4.5 w-4.5" />
-      ) : (
-        <MonitorOff className="h-4.5 w-4.5" />
-      )}
+      <Monitor className="h-4 w-4" />
+      <span>Customer Display</span>
     </button>
   );
 }

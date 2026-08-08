@@ -70,6 +70,21 @@ export type FormatMoneyOptions = {
   fallback?: string;
 };
 
+const numberFormatterCache = new Map<number, Intl.NumberFormat>();
+
+function getNumberFormatter(digits: number): Intl.NumberFormat {
+  let formatter = numberFormatterCache.get(digits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(undefined, {
+      style: "decimal",
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    });
+    numberFormatterCache.set(digits, formatter);
+  }
+  return formatter;
+}
+
 /**
  * Formats an amount in a specific currency, honouring the symbol and decimal
  * places the business configured. Pass either a configured currency or a bare
@@ -89,11 +104,7 @@ export function formatMoney(
   if (!code) return toNumber(value).toFixed(2);
 
   const digits = fractionDigits(resolved, code);
-  const amount = new Intl.NumberFormat(undefined, {
-    style: "decimal",
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(toNumber(value));
+  const amount = getNumberFormatter(digits).format(toNumber(value));
 
   return useCode
     ? `${code} ${amount}`

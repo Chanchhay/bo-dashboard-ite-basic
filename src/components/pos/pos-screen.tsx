@@ -20,6 +20,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { authClient } from "@/lib/auth/auth-client";
 import { useSessionSubject } from "@/lib/auth/session-context";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
+import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
 import {
   useAddOrderItemMutation,
   useGetCurrentOrderQuery,
@@ -126,6 +127,13 @@ export function PosScreen({
   // The same cached order the cart panel renders, so the mobile bar can never
   // disagree with the panel behind it.
   const { data: currentOrder } = useGetCurrentOrderQuery();
+
+  useCustomerDisplaySync({
+    businessId: currentOrder?.businessId,
+    terminalId: "term_default",
+    order: currentOrder,
+    statusOverride: paidReceipt ? "COMPLETED" : undefined,
+  });
   const showCart = TABS_WITH_CART.includes(activeTab);
   const itemCount =
     currentOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;

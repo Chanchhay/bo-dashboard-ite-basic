@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useMoney } from "@/hooks/useMoney";
 
@@ -79,7 +79,7 @@ interface ItemRowProps {
   busy?: boolean;
 }
 
-function ItemRow({
+const ItemRow = memo(function ItemRow({
   item,
   currency,
   onIncrease,
@@ -145,7 +145,7 @@ function ItemRow({
       </td>
     </tr>
   );
-}
+});
 
 /* --------------------------------- table --------------------------------- */
 

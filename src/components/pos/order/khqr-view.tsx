@@ -183,7 +183,12 @@ function useCountdown(expiresAt: string | null) {
 function remaining(expiresAt: string | null) {
     if (!expiresAt) return null;
 
-    const end = new Date(expiresAt).getTime();
+    let iso = expiresAt.trim();
+    if (iso.includes("T") && !iso.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
+        iso += "Z";
+    }
+
+    const end = new Date(iso).getTime();
 
     if (Number.isNaN(end)) return null;
 

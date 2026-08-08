@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ImageOff } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
@@ -20,7 +21,7 @@ export interface PosCardProps {
  * Sized by its grid cell instead of a fixed width, so the row stays even
  * however many columns the breakpoint gives it.
  */
-const PosCard = ({ item, onSelect }: PosCardProps) => {
+const PosCardComponent = ({ item, onSelect }: PosCardProps) => {
   const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
 
@@ -62,4 +63,5 @@ const PosCard = ({ item, onSelect }: PosCardProps) => {
   );
 };
 
+export const PosCard = memo(PosCardComponent);
 export default PosCard;

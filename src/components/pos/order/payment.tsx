@@ -172,7 +172,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CreditCard, Banknote } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
@@ -182,6 +182,7 @@ import { KhqrView } from "./khqr-view";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { Khqr, Sale } from "@/lib/api/pos-order";
+import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
 import {
   useGenerateKhqrMutation,
   useGetBakongStatusQuery,
@@ -237,6 +238,50 @@ export function Payment({
   const discount = parseFloat(order.discount_amount);
   const total = parseFloat(order.total);
   const totalSecondary = secondaryFor(total, order);
+
+  // Reset KHQR code state when payment modal closes
+  useEffect(() => {
+    if (!open) {
+      setKhqr(null);
+    }
+  }, [open]);
+
+  useCustomerDisplaySync({
+    businessId: order.business_owner_id,
+    terminalId: "term_default",
+    order: {
+      id: order.id,
+      businessId: order.business_owner_id,
+      customerId: null,
+      invoiceNumber: null,
+      channel: "POS",
+      status: "PENDING",
+      subtotal,
+      discountAmount: discount,
+      total,
+      currency: order.currency,
+      displayCurrency: null,
+      displayExchangeRate: null,
+      note: null,
+      items: (order.items || []).map((item) => {
+        const unitPrice = parseFloat(item.unit_price) || 0;
+        const discountAmount = parseFloat(item.discount_amount) || 0;
+        return {
+          id: item.id,
+          itemId: item.product_id,
+          variantId: item.variant_id ?? null,
+          itemName: item.product_name,
+          quantity: item.quantity,
+          unitPrice,
+          discountAmount,
+          lineTotal: unitPrice * item.quantity - discountAmount,
+        };
+      }),
+      createdDate: null,
+    },
+    statusOverride: open && Boolean(khqr) ? "PAYMENT_PENDING" : undefined,
+    qrCodeUrl: khqr?.qrImage ?? null,
+  });
 
   function handleValidateClick() {
     if (method === "CASH") {
