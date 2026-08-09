@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ImageOff } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
@@ -7,7 +8,8 @@ import type { Item } from "@/types/pos-type";
 
 export interface PosCardProps {
   item: Item;
-  onSelect?: (itemId: string) => void;
+  formattedPrice?: string;
+  onSelect?: (item: Item) => void;
 }
 
 /**
@@ -20,30 +22,32 @@ export interface PosCardProps {
  * Sized by its grid cell instead of a fixed width, so the row stays even
  * however many columns the breakpoint gives it.
  */
-const PosCard = ({ item, onSelect }: PosCardProps) => {
+const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
   const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
+  const displayPrice = formattedPrice || format(item.price);
 
   return (
     <button
       type="button"
       disabled={isDisabled}
-      aria-label={`${item.name}, ${format(item.price)}`}
-      onClick={() => onSelect?.(item.id)}
-      className={`group flex w-full flex-col text-left outline-none transition focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+      aria-label={`${item.name}, ${displayPrice}`}
+      onClick={() => onSelect?.(item)}
+      style={{ touchAction: "manipulation" }}
+      className={`group flex w-full select-none flex-col text-left outline-none transition-transform duration-75 focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
         isDisabled
           ? "cursor-not-allowed opacity-50"
-          : "cursor-pointer active:scale-[0.98]"
+          : "cursor-pointer active:scale-[0.95]"
       }`}
     >
-      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md">
+      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
         {item.image_url ? (
           /* Decorative — the button's aria-label already names the item. */
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.image_url}
             alt=""
-            className="h-full w-full object-cover opacity-95"
+            className="h-full w-full object-cover opacity-95 group-active:scale-105 transition-transform duration-75"
           />
         ) : (
           <ImageOff className="h-8 w-8 text-gray-300" aria-hidden="true" />
@@ -55,11 +59,20 @@ const PosCard = ({ item, onSelect }: PosCardProps) => {
           {item.name}
         </span>
         <span className="text-base font-bold leading-7 text-brand-red">
-          {format(item.price)}
+          {displayPrice}
         </span>
       </span>
     </button>
   );
 };
 
+export const PosCard = memo(
+  PosCardComponent,
+  (prev, next) =>
+    prev.item.id === next.item.id &&
+    prev.item.price === next.item.price &&
+    prev.item.is_available === next.item.is_available &&
+    prev.formattedPrice === next.formattedPrice &&
+    prev.onSelect === next.onSelect,
+);
 export default PosCard;

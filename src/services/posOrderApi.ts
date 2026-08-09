@@ -12,6 +12,8 @@ import type {
     PosOrderPage,
     PosReceiptDetail,
     Sale,
+    SetOrderCustomerInput,
+    SetOrderDiscountInput,
     UpdateOrderItemInput,
 } from "@/lib/api/pos-order";
 
@@ -34,6 +36,20 @@ function orderFilterParams(input: OrderHistoryQuery | void | null) {
         from: input?.from,
         to: input?.to,
     };
+}
+
+let inFlightCount = 0;
+
+function handleFulfilled(dispatch: any, data: PosOrder | null) {
+    if (inFlightCount <= 0 && data) {
+        dispatch(
+            posOrderApi.util.updateQueryData(
+                "getCurrentOrder",
+                undefined,
+                () => data,
+            ),
+        );
+    }
 }
 
 export const posOrderApi = baseApi.injectEndpoints({
@@ -144,24 +160,112 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         addOrderItem: builder.mutation<PosOrder, AddOrderItemInput>({
-            query: (body) => ({
+            query: ({ itemId, variantId, quantity }) => ({
                 url: "/orders/current/items",
                 method: "POST",
-                body,
+                body: { itemId, variantId, quantity },
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                inFlightCount++;
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            const addQty = arg.quantity || 1;
+                            const existingIndex = draft.items.findIndex(
+                                (item) =>
+                                    item.itemId === arg.itemId &&
+                                    (!arg.variantId || item.variantId === arg.variantId),
+                            );
+
+                            if (existingIndex !== -1) {
+                                const existing = draft.items[existingIndex];
+                                existing.quantity += addQty;
+                                existing.lineTotal =
+                                    existing.quantity * existing.unitPrice -
+                                    existing.discountAmount;
+                            } else {
+                                const unitPrice = arg.unitPrice ?? 0;
+                                const lineTotal = addQty * unitPrice;
+                                draft.items.push({
+                                    id: `temp-${Date.now()}-${Math.random()}`,
+                                    itemId: arg.itemId,
+                                    variantId: arg.variantId ?? null,
+                                    itemName: arg.itemName ?? "Item",
+                                    quantity: addQty,
+                                    unitPrice,
+                                    discountAmount: 0,
+                                    lineTotal,
+                                });
+                            }
+
+                            draft.subtotal = draft.items.reduce(
+                                (sum, i) => sum + i.lineTotal + i.discountAmount,
+                                0,
+                            );
+                            draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
+                } catch {
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
+                }
+            },
         }),
 
         updateOrderItem: builder.mutation<
             PosOrder,
             { orderItemId: string } & UpdateOrderItemInput
         >({
-            query: ({ orderItemId, ...body }) => ({
+            query: ({ orderItemId, quantity }) => ({
                 url: `/order-items/${orderItemId}`,
                 method: "PATCH",
-                body,
+                body: { quantity },
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted({ orderItemId, quantity }, { dispatch, queryFulfilled }) {
+                inFlightCount++;
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            const item = draft.items.find((i) => i.id === orderItemId);
+                            if (item) {
+                                item.quantity = quantity;
+                                item.lineTotal =
+                                    item.quantity * item.unitPrice - item.discountAmount;
+                                draft.subtotal = draft.items.reduce(
+                                    (sum, i) => sum + i.lineTotal + i.discountAmount,
+                                    0,
+                                );
+                                draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                            }
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
+                } catch {
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
+                }
+            },
         }),
 
         removeOrderItem: builder.mutation<PosOrder | null, string>({
@@ -169,7 +273,35 @@ export const posOrderApi = baseApi.injectEndpoints({
                 url: `/order-items/${orderItemId}`,
                 method: "DELETE",
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted(orderItemId, { dispatch, queryFulfilled }) {
+                inFlightCount++;
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            draft.items = draft.items.filter((i) => i.id !== orderItemId);
+                            draft.subtotal = draft.items.reduce(
+                                (sum, i) => sum + i.lineTotal + i.discountAmount,
+                                0,
+                            );
+                            draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
+                } catch {
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
+                }
+            },
         }),
 
         renameOrder: builder.mutation<PosOrder, { note: string }>({
@@ -210,7 +342,13 @@ export const posOrderApi = baseApi.injectEndpoints({
             { status: PaymentStatus | null; sale: Sale | null },
             void
         >({
-            query: () => "/orders/current/payment-status",
+            query: () => ({
+                url: "/orders/current/payment-status",
+                headers: {
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    Pragma: "no-cache",
+                },
+            }),
             async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
                 try {
                     const { data } = await queryFulfilled;
@@ -224,6 +362,71 @@ export const posOrderApi = baseApi.injectEndpoints({
                     }
                 } catch {
                     // Polling errors are surfaced by the query itself.
+                }
+            },
+        }),
+
+        setOrderCustomer: builder.mutation<PosOrder, SetOrderCustomerInput>({
+            query: (body) => ({
+                url: "/orders/current/customer",
+                method: "PATCH",
+                body,
+            }),
+            async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                inFlightCount++;
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            draft.customerId = body.customerId ?? null;
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
+                } catch {
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
+                }
+            },
+        }),
+
+        setOrderDiscount: builder.mutation<PosOrder, SetOrderDiscountInput>({
+            query: (body) => ({
+                url: "/orders/current/discount",
+                method: "PATCH",
+                body,
+            }),
+            async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                inFlightCount++;
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            draft.discountAmount = body.discountAmount;
+                            draft.total = Math.max(0, draft.subtotal - body.discountAmount);
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
+                } catch {
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
                 }
             },
         }),
@@ -287,6 +490,8 @@ export const {
     useRemoveOrderItemMutation,
     useRenameOrderMutation,
     useClearOrderMutation,
+    useSetOrderCustomerMutation,
+    useSetOrderDiscountMutation,
     usePayOrderMutation,
     useGetBakongStatusQuery,
     useGenerateKhqrMutation,

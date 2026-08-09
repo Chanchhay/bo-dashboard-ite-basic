@@ -71,7 +71,8 @@ export default async function DashboardPage() {
     );
     const lowStock = items.filter((item) => {
         const threshold = item.lowStockDefault ?? 0;
-        return threshold > 0 && (quantityByItem.get(item.id) ?? 0) <= threshold;
+        const qty = quantityByItem.get(item.id);
+        return item.itemType !== "DIGITAL" && threshold > 0 && qty !== undefined && qty > 0 && qty <= threshold;
     }).length;
 
     const topStocked = items

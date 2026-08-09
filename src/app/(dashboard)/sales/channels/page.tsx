@@ -7,20 +7,32 @@ import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
 import { MultiChannelPublishDialog, type SimpleSalesChannel } from "@/components/menu/MultiChannelPublishDialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
-import type { InventoryItem } from "@/lib/api/inventory";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
+import { ChannelSelector } from "@/components/menu/ChannelSelector";
+import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
+import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
+import { ChannelHeader } from "@/components/menu/ChannelHeader";
+import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
+import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
+import {
+    useCreateItemChannelMutation,
+    useDeleteItemChannelMutation,
+    useGetChannelItemsQuery,
+    useGetSalesChannelsQuery,
+} from "@/services/salesChannelApi";
 
-const MOCK_SALES_CHANNELS: SimpleSalesChannel[] = [
-    {
-        id: "channel-online",
-        name: "ONLINE STORE",
-        code: "ONLINE",
-        isActive: true,
-    },
-    {
-        id: "channel-pos",
-        name: "POINT OF SALE",
-        code: "POS",
-        isActive: true,
+// Presentation only — the channels themselves come from the backend. A code
+// with no entry here still renders, just without the colour and blurb.
+const CHANNEL_METADATA: Record<
+    string,
+    { name: string; description: string; icon: React.ElementType; color: string }
+> = {
+    POS: {
+        name: "Point of Sale (POS)",
+        description: "Items available to sell at the in-store till.",
+        icon: Store,
+        color: "bg-primary text-primary/700 border-primary",
     },
 ];
 
@@ -61,6 +73,45 @@ const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
 
 export default function SalesChannelsPage() {
     const { toast } = useToast();
+    const [activeChannelCode, setActiveChannelCode] = useState<string>("POS");
+    const [searchQuery, setSearchQuery] = useState<string>("");
+    const [selectedItemId, setSelectedItemId] = useState<string>("");
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
+    const [pendingItemId, setPendingItemId] = useState<string>("");
+    // Row action awaiting confirmation. Kept after the dialog closes so its
+    // copy stays put while it animates out — clearing it here would flash the
+    // other mode's wording on the closing frame. `isConfirmOpen` is what the
+    // dialog actually opens and closes on.
+    const [confirmAction, setConfirmAction] = useState<{
+        mode: "add" | "remove";
+        itemId: string;
+    } | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+
+    // State for Select Channels by Item dialog
+    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
+    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
+
+    function openMultiChannelDialog(itemId?: string) {
+        if (itemId) {
+            setMultiChannelTargetItemId(itemId);
+        } else {
+            setMultiChannelTargetItemId("");
+        }
+        setIsMultiChannelDialogOpen(true);
+    }
+
+    /** Opens the confirmation dialog for one row action. */
+    function askToConfirm(mode: "add" | "remove", itemId: string) {
+        setConfirmAction({ mode, itemId });
+        setIsConfirmOpen(true);
+    }
+
+    const {
+        data: salesChannels = [],
+        isLoading: channelsLoading,
+        refetch: refetchChannels,
+    } = useGetSalesChannelsQuery();
 
     // Published mapping: channel code -> set of item IDs
     const [publishedMap, setPublishedMap] = useState<Record<string, Set<string>>>({
@@ -131,23 +182,44 @@ export default function SalesChannelsPage() {
                 description="Choose which items are sold on each sales channel, or assign items to multiple channels at once."
             />
 
-            {/* Matrix Table matching reference UI */}
-            <ChannelMatrixTable
-                channels={MOCK_SALES_CHANNELS}
-                inventoryItems={itemsList}
-                inventoryLoading={false}
-                publishedState={publishedMap}
-                onToggleChannelState={handleToggleChannelState}
-                onRefresh={() => {
-                    toast({
-                        tone: "success",
-                        title: "Refreshed sales channels data",
-                    });
-                }}
-                onManageItemChannels={(itemId) => openMultiChannelDialog(itemId)}
-                onRemoveItemFromChannels={(itemId) => handleRemoveItem(itemId)}
-                onOpenMultiChannelDialog={(itemId) => openMultiChannelDialog(itemId)}
-            />
+            {/* Only channels the backend actually has. Nothing can be sold on
+                a channel we invented, so none are drawn for show. */}
+            {!channelsLoading && activeChannels.length === 0 ? (
+                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-10 text-center shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary">
+                        <ShoppingBag
+                            className="size-6"
+                            aria-hidden="true"
+                        />
+                    </span>
+                    <h2 className="text-base font-semibold text-[#161d16] dark:text-[#f8fafc]">
+                        No sales channels yet
+                    </h2>
+                    <p className="mx-auto mt-1 max-w-md text-sm text-[#657064] dark:text-[#94a3b8]">
+                        Items can only be sold once a sales channel exists. Add
+                        one on the backend, then refresh.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => refetchChannels()}
+                        className="mt-4 inline-flex items-center rounded-lg border border-[#c9cbc6] dark:border-[#384252] bg-white dark:bg-[#1e2330] px-4 py-2 text-sm font-semibold text-primary transition hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] shadow-xs"
+                    >
+                        Refresh
+                    </button>
+                </section>
+            ) : (
+                <>
+                <ChannelMatrixTable
+                    channels={activeChannels}
+                    inventoryItems={activeInventoryItems}
+                    inventoryLoading={inventoryLoading}
+                    onRefresh={() => refetchChannels()}
+                    onManageItemChannels={(itemId) => openMultiChannelDialog(itemId)}
+                    onRemoveItemFromChannels={(itemId) => askToConfirm("remove", itemId)}
+                    onOpenMultiChannelDialog={(itemId) => openMultiChannelDialog(itemId)}
+                />
+                </>
+            )}
 
             {/* Multi-Channel Publish Modal */}
             <MultiChannelPublishDialog
@@ -175,7 +247,15 @@ export default function SalesChannelsPage() {
                 }}
             />
 
-            {/* Confirm Delete / Remove Dialog */}
+            <MultiChannelPublishDialog
+                open={isMultiChannelDialogOpen}
+                onClose={() => setIsMultiChannelDialogOpen(false)}
+                inventoryItems={activeInventoryItems}
+                salesChannels={activeChannels}
+                initialItemId={multiChannelTargetItemId}
+                onSuccess={() => refetchChannels()}
+            />
+
             <DestructiveConfirmDialog
                 open={Boolean(removeItemId)}
                 onOpenChange={(open) => {

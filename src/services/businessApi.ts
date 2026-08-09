@@ -34,21 +34,25 @@ export const businessApi = baseApi.injectEndpoints({
         }),
         uploadBusinessLogo: builder.mutation<Business, File>({
             query: (file) => uploadImage("/business-profile/logo", file),
+            invalidatesTags: ["Business"],
         }),
         deleteBusinessLogo: builder.mutation<Business, void>({
             query: () => ({
                 url: "/business-profile/logo",
                 method: "DELETE",
             }),
+            invalidatesTags: ["Business"],
         }),
         uploadBusinessThumbnail: builder.mutation<Business, File>({
             query: (file) => uploadImage("/business-profile/thumbnail", file),
+            invalidatesTags: ["Business"],
         }),
         deleteBusinessThumbnail: builder.mutation<Business, void>({
             query: () => ({
                 url: "/business-profile/thumbnail",
                 method: "DELETE",
             }),
+            invalidatesTags: ["Business"],
         }),
    
         getStorefrontStatus: builder.query<StorefrontStatus, void>({

@@ -317,31 +317,31 @@ export function visibleSections(permissions: readonly Permission[]) {
         .map((section) =>
             section.children
                 ? {
-                      ...section,
-                      children: section.children
-                          .filter((leaf) =>
-                              can(permissions, leaf.permission),
-                          )
-                          .map((leaf) =>
-                              isNavGroup(leaf)
-                                  ? {
-                                        ...leaf,
-                                        children: leaf.children.filter(
-                                            (child) =>
-                                                can(
-                                                    permissions,
-                                                    child.permission,
-                                                ),
-                                        ),
-                                    }
-                                  : leaf,
-                          )
-                          .filter(
-                              (leaf) =>
-                                  !isNavGroup(leaf) ||
-                                  leaf.children.length > 0,
-                          ),
-                  }
+                    ...section,
+                    children: section.children
+                        .filter((leaf) =>
+                            can(permissions, leaf.permission),
+                        )
+                        .map((leaf) =>
+                            isNavGroup(leaf)
+                                ? {
+                                    ...leaf,
+                                    children: leaf.children.filter(
+                                        (child) =>
+                                            can(
+                                                permissions,
+                                                child.permission,
+                                            ),
+                                    ),
+                                }
+                                : leaf,
+                        )
+                        .filter(
+                            (leaf) =>
+                                !isNavGroup(leaf) ||
+                                leaf.children.length > 0,
+                        ),
+                }
                 : section,
         )
         .filter(

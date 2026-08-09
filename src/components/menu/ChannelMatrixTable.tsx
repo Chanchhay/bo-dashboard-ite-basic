@@ -24,8 +24,14 @@ import { ColumnSelectDropdown, type ColumnConfig } from "@/components/ui/ColumnS
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
 import { useMoney } from "@/hooks/useMoney";
 import { useToast } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
 import type { InventoryItem } from "@/lib/api/inventory";
-import type { SimpleSalesChannel } from "./MultiChannelPublishDialog";
+import type { ChannelItem, SalesChannel } from "@/lib/api/sales-channels";
+import {
+    useCreateItemChannelMutation,
+    useDeleteItemChannelMutation,
+    useGetChannelItemsQuery,
+} from "@/services/salesChannelApi";
 
 const CHANNEL_ICONS: Record<
     string,
@@ -38,13 +44,30 @@ const CHANNEL_ICONS: Record<
     WEB: { name: "Web Store", icon: Globe, color: "text-indigo-700 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800" },
 };
 
+/** Unconditional top-level channel data loader component for fetching items from DB */
+function ChannelDataLoader({
+    channelCode,
+    onReportChannelItems,
+}: {
+    channelCode: string;
+    onReportChannelItems: (channelCode: string, items: ChannelItem[]) => void;
+}) {
+    const { data: channelItems = [] } = useGetChannelItemsQuery(channelCode, {
+        skip: !channelCode,
+    });
+
+    useEffect(() => {
+        onReportChannelItems(channelCode, channelItems);
+    }, [channelCode, channelItems, onReportChannelItems]);
+
+    return null;
+}
+
 interface ChannelMatrixTableProps {
-    channels: SimpleSalesChannel[];
+    channels: SalesChannel[];
     inventoryItems: InventoryItem[];
-    inventoryLoading?: boolean;
-    publishedState?: Record<string, Set<string>>;
-    onToggleChannelState?: (itemId: string, channelCode: string) => void;
-    onRefresh?: () => void;
+    inventoryLoading: boolean;
+    onRefresh: () => void;
     onManageItemChannels?: (itemId: string) => void;
     onRemoveItemFromChannels?: (itemId: string) => void;
     onOpenMultiChannelDialog?: (itemId?: string) => void;
@@ -53,9 +76,7 @@ interface ChannelMatrixTableProps {
 export function ChannelMatrixTable({
     channels,
     inventoryItems,
-    inventoryLoading = false,
-    publishedState,
-    onToggleChannelState,
+    inventoryLoading,
     onRefresh,
     onManageItemChannels,
     onRemoveItemFromChannels,
@@ -65,6 +86,43 @@ export function ChannelMatrixTable({
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    // RTK Query Mutations
+    const [createItemChannel] = useCreateItemChannelMutation();
+    const [deleteItemChannel] = useDeleteItemChannelMutation();
+
+    // Channel data state from DB: channelCode -> map of (itemId -> linkId)
+    const [channelItemsState, setChannelItemsState] = useState<
+        Record<string, Map<string, string>>
+    >({});
+
+    const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+
+    // Track manually added / removed items locally for immediate feedback
+    const [manuallyAddedIds, setManuallyAddedIds] = useState<Set<string>>(new Set());
+    const [removedItemIds, setRemovedItemIds] = useState<Set<string>>(new Set());
+
+    // Callback when ChannelDataLoader receives DB data for a channel
+    const handleReportChannelItems = useCallback(
+        (channelCode: string, items: ChannelItem[]) => {
+            setChannelItemsState((prev) => {
+                const map = new Map<string, string>();
+                items.forEach((ci) => map.set(ci.item.id, ci.itemChannelId));
+
+                return { ...prev, [channelCode]: map };
+            });
+        },
+        []
+    );
+
+    // Published item IDs across ALL sales channels in backend DB
+    const dbPublishedItemIds = useMemo(() => {
+        const set = new Set<string>();
+        Object.values(channelItemsState).forEach((itemMap) => {
+            itemMap.forEach((_, itemId) => set.add(itemId));
+        });
+        return set;
+    }, [channelItemsState]);
 
     // Visible channel columns state
     const [visibleChannelIds, setVisibleChannelIds] = useState<Set<string>>(
@@ -77,7 +135,7 @@ export function ChannelMatrixTable({
         }
     }, [channels]);
 
-    // Column configs for ColumnSelectDropdown
+    // Column configs for ColumnSelectDropdown matching discounts page
     const columnConfigs: ColumnConfig[] = useMemo(
         () =>
             channels.map((ch) => ({
@@ -105,39 +163,83 @@ export function ChannelMatrixTable({
     };
 
     // Toggle item on specific channel
-    const handleToggleChannel = (item: InventoryItem, channel: SimpleSalesChannel) => {
-        if (onToggleChannelState) {
-            onToggleChannelState(item.id, channel.code);
-            const isCurrentlyActive = publishedState?.[channel.code]?.has(item.id);
+    const handleToggleChannel = async (item: InventoryItem, channel: SalesChannel) => {
+        const linkMap = channelItemsState[channel.code];
+        const linkId = linkMap?.get(item.id);
+        const isActive = Boolean(linkId);
+
+        const key = `${item.id}_${channel.id}`;
+        setUpdatingKey(key);
+
+        try {
+            if (isActive && linkId) {
+                await deleteItemChannel(linkId).unwrap();
+                toast({
+                    tone: "info",
+                    title: `Removed from ${channel.name}`,
+                    description: `${item.name || "Item"} removed from ${channel.name}.`,
+                });
+            } else {
+                await createItemChannel({
+                    itemId: item.id,
+                    salesChannelId: channel.id,
+                }).unwrap();
+                toast({
+                    tone: "success",
+                    title: `Added to ${channel.name}`,
+                    description: `${item.name || "Item"} added to ${channel.name}.`,
+                });
+            }
+        } catch (err) {
             toast({
-                tone: isCurrentlyActive ? "info" : "success",
-                title: isCurrentlyActive ? `Removed from ${channel.name}` : `Added to ${channel.name}`,
-                description: `${item.name || "Item"} set to ${isCurrentlyActive ? "Inactive" : "Active"}.`,
+                tone: "error",
+                title: "Failed to update channel status",
+                description: getApiErrorMessage(err, "Please try again."),
             });
+        } finally {
+            setUpdatingKey(null);
         }
     };
 
     const handleRemoveClick = (itemId: string) => {
+        setRemovedItemIds((prev) => new Set([...prev, itemId]));
+        setManuallyAddedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(itemId);
+            return next;
+        });
         onRemoveItemFromChannels?.(itemId);
     };
 
     const handleManageChannelsClick = (itemId: string) => {
+        setRemovedItemIds((prev) => {
+            const next = new Set(prev);
+            next.delete(itemId);
+            return next;
+        });
+        setManuallyAddedIds((prev) => new Set([...prev, itemId]));
         onManageItemChannels?.(itemId);
     };
 
-    // Filtered inventory items for matrix display
+    // Table display items: products that exist in DB published items or manually added, excluding removed
     const displayedItems = useMemo(() => {
-        const q = searchQuery.trim().toLowerCase();
-        if (!q) return inventoryItems;
+        const base = inventoryItems.filter(
+            (item) =>
+                (dbPublishedItemIds.has(item.id) || manuallyAddedIds.has(item.id)) &&
+                !removedItemIds.has(item.id)
+        );
 
-        return inventoryItems.filter(
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return base;
+
+        return base.filter(
             (item) =>
                 item.name?.toLowerCase().includes(q) ||
                 item.sku?.toLowerCase().includes(q) ||
                 item.barcode?.toLowerCase().includes(q) ||
                 item.code?.toLowerCase().includes(q)
         );
-    }, [inventoryItems, searchQuery]);
+    }, [inventoryItems, dbPublishedItemIds, manuallyAddedIds, removedItemIds, searchQuery]);
 
     // Filtered visible channels
     const visibleChannels = useMemo(
@@ -147,6 +249,15 @@ export function ChannelMatrixTable({
 
     return (
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] space-y-0">
+            {/* Unconditional Top-Level Channel Data Loaders from DB */}
+            {channels.map((channel) => (
+                <ChannelDataLoader
+                    key={channel.code}
+                    channelCode={channel.code}
+                    onReportChannelItems={handleReportChannelItems}
+                />
+            ))}
+
             {/* Barcode Scanner Modal Dialog */}
             <BarcodeScannerDialog
                 open={isScannerOpen}
@@ -157,8 +268,8 @@ export function ChannelMatrixTable({
                 }}
             />
 
-            {/* Header Toolbar matching reference screenshot */}
-            <div className="p-4 border-b border-border bg-muted/20 flex flex-wrap items-center justify-between gap-3">
+            {/* Header Toolbar matching Discounts page layout */}
+            <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
                 {/* Search Bar + Barcode Scan Button */}
                 <div className="flex items-center gap-2 flex-1 max-w-md">
                     <div className="relative flex-1">
@@ -174,7 +285,7 @@ export function ChannelMatrixTable({
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery("")}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -226,9 +337,9 @@ export function ChannelMatrixTable({
                         <Sparkles className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-base font-bold text-foreground">No products found</p>
+                        <p className="text-base font-bold text-foreground">No products assigned to sales channels yet</p>
                         <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
-                            Try adjusting your search query or add new items to channels.
+                            Search or scan a product barcode from Overview catalog above to add products and select sales channels.
                         </p>
                     </div>
                 </div>
@@ -249,6 +360,7 @@ export function ChannelMatrixTable({
                                         color: "text-primary",
                                         bg: "bg-primary/10 border-primary/20",
                                     };
+                                    const IconComp = meta.icon;
                                     const channelHeadingName = channel.name || meta.name || channel.code;
 
                                     return (
@@ -272,7 +384,7 @@ export function ChannelMatrixTable({
                             {displayedItems.map((item) => (
                                 <tr key={item.id} className="hover:bg-muted/40 transition-colors">
                                     {/* Product Details */}
-                                    <td className="px-5 py-3.5">
+                                    <TableCell className="px-5 py-3.5">
                                         <div className="flex items-center gap-3">
                                             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted border border-border overflow-hidden">
                                                 {item.images?.[0]?.url ? (
@@ -294,32 +406,39 @@ export function ChannelMatrixTable({
                                                 </p>
                                             </div>
                                         </div>
-                                    </td>
+                                    </TableCell>
 
                                     {/* Price */}
-                                    <td className="px-5 py-3.5 font-bold text-xs text-foreground">
+                                    <TableCell className="px-5 py-3.5 font-bold text-xs text-foreground">
                                         {item.price != null && item.price > 0 ? format(item.price) : (
                                             <span className="text-amber-600 dark:text-amber-400 font-normal">Unpriced</span>
                                         )}
-                                    </td>
+                                    </TableCell>
 
                                     {/* Visible Channel Columns with Cell Status */}
                                     {visibleChannels.map((channel) => {
-                                        const isActiveOnChannel = Boolean(publishedState?.[channel.code]?.has(item.id));
+                                        const linkMap = channelItemsState[channel.code];
+                                        const isActiveOnChannel = Boolean(linkMap?.has(item.id));
+                                        const isUpdating = updatingKey === `${item.id}_${channel.id}`;
 
                                         return (
                                             <td key={`${item.id}_${channel.id}`} className="px-5 py-3.5 text-center align-middle">
                                                 <button
                                                     type="button"
+                                                    disabled={isUpdating}
                                                     onClick={() => handleToggleChannel(item, channel)}
                                                     title={
                                                         isActiveOnChannel
                                                             ? `Active on ${channel.name}. Click to set Inactive.`
                                                             : `Inactive on ${channel.name}. Click to set Active.`
                                                     }
-                                                    className="inline-flex items-center justify-center transition-all cursor-pointer"
+                                                    className="inline-flex items-center justify-center transition-all disabled:opacity-60 cursor-pointer"
                                                 >
-                                                    {isActiveOnChannel ? (
+                                                    {isUpdating ? (
+                                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground border border-border">
+                                                            <LoaderCircle className="h-3.5 w-3.5 animate-spin text-primary" /> Updating…
+                                                        </span>
+                                                    ) : isActiveOnChannel ? (
                                                         <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success hover:bg-success/20 transition-colors cursor-pointer">
                                                             <Check className="h-3.5 w-3.5" /> Active
                                                         </span>
@@ -334,34 +453,34 @@ export function ChannelMatrixTable({
                                     })}
 
                                     {/* Dedicated Channels Column */}
-                                    <td className="px-5 py-3.5 text-center">
+                                    <TableCell className="px-5 py-3.5 text-center">
                                         {onManageItemChannels && (
                                             <button
                                                 type="button"
                                                 onClick={() => handleManageChannelsClick(item.id)}
                                                 title="Manage channels for this item"
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition cursor-pointer"
+                                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition"
                                             >
                                                 <CheckSquare className="h-3.5 w-3.5 text-primary" />
                                                 Channels
                                             </button>
                                         )}
-                                    </td>
+                                    </TableCell>
 
                                     {/* Dedicated Actions Column */}
-                                    <td className="px-5 py-3.5 text-right">
+                                    <TableCell className="px-5 py-3.5 text-right">
                                         {onRemoveItemFromChannels && (
                                             <button
                                                 type="button"
                                                 onClick={() => handleRemoveClick(item.id)}
                                                 title="Remove item from sales channels"
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition shrink-0 cursor-pointer"
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition shrink-0"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                                 <span className="sr-only">Remove</span>
                                             </button>
                                         )}
-                                    </td>
+                                    </TableCell>
                                 </tr>
                             ))}
                         </tbody>
@@ -370,4 +489,8 @@ export function ChannelMatrixTable({
             )}
         </section>
     );
+}
+
+function TableCell({ className, children }: { className?: string; children?: React.ReactNode }) {
+    return <td className={className}>{children}</td>;
 }
