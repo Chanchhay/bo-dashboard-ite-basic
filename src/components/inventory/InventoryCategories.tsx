@@ -71,7 +71,11 @@ function categoryRows(groups: ItemGroup[]) {
     ]);
 }
 
-export function InventoryCategories() {
+/**
+ * `embedded` drops the page header: inside the Item Config tabs the screen
+ * already sits under one, and two stacked headings read as a mistake.
+ */
+export function InventoryCategories({ embedded = false }: { embedded?: boolean } = {}) {
     const { toast } = useToast();
     const { data, error, isLoading, refetch } =
         useGetItemGroupsQuery();
@@ -91,11 +95,6 @@ export function InventoryCategories() {
     );
     const [formKey, setFormKey] = useState(0);
     const [fieldError, setFieldError] = useState<string | null>(null);
-    const [pendingDelete, setPendingDelete] = useState<{
-        id: string;
-        name: string;
-        kind: "category" | "subcategory";
-    } | null>(null);
     const groups = data || [];
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
@@ -238,10 +237,12 @@ export function InventoryCategories() {
 
     return (
         <div className="flex flex-col gap-6">
-            <InventoryPageHeader
-                title="Categories"
-                description="Organize items with categories and subcategories."
-            />
+            {embedded ? null : (
+                <InventoryPageHeader
+                    title="Categories"
+                    description="Organize items with categories and subcategories."
+                />
+            )}
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
                 <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">

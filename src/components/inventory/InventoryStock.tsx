@@ -1,43 +1,68 @@
 "use client";
 
-import { useMoney } from "@/hooks/useMoney";
-
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import {
     AlertTriangle,
     Boxes,
     CircleDollarSign,
     PackageX,
     Search,
-    SlidersHorizontal,
 } from "lucide-react";
+
+import { useMoney } from "@/hooks/useMoney";
 
 import {
     getApiErrorMessage,
-    InventoryEmpty,
     InventoryError,
     InventoryLoading,
     InventoryPageHeader,
-    inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
-import { Button } from "@/components/ui/button";
+import type { DraftMovement } from "@/components/inventory/stock/stock-draft";
+import { draftBalance } from "@/components/inventory/stock/stock-draft";
+import {
+    StockLevelTable,
+    type StockLevelRow,
+} from "@/components/inventory/stock/StockLevelTable";
+import {
+    StockMovementDialog,
+    type MovementTarget,
+} from "@/components/inventory/stock/StockMovementDialog";
+import { StockMovementsTab } from "@/components/inventory/stock/StockMovementsTab";
+import {
+    StockTabs,
+    type StockTabId,
+} from "@/components/inventory/stock/StockTabs";
 import { Input } from "@/components/ui/input";
+import {
+    latestUnitCosts,
+    stockState,
+    type StockState,
+} from "@/lib/api/inventory";
+import {
+    sampleAddOns,
+    sampleUnits,
+} from "@/lib/inventory-config/sample-data";
+import {
+    useGetCurrentStockQuery,
+    useGetInventoryItemOptionsQuery,
+    useGetStockEntriesQuery,
+} from "@/services/inventoryApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setStockSearch } from "@/store/inventoryUiSlice";
-import { useGetCurrentStockQuery, useGetInventoryItemOptionsQuery, useGetStockEntriesQuery } from "@/services/inventoryApi";
-import { useCreateNotificationMutation } from "@/services/notificationApi";
-import { authClient } from "@/lib/auth/auth-client";
-import { useSessionSubject } from "@/lib/auth/session-context";
-import { useToast } from "@/components/ui/toast";
 
-function metricCard(
-    label: string,
-    value: string,
-    icon: typeof Boxes,
-    accent: string,
-) {
-    const Icon = icon;
-
+function MetricCard({
+    label,
+    value,
+    hint,
+    icon: Icon,
+    accent,
+}: {
+    label: string;
+    value: string;
+    hint?: string;
+    icon: typeof Boxes;
+    accent: string;
+}) {
     return (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div
@@ -49,6 +74,9 @@ function metricCard(
             <p className="mt-1 text-2xl font-semibold text-foreground">
                 {value}
             </p>
+            {hint ? (
+                <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+            ) : null}
         </div>
     );
 }
@@ -62,12 +90,158 @@ export function InventoryStock() {
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const stockQuery = useGetCurrentStockQuery();
     const entriesQuery = useGetStockEntriesQuery();
-    const [createNotification, { isLoading: isNotifying }] = useCreateNotificationMutation();
-    const { data: session } = authClient.useSession();
-    /* The backend matches receiverId against the Keycloak subject, not against
-       Better Auth's local user.id. */
-    const subject = useSessionSubject();
-    const { toast } = useToast();
+
+    const [tab, setTab] = useState<StockTabId>("items");
+    // Preview movements. Nothing is sent anywhere yet — see stock-draft.ts.
+    const [drafts, setDrafts] = useState<DraftMovement[]>([]);
+    const [pending, setPending] = useState<{
+        target: MovementTarget;
+        direction: "IN" | "OUT";
+    } | null>(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
+
+    const items = useMemo(() => itemsQuery.data || [], [itemsQuery.data]);
+    const entries = useMemo(() => entriesQuery.data || [], [entriesQuery.data]);
+    const summaries = useMemo(
+        () =>
+            new Map(
+                (stockQuery.data || []).map((summary) => [
+                    summary.itemId,
+                    summary,
+                ]),
+            ),
+        [stockQuery.data],
+    );
+    const costs = useMemo(() => latestUnitCosts(entries), [entries]);
+
+    const normalizedSearch = stockSearch.trim().toLowerCase();
+    const matches = (haystack: (string | undefined)[]) =>
+        !normalizedSearch ||
+        haystack
+            .filter(Boolean)
+            .some((value) =>
+                String(value).toLowerCase().includes(normalizedSearch),
+            );
+
+    /** The latest cost, or whatever a draft stock-in recorded for it. */
+    const costFor = (kind: "ITEM" | "ADDON", id: string) => {
+        const fromDraft = [...drafts]
+            .reverse()
+            .find(
+                (movement) =>
+                    movement.targetKind === kind &&
+                    movement.targetId === id &&
+                    movement.unitCost !== undefined,
+            );
+
+        return fromDraft?.unitCost ?? (kind === "ITEM" ? costs.get(id) : undefined);
+    };
+
+    const itemRows = items.map((item) => {
+        const onHand =
+            (summaries.get(item.id)?.quantityOnHand || 0) +
+            draftBalance(drafts, "ITEM", item.id);
+        const cost = costFor("ITEM", item.id);
+
+        return {
+            item,
+            onHand,
+            cost,
+            state: stockState(onHand, item.lowStockDefault),
+            pendingChange: draftBalance(drafts, "ITEM", item.id),
+        };
+    });
+
+    const addOnRows = sampleAddOns.map((addOn) => {
+        const onHand = addOn.onHand + draftBalance(drafts, "ADDON", addOn.id);
+
+        return {
+            addOn,
+            onHand,
+            cost: costFor("ADDON", addOn.id),
+            state: stockState(onHand, addOn.lowStockThreshold),
+            pendingChange: draftBalance(drafts, "ADDON", addOn.id),
+            symbol:
+                sampleUnits.find((unit) => unit.id === addOn.baseUnitId)
+                    ?.symbol ?? "",
+        };
+    });
+
+    const visibleItems = itemRows.filter(({ item }) =>
+        matches([item.name, item.sku, item.barcode]),
+    );
+    const visibleAddOns = addOnRows.filter(({ addOn }) => matches([addOn.name]));
+
+    const countState = (state: StockState) =>
+        itemRows.filter((row) => row.state === state).length +
+        addOnRows.filter((row) => row.state === state).length;
+
+    const stockValue = [
+        ...itemRows.map((row) => row.onHand * (row.cost ?? 0)),
+        ...addOnRows.map((row) => row.onHand * (row.cost ?? 0)),
+    ].reduce((total, value) => total + value, 0);
+    const uncosted = [...itemRows, ...addOnRows].filter(
+        (row) => row.cost === undefined && row.onHand > 0,
+    ).length;
+
+    const itemNames = new Map(
+        items.map((item) => [item.id, item.name || "Unnamed item"]),
+    );
+
+    function openMovement(
+        target: MovementTarget,
+        direction: "IN" | "OUT",
+    ) {
+        setPending({ target, direction });
+        setDialogOpen(true);
+    }
+
+    function itemTarget(id: string): MovementTarget | null {
+        const row = itemRows.find(({ item }) => item.id === id);
+        if (!row) return null;
+
+        return {
+            kind: "ITEM",
+            id: row.item.id,
+            name: row.item.name || "Unnamed item",
+            onHand: row.onHand,
+            baseUnitLabel: row.item.unit?.name || "units",
+            // Real items carry no conversions yet, so the base unit is the only
+            // way to enter a quantity. Once conversions are saved this is where
+            // "receive 10 cases" appears.
+            entryUnits: [
+                {
+                    id: "base",
+                    label: row.item.unit?.name || "units",
+                    factor: 1,
+                },
+            ],
+        };
+    }
+
+    function addOnTarget(id: string): MovementTarget | null {
+        const row = addOnRows.find(({ addOn }) => addOn.id === id);
+        if (!row) return null;
+
+        return {
+            kind: "ADDON",
+            id: row.addOn.id,
+            name: row.addOn.name,
+            onHand: row.onHand,
+            baseUnitLabel: row.symbol,
+            entryUnits: [
+                { id: "base", label: row.symbol, factor: 1 },
+                ...row.addOn.conversions.map((conversion) => ({
+                    id: conversion.id,
+                    label:
+                        sampleUnits.find(
+                            (unit) => unit.id === conversion.unitId,
+                        )?.name ?? "unit",
+                    factor: conversion.factor,
+                })),
+            ],
+        };
+    }
 
     if (itemsQuery.isLoading || stockQuery.isLoading) {
         return <InventoryLoading label="Loading stock" />;
@@ -88,343 +262,163 @@ export function InventoryStock() {
         );
     }
 
-    const items = itemsQuery.data || [];
-    const summaries = new Map(
-        (stockQuery.data || []).map((summary) => [
-            summary.itemId,
-            summary,
-        ]),
-    );
-    const rows = items.map((item) => ({
-        item,
-        quantity: summaries.get(item.id)?.quantityOnHand || 0,
-        updatedAt: summaries.get(item.id)?.updatedAt,
+    const itemLevelRows: StockLevelRow[] = visibleItems.map((row) => ({
+        id: row.item.id,
+        name: row.item.name || "Unnamed",
+        subtitle: row.item.sku || "No SKU",
+        onHand: row.onHand,
+        unitLabel: row.item.unit?.name || "",
+        threshold: row.item.lowStockDefault ?? 0,
+        state: row.state,
+        valueAtCost:
+            row.cost === undefined ? undefined : row.onHand * row.cost,
+        pendingChange: row.pendingChange,
     }));
-    const normalizedSearch = stockSearch.trim().toLowerCase();
-    const filteredRows = rows.filter(
-        ({ item }) =>
-            !normalizedSearch ||
-            [item.name, item.sku, item.barcode]
-                .filter(Boolean)
-                .some((value) =>
-                    String(value)
-                        .toLowerCase()
-                        .includes(normalizedSearch),
-                ),
-    );
-    const outOfStock = rows.filter(({ quantity }) => quantity <= 0);
-    const lowStock = rows.filter(
-        ({ item, quantity }) =>
-            quantity > 0 &&
-            quantity <= (item.lowStockDefault || 0),
-    );
-    const inventoryValue = rows.reduce(
-        (total, { item, quantity }) =>
-            total + quantity * (item.price || 0),
-        0,
-    );
-    const itemNames = new Map(
-        items.map((item) => [item.id, item.name || "Unnamed item"]),
-    );
-    const recentEntries = [...(entriesQuery.data || [])]
-        .sort(
-            (left, right) =>
-                new Date(right.createdDate || 0).getTime() -
-                new Date(left.createdDate || 0).getTime(),
-        )
-        .slice(0, 6);
 
-    const handleBroadcastLowStockAlert = async () => {
-        if (!subject) return;
-        if (lowStock.length === 0 && outOfStock.length === 0) {
-            toast({ tone: "info", title: "All stock levels normal", description: "No items are currently low or out of stock." });
-            return;
-        }
+    const addOnLevelRows: StockLevelRow[] = visibleAddOns.map((row) => {
+        const servings = row.addOn.usePerOrder
+            ? Math.floor(row.onHand / row.addOn.usePerOrder)
+            : 0;
 
-        try {
-            const count = lowStock.length + outOfStock.length;
-            const names = [...lowStock, ...outOfStock].map((r) => r.item.name || "Item").slice(0, 3).join(", ");
-            const extra = count > 3 ? ` and ${count - 3} more` : "";
-
-            await createNotification({
-                senderId: subject,
-                senderName: session?.user?.name || "Inventory Manager",
-                receiverIds: [subject],
-                type: "INVENTORY",
-                title: `Low Stock Warning (${count} item${count > 1 ? "s" : ""})`,
-                content: `Attention: ${names}${extra} ${count > 1 ? "are" : "is"} low or out of stock!`,
-                deepLink: "/inventory/stock",
-            }).unwrap();
-
-            toast({ tone: "success", title: "Notification Sent", description: `Alerted team about ${count} low stock item(s).` });
-        } catch (err) {
-            toast({ tone: "error", title: "Failed to send alert", description: getApiErrorMessage(err, "Please try again.") });
-        }
-    };
+        return {
+            id: row.addOn.id,
+            name: row.addOn.name,
+            // Orders remaining is what a barista actually wants to know; grams
+            // on hand is not.
+            subtitle: `${servings} more order${servings === 1 ? "" : "s"}`,
+            onHand: row.onHand,
+            unitLabel: row.symbol,
+            threshold: row.addOn.lowStockThreshold,
+            state: row.state,
+            valueAtCost:
+                row.cost === undefined ? undefined : row.onHand * row.cost,
+            pendingChange: row.pendingChange,
+        };
+    });
 
     return (
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Stock"
-                description="Monitor quantities, value and recent inventory movements."
-                action={
-                    <div className="flex items-center gap-2 sm:gap-2.5">
-                        {(lowStock.length > 0 || outOfStock.length > 0) && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={isNotifying}
-                                onClick={handleBroadcastLowStockAlert}
-                                className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0 border-warning/40 bg-warning/10 text-warning hover:bg-warning/20"
-                            >
-                                <AlertTriangle className="size-4 shrink-0" />
-                                <span>{isNotifying ? "Sending..." : "Alert Low Stock"}</span>
-                            </Button>
-                        )}
-                        <Button
-                            render={<Link href="/inventory/stock/adjust" />}
-                            nativeButton={false}
-                            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                        >
-                            <SlidersHorizontal className="size-4 shrink-0" />
-                            <span>Adjust stock</span>
-                        </Button>
-                    </div>
-                }
+                description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."
             />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {metricCard(
-                    "Total items",
-                    String(items.length),
-                    Boxes,
-                    "bg-success/10 text-success",
-                )}
-                {metricCard(
-                    "Inventory value",
-                    formatMoney(inventoryValue),
-                    CircleDollarSign,
-                    "bg-warning/10 text-warning",
-                )}
-                {metricCard(
-                    "Low stock",
-                    String(lowStock.length),
-                    AlertTriangle,
-                    "bg-warning/15 text-warning",
-                )}
-                {metricCard(
-                    "Out of stock",
-                    String(outOfStock.length),
-                    PackageX,
-                    "bg-danger/10 text-danger",
-                )}
+                <MetricCard
+                    label="Tracked"
+                    value={String(items.length + sampleAddOns.length)}
+                    hint={`${items.length} items · ${sampleAddOns.length} add-ons`}
+                    icon={Boxes}
+                    accent="bg-success/10 text-success"
+                />
+                <MetricCard
+                    label="Stock value at cost"
+                    value={formatMoney(stockValue)}
+                    hint={
+                        uncosted
+                            ? `${uncosted} with stock but no cost recorded`
+                            : "From the last cost recorded on each"
+                    }
+                    icon={CircleDollarSign}
+                    accent="bg-warning/10 text-warning"
+                />
+                <MetricCard
+                    label="Low stock"
+                    value={String(countState("LOW"))}
+                    icon={AlertTriangle}
+                    accent="bg-warning/15 text-warning"
+                />
+                <MetricCard
+                    label="Out of stock"
+                    value={String(countState("OUT"))}
+                    icon={PackageX}
+                    accent="bg-danger/10 text-danger"
+                />
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="font-semibold text-foreground">
-                            Current stock
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Quantity on hand for each configured item.
-                        </p>
-                    </div>
-                    <div className="relative w-full sm:max-w-xs">
-                        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            value={stockSearch}
-                            onChange={(event) =>
-                                dispatch(
-                                    setStockSearch(event.target.value),
-                                )
-                            }
-                            placeholder="Search items"
-                            className="h-10 pl-9 text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground"
-                        />
-                    </div>
-                </div>
+            <StockTabs
+                value={tab}
+                onChange={setTab}
+                counts={{
+                    items: itemRows.length,
+                    movements: drafts.length + entries.length,
+                }}
+            />
 
-                {filteredRows.length === 0 ? (
-                    <InventoryEmpty
-                        title={
+            <section
+                role="tabpanel"
+                id={`stock-panel-${tab}`}
+                aria-labelledby={`stock-tab-${tab}`}
+                className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+            >
+                {tab === "movements" ? null : (
+                    <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="font-semibold text-foreground">
+                                Items
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Counted in each item&apos;s base unit.
+                            </p>
+                        </div>
+                        <div className="relative w-full sm:max-w-xs">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={stockSearch}
+                                onChange={(event) =>
+                                    dispatch(setStockSearch(event.target.value))
+                                }
+                                placeholder="Search"
+                                className="h-10 rounded-xl border border-border bg-card pl-9 text-sm text-foreground placeholder:text-muted-foreground"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {tab === "items" ? (
+                    <StockLevelTable
+                        rows={itemLevelRows}
+                        emptyTitle={
                             items.length
                                 ? "No matching items"
-                                : "No stock to display"
+                                : "No items to track"
                         }
-                        description={
+                        emptyDescription={
                             items.length
-                                ? "Change the stock search."
+                                ? "Change the search."
                                 : "Create an item before recording stock."
                         }
+                        valueColumnLabel="Value at cost"
+                        formatValue={formatMoney}
                     />
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[760px] text-left text-sm">
-                            <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                <tr>
-                                    <th className="px-5 py-3">Item</th>
-                                    <th className="px-5 py-3">Category</th>
-                                    <th className="px-5 py-3">
-                                        Quantity
-                                    </th>
-                                    <th className="px-5 py-3">
-                                        Low Stock
-                                    </th>
-                                    <th className="px-5 py-3">Value</th>
-                                    <th className="px-5 py-3">State</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {filteredRows.map(
-                                    ({ item, quantity }) => {
-                                        const threshold =
-                                            item.lowStockDefault || 0;
-                                        const state =
-                                            quantity <= 0
-                                                ? "Out of stock"
-                                                : quantity <= threshold
-                                                  ? "Low stock"
-                                                  : "In stock";
-                                        const stateClass =
-                                            quantity <= 0
-                                                ? "bg-danger/10 text-danger"
-                                                : quantity <= threshold
-                                                  ? "bg-warning/15 text-warning"
-                                                  : "bg-success/10 text-success";
+                ) : null}
 
-                                        return (
-                                            <tr
-                                                key={item.id}
-                                                className="text-foreground hover:bg-muted/50"
-                                            >
-                                                <td className="px-5 py-4">
-                                                    <p className="font-semibold">
-                                                        {item.name ||
-                                                            "Unnamed"}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {item.sku ||
-                                                            "No SKU"}
-                                                    </p>
-                                                </td>
-                                                <td className="px-5 py-4 text-muted-foreground">
-                                                    {item.itemGroup?.name ||
-                                                        "—"}
-                                                </td>
-                                                <td className="px-5 py-4 font-semibold">
-                                                    {quantity}{" "}
-                                                    <span className="font-normal text-muted-foreground">
-                                                        {item.unit?.name ||
-                                                            ""}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-4 text-muted-foreground">
-                                                    {threshold}
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    {formatMoney(
-                                                        quantity *
-                                                            (item.price ||
-                                                                0),
-                                                    )}
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <span
-                                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${stateClass}`}
-                                                    >
-                                                        {state}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    },
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                {tab === "movements" ? (
+                    <StockMovementsTab
+                        drafts={drafts}
+                        entries={entries}
+                        itemNames={itemNames}
+                        onUndo={(id) =>
+                            setDrafts((current) =>
+                                current.filter(
+                                    (movement) => movement.id !== id,
+                                ),
+                            )
+                        }
+                        onClearDrafts={() => setDrafts([])}
+                    />
+                ) : null}
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="border-b border-border px-5 py-4">
-                    <h2 className="font-semibold text-foreground">
-                        Recent stock activity
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Latest entries returned by the stock-entry API.
-                    </p>
-                </div>
-                {entriesQuery.isLoading ? (
-                    <InventoryLoading label="Loading stock activity" />
-                ) : entriesQuery.error ? (
-                    <InventoryError
-                        message={getApiErrorMessage(
-                            entriesQuery.error,
-                            "Unable to load stock activity.",
-                        )}
-                        retry={entriesQuery.refetch}
-                    />
-                ) : recentEntries.length === 0 ? (
-                    <InventoryEmpty
-                        title="No stock activity yet"
-                        description="Stock adjustments will appear here."
-                    />
-                ) : (
-                    <div className="divide-y divide-border">
-                        {recentEntries.map((entry) => (
-                            <div
-                                key={entry.id}
-                                className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-6"
-                            >
-                                <div>
-                                    <p className="font-semibold text-foreground">
-                                        {itemNames.get(
-                                            entry.itemId || "",
-                                        ) || "Unknown item"}
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        {entry.entryType
-                                            ?.toLowerCase()
-                                            .replaceAll("_", " ") ||
-                                            "Stock entry"}
-                                        {entry.reason
-                                            ? ` · ${entry.reason}`
-                                            : ""}
-                                    </p>
-                                </div>
-                                <p
-                                    className={`font-semibold ${
-                                        (entry.quantityChange || 0) >= 0
-                                            ? "text-primary"
-                                            : "text-danger"
-                                    }`}
-                                >
-                                    {(entry.quantityChange || 0) > 0
-                                        ? "+"
-                                        : ""}
-                                    {entry.quantityChange || 0}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {entry.createdDate
-                                        ? new Intl.DateTimeFormat(
-                                              "en-US",
-                                              {
-                                                  dateStyle: "medium",
-                                                  timeStyle: "short",
-                                              },
-                                          ).format(
-                                              new Date(
-                                                  entry.createdDate,
-                                              ),
-                                          )
-                                        : "—"}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </section>
+            <StockMovementDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                target={pending?.target ?? null}
+                direction={pending?.direction ?? "IN"}
+                onRecord={(movement) =>
+                    setDrafts((current) => [...current, movement])
+                }
+            />
         </div>
     );
 }
