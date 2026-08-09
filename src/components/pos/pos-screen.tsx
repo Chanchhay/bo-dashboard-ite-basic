@@ -122,8 +122,6 @@ export function PosScreen({
           unitPrice: Number(item.price ?? 0),
         }).unwrap();
       } catch (error) {
-        // A tap that silently does nothing is worse than one that says why —
-        // the cashier would otherwise keep tapping.
         toast({
           tone: "error",
           title: "Could not add that item",
@@ -138,9 +136,10 @@ export function PosScreen({
   const { data: currentOrder } = useGetCurrentOrderQuery();
 
   useCustomerDisplaySync({
-    businessId: currentOrder?.businessId,
+    businessId: paidReceipt?.order.businessId || currentOrder?.businessId,
     terminalId: "term_default",
-    order: currentOrder,
+    order: paidReceipt ? paidReceipt.order : currentOrder,
+    sale: paidReceipt ? paidReceipt.sale : null,
     statusOverride: paidReceipt ? "COMPLETED" : undefined,
   });
   const showCart = TABS_WITH_CART.includes(activeTab);

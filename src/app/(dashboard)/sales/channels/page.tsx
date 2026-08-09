@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Store, ShoppingBag } from "lucide-react";
 
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
-import { MultiChannelPublishDialog, type SimpleSalesChannel } from "@/components/menu/MultiChannelPublishDialog";
+import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -13,14 +14,13 @@ import { ChannelSelector } from "@/components/menu/ChannelSelector";
 import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
 import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
 import { ChannelHeader } from "@/components/menu/ChannelHeader";
-import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
-import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
 import {
     useCreateItemChannelMutation,
     useDeleteItemChannelMutation,
     useGetChannelItemsQuery,
     useGetSalesChannelsQuery,
 } from "@/services/salesChannelApi";
+import type { InventoryItem } from "@/lib/api/inventory";
 
 // Presentation only — the channels themselves come from the backend. A code
 // with no entry here still renders, just without the colour and blurb.
@@ -78,10 +78,7 @@ export default function SalesChannelsPage() {
     const [selectedItemId, setSelectedItemId] = useState<string>("");
     const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
     const [pendingItemId, setPendingItemId] = useState<string>("");
-    // Row action awaiting confirmation. Kept after the dialog closes so its
-    // copy stays put while it animates out — clearing it here would flash the
-    // other mode's wording on the closing frame. `isConfirmOpen` is what the
-    // dialog actually opens and closes on.
+    
     const [confirmAction, setConfirmAction] = useState<{
         mode: "add" | "remove";
         itemId: string;
@@ -91,6 +88,9 @@ export default function SalesChannelsPage() {
     // State for Select Channels by Item dialog
     const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
     const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
+
+    // Destructive Remove State
+    const [removeItemId, setRemoveItemId] = useState<string | null>(null);
 
     function openMultiChannelDialog(itemId?: string) {
         if (itemId) {
@@ -113,6 +113,19 @@ export default function SalesChannelsPage() {
         refetch: refetchChannels,
     } = useGetSalesChannelsQuery();
 
+    const { data: inventoryItems = [], isLoading: inventoryLoading } =
+        useGetInventoryItemOptionsQuery();
+
+    const activeChannels = useMemo(
+        () => salesChannels.filter((c) => c.isActive),
+        [salesChannels]
+    );
+
+    const activeInventoryItems = useMemo(
+        () => (inventoryItems.length > 0 ? inventoryItems : MOCK_INVENTORY_ITEMS),
+        [inventoryItems]
+    );
+
     // Published mapping: channel code -> set of item IDs
     const [publishedMap, setPublishedMap] = useState<Record<string, Set<string>>>({
         ONLINE: new Set(["item-coca", "item-iphone", "item-lenovo", "item-macbook"]),
@@ -120,18 +133,6 @@ export default function SalesChannelsPage() {
     });
 
     const [itemsList, setItemsList] = useState<InventoryItem[]>(MOCK_INVENTORY_ITEMS);
-
-    // Dialog State
-    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
-    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
-
-    // Destructive Remove State
-    const [removeItemId, setRemoveItemId] = useState<string | null>(null);
-
-    function openMultiChannelDialog(itemId?: string) {
-        setMultiChannelTargetItemId(itemId || "");
-        setIsMultiChannelDialogOpen(true);
-    }
 
     function handleToggleChannelState(itemId: string, channelCode: string) {
         setPublishedMap((prev) => {
@@ -171,8 +172,8 @@ export default function SalesChannelsPage() {
     }
 
     const itemToRemove = useMemo(
-        () => itemsList.find((i) => i.id === removeItemId),
-        [itemsList, removeItemId]
+        () => activeInventoryItems.find((i) => i.id === removeItemId),
+        [activeInventoryItems, removeItemId]
     );
 
     return (
@@ -182,8 +183,6 @@ export default function SalesChannelsPage() {
                 description="Choose which items are sold on each sales channel, or assign items to multiple channels at once."
             />
 
-            {/* Only channels the backend actually has. Nothing can be sold on
-                a channel we invented, so none are drawn for show. */}
             {!channelsLoading && activeChannels.length === 0 ? (
                 <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-10 text-center shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary">
@@ -208,7 +207,6 @@ export default function SalesChannelsPage() {
                     </button>
                 </section>
             ) : (
-                <>
                 <ChannelMatrixTable
                     channels={activeChannels}
                     inventoryItems={activeInventoryItems}
@@ -218,34 +216,7 @@ export default function SalesChannelsPage() {
                     onRemoveItemFromChannels={(itemId) => askToConfirm("remove", itemId)}
                     onOpenMultiChannelDialog={(itemId) => openMultiChannelDialog(itemId)}
                 />
-                </>
             )}
-
-            {/* Multi-Channel Publish Modal */}
-            <MultiChannelPublishDialog
-                open={isMultiChannelDialogOpen}
-                onClose={() => setIsMultiChannelDialogOpen(false)}
-                inventoryItems={itemsList}
-                salesChannels={MOCK_SALES_CHANNELS}
-                initialItemId={multiChannelTargetItemId}
-                onSuccess={(targetId, channelIds) => {
-                    if (targetId && channelIds) {
-                        setPublishedMap((prev) => {
-                            const next = { ...prev };
-                            MOCK_SALES_CHANNELS.forEach((ch) => {
-                                const set = new Set(next[ch.code] || []);
-                                if (channelIds.includes(ch.id)) {
-                                    set.add(targetId);
-                                } else {
-                                    set.delete(targetId);
-                                }
-                                next[ch.code] = set;
-                            });
-                            return next;
-                        });
-                    }
-                }}
-            />
 
             <MultiChannelPublishDialog
                 open={isMultiChannelDialogOpen}

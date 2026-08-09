@@ -17,10 +17,16 @@ import {
     Download,
     Eye,
     LoaderCircle,
+    Pencil,
     Plus,
     Save,
     Trash2,
 } from "lucide-react";
+import { attributeIcon } from "@/lib/api/attribute-icons";
+import {
+    itemAttributePlacementLabels,
+    itemAttributeTypeLabels,
+} from "@/lib/api/inventory";
 
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
 import {
@@ -1179,102 +1185,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         .map((attribute) => attribute.name.toLowerCase())}
                     onSubmit={saveAttribute}
                 />
-            </section>
-
-            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                    <SectionHeading
-                        title="Variants"
-                        description="Define alternate names and prices for this item."
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                            setVariants((current) => [
-                                ...current,
-                                {
-                                    id: createRowId(),
-                                    name: "",
-                                    price: "",
-                                    available: true,
-                                },
-                            ])
-                        }
-                    >
-                        <Plus />
-                        Add variant
-                    </Button>
-                </div>
-                <div className="mt-5 flex flex-col gap-3">
-                    {variants.map((variant) => (
-                        <div
-                            key={variant.id}
-                            className="flex items-center gap-1.5 sm:gap-3 w-full"
-                        >
-                            <Input
-                                value={variant.name}
-                                onChange={(event) =>
-                                    updateVariant(variant.id, {
-                                        name: event.target.value,
-                                    })
-                                }
-                                aria-label="Variant name"
-                                placeholder="Variant name"
-                                className={`${inventoryControlClassName} !h-9 sm:!h-10 py-0 text-xs sm:text-sm flex-[2] min-w-0 px-2.5 sm:px-4 rounded-xl`}
-                            />
-                            <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={variant.price}
-                                onChange={(event) =>
-                                    updateVariant(variant.id, {
-                                        price: event.target.value,
-                                    })
-                                }
-                                aria-label="Variant price"
-                                placeholder="Price"
-                                className={`${inventoryControlClassName} !h-9 sm:!h-10 py-0 text-xs sm:text-sm flex-1 min-w-0 px-2 sm:px-3 rounded-xl`}
-                            />
-                            <label className="flex items-center gap-1 sm:gap-1.5 text-xs whitespace-nowrap text-[#6b7280] dark:text-[#94a3b8] shrink-0 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={!variant.available}
-                                    onChange={(event) =>
-                                        updateVariant(variant.id, {
-                                            available: !event.target.checked,
-                                        })
-                                    }
-                                    className="size-3.5 accent-danger"
-                                />
-                                <span className="text-[11px] sm:text-xs">Sold out</span>
-                            </label>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                aria-label="Remove variant"
-                                onClick={() =>
-                                    setVariants((current) =>
-                                        current.filter(
-                                            (row) =>
-                                                row.id !== variant.id,
-                                        ),
-                                    )
-                                }
-                                className="!h-9 !w-9 sm:!h-10 sm:!w-10 shrink-0 rounded-xl p-0 flex items-center justify-center"
-                            >
-                                <Trash2 className="size-4 shrink-0" />
-                            </Button>
-                        </div>
-                    ))}
-                    {fieldErrors.variants ? (
-                        <p className="text-xs text-danger" role="alert">
-                            {fieldErrors.variants}
-                        </p>
-                    ) : null}
-                </div>
             </section>
 
             <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { PosOrder } from "@/lib/api/pos-order";
+import type { PosOrder, Sale } from "@/lib/api/pos-order";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { usePublishCustomerDisplayMutation } from "@/services/customerDisplayApi";
 import type {
@@ -12,6 +12,7 @@ export interface CustomerDisplaySyncOptions {
   businessId?: string;
   terminalId?: string;
   order?: PosOrder | null;
+  sale?: Sale | null;
   statusOverride?: CustomerDisplayStatus;
   qrCodeUrl?: string | null;
 }
@@ -22,6 +23,7 @@ export function useCustomerDisplaySync({
   businessId,
   terminalId = "term_default",
   order,
+  sale,
   statusOverride,
   qrCodeUrl,
 }: CustomerDisplaySyncOptions) {
@@ -75,7 +77,7 @@ export function useCustomerDisplaySync({
     const computedStatus: CustomerDisplayStatus =
       statusOverride || (items.length > 0 ? "CART_UPDATED" : "IDLE");
 
-    const payloadKey = `${terminalId}:${computedStatus}:${order?.id || ""}:${order?.total || 0}:${items.length}:${qrCodeUrl || ""}`;
+    const payloadKey = `${terminalId}:${computedStatus}:${order?.id || ""}:${sale?.id || ""}:${order?.total || 0}:${items.length}:${qrCodeUrl || ""}`;
     if (lastPayloadKeyRef.current === payloadKey) {
       return;
     }
@@ -89,13 +91,16 @@ export function useCustomerDisplaySync({
       businessThumbnail: business?.thumbnail || null,
       status: computedStatus,
       items,
-      subtotal: order?.subtotal ?? 0,
-      discountAmount: order?.discountAmount ?? 0,
+      subtotal: sale?.subtotal ?? order?.subtotal ?? 0,
+      discountAmount: sale?.discountAmount ?? order?.discountAmount ?? 0,
       tax: 0,
-      total: order?.total ?? 0,
-      currency: order?.currency ?? "USD",
-      invoiceNumber: order?.invoiceNumber ?? null,
+      total: sale?.totalAmount ?? order?.total ?? 0,
+      currency: sale?.currency ?? order?.currency ?? "USD",
+      invoiceNumber: sale?.invoiceNumber || order?.invoiceNumber || null,
       qrCodeUrl: qrCodeUrl ?? null,
+      paymentMethod: sale?.paymentMethod ?? null,
+      paidAmount: sale?.paidAmount ?? null,
+      changeAmount: sale?.changeAmount ?? null,
       updatedAt: new Date().toISOString(),
     };
 
