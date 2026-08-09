@@ -5,10 +5,13 @@ import { useMoney } from "@/hooks/useMoney";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Edit3,
     Eye,
+    EyeOff,
+    FolderPlus,
     LoaderCircle,
     PackagePlus,
     ScanBarcode,
@@ -31,7 +34,6 @@ import {
     InventoryError,
     InventoryLoading,
     InventoryPageHeader,
-    inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,13 +45,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import {
     inventoryItemQuerySchema,
     itemTypes,
+    type InventoryItem,
     type InventoryItemQuery,
     type InventoryItemSort,
 } from "@/lib/api/inventory";
+import { cn } from "@/lib/utils";
 import {
     useDeleteInventoryItemMutation,
     useGetInventoryItemsQuery,
@@ -70,8 +75,6 @@ import {
     setProductStatus,
     type ProductAdvancedFilterKey,
 } from "@/store/inventoryUiSlice";
-
-const pageSizes = [10, 20, 50] as const;
 
 const sortLabels: Record<InventoryItemSort, string> = {
     "name,asc": "Name: A to Z",
@@ -115,6 +118,174 @@ function FilterChip({
     );
 }
 
+/**
+ * Nested Add-ons Tree view with category structure & toggle management.
+ * Rendered directly under an item in the overview list when expanded.
+ */
+function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
+    const [addOnStates, setAddOnStates] = useState<
+        Record<string, { enabled: boolean; price: string; stock: string; usage: string }>
+    >({
+        "a-pearls": { enabled: true, price: "+$0.50", stock: "2,400 g in stock", usage: "30 g / order" },
+        "a-jelly": { enabled: true, price: "+$0.60", stock: "180 g in stock", usage: "30 g / order" },
+        "a-pudding": { enabled: false, price: "+$0.75", stock: "1,250 g in stock", usage: "40 g / order" },
+        "a-shot": { enabled: true, price: "+$1.00", stock: "840 shots in stock", usage: "1 shot / order" },
+        "a-syrup": { enabled: true, price: "+$0.50", stock: "1,800 ml in stock", usage: "15 ml / order" },
+    });
+
+    const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+        new Set(),
+    );
+
+    const toggleCategory = (catId: string) => {
+        setCollapsedCategories((prev) => {
+            const next = new Set(prev);
+            if (next.has(catId)) next.delete(catId);
+            else next.add(catId);
+            return next;
+        });
+    };
+
+    const toggleAddOn = (addOnId: string, enabled: boolean) => {
+        setAddOnStates((prev) => ({
+            ...prev,
+            [addOnId]: { ...(prev[addOnId] || { enabled: true, price: "+$0.50", stock: "100 in stock", usage: "1 per order" }), enabled },
+        }));
+    };
+
+    const categories = [
+        {
+            id: `toppings-${item.id}`,
+            name: "Toppings & Ingredients",
+            subtitle: "3 configured add-ons",
+            addOns: [
+                { id: "a-pearls", name: "Pearls (Tapioca)", code: "ADD-001" },
+                { id: "a-jelly", name: "Grass Jelly", code: "ADD-002" },
+                { id: "a-pudding", name: "Egg Pudding", code: "ADD-003" },
+            ],
+        },
+        {
+            id: `extras-${item.id}`,
+            name: "Flavors & Extra Shots",
+            subtitle: "2 configured add-ons",
+            addOns: [
+                { id: "a-shot", name: "Extra Espresso Shot", code: "ADD-004" },
+                { id: "a-syrup", name: "Vanilla Flavor Syrup", code: "ADD-005" },
+            ],
+        },
+    ];
+
+    return (
+        <div className="space-y-3 py-1">
+            {categories.map((category) => {
+                const isCollapsed = collapsedCategories.has(category.id);
+
+                return (
+                    <div
+                        key={category.id}
+                        className="rounded-2xl border border-border/80 bg-card p-3 shadow-sm transition-all"
+                    >
+                        {/* Category Header Card matching exact screenshot */}
+                        <div
+                            onClick={() => toggleCategory(category.id)}
+                            className="flex cursor-pointer items-center justify-between gap-4 rounded-xl px-2 py-1 transition-colors hover:bg-muted/40"
+                        >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                    <FolderPlus className="size-5" />
+                                </span>
+                                <div className="min-w-0">
+                                    <h5 className="font-semibold text-foreground text-sm truncate">
+                                        {category.name}
+                                    </h5>
+                                    <p className="truncate text-xs text-muted-foreground mt-0.5">
+                                        {category.subtitle}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${category.name}`}
+                                className="grid size-8 shrink-0 place-items-center rounded-full bg-muted/60 text-muted-foreground transition-all hover:bg-muted focus:outline-none"
+                            >
+                                <ChevronDown
+                                    className={cn(
+                                        "size-4 transition-transform duration-200",
+                                        isCollapsed ? "-rotate-90" : "rotate-0",
+                                    )}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Subcategory Tree Branches matching exact screenshot */}
+                        {!isCollapsed ? (
+                            <div className="relative ml-9 border-l-2 border-primary/20 dark:border-primary/30 my-2.5 pl-4 space-y-1.5 pr-2">
+                                {category.addOns.map((addOn) => {
+                                    const state = addOnStates[addOn.id] || {
+                                        enabled: true,
+                                        price: "+$0.50",
+                                        stock: "100 in stock",
+                                        usage: "1 per order",
+                                    };
+
+                                    return (
+                                        <div
+                                            key={addOn.id}
+                                            className={cn(
+                                                "relative flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-muted/40 border border-transparent hover:border-border/40",
+                                                state.enabled
+                                                    ? "opacity-100"
+                                                    : "opacity-60 bg-muted/30",
+                                            )}
+                                        >
+                                            {/* Horizontal branch line matching screenshot */}
+                                            <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
+
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-semibold text-foreground text-sm">
+                                                        {addOn.name}
+                                                    </p>
+                                                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
+                                                        {addOn.code}
+                                                    </span>
+                                                </div>
+
+                                                {/* Add-on Properties */}
+                                                <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                                        {state.price}
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span>{state.stock}</span>
+                                                    <span>•</span>
+                                                    <span>{state.usage}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Toggle Management */}
+                                            <div className="shrink-0 ml-auto sm:ml-0">
+                                                <Switch
+                                                    id={`switch-${item.id}-${addOn.id}`}
+                                                    checked={state.enabled}
+                                                    onCheckedChange={(checked) =>
+                                                        toggleAddOn(addOn.id, checked)
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : null}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export function InventoryProductList() {
     const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
@@ -135,10 +306,18 @@ export function InventoryProductList() {
     >({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<{
-        id: string;
-        name: string;
-    } | null>(null);
+    const [expandedAddOnItemIds, setExpandedAddOnItemIds] = useState<Set<string>>(
+        new Set(),
+    );
+
+    const toggleAddOnTree = (itemId: string) => {
+        setExpandedAddOnItemIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(itemId)) next.delete(itemId);
+            else next.add(itemId);
+            return next;
+        });
+    };
 
     useEffect(() => {
         const timer = window.setTimeout(
@@ -881,89 +1060,126 @@ export function InventoryProductList() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {items.map((item) => (
-                                    <tr
-                                        key={item.id}
-                                        className="text-foreground hover:bg-muted/50"
-                                    >
-                                        <td className="px-5 py-4">
-                                            <p className="font-semibold">
-                                                {item.name || "Unnamed"}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                {item.sku ||
-                                                    item.barcode ||
-                                                    "No SKU or barcode"}
-                                            </p>
-                                        </td>
-                                        <td className="px-5 py-4 text-muted-foreground">
-                                            {item.itemGroup?.name || "—"}
-                                        </td>
-                                        <td className="px-5 py-4 text-muted-foreground">
-                                            {item.itemType
-                                                ? titleCase(item.itemType)
-                                                : "—"}
-                                        </td>
-                                        <td className="px-5 py-4 font-semibold">
-                                            {formatMoney(item.price)}
-                                        </td>
-                                        <td className="px-5 py-4 text-muted-foreground">
-                                            {item.unit?.name || "—"}
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <span
-                                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
-                                            >
-                                                {item.status || "INACTIVE"}
-                                            </span>
-                                        </td>
-                                        <td className="px-5 py-4">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon-sm"
-                                                    aria-label={`Preview ${item.name || "item"} in the store`}
-                                                    onClick={() =>
-                                                        setPreviewItem(
-                                                            toPreviewItem(item),
-                                                        )
-                                                    }
+                                {items.flatMap((item) => {
+                                    const isExpanded = expandedAddOnItemIds.has(item.id);
+
+                                    const mainRow = (
+                                        <tr
+                                            key={item.id}
+                                            className={cn(
+                                                "text-foreground hover:bg-muted/50 transition-colors",
+                                                isExpanded && "bg-muted/30 font-medium",
+                                            )}
+                                        >
+                                            <td className="px-5 py-4">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="font-semibold text-foreground">
+                                                            {item.name || "Unnamed"}
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleAddOnTree(item.id)}
+                                                            aria-label={`Toggle add-ons tree for ${item.name || "item"}`}
+                                                            className="grid size-7 shrink-0 place-items-center rounded-full bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer"
+                                                            title="View add-ons tree"
+                                                        >
+                                                            <ChevronDown
+                                                                className={cn(
+                                                                    "size-4 transition-transform duration-200",
+                                                                    isExpanded ? "rotate-180 text-primary" : "rotate-0",
+                                                                )}
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.sku ||
+                                                            item.barcode ||
+                                                            "No SKU or barcode"}
+                                                    </p>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-muted-foreground">
+                                                {item.itemGroup?.name || "—"}
+                                            </td>
+                                            <td className="px-5 py-4 text-muted-foreground">
+                                                {item.itemType
+                                                    ? titleCase(item.itemType)
+                                                    : "—"}
+                                            </td>
+                                            <td className="px-5 py-4 font-semibold">
+                                                {formatMoney(item.price)}
+                                            </td>
+                                            <td className="px-5 py-4 text-muted-foreground">
+                                                {item.unit?.name || "—"}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span
+                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
                                                 >
-                                                    <Eye />
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon-sm"
-                                                    render={
-                                                        <Link
-                                                            href={`/inventory/${item.id}/edit`}
-                                                            aria-label={`Edit ${item.name || "item"}`}
-                                                        />
-                                                    }
-                                                    nativeButton={false}
-                                                >
-                                                    <Edit3 />
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    size="icon-sm"
-                                                    aria-label={`Delete ${item.name || "item"}`}
-                                                    disabled={deleteState.isLoading}
-                                                    onClick={() =>
-                                                        setDeleteTarget({
-                                                            id: item.id,
-                                                            name: item.name,
-                                                        })
-                                                    }
-                                                >
-                                                    <Trash2 />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                    {item.status || "INACTIVE"}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        aria-label={`Preview ${item.name || "item"} in the store`}
+                                                        onClick={() =>
+                                                            setPreviewItem(
+                                                                toPreviewItem(item),
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        render={
+                                                            <Link
+                                                                href={`/inventory/${item.id}/edit`}
+                                                                aria-label={`Edit ${item.name || "item"}`}
+                                                            />
+                                                        }
+                                                        nativeButton={false}
+                                                    >
+                                                        <Edit3 />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="icon-sm"
+                                                        aria-label={`Delete ${item.name || "item"}`}
+                                                        disabled={deleteState.isLoading}
+                                                        onClick={() =>
+                                                            setDeleteTarget({
+                                                                id: item.id,
+                                                                name: item.name,
+                                                            })
+                                                        }
+                                                    >
+                                                        <Trash2 />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+
+                                    if (!isExpanded) return [mainRow];
+
+                                    const treeRow = (
+                                        <tr key={`${item.id}-addons-tree`} className="bg-muted/20">
+                                            <td colSpan={7} className="px-5 py-4 border-b border-border">
+                                                <ItemAddOnsTreeRow item={item} />
+                                            </td>
+                                        </tr>
+                                    );
+
+                                    return [mainRow, treeRow];
+                                })}
                             </tbody>
                         </table>
                     </div>

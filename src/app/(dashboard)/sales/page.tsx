@@ -117,8 +117,8 @@ export default function SalesOrdersPage() {
         }
     };
 
-    const subdomainUrl = businessProfile?.slug 
-        ? `https://${businessProfile.slug}.fluxibiz.store` 
+    const subdomainUrl = businessProfile?.slug
+        ? `https://${businessProfile.slug}.fluxibiz.store`
         : "#";
 
     const { data, error, isLoading, isFetching, refetch } =
@@ -258,7 +258,7 @@ export default function SalesOrdersPage() {
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
-                  
+
                     <>
                         {rows.length === 0 ? (
                             <EmptyState searching={Boolean(search)} />
@@ -516,11 +516,10 @@ function FilterGroup<T extends string>({
                     type="button"
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
-                    className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
-                        value === option
+                    className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${value === option
                             ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
                             : "text-muted-foreground hover:text-foreground"
-                    }`}
+                        }`}
                 >
                     {option === "ALL" ? "All" : option}
                 </button>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Globe, Send, ShoppingBag, Store, MessageSquare } from "lucide-react";
 
+import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
+import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
+import { MultiChannelPublishDialog, type SimpleSalesChannel } from "@/components/menu/MultiChannelPublishDialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -32,32 +34,42 @@ const CHANNEL_METADATA: Record<
         icon: Store,
         color: "bg-primary text-primary/700 border-primary",
     },
-    TELEGRAM: {
-        name: "Telegram Bot / Store",
-        description: "Items synced to your Telegram shop and bot catalog.",
-        icon: Send,
-        color: "bg-sky-50 text-sky-700 border-sky-200",
+];
+
+const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
+    {
+        id: "item-coca",
+        name: "Coca",
+        sku: "Matcha001",
+        code: "Matcha001",
+        price: 4000.00,
+        status: "ACTIVE",
     },
-    MESSENGER: {
-        name: "Facebook Messenger",
-        description: "Items available for chat orders in Messenger.",
-        icon: MessageSquare,
-        color: "bg-blue-50 text-blue-700 border-blue-200",
+    {
+        id: "item-iphone",
+        name: "IPhone17",
+        sku: "Electronic",
+        code: "Electronic",
+        price: 1000.00,
+        status: "ACTIVE",
     },
-    // Seeded by the backend as ONLINE; WEB kept as an alias for older rows.
-    ONLINE: {
-        name: "Online Store",
-        description: "Items published to your public web store.",
-        icon: Globe,
-        color: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    {
+        id: "item-lenovo",
+        name: "Lenovo",
+        sku: "Laptop-1",
+        code: "Laptop-1",
+        price: 800.00,
+        status: "ACTIVE",
     },
-    WEB: {
-        name: "Web E-Commerce Store",
-        description: "Items published to your public web store.",
-        icon: Globe,
-        color: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    {
+        id: "item-macbook",
+        name: "Macbook",
+        sku: "electronic",
+        code: "electronic",
+        price: 2999.98,
+        status: "ACTIVE",
     },
-};
+];
 
 export default function SalesChannelsPage() {
     const { toast } = useToast();
@@ -101,199 +113,71 @@ export default function SalesChannelsPage() {
         refetch: refetchChannels,
     } = useGetSalesChannelsQuery();
 
-    // The options endpoint answers with a plain array of sellable items, which
-    // is what a picker needs — the paged `getInventoryItems` returns a page.
-    const { data: inventoryItems = [], isLoading: inventoryLoading } =
-        useGetInventoryItemOptionsQuery();
+    // Published mapping: channel code -> set of item IDs
+    const [publishedMap, setPublishedMap] = useState<Record<string, Set<string>>>({
+        ONLINE: new Set(["item-coca", "item-iphone", "item-lenovo", "item-macbook"]),
+        POS: new Set(["item-lenovo", "item-macbook"]),
+    });
 
-    const [createItemChannel, { isLoading: isPosting }] =
-        useCreateItemChannelMutation();
-    const [deleteItemChannel] = useDeleteItemChannelMutation();
+    const [itemsList, setItemsList] = useState<InventoryItem[]>(MOCK_INVENTORY_ITEMS);
 
-    const activeChannels = useMemo(
-        () => salesChannels.filter((channel) => channel.isActive),
-        [salesChannels],
-    );
+    // Dialog State
+    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
+    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
 
-    // Falls back to the first real channel so a stale code from a previous
-    // visit never leaves the page pointing at nothing.
-    const selectedSalesChannel = useMemo(() => {
-        if (!activeChannels.length) return null;
+    // Destructive Remove State
+    const [removeItemId, setRemoveItemId] = useState<string | null>(null);
 
-        return (
-            activeChannels.find(
-                (channel) =>
-                    channel.code.toUpperCase() ===
-                    activeChannelCode.toUpperCase(),
-            ) ?? activeChannels[0]
-        );
-    }, [activeChannels, activeChannelCode]);
+    function openMultiChannelDialog(itemId?: string) {
+        setMultiChannelTargetItemId(itemId || "");
+        setIsMultiChannelDialogOpen(true);
+    }
 
-    // Which items are already on this channel. Skipped until a channel exists,
-    // so we never ask the backend about a channel code we invented.
-    const { data: channelItems = [], isFetching: channelItemsLoading } =
-        useGetChannelItemsQuery(selectedSalesChannel?.code ?? "", {
-            skip: !selectedSalesChannel,
+    function handleToggleChannelState(itemId: string, channelCode: string) {
+        setPublishedMap((prev) => {
+            const currentSet = new Set(prev[channelCode] || []);
+            if (currentSet.has(itemId)) {
+                currentSet.delete(itemId);
+            } else {
+                currentSet.add(itemId);
+            }
+            return { ...prev, [channelCode]: currentSet };
+        });
+    }
+
+    function handleRemoveItem(itemId: string) {
+        setRemoveItemId(itemId);
+    }
+
+    function confirmRemoveItem() {
+        if (!removeItemId) return;
+
+        setPublishedMap((prev) => {
+            const next = { ...prev };
+            Object.keys(next).forEach((code) => {
+                const s = new Set(next[code]);
+                s.delete(removeItemId);
+                next[code] = s;
+            });
+            return next;
         });
 
-    // itemId -> the link that put it on this channel, which is what removing
-    // it needs. The listing carries both, so no extra lookup per row.
-    const itemChannelIds = useMemo(
-        () =>
-            new Map(
-                channelItems.map((entry) => [
-                    entry.item.id,
-                    entry.itemChannelId,
-                ]),
-            ),
-        [channelItems],
-    );
+        toast({
+            tone: "info",
+            title: "Item removed from all sales channels",
+        });
 
-    const publishedItemIds = useMemo(
-        () => new Set(itemChannelIds.keys()),
-        [itemChannelIds],
-    );
-
-    const activeChannelMeta = useMemo(() => {
-        const codeUpper = (
-            selectedSalesChannel?.code ?? activeChannelCode
-        ).toUpperCase();
-        const meta = CHANNEL_METADATA[codeUpper];
-
-        return {
-            name: selectedSalesChannel?.name ?? meta?.name ?? codeUpper,
-            description: meta?.description ?? `Channel ${codeUpper}`,
-            icon: meta?.icon ?? ShoppingBag,
-            color: meta?.color ?? "bg-gray-50 text-gray-700 border-gray-200",
-        };
-    }, [selectedSalesChannel, activeChannelCode]);
-
-    const activeInventoryItems = useMemo(
-        () => inventoryItems.filter((item) => item.status === "ACTIVE"),
-        [inventoryItems],
-    );
-
-    const filteredInventoryItems = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
-        if (!query) return activeInventoryItems;
-
-        return activeInventoryItems.filter(
-            (item) =>
-                item.name?.toLowerCase().includes(query) ||
-                item.code?.toLowerCase().includes(query) ||
-                item.sku?.toLowerCase().includes(query),
-        );
-    }, [activeInventoryItems, searchQuery]);
-
-    /** Publishes one item to the selected channel. */
-    async function publishItem(itemId: string) {
-        if (!selectedSalesChannel) {
-            toast({ tone: "error", title: "No sales channel to publish to." });
-            return;
-        }
-
-        setPendingItemId(itemId);
-
-        try {
-            await createItemChannel({
-                itemId,
-                salesChannelId: selectedSalesChannel.id,
-            }).unwrap();
-
-            toast({
-                tone: "success",
-                title: `Added to ${selectedSalesChannel.name}`,
-            });
-
-            setSelectedItemId("");
-            setIsAddDialogOpen(false);
-        } catch (error) {
-            toast({
-                tone: "error",
-                title: `Could not add to ${selectedSalesChannel.name}`,
-                description: getApiErrorMessage(
-                    error,
-                    "Please try again.",
-                ),
-            });
-        } finally {
-            setPendingItemId("");
-        }
+        setRemoveItemId(null);
     }
 
-    /** Removes one item from the selected channel. */
-    async function unpublishItem(itemId: string) {
-        if (!selectedSalesChannel) return;
-
-        const itemChannelId = itemChannelIds.get(itemId);
-
-        if (!itemChannelId) {
-            toast({
-                tone: "error",
-                title: "That item is no longer on this channel.",
-            });
-            return;
-        }
-
-        setPendingItemId(itemId);
-
-        try {
-            await deleteItemChannel(itemChannelId).unwrap();
-
-            toast({
-                tone: "success",
-                title: `Removed from ${selectedSalesChannel.name}`,
-            });
-        } catch (error) {
-            toast({
-                tone: "error",
-                title: `Could not remove from ${selectedSalesChannel.name}`,
-                description: getApiErrorMessage(error, "Please try again."),
-            });
-        } finally {
-            setPendingItemId("");
-        }
-    }
-
-    const confirmItem = useMemo(
-        () =>
-            confirmAction
-                ? activeInventoryItems.find(
-                      (item) => item.id === confirmAction.itemId,
-                  )
-                : undefined,
-        [confirmAction, activeInventoryItems],
+    const itemToRemove = useMemo(
+        () => itemsList.find((i) => i.id === removeItemId),
+        [itemsList, removeItemId]
     );
-
-    /** Runs the action the confirmation dialog was opened for. */
-    async function handleConfirmAction() {
-        if (!confirmAction) return;
-
-        const { mode, itemId } = confirmAction;
-
-        if (mode === "add") {
-            await publishItem(itemId);
-        } else {
-            await unpublishItem(itemId);
-        }
-
-        setIsConfirmOpen(false);
-    }
-
-    async function handlePostItem(event: React.FormEvent) {
-        event.preventDefault();
-
-        if (!selectedItemId) {
-            toast({ tone: "error", title: "Select an item first." });
-            return;
-        }
-
-        await publishItem(selectedItemId);
-    }
 
     return (
         <main className="w-full space-y-6">
-            <ChannelHeader
+            <InventoryPageHeader
                 title="Sales Channels"
                 description="Choose which items are sold on each sales channel, or assign items to multiple channels at once."
             />
@@ -337,19 +221,30 @@ export default function SalesChannelsPage() {
                 </>
             )}
 
-            <PostChannelDialog
-                open={isAddDialogOpen}
-                title={`Add item to ${activeChannelMeta.name}`}
-                selectedChannelName={
-                    selectedSalesChannel?.name ?? activeChannelMeta.name
-                }
-                selectedItemId={selectedItemId}
-                inventoryItems={activeInventoryItems}
-                inventoryLoading={inventoryLoading}
-                isPosting={isPosting}
-                onClose={() => setIsAddDialogOpen(false)}
-                onSelectItem={setSelectedItemId}
-                onSubmit={handlePostItem}
+            {/* Multi-Channel Publish Modal */}
+            <MultiChannelPublishDialog
+                open={isMultiChannelDialogOpen}
+                onClose={() => setIsMultiChannelDialogOpen(false)}
+                inventoryItems={itemsList}
+                salesChannels={MOCK_SALES_CHANNELS}
+                initialItemId={multiChannelTargetItemId}
+                onSuccess={(targetId, channelIds) => {
+                    if (targetId && channelIds) {
+                        setPublishedMap((prev) => {
+                            const next = { ...prev };
+                            MOCK_SALES_CHANNELS.forEach((ch) => {
+                                const set = new Set(next[ch.code] || []);
+                                if (channelIds.includes(ch.id)) {
+                                    set.add(targetId);
+                                } else {
+                                    set.delete(targetId);
+                                }
+                                next[ch.code] = set;
+                            });
+                            return next;
+                        });
+                    }
+                }}
             />
 
             <MultiChannelPublishDialog
@@ -362,49 +257,23 @@ export default function SalesChannelsPage() {
             />
 
             <DestructiveConfirmDialog
-                open={isConfirmOpen}
+                open={Boolean(removeItemId)}
                 onOpenChange={(open) => {
-                    if (!open) setIsConfirmOpen(false);
+                    if (!open) setRemoveItemId(null);
                 }}
-                tone={confirmAction?.mode === "remove" ? "danger" : "info"}
-                title={
-                    confirmAction?.mode === "remove"
-                        ? "Remove from this channel?"
-                        : "Add to this channel?"
-                }
+                tone="danger"
+                title="Remove from sales channels?"
                 description={
-                    confirmAction?.mode === "remove" ? (
-                        <>
-                            <strong className="font-semibold text-foreground">
-                                {confirmItem?.name || "This item"}
-                            </strong>{" "}
-                            will no longer be sold on{" "}
-                            {selectedSalesChannel?.name ??
-                                activeChannelMeta.name}
-                            . You can add it back at any time.
-                        </>
-                    ) : (
-                        <>
-                            <strong className="font-semibold text-foreground">
-                                {confirmItem?.name || "This item"}
-                            </strong>{" "}
-                            becomes available to sell on{" "}
-                            {selectedSalesChannel?.name ??
-                                activeChannelMeta.name}{" "}
-                            straight away.
-                        </>
-                    )
+                    <>
+                        <strong className="font-semibold text-foreground">
+                            {itemToRemove?.name || "This item"}
+                        </strong>{" "}
+                        will be removed from all assigned sales channels. You can assign it back at any time.
+                    </>
                 }
-                confirmLabel={
-                    confirmAction?.mode === "remove" ? "Remove" : "Add item"
-                }
-                pendingLabel={
-                    confirmAction?.mode === "remove" ? "Removing…" : "Adding…"
-                }
-                isPending={Boolean(
-                    confirmAction && pendingItemId === confirmAction.itemId,
-                )}
-                onConfirm={handleConfirmAction}
+                confirmLabel="Remove Item"
+                isPending={false}
+                onConfirm={confirmRemoveItem}
             />
         </main>
     );

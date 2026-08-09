@@ -23,6 +23,7 @@ type NavItemBase = {
 
 export type NavLink = NavItemBase & {
     href: string;
+    icon?: LucideIcon;
     /** Match the pathname exactly instead of by prefix. */
     exact?: boolean;
     /** Extra routes that should keep this entry highlighted. */
@@ -132,7 +133,7 @@ export const NAVIGATION: NavSection[] = [
         },
         children: [
             {
-                label: "Overview",
+                label: "Items",
                 href: "/inventory",
                 exact: true,
                 permission: PERMISSIONS.INVENTORY_ITEMS,
@@ -142,14 +143,63 @@ export const NAVIGATION: NavSection[] = [
                 ],
             },
             {
-                label: "Categories",
-                href: "/inventory/categories",
-                permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                label: "Stock",
+                permission: PERMISSIONS.INVENTORY_STOCK,
+                children: [
+                    {
+                        label: "Overview",
+                        href: "/inventory/stock",
+                        exact: true,
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                        alsoActiveOn: [/^\/inventory\/stock\/overview$/],
+                    },
+                    {
+                        label: "Stock in",
+                        href: "/inventory/stock/in",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
+                    {
+                        label: "Stock out",
+                        href: "/inventory/stock/out",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
+                    {
+                        label: "Adjust stock",
+                        href: "/inventory/stock/adjust",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
+                ],
             },
             {
-                label: "Stock",
-                href: "/inventory/stock",
-                permission: PERMISSIONS.INVENTORY_STOCK,
+                // Units, conversions, item groups, add-ons and option presets —
+                // the building blocks items are assembled from. Categories used
+                // to live at `/inventory/categories`, which now redirects to groups.
+                label: "Item config",
+                permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                children: [
+                    {
+                        label: "Units",
+                        href: "/inventory/config/units",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                        alsoActiveOn: [/^\/inventory\/config$/],
+                    },
+                    {
+                        label: "Categories",
+                        href: "/inventory/config/groups",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                        alsoActiveOn: [/^\/inventory\/categories$/],
+                    },
+                    {
+                        label: "Add-ons",
+                        href: "/inventory/config/add-ons",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                    },
+                    {
+                        label: "Option presets",
+                        href: "/inventory/config/presets",
+                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                    },
+                ],
             },
         ],
     },
@@ -185,6 +235,27 @@ export const NAVIGATION: NavSection[] = [
                 href: "/sales",
                 exact: true,
                 permission: PERMISSIONS.SALES_ORDERS,
+            },
+            {
+                // Base prices per item and package, then what each channel
+                // charges. Sits above Customers because it is the thing most
+                // owners open Sale Management to do.
+                label: "Items & pricing",
+                permission: PERMISSIONS.SALES_MANAGE,
+                children: [
+                    {
+                        label: "Set Price",
+                        href: "/sales/pricing?tab=items",
+                        exact: true,
+                        permission: PERMISSIONS.SALES_MANAGE,
+                        alsoActiveOn: [/^\/sales\/pricing(\?.*tab=items)?$/],
+                    },
+                    {
+                        label: "Channel Pricing",
+                        href: "/sales/pricing?tab=selling",
+                        permission: PERMISSIONS.SALES_MANAGE,
+                    },
+                ],
             },
             {
                 label: "Customers",
@@ -367,7 +438,7 @@ export function getPageTitle(pathname: string): PageTitle {
                 return {
                     app,
                     page: child
-                        ? `${leaf.label} ${child.label.toLowerCase()}`
+                        ? `${leaf.label} — ${child.label}`
                         : leaf.label,
                 };
             }

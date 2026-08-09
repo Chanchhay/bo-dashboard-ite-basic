@@ -17,7 +17,6 @@ import {
     Download,
     Eye,
     LoaderCircle,
-    Pencil,
     Plus,
     Save,
     Trash2,
@@ -30,13 +29,20 @@ import {
     type BlockDraft,
 } from "@/components/inventory/DescriptionBlockEditor";
 import {
+    emptyValue,
     ItemAttributeDialog,
     type AttributeDraft,
 } from "@/components/inventory/ItemAttributeDialog";
+import { ItemOptionsCard } from "@/components/inventory/ItemOptionsCard";
 import {
     ItemPreviewDialog,
     type PreviewItem,
 } from "@/components/inventory/ItemPreviewDialog";
+import {
+    emptyUomDraft,
+    ItemUomCard,
+    type ItemUomDraft,
+} from "@/components/inventory/ItemUomCard";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -61,11 +67,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
     inventoryItemSchema,
-    itemAttributePlacementLabels,
-    itemAttributeTypeLabels,
     itemImageRules,
     itemStatuses,
     itemTypes,
@@ -73,8 +76,9 @@ import {
     type DescriptionBlock,
     type InventoryItem,
     type ItemAttribute,
-    type ItemVariant,
+    type ItemAttributePlacement,
 } from "@/lib/api/inventory";
+import type { OptionPreset } from "@/lib/inventory-config/types";
 import {
     useCreateInventoryItemMutation,
     useDeleteItemImageMutation,
@@ -85,13 +89,6 @@ import {
     useReorderItemImagesMutation,
     useUpdateInventoryItemMutation,
 } from "@/services/inventoryApi";
-
-type VariantRow = {
-    id: string;
-    name: string;
-    price: string;
-    available: boolean;
-};
 
 /** A file waiting to be uploaded, with the blob URL previewing it. */
 type PickedImage = {
@@ -112,7 +109,7 @@ function Field({ label, name, error, children }: FieldProps) {
         <div className="flex min-w-0 flex-col gap-2">
             <Label
                 htmlFor={name}
-                className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
+                className="text-sm font-semibold text-foreground"
             >
                 {label}
             </Label>
@@ -144,15 +141,11 @@ function ImageTile({
     onMoveForward?: () => void;
 }) {
     return (
-        <li className="group relative overflow-hidden rounded-xl border border-[#e4eae2] bg-[#f7f8f7]">
+        <li className="group relative overflow-hidden rounded-xl border border-border bg-muted">
             <span className="block aspect-square">
                 {/* The API serves these URLs dynamically and picks preview as blobs. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={url}
-                    alt=""
-                    className="size-full object-cover"
-                />
+                <img src={url} alt="" className="size-full object-cover" />
             </span>
             <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-[11px] text-white">
                 {label}
@@ -166,7 +159,7 @@ function ImageTile({
                         disabled={busy}
                         aria-label={`Move ${label} earlier`}
                         onClick={onMoveBack}
-                        className="size-8 bg-white/90"
+                        className="size-8"
                     >
                         <ChevronLeft />
                     </Button>
@@ -179,7 +172,7 @@ function ImageTile({
                         disabled={busy}
                         aria-label={`Move ${label} later`}
                         onClick={onMoveForward}
-                        className="size-8 bg-white/90"
+                        className="size-8"
                     >
                         <ChevronRight />
                     </Button>
@@ -209,12 +202,8 @@ function SectionHeading({
 }) {
     return (
         <div>
-            <h2 className="text-lg font-semibold text-[#161d16] dark:text-[#f8fafc]">
-                {title}
-            </h2>
-            <p className="mt-1 text-sm text-[#657064] dark:text-[#94a3b8]">
-                {description}
-            </p>
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
     );
 }
@@ -305,18 +294,27 @@ function fromBlockDraft(block: BlockDraft): BlockPayload {
     };
 }
 
-function toVariantRows(variants: ItemVariant[] | undefined): VariantRow[] {
-    const rows = (variants || []).map((variant) => ({
-        id: variant.id || createRowId(),
-        name: variant.name || "",
-        price:
-            variant.price === undefined ? "" : String(variant.price),
-        available: variant.available !== false,
-    }));
-
-    return rows.length
-        ? rows
-        : [{ id: createRowId(), name: "", price: "", available: true }];
+/**
+ * Pricing left the item, but the data has not moved yet: until item prices are
+ * migrated into Sale Management, the form carries the stored values straight
+ * back so that saving an item cannot silently zero them. Same for the old
+ * inline variant rows, which become option attributes at migration time. Both
+ * disappear from here once the migration has run.
+ */
+function preservedCommerceFields(initialItem: InventoryItem | undefined) {
+    return {
+        price: initialItem?.price ?? 0,
+        compareAtPrice: initialItem?.compareAtPrice,
+        variants: (initialItem?.variants || [])
+            .filter((variant) => variant.name?.trim())
+            .map((variant) => ({
+                name: variant.name || "",
+                available: variant.available !== false,
+                ...(variant.price === undefined
+                    ? {}
+                    : { price: variant.price }),
+            })),
+    };
 }
 
 function fieldErrorsFromIssues(
@@ -332,33 +330,31 @@ function fieldErrorsFromIssues(
     return errors;
 }
 
-function ProductEditor({
-    initialItem,
-}: {
-    initialItem?: InventoryItem;
-}) {
+function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const router = useRouter();
     const { toast } = useToast();
-    const { data: groups, error: groupsError } =
-        useGetItemGroupsQuery();
-    const { data: units, error: unitsError } =
-        useGetInventoryUnitsQuery();
-    const [createItem, createState] =
-        useCreateInventoryItemMutation();
-    const [updateItem, updateState] =
-        useUpdateInventoryItemMutation();
+    const { data: groups, error: groupsError } = useGetItemGroupsQuery();
+    const { data: units, error: unitsError } = useGetInventoryUnitsQuery();
+    const [createItem, createState] = useCreateInventoryItemMutation();
+    const [updateItem, updateState] = useUpdateInventoryItemMutation();
     const [generateBarcode, generateBarcodeState] =
         useGenerateInventoryBarcodeMutation();
     const [attributes, setAttributes] = useState(() =>
         toAttributeDrafts(initialItem?.attributes),
     );
     const [attributeDialogOpen, setAttributeDialogOpen] = useState(false);
-    const [editingAttributeId, setEditingAttributeId] = useState<
-        string | null
-    >(null);
-    const [variants, setVariants] = useState(() =>
-        toVariantRows(initialItem?.variants),
+    const [editingAttributeId, setEditingAttributeId] = useState<string | null>(
+        null,
     );
+    // Which kind of attribute the "add" button is opening: an option a customer
+    // picks, or a fact about the item.
+    const [newPlacement, setNewPlacement] =
+        useState<ItemAttributePlacement>("OPTION");
+    const [attachedAddOnIds, setAttachedAddOnIds] = useState<string[]>([]);
+    const [uomDraft, setUomDraft] = useState<ItemUomDraft>(() => ({
+        ...emptyUomDraft,
+        baseUnitId: initialItem?.unit?.id || "",
+    }));
     const [barcodePreview, setBarcodePreview] = useState(
         initialItem?.barcode || "",
     );
@@ -374,21 +370,16 @@ function ProductEditor({
     );
     const [pickedImages, setPickedImages] = useState<PickedImage[]>([]);
     const imageInputRef = useRef<HTMLInputElement>(null);
-    const {
-        create: createObjectUrl,
-        release: releaseObjectUrl,
-    } = useObjectUrls();
+    const { create: createObjectUrl, release: releaseObjectUrl } =
+        useObjectUrls();
     const [blocks, setBlocks] = useState(() =>
         toBlockDrafts(initialItem?.descriptionBlocks),
     );
-    const [fieldErrors, setFieldErrors] = useState<
-        Record<string, string>
-    >({});
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [deleteImage, deleteImageState] = useDeleteItemImageMutation();
-    const [reorderImages, reorderImagesState] =
-        useReorderItemImagesMutation();
+    const [reorderImages, reorderImagesState] = useReorderItemImagesMutation();
     const isEditing = Boolean(initialItem);
     const isSaving = createState.isLoading || updateState.isLoading;
     // A block image is uploaded on pick, so saving mid-upload would store the
@@ -418,9 +409,7 @@ function ProductEditor({
             const result = await generateBarcode().unwrap();
             setBarcodePreview(result.barcode);
             setFieldErrors((current) => {
-                if (!current.barcode) {
-                    return current;
-                }
+                if (!current.barcode) return current;
 
                 const next = { ...current };
                 delete next.barcode;
@@ -485,16 +474,11 @@ function ProductEditor({
 
     /** Stored images are deleted on the spot — the endpoint applies at once. */
     async function removeStoredImage(imageId: string) {
-        if (!initialItem) {
-            return;
-        }
+        if (!initialItem) return;
 
         try {
             await deleteImage({ itemId: initialItem.id, imageId }).unwrap();
-            toast({
-                tone: "success",
-                title: "Item image deleted",
-            });
+            toast({ tone: "success", title: "Item image deleted" });
         } catch (error) {
             toast({
                 tone: "error",
@@ -510,10 +494,7 @@ function ProductEditor({
     const categoryOptions = useMemo(
         () =>
             (groups || []).flatMap((group) => [
-                {
-                    id: group.id,
-                    label: group.name || "Unnamed category",
-                },
+                { id: group.id, label: group.name || "Unnamed category" },
                 ...(group.subGroups || []).map((subGroup) => ({
                     id: subGroup.id,
                     label: `${group.name || "Category"} / ${subGroup.name || "Unnamed"}`,
@@ -525,9 +506,23 @@ function ProductEditor({
     const editingAttribute = attributes.find(
         (attribute) => attribute.id === editingAttributeId,
     );
+    // A blank draft seeded with the placement the button implies, so "Add
+    // option" never opens on "Specification".
+    const dialogAttribute: AttributeDraft = editingAttribute ?? {
+        id: "",
+        name: "",
+        type: newPlacement === "OPTION" ? "SELECTION" : "TEXT",
+        placement: newPlacement,
+        icon: "",
+        values: [emptyValue()],
+    };
 
-    function openAttributeDialog(id: string | null) {
+    function openAttributeDialog(
+        id: string | null,
+        placement: ItemAttributePlacement = "OPTION",
+    ) {
         setEditingAttributeId(id);
+        if (!id) setNewPlacement(placement);
         setAttributeDialogOpen(true);
     }
 
@@ -541,6 +536,38 @@ function ProductEditor({
         );
     }
 
+    /** Copies a preset's choices in. Never a live link — see the config plan. */
+    function applyPreset(preset: OptionPreset) {
+        setAttributes((current) => [
+            ...current,
+            {
+                id: createRowId(),
+                name: preset.name,
+                type: preset.type,
+                placement: "OPTION" as const,
+                icon: "",
+                values: preset.values.map((value) => ({
+                    value: value.value,
+                    label: "",
+                    colorHex: value.colorHex || "",
+                    available: true,
+                })),
+            },
+        ]);
+        toast({
+            tone: "success",
+            title: `${preset.name} added`,
+            description: "Adjust the choices for this item as needed.",
+        });
+    }
+
+    function attachAddOns(ids: string[]) {
+        setAttachedAddOnIds((current) => [
+            ...current,
+            ...ids.filter((id) => !current.includes(id)),
+        ]);
+    }
+
     /**
      * The fields are uncontrolled, so the preview reads them straight off the
      * form element. That keeps the preview showing unsaved edits without
@@ -548,25 +575,21 @@ function ProductEditor({
      */
     function openPreview() {
         const form = formRef.current;
-
-        if (!form) {
-            return;
-        }
+        if (!form) return;
 
         const formData = new FormData(form);
         const read = (field: string) => String(formData.get(field) || "");
         const categoryId = read("itemGroupId");
         const unitId = read("unitId");
-        const compareAtPrice = read("compareAtPrice");
+        const preserved = preservedCommerceFields(initialItem);
 
         setPreviewItem({
             name: read("name"),
             description: read("description"),
             images: galleryUrls,
             badge: read("badge"),
-            price: Number(formData.get("price") || 0),
-            compareAtPrice:
-                compareAtPrice === "" ? undefined : Number(compareAtPrice),
+            price: preserved.price,
+            compareAtPrice: preserved.compareAtPrice,
             sku: read("sku"),
             categoryName:
                 categoryOptions.find((option) => option.id === categoryId)
@@ -585,24 +608,8 @@ function ProductEditor({
                 values: attribute.values,
             })),
             descriptionBlocks: blocks.map(fromBlockDraft),
-            variants: variants
-                .filter((row) => row.name.trim())
-                .map((row) => ({
-                    name: row.name.trim(),
-                    available: row.available,
-                    ...(row.price === ""
-                        ? {}
-                        : { price: Number(row.price) }),
-                })),
+            variants: preserved.variants,
         });
-    }
-
-    function updateVariant(id: string, patch: Partial<VariantRow>) {
-        setVariants((current) =>
-            current.map((row) =>
-                row.id === id ? { ...row, ...patch } : row,
-            ),
-        );
     }
 
     async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -616,18 +623,6 @@ function ProductEditor({
             icon: attribute.icon,
             values: attribute.values,
         }));
-        const variantValues = variants
-            .filter((row) => row.name.trim())
-            .map((row) => ({
-                name: row.name,
-                available: row.available,
-                ...(row.price === ""
-                    ? {}
-                    : { price: Number(row.price) }),
-            }));
-        const compareAtPrice = String(
-            formData.get("compareAtPrice") || "",
-        );
         const result = inventoryItemSchema.safeParse({
             itemGroupId:
                 String(formData.get("itemGroupId") || "") === "__none"
@@ -643,17 +638,12 @@ function ProductEditor({
             description: String(formData.get("description") || ""),
             badge: String(formData.get("badge") || ""),
             barcode: String(formData.get("barcode") || ""),
-            price: Number(formData.get("price") || 0),
-            compareAtPrice:
-                compareAtPrice === "" ? undefined : Number(compareAtPrice),
             itemType: String(formData.get("itemType") || ""),
             attributes: attributeValues,
             descriptionBlocks: blocks.map(fromBlockDraft),
-            variants: variantValues,
-            lowStockDefault: Number(
-                formData.get("lowStockDefault") || 0,
-            ),
+            lowStockDefault: Number(formData.get("lowStockDefault") || 0),
             status: String(formData.get("status") || ""),
+            ...preservedCommerceFields(initialItem),
         });
 
         if (!result.success) {
@@ -740,10 +730,10 @@ function ProductEditor({
                 }
             />
 
-            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
-                    title="Item information"
-                    description="Core identifiers, pricing and sale configuration."
+                    title="Basics"
+                    description="What this item is called and how it is identified."
                 />
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                     <Field
@@ -755,21 +745,17 @@ function ProductEditor({
                             id="name"
                             name="name"
                             defaultValue={initialItem?.name}
-                            placeholder="Matcha"
+                            placeholder="Ice Latte"
                             aria-invalid={Boolean(fieldErrors.name)}
                             className={inventoryControlClassName}
                         />
                     </Field>
-                    <Field
-                        label="SKU"
-                        name="sku"
-                        error={fieldErrors.sku}
-                    >
+                    <Field label="SKU" name="sku" error={fieldErrors.sku}>
                         <Input
                             id="sku"
                             name="sku"
                             defaultValue={initialItem?.sku}
-                            placeholder="MATCHA-001"
+                            placeholder="LAT-001"
                             aria-invalid={Boolean(fieldErrors.sku)}
                             className={inventoryControlClassName}
                         />
@@ -825,13 +811,10 @@ function ProductEditor({
                             ) : null}
                         </div>
                         {barcodePreview.trim() ? (
-                            <div className="rounded-xl border border-[#e4eae2] bg-[#f8faf7] p-3">
-                                <BarcodePreview
-                                    value={barcodePreview}
-                                    compact
-                                />
+                            <div className="rounded-xl border border-border bg-muted/40 p-3">
+                                <BarcodePreview value={barcodePreview} compact />
                                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-xs text-[#657064]">
+                                    <p className="text-xs text-muted-foreground">
                                         CODE128 preview
                                     </p>
                                     <Button
@@ -859,9 +842,7 @@ function ProductEditor({
                     >
                         <Select
                             name="itemGroupId"
-                            defaultValue={
-                                initialItem?.itemGroup?.id || "__none"
-                            }
+                            defaultValue={initialItem?.itemGroup?.id || "__none"}
                             items={{
                                 __none: "No category",
                                 ...Object.fromEntries(
@@ -894,56 +875,13 @@ function ProductEditor({
                         </Select>
                     </Field>
                     <Field
-                        label="Unit"
-                        name="unitId"
-                        error={fieldErrors.unitId}
-                    >
-                        <Select
-                            name="unitId"
-                            defaultValue={
-                                initialItem?.unit?.id || "__none"
-                            }
-                            items={{
-                                __none: "No unit",
-                                ...Object.fromEntries(
-                                    (units || []).map((unit) => [
-                                        unit.id,
-                                        unit.name || "Unnamed unit",
-                                    ]),
-                                ),
-                            }}
-                        >
-                            <SelectTrigger
-                                id="unitId"
-                                className={`${inventoryControlClassName} w-full`}
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__none">
-                                    No unit
-                                </SelectItem>
-                                {(units || []).map((unit) => (
-                                    <SelectItem
-                                        key={unit.id}
-                                        value={unit.id}
-                                    >
-                                        {unit.name || "Unnamed unit"}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </Field>
-                    <Field
                         label="Item type *"
                         name="itemType"
                         error={fieldErrors.itemType}
                     >
                         <Select
                             name="itemType"
-                            defaultValue={
-                                initialItem?.itemType || "PHYSICAL"
-                            }
+                            defaultValue={initialItem?.itemType || "PHYSICAL"}
                             items={{
                                 PHYSICAL: "Physical",
                                 DIGITAL: "Digital",
@@ -976,9 +914,7 @@ function ProductEditor({
                     >
                         <Select
                             name="status"
-                            defaultValue={
-                                initialItem?.status || "ACTIVE"
-                            }
+                            defaultValue={initialItem?.status || "ACTIVE"}
                             items={{ ACTIVE: "Active", INACTIVE: "Inactive" }}
                         >
                             <SelectTrigger
@@ -1000,61 +936,6 @@ function ProductEditor({
                                 ))}
                             </SelectContent>
                         </Select>
-                    </Field>
-                    <Field
-                        label="Price *"
-                        name="price"
-                        error={fieldErrors.price}
-                    >
-                        <Input
-                            id="price"
-                            name="price"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={initialItem?.price ?? 0}
-                            aria-invalid={Boolean(fieldErrors.price)}
-                            className={inventoryControlClassName}
-                        />
-                    </Field>
-                    <Field
-                        label="Low-stock threshold"
-                        name="lowStockDefault"
-                        error={fieldErrors.lowStockDefault}
-                    >
-                        <Input
-                            id="lowStockDefault"
-                            name="lowStockDefault"
-                            type="number"
-                            min="0"
-                            step="1"
-                            defaultValue={
-                                initialItem?.lowStockDefault ?? 0
-                            }
-                            aria-invalid={Boolean(
-                                fieldErrors.lowStockDefault,
-                            )}
-                            className={inventoryControlClassName}
-                        />
-                    </Field>
-                    <Field
-                        label="Compare-at price"
-                        name="compareAtPrice"
-                        error={fieldErrors.compareAtPrice}
-                    >
-                        <Input
-                            id="compareAtPrice"
-                            name="compareAtPrice"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={initialItem?.compareAtPrice ?? ""}
-                            placeholder="Original price before discount"
-                            aria-invalid={Boolean(
-                                fieldErrors.compareAtPrice,
-                            )}
-                            className={inventoryControlClassName}
-                        />
                     </Field>
                     <Field
                         label="Store badge"
@@ -1086,9 +967,24 @@ function ProductEditor({
                         </Field>
                     </div>
                 </div>
+
+                <p className="mt-5 rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+                    Pricing is set per sales channel in Sale Management, not
+                    here.
+                </p>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+            <ItemUomCard
+                apiUnits={units || []}
+                lowStockDefault={initialItem?.lowStockDefault ?? 0}
+                lowStockError={fieldErrors.lowStockDefault}
+                draft={uomDraft}
+                onDraftChange={(patch) =>
+                    setUomDraft((current) => ({ ...current, ...patch }))
+                }
+            />
+
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Images"
@@ -1163,9 +1059,7 @@ function ProductEditor({
                                             : "Not saved yet"
                                     }
                                     busy={isSaving}
-                                    onRemove={() =>
-                                        removePickedImage(image.id)
-                                    }
+                                    onRemove={() => removePickedImage(image.id)}
                                 />
                             ))}
                         </ul>
@@ -1383,9 +1277,9 @@ function ProductEditor({
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
-                    title="Store description layout"
+                    title="Store page"
                     description="Lay out the lower half of the store page: text, bullets, images and the spec grid."
                 />
                 <div className="mt-5">
@@ -1406,17 +1300,17 @@ function ProductEditor({
                     variant="outline"
                     render={<Link href="/inventory" />}
                     nativeButton={false}
-                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >
                     Cancel
                 </Button>
                 <Button
                     type="submit"
                     disabled={isSaving || isUploadingBlockImage}
-                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >
                     {isSaving ? (
-                        <LoaderCircle className="size-4 animate-spin shrink-0" />
+                        <LoaderCircle className="size-4 shrink-0 animate-spin" />
                     ) : (
                         <Save className="size-4 shrink-0" />
                     )}
@@ -1424,12 +1318,25 @@ function ProductEditor({
                 </Button>
             </div>
 
+            {/*
+             * Keyed so a blank draft reseeds when the button implies a different
+             * placement — the dialog holds its fields in mount-time state.
+             */}
+            <ItemAttributeDialog
+                key={editingAttributeId ?? `new-${newPlacement}`}
+                open={attributeDialogOpen}
+                onOpenChange={setAttributeDialogOpen}
+                initialAttribute={dialogAttribute}
+                existingNames={attributes
+                    .filter((attribute) => attribute.id !== editingAttributeId)
+                    .map((attribute) => attribute.name.toLowerCase())}
+                onSubmit={saveAttribute}
+            />
+
             <ItemPreviewDialog
                 open={Boolean(previewItem)}
                 onOpenChange={(open) => {
-                    if (!open) {
-                        setPreviewItem(null);
-                    }
+                    if (!open) setPreviewItem(null);
                 }}
                 item={previewItem}
             />
@@ -1452,10 +1359,7 @@ export function EditInventoryProduct({ itemId }: { itemId: string }) {
     if (error || !data) {
         return (
             <InventoryError
-                message={getApiErrorMessage(
-                    error,
-                    "Unable to load the item.",
-                )}
+                message={getApiErrorMessage(error, "Unable to load the item.")}
                 retry={refetch}
             />
         );
