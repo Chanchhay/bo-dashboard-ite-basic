@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
     ArrowLeft,
+    Boxes,
     Calculator,
     Check,
     LoaderCircle,
@@ -13,6 +14,9 @@ import {
     Plus,
     ScanBarcode,
     SlidersHorizontal,
+    Tag,
+    TrendingDown,
+    TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +32,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
+    latestUnitCosts,
     stockEntrySchema,
     type InventoryItem,
 } from "@/lib/api/inventory";
@@ -37,6 +43,7 @@ import {
     useCreateStockEntryMutation,
     useGetCurrentStockQuery,
     useGetInventoryItemOptionsQuery,
+    useGetStockEntriesQuery,
 } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
 
@@ -97,12 +104,17 @@ export function StockAdjustmentForm() {
     const stockQuery = useGetCurrentStockQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
-    const [adjustmentType, setAdjustmentType] = useState<"ADD" | "REMOVE">("ADD");
+    const [adjustmentType, setAdjustmentType] = useState<"OVERSTATED" | "UNDERSTATED" | "MANUAL">("OVERSTATED");
     const [quantityInput, setQuantityInput] = useState("");
     const [unitCostInput, setUnitPriceInput] = useState("");
     const [batchLot, setBatchLot] = useState("");
     const [batchManufacturedAt, setBatchManufacturedAt] = useState("");
     const [batchExpiresAt, setBatchExpiresAt] = useState("");
+    const [overrideQuantity, setOverrideQuantity] = useState(true);
+    const [overrideUnitCost, setOverrideUnitCost] = useState(false);
+    const [overrideBatchLot, setOverrideBatchLot] = useState(false);
+    const [overrideBatchMfg, setOverrideBatchMfg] = useState(false);
+    const [overrideBatchExp, setOverrideBatchExp] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
@@ -133,19 +145,29 @@ export function StockAdjustmentForm() {
         (stockQuery.data || []).find(
             (summary) => summary.itemId === selectedItemId,
         )?.quantityOnHand ?? 0;
-    const parsedQty = Math.abs(Number(quantityInput));
-    const qtyValid = quantityInput.trim() !== "" && Number.isFinite(parsedQty) && parsedQty > 0;
-    const change = qtyValid ? (adjustmentType === "ADD" ? parsedQty : -parsedQty) : 0;
+    const entriesQuery = useGetStockEntriesQuery();
+    const entries = entriesQuery.data || [];
+    const costsMap = latestUnitCosts(entries);
+    const existingUnitCost = selectedItemId ? costsMap.get(selectedItemId)?.cost ?? 0 : 0;
+
+    const isManual = adjustmentType === "MANUAL";
+    const rawNum = Number(quantityInput);
+    const parsedQty = Math.abs(rawNum);
+    const qtyValid = (!isManual || overrideQuantity) && quantityInput.trim() !== "" && Number.isFinite(rawNum) && rawNum !== 0;
+    // Overstated decreases stock (-), Understated increases stock (+), Manual allows direct +/- input
+    const change = qtyValid
+        ? adjustmentType === "OVERSTATED"
+            ? -parsedQty
+            : adjustmentType === "UNDERSTATED"
+              ? parsedQty
+              : rawNum
+        : 0;
     const resulting =
-        selectedItemId && quantityInput.trim() !== "" && Number.isFinite(parsedQty)
+        selectedItemId && (!isManual || overrideQuantity) && quantityInput.trim() !== "" && Number.isFinite(rawNum)
             ? onHand + change
             : selectedItemId
               ? onHand
               : undefined;
-
-    const cost = Number(unitCostInput);
-    const isValidPrice = unitCostInput.trim() !== "" && Number.isFinite(cost) && cost >= 0;
-    const totalValue = qtyValid && isValidPrice ? parsedQty * cost : 0;
 
     function handleScannedItem(item: InventoryItem) {
         setSelectedItemId(item.id);
@@ -166,17 +188,42 @@ export function StockAdjustmentForm() {
 
         const formData = new FormData(event.currentTarget);
         const batchData: Record<string, string> = {};
-        if (batchLot.trim()) batchData.lot = batchLot.trim();
-        if (batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
-        if (batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
+        if (isManual) {
+            if (overrideBatchLot && batchLot.trim()) batchData.lot = batchLot.trim();
+            if (overrideBatchMfg && batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
+            if (overrideBatchExp && batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
+        }
 
-        const unitCostValue = getOptionalFormValue(
-            formData,
-            "unitCost",
-        );
-        const parsedQty = Math.abs(Number(quantityInput));
-        const calculatedChange = adjustmentType === "ADD" ? parsedQty : -parsedQty;
+        let calculatedChange = 0;
+        if (!isManual || overrideQuantity) {
+            const rawNum = Number(quantityInput);
+            if (!quantityInput.trim() || Number.isNaN(rawNum) || rawNum === 0) {
+                setFieldErrors({ quantityChange: "Please enter a non-zero quantity change." });
+                toast({
+                    tone: "error",
+                    title: "Check the highlighted stock information",
+                    description: "Please enter a non-zero quantity change.",
+                });
+                return;
+            }
 
+            calculatedChange = adjustmentType === "OVERSTATED"
+                ? -Math.abs(rawNum)
+                : adjustmentType === "UNDERSTATED"
+                  ? Math.abs(rawNum)
+                  : rawNum;
+        } else if (isManual && !overrideQuantity && !overrideUnitCost && !overrideBatchLot && !overrideBatchMfg && !overrideBatchExp) {
+            toast({
+                tone: "error",
+                title: "No changes selected",
+                description: "Please check at least one field to edit in Manual mode.",
+            });
+            return;
+        }
+
+        const unitCostValue = isManual && overrideUnitCost
+            ? getOptionalFormValue(formData, "unitCost")
+            : "";
         const result = stockEntrySchema.safeParse({
             itemId: String(formData.get("itemId") || ""),
             entryType: "ADJUSTMENT",
@@ -315,73 +362,79 @@ export function StockAdjustmentForm() {
                             </div>
                         </Field>
 
-                        {/* Adjustment Action Toggle */}
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
-                                Adjustment Action *
-                            </Label>
-                            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl border border-border bg-muted/30">
-                                <button
-                                    type="button"
-                                    onClick={() => setAdjustmentType("ADD")}
-                                    className={cn(
-                                        "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer",
-                                        adjustmentType === "ADD"
-                                            ? "bg-primary text-primary-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                                    )}
-                                >
-                                    <Plus className="size-4 shrink-0" />
-                                    <span>Increase Stock (+)</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setAdjustmentType("REMOVE")}
-                                    className={cn(
-                                        "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer",
-                                        adjustmentType === "REMOVE"
-                                            ? "bg-danger text-danger-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                                    )}
-                                >
-                                    <Minus className="size-4 shrink-0" />
-                                    <span>Decrease Stock (-)</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Quantity Field */}
+                        {/* Adjustment Action Dropdown */}
                         <Field
-                            label="Quantity *"
-                            name="quantity"
+                            label="Adjustment Action *"
+                            name="adjustmentAction"
                             hint={
-                                selectedItemId
-                                    ? `Current stock: ${onHand} ${unitLabel}`
-                                    : "Number of units to adjust."
+                                adjustmentType === "OVERSTATED"
+                                    ? "Overstated deducts stock from current balance."
+                                    : adjustmentType === "UNDERSTATED"
+                                      ? "Understated adds stock to current balance."
+                                      : "Manual mode allows entering positive or negative quantity change."
                             }
-                            error={fieldErrors.quantityChange}
                         >
+                            <SelectField
+                                id="adjustmentAction"
+                                name="adjustmentAction"
+                                value={adjustmentType}
+                                onValueChange={(val) =>
+                                    setAdjustmentType(val as "OVERSTATED" | "UNDERSTATED" | "MANUAL")
+                                }
+                                options={[
+                                    { value: "OVERSTATED", label: "Overstated" },
+                                    { value: "UNDERSTATED", label: "Understated" },
+                                    { value: "MANUAL", label: "Manual" },
+                                ]}
+                                className={inventoryControlClassName}
+                            />
+                        </Field>
+
+                        {/* Quantity Field with Manual edit checkbox */}
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">
+                                    Quantity *
+                                </Label>
+                                {isManual ? (
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={overrideQuantity}
+                                            onChange={(e) => setOverrideQuantity(e.target.checked)}
+                                            className="size-3.5 rounded border-border text-primary"
+                                        />
+                                        <span>Edit quantity</span>
+                                    </label>
+                                ) : null}
+                            </div>
                             <div className="flex items-center gap-2">
                                 <Input
                                     id="quantity"
                                     name="quantity"
                                     type="number"
                                     step="0.01"
-                                    min="0.01"
+                                    disabled={isManual && !overrideQuantity}
                                     value={quantityInput}
+                                    onKeyDown={(e) => {
+                                        if (!isManual && (e.key === "-" || e.key === "e")) {
+                                            e.preventDefault();
+                                        }
+                                    }}
                                     onChange={(event) => {
-                                        setQuantityInput(event.target.value);
+                                        const val = isManual ? event.target.value : event.target.value.replace(/-/g, "");
+                                        setQuantityInput(val);
                                         setFieldErrors((current) => {
                                             const next = { ...current };
                                             delete next.quantityChange;
                                             return next;
                                         });
                                     }}
-                                    placeholder="e.g. 10"
+                                    placeholder={isManual && !overrideQuantity ? "Unchecked (Preserved / 0 change)" : isManual ? "e.g. 10 or -5" : "e.g. 10"}
                                     aria-invalid={Boolean(
                                         fieldErrors.quantityChange,
                                     )}
-                                    className={`${inventoryControlClassName} flex-1`}
+                                    className={`${inventoryControlClassName} flex-1 disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                 />
                                 {unitLabel ? (
                                     <span className="shrink-0 text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-2 rounded-lg border border-border">
@@ -389,7 +442,26 @@ export function StockAdjustmentForm() {
                                     </span>
                                 ) : null}
                             </div>
-                            {selectedItemId ? (
+                            {fieldErrors.quantityChange ? (
+                                <p className="text-xs text-danger" role="alert">
+                                    {fieldErrors.quantityChange}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    {isManual && !overrideQuantity
+                                        ? "Existing quantity preserved (check box above to edit)."
+                                        : selectedItemId
+                                          ? `Current stock: ${onHand} ${unitLabel} · ${
+                                                adjustmentType === "OVERSTATED"
+                                                    ? "Overstated (- deducts stock)"
+                                                    : adjustmentType === "UNDERSTATED"
+                                                      ? "Understated (+ adds stock)"
+                                                      : "Manual quantity change"
+                                            }`
+                                          : "Enter number of units."}
+                                </p>
+                            )}
+                            {selectedItemId && (!isManual || overrideQuantity) ? (
                                 <p
                                     className={
                                         resulting !== undefined && resulting < 0
@@ -414,32 +486,47 @@ export function StockAdjustmentForm() {
                                     )}
                                 </p>
                             ) : null}
-                        </Field>
-                        <Field
-                            label="Unit cost"
-                            name="unitCost"
-                            hint={
-                                unitLabel
-                                    ? `What one ${unitLabel.toLowerCase()} cost you. Feeds stock value.`
-                                    : "What one unit cost you. Feeds stock value."
-                            }
-                            error={fieldErrors.unitCost}
-                        >
-                                <Input
-                                    id="unitCost"
-                                    name="unitCost"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={unitCostInput}
-                                    onChange={(e) => setUnitPriceInput(e.target.value)}
-                                    placeholder="0.00"
-                                    aria-invalid={Boolean(
-                                        fieldErrors.unitCost,
-                                    )}
-                                    className={inventoryControlClassName}
-                                />
-                        </Field>
+                        </div>
+
+                        {/* Unit cost field */}
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="unitCost" className="text-sm font-semibold text-foreground">
+                                    Unit cost ($)
+                                </Label>
+                                {isManual ? (
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={overrideUnitCost}
+                                            onChange={(e) => setOverrideUnitCost(e.target.checked)}
+                                            className="size-3.5 rounded border-border text-primary"
+                                        />
+                                        <span>Edit unit cost</span>
+                                    </label>
+                                ) : null}
+                            </div>
+                            <Input
+                                id="unitCost"
+                                name="unitCost"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                disabled={!isManual || !overrideUnitCost}
+                                value={unitCostInput}
+                                onChange={(e) => setUnitPriceInput(e.target.value)}
+                                placeholder={!isManual ? "Locked" : overrideUnitCost ? "0.00" : "Unchecked (Preserved)"}
+                                aria-invalid={Boolean(fieldErrors.unitCost)}
+                                className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                {!isManual
+                                    ? "Locked. Selecting an item does not edit unit cost."
+                                    : !overrideUnitCost
+                                      ? "Existing unit cost preserved (check box above to edit)."
+                                      : "Enter new unit cost for this adjustment."}
+                            </p>
+                        </div>
                         <div className="sm:col-span-2">
                             <Field
                                 label="Reason"
@@ -459,62 +546,130 @@ export function StockAdjustmentForm() {
                         </div>
 
                         {/* Batch Details Card */}
-                        <div className="sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5">
-                            <div className="flex items-start gap-3">
-                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                                    <PackageOpen className="size-5" />
-                                </span>
-                                <div>
-                                    <h3 className="font-semibold text-foreground">
-                                        Batch details
-                                    </h3>
-                                    <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                                        Optional. Use these fields when stock is tracked by lot or expiration date. No JSON is required.
-                                    </p>
+                        <div className={cn("sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5 transition-opacity", !isManual && "opacity-60")}>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                        <PackageOpen className="size-5" />
+                                    </span>
+                                    <div>
+                                        <h3 className="font-semibold text-foreground flex items-center gap-2">
+                                            <span>Batch details</span>
+                                            {!isManual ? (
+                                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                    Locked (Select Manual to edit)
+                                                </span>
+                                            ) : null}
+                                        </h3>
+                                        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                                            {!isManual
+                                                ? "Locked. Select Manual mode to enable editing."
+                                                : "Check the box above any batch field you wish to modify. Unchecked fields remain unchanged."}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                                <Field
-                                    label="Batch / lot number"
-                                    name="batchLot"
-                                    hint="For example, LOT-01."
-                                >
+                                {/* Batch Lot Number */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchLot" className="text-xs font-semibold text-foreground">
+                                            Batch / lot number
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchLot}
+                                                    onChange={(e) => setOverrideBatchLot(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit lot #</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <Input
                                         id="batchLot"
                                         name="batchLot"
+                                        disabled={!isManual || !overrideBatchLot}
                                         value={batchLot}
                                         onChange={(e) => setBatchLot(e.target.value)}
-                                        placeholder="LOT-01"
-                                        className={inventoryControlClassName}
+                                        placeholder={!isManual ? "Locked" : overrideBatchLot ? "LOT-01" : "Unchanged"}
+                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                     />
-                                </Field>
-                                <Field
-                                    label="Manufactured date"
-                                    name="batchManufacturedAt"
-                                >
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {!isManual
+                                            ? "Locked"
+                                            : !overrideBatchLot
+                                              ? "Existing lot # kept unchanged"
+                                              : "For example, LOT-01"}
+                                    </p>
+                                </div>
+
+                                {/* Manufactured Date */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchManufacturedAt" className="text-xs font-semibold text-foreground">
+                                            Manufactured date
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchMfg}
+                                                    onChange={(e) => setOverrideBatchMfg(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit Mfg date</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <Input
                                         id="batchManufacturedAt"
                                         name="batchManufacturedAt"
                                         type="date"
+                                        disabled={!isManual || !overrideBatchMfg}
                                         value={batchManufacturedAt}
                                         onChange={(e) => setBatchManufacturedAt(e.target.value)}
-                                        className={inventoryControlClassName}
+                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                     />
-                                </Field>
-                                <Field
-                                    label="Expiration date"
-                                    name="batchExpiresAt"
-                                >
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {!isManual ? "Locked" : !overrideBatchMfg ? "Existing date kept unchanged" : "Select date"}
+                                    </p>
+                                </div>
+
+                                {/* Expiration Date */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchExpiresAt" className="text-xs font-semibold text-foreground">
+                                            Expiration date
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchExp}
+                                                    onChange={(e) => setOverrideBatchExp(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit Exp date</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <Input
                                         id="batchExpiresAt"
                                         name="batchExpiresAt"
                                         type="date"
+                                        disabled={!isManual || !overrideBatchExp}
                                         value={batchExpiresAt}
                                         onChange={(e) => setBatchExpiresAt(e.target.value)}
-                                        className={inventoryControlClassName}
+                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                     />
-                                </Field>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {!isManual ? "Locked" : !overrideBatchExp ? "Existing date kept unchanged" : "Select date"}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -545,24 +700,33 @@ export function StockAdjustmentForm() {
                         </div>
 
                         <div className="flex justify-between items-center text-muted-foreground">
-                            <span>Adjustment</span>
+                            <span>Quantity Adjustment</span>
                             <span
                                 className={`font-semibold ${
-                                    adjustmentType === "ADD" ? "text-primary" : "text-danger"
+                                    change > 0 ? "text-emerald-600 dark:text-emerald-400" : change < 0 ? "text-rose-600 dark:text-rose-400" : ""
                                 }`}
                             >
                                 {qtyValid
-                                    ? `${adjustmentType === "ADD" ? "+" : "-"}${parsedQty} ${unitLabel}`
+                                    ? `${change > 0 ? "+" : ""}${change} ${unitLabel}`
                                     : "-"}
                             </span>
                         </div>
+
+                        {isManual && overrideUnitCost && unitCostInput.trim() !== "" ? (
+                            <div className="flex justify-between items-center text-muted-foreground">
+                                <span>New Unit Cost</span>
+                                <span className="font-semibold text-foreground">
+                                    {formatMoney(Number(unitCostInput))}
+                                </span>
+                            </div>
+                        ) : null}
 
                         <div className="border-t border-border pt-3 flex justify-between items-center">
                             <span className="font-medium text-foreground">Projected Stock</span>
                             <span
                                 className={`text-base font-bold ${
                                     resulting !== undefined && resulting < 0
-                                        ? "text-danger"
+                                        ? "text-rose-600 dark:text-rose-400"
                                         : "text-foreground"
                                 }`}
                             >
@@ -575,17 +739,10 @@ export function StockAdjustmentForm() {
                         </div>
 
                         {resulting !== undefined && resulting < 0 ? (
-                            <p className="text-xs text-danger bg-danger/10 p-2.5 rounded-lg border border-danger/20">
+                            <p className="text-xs text-rose-600 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20">
                                 Warning: This adjustment takes stock below zero!
                             </p>
                         ) : null}
-
-                        <div className="border-t border-border pt-3 flex justify-between items-center">
-                            <span className="font-medium text-foreground">Total Value</span>
-                            <span className="text-base font-bold text-primary">
-                                {formatMoney(totalValue)}
-                            </span>
-                        </div>
                     </div>
                 </div>
 

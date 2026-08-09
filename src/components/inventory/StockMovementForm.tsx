@@ -341,8 +341,14 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                             step="0.01"
                                             min="0.01"
                                             value={quantityInput}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "-" || e.key === "e") {
+                                                    e.preventDefault();
+                                                }
+                                            }}
                                             onChange={(e) => {
-                                                setQuantityInput(e.target.value);
+                                                const val = e.target.value.replace(/-/g, "");
+                                                setQuantityInput(val);
                                                 setFieldErrors((current) => {
                                                     const next = { ...current };
                                                     delete next.quantity;
@@ -374,8 +380,14 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                         step="0.01"
                                         min="0"
                                         value={unitPriceInput}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "-" || e.key === "e") {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                         onChange={(e) => {
-                                            setUnitPriceInput(e.target.value);
+                                            const val = e.target.value.replace(/-/g, "");
+                                            setUnitPriceInput(val);
                                             setFieldErrors((current) => {
                                                 const next = { ...current };
                                                 delete next.unitPrice;
