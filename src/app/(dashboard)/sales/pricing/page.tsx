@@ -43,13 +43,6 @@ function SalesPricingContent() {
                 }
             />
 
-            <p
-                className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning"
-                role="status"
-            >
-                Preview — sample catalogue, nothing is saved yet. The API is
-                built once this flow is approved.
-            </p>
 
             <div>
                 {tab === "selling" ? <SellingProductsTab /> : <ItemsPricingTab />}
