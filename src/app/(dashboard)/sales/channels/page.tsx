@@ -34,7 +34,7 @@ const CHANNEL_METADATA: Record<
         icon: Store,
         color: "bg-primary text-primary/700 border-primary",
     },
-];
+};
 
 const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
     {

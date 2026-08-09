@@ -46,15 +46,6 @@ export function StockTabs({
                         >
                             <Icon className="size-4 shrink-0" />
                             {tab.label}
-                            <span
-                                className={`rounded-full px-1.5 text-[11px] ${
-                                    active
-                                        ? "bg-white/20"
-                                        : "bg-muted text-muted-foreground"
-                                }`}
-                            >
-                                {counts[tab.id]}
-                            </span>
                         </button>
                     );
                 })}
