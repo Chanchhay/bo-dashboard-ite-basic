@@ -8,8 +8,8 @@ import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
 import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
-import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
+import { useGetSalesChannelsQuery } from "@/services/salesChannelApi";
 import { ChannelSelector } from "@/components/menu/ChannelSelector";
 import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
 import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
@@ -107,6 +107,7 @@ export default function SalesChannelsPage() {
         setIsConfirmOpen(true);
     }
 
+    // Queries
     const {
         data: salesChannels = [],
         isLoading: channelsLoading,
@@ -132,8 +133,27 @@ export default function SalesChannelsPage() {
         POS: new Set(["item-lenovo", "item-macbook"]),
     });
 
-    const [itemsList, setItemsList] = useState<InventoryItem[]>(MOCK_INVENTORY_ITEMS);
+    const activeChannels = useMemo(
+        () => salesChannels.filter((c) => c.active !== false),
+        [salesChannels],
+    );
 
+    // Multi-Channel Publish Dialog state
+    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
+    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
+
+    // Destructive Remove State
+    const [removeItemId, setRemoveItemId] = useState<string | null>(null);
+
+    function openMultiChannelDialog(itemId?: string) {
+        setMultiChannelTargetItemId(itemId || "");
+        setIsMultiChannelDialogOpen(true);
+    }
+
+    const itemToRemove = useMemo(
+        () => inventoryItems.find((i) => i.id === removeItemId),
+        [inventoryItems, removeItemId],
+    );
     function handleToggleChannelState(itemId: string, channelCode: string) {
         setPublishedMap((prev) => {
             const currentSet = new Set(prev[channelCode] || []);
@@ -152,23 +172,12 @@ export default function SalesChannelsPage() {
 
     function confirmRemoveItem() {
         if (!removeItemId) return;
-
-        setPublishedMap((prev) => {
-            const next = { ...prev };
-            Object.keys(next).forEach((code) => {
-                const s = new Set(next[code]);
-                s.delete(removeItemId);
-                next[code] = s;
-            });
-            return next;
-        });
-
         toast({
             tone: "info",
             title: "Item removed from all sales channels",
         });
-
         setRemoveItemId(null);
+        refetchChannels();
     }
 
     const itemToRemove = useMemo(
@@ -184,24 +193,24 @@ export default function SalesChannelsPage() {
             />
 
             {!channelsLoading && activeChannels.length === 0 ? (
-                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-10 text-center shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                    <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary">
+                <section className="rounded-2xl border border-border bg-card p-10 text-center shadow-xs">
+                    <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
                         <ShoppingBag
                             className="size-6"
                             aria-hidden="true"
                         />
                     </span>
-                    <h2 className="text-base font-semibold text-[#161d16] dark:text-[#f8fafc]">
+                    <h2 className="text-base font-semibold text-foreground">
                         No sales channels yet
                     </h2>
-                    <p className="mx-auto mt-1 max-w-md text-sm text-[#657064] dark:text-[#94a3b8]">
+                    <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
                         Items can only be sold once a sales channel exists. Add
                         one on the backend, then refresh.
                     </p>
                     <button
                         type="button"
                         onClick={() => refetchChannels()}
-                        className="mt-4 inline-flex items-center rounded-lg border border-[#c9cbc6] dark:border-[#384252] bg-white dark:bg-[#1e2330] px-4 py-2 text-sm font-semibold text-primary transition hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] shadow-xs"
+                        className="mt-4 inline-flex items-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-primary transition hover:bg-muted shadow-xs cursor-pointer"
                     >
                         Refresh
                     </button>
@@ -209,19 +218,20 @@ export default function SalesChannelsPage() {
             ) : (
                 <ChannelMatrixTable
                     channels={activeChannels}
-                    inventoryItems={activeInventoryItems}
+                    inventoryItems={inventoryItems}
                     inventoryLoading={inventoryLoading}
                     onRefresh={() => refetchChannels()}
                     onManageItemChannels={(itemId) => openMultiChannelDialog(itemId)}
-                    onRemoveItemFromChannels={(itemId) => askToConfirm("remove", itemId)}
+                    onRemoveItemFromChannels={(itemId) => setRemoveItemId(itemId)}
                     onOpenMultiChannelDialog={(itemId) => openMultiChannelDialog(itemId)}
                 />
             )}
 
+            {/* Multi-Channel Publish Modal */}
             <MultiChannelPublishDialog
                 open={isMultiChannelDialogOpen}
                 onClose={() => setIsMultiChannelDialogOpen(false)}
-                inventoryItems={activeInventoryItems}
+                inventoryItems={inventoryItems}
                 salesChannels={activeChannels}
                 initialItemId={multiChannelTargetItemId}
                 onSuccess={() => refetchChannels()}

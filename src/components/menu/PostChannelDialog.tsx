@@ -36,10 +36,11 @@ interface PostChannelDialogProps {
 }
 
 /** What one item reads as, both in the list and in the closed trigger. */
-function itemLabel(item: InventoryItem, format: (value: number) => string) {
-    const code = item.code ? ` (${item.code})` : "";
+function itemLabel(item: InventoryItem) {
+    const categoryName = item.itemGroup?.name || item.category?.name;
+    const catLabel = categoryName ? ` (${categoryName})` : "";
 
-    return `${item.name || "Unnamed item"}${code} — ${format(item.price ?? 0)}`;
+    return `${item.name || "Unnamed item"}${catLabel}`;
 }
 
 export function PostChannelDialog({
@@ -58,9 +59,9 @@ export function PostChannelDialog({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent>
-                <DialogHeader className="items-start gap-3 sm:flex-row sm:items-center">
-                    <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+            <DialogContent className="border-none shadow-2xl">
+                <DialogHeader className="items-start gap-3 sm:flex-row sm:items-center border-none">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <Plus className="size-5" aria-hidden="true" />
                     </span>
                     <div className="flex flex-col gap-1">
@@ -78,7 +79,7 @@ export function PostChannelDialog({
                         <Input
                             value={selectedChannelName || "Selected channel"}
                             disabled
-                            className="bg-muted text-muted-foreground"
+                            className="bg-muted text-muted-foreground border-none"
                         />
                     </div>
 
@@ -92,7 +93,7 @@ export function PostChannelDialog({
                             items={Object.fromEntries(
                                 inventoryItems.map((inv) => [
                                     inv.id,
-                                    itemLabel(inv, format),
+                                    itemLabel(inv),
                                 ]),
                             )}
                         >
@@ -104,14 +105,14 @@ export function PostChannelDialog({
                             <SelectContent>
                                 {inventoryItems.map((inv) => (
                                     <SelectItem key={inv.id} value={inv.id}>
-                                        {itemLabel(inv, format)}
+                                        {itemLabel(inv)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
 
-                    <DialogFooter className="pt-4 border-t border-border">
+                    <DialogFooter className="pt-4 border-none">
                         <Button variant="outline" type="button" onClick={onClose}>
                             Cancel
                         </Button>

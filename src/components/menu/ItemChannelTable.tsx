@@ -258,10 +258,9 @@ export function ItemChannelTable({
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-190 text-left text-sm">
-                        <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        <thead className="bg-muted/40 text-sm font-bold tracking-wide text-foreground uppercase">
                             <tr>
                                 <th className="px-5 py-3">Product</th>
-                                <th className="px-5 py-3">Price</th>
                                 <th className="px-5 py-3">Status</th>
                                 <th className="px-5 py-3 text-right">Actions</th>
                             </tr>
@@ -277,31 +276,16 @@ export function ItemChannelTable({
                                         className="transition-colors hover:bg-muted/50"
                                     >
                                         <td className="px-5 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted border border-border overflow-hidden">
-                                                    {item.images?.[0]?.url ? (
-                                                        <img
-                                                            src={item.images[0].url}
-                                                            alt={item.name || "Product"}
-                                                            className="h-full w-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <Package className="h-4 w-4 text-muted-foreground" />
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="font-bold text-foreground truncate">
-                                                        {item.name || "Unnamed item"}
+                                            <div className="min-w-0">
+                                                <p className="text-base font-bold text-foreground truncate">
+                                                    {item.name || "Unnamed item"}
+                                                </p>
+                                                {(item.itemGroup?.name || item.category?.name) && (
+                                                    <p className="text-xs font-semibold text-muted-foreground truncate mt-0.5">
+                                                        {item.itemGroup?.name || item.category?.name}
                                                     </p>
-                                                    <p className="text-xs text-muted-foreground truncate">
-                                                        {item.code ? `Code: ${item.code}` : item.sku ? `SKU: ${item.sku}` : item.barcode ? `BC: ${item.barcode}` : ""}
-                                                    </p>
-                                                </div>
+                                                )}
                                             </div>
-                                        </td>
-
-                                        <td className="px-5 py-4 font-bold text-foreground">
-                                            {item.price != null ? format(item.price) : "-"}
                                         </td>
 
                                         <td className="px-5 py-4">

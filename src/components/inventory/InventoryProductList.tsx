@@ -191,7 +191,7 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                             className="flex cursor-pointer items-center justify-between gap-4 rounded-xl px-2 py-1 transition-colors hover:bg-muted/40"
                         >
                             <div className="flex items-center gap-3.5 min-w-0">
-                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
                                     <FolderPlus className="size-5" />
                                 </span>
                                 <div className="min-w-0">
@@ -254,7 +254,7 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
 
                                                 {/* Add-on Properties */}
                                                 <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                                    <span className="font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                                         {state.price}
                                                     </span>
                                                     <span>•</span>
@@ -1081,7 +1081,12 @@ export function InventoryProductList() {
                                                             type="button"
                                                             onClick={() => toggleAddOnTree(item.id)}
                                                             aria-label={`Toggle add-ons tree for ${item.name || "item"}`}
-                                                            className="grid size-7 shrink-0 place-items-center rounded-full bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer"
+                                                            className={cn(
+                                                                "grid size-7 shrink-0 place-items-center rounded-full transition-all focus:outline-none cursor-pointer",
+                                                                isExpanded
+                                                                    ? "bg-primary/15 text-primary"
+                                                                    : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                            )}
                                                             title="View add-ons tree"
                                                         >
                                                             <ChevronDown
@@ -1190,33 +1195,39 @@ export function InventoryProductList() {
                         aria-label="Item pages"
                         className="flex flex-col gap-3 border-t border-border px-5 py-4 md:flex-row md:items-center md:justify-between"
                     >
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                             <Label
                                 htmlFor="item-page-size"
-                                className="shrink-0 text-xs font-semibold text-muted-foreground"
+                                className="shrink-0 text-[11px] font-medium text-muted-foreground"
                             >
                                 Items per page
                             </Label>
-                            <select
-                                id="item-page-size"
-                                value={productPageSize}
-                                onChange={(e) =>
+                            <Select
+                                value={String(productPageSize)}
+                                onValueChange={(value) =>
                                     dispatch(
                                         setProductPageSize(
-                                            Number(e.target.value),
+                                            Number(value),
                                         ),
                                     )
                                 }
-                                className="h-9 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground outline-none focus:border-primary"
                             >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                            </select>
-                            <span>
-                                Showing {firstResult}–{lastResult} of{" "}
-                                {totalElements}
+                                <SelectTrigger
+                                    id="item-page-size"
+                                    aria-label="Items per page"
+                                    className="!h-7 px-2 text-[11px] font-medium rounded-lg border border-border bg-card text-foreground min-w-[58px] justify-between items-center"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="min-w-[58px] w-[58px] p-1 text-[11px]">
+                                    <SelectItem value="10" className="text-[11px] py-1 px-1.5">10</SelectItem>
+                                    <SelectItem value="20" className="text-[11px] py-1 px-1.5">20</SelectItem>
+                                    <SelectItem value="50" className="text-[11px] py-1 px-1.5">50</SelectItem>
+                                    <SelectItem value="100" className="text-[11px] py-1 px-1.5">100</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                                Showing {firstResult}–{lastResult} of {totalElements}
                             </span>
                         </div>
 

@@ -305,16 +305,16 @@ export function MultiChannelPublishDialog({
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent
-                className={`rounded-2xl p-6 bg-background transition-all border border-border shadow-xl ${
+                className={`rounded-2xl p-6 bg-background transition-all border-none shadow-2xl ${
                     initialItemId ? "max-w-md" : "max-w-3xl"
                 }`}
             >
                 {/* Header */}
-                <DialogHeader className="pb-3 border-b border-border/60">
-                    <DialogTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
-                        <CheckSquare className="h-5 w-5 text-primary" /> Manage Sales Channels
+                <DialogHeader className="pb-3 border-none">
+                    <DialogTitle className="text-xl font-bold flex items-center gap-2.5 text-foreground">
+                        <CheckSquare className="h-6 w-6 text-primary" /> Manage Sales Channels
                     </DialogTitle>
-                    <DialogDescription className="text-xs text-muted-foreground">
+                    <DialogDescription className="text-sm text-muted-foreground">
                         {initialItemId
                             ? `Select allowed sales channels for ${singleItem?.name || "this item"}.`
                             : "Choose products from Overview catalog and assign them to sales channels."}
@@ -325,40 +325,28 @@ export function MultiChannelPublishDialog({
                     {/* MODE 1: Single Row Item Mode */}
                     {initialItemId ? (
                         <div className="space-y-4">
-                            {/* Single Item Card */}
+                            {/* Single Item Card without Image, Stroke, or Fill */}
                             {singleItem && (
-                                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-muted/40 border border-border">
-                                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-background border border-border overflow-hidden">
-                                        {singleItem.images?.[0]?.url ? (
-                                            <img
-                                                src={singleItem.images[0].url}
-                                                alt={singleItem.name || "Product"}
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : (
-                                            <Package className="h-5 w-5 text-muted-foreground" />
-                                        )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-bold text-foreground truncate">
-                                            {singleItem.name || "Unnamed Item"}
+                                <div className="py-2 px-1 bg-transparent">
+                                    <p className="text-sm font-bold text-foreground truncate">
+                                        {singleItem.name || "Unnamed Item"}
+                                    </p>
+                                    {(singleItem.itemGroup?.name || singleItem.category?.name) && (
+                                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                            {singleItem.itemGroup?.name || singleItem.category?.name}
                                         </p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                            {singleItem.itemGroup?.name ? `${singleItem.itemGroup.name} · ` : ""}
-                                            {singleItem.sku ? `SKU: ${singleItem.sku}` : singleItem.code ? `Code: ${singleItem.code}` : ""} · {format(singleItem.price ?? 0)}
-                                        </p>
-                                    </div>
+                                    )}
                                 </div>
                             )}
 
                             {/* Single Item Channels Checklist */}
-                            <div className="space-y-2.5">
+                            <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-foreground">Allowed Sales Channels</span>
+                                    <span className="text-sm font-bold text-foreground">Allowed Sales Channels</span>
                                     <button
                                         type="button"
                                         onClick={toggleSelectAllChannels}
-                                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                        className="text-sm font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                                     >
                                         {checkedChannelIds.size === activeSalesChannels.length ? "Deselect All" : "Select All"}
                                     </button>
@@ -378,28 +366,28 @@ export function MultiChannelPublishDialog({
                                                 <div
                                                     key={channel.id}
                                                     onClick={() => toggleChannel(channel.id)}
-                                                    className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                                                    className={`flex items-center justify-between p-3.5 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${
                                                         isChecked
-                                                            ? "border-primary/40 bg-primary/5 text-foreground shadow-2xs"
-                                                            : "border-border bg-card text-muted-foreground hover:border-border/80"
+                                                            ? "text-foreground font-bold"
+                                                            : "text-muted-foreground"
                                                     }`}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div
-                                                            className={`grid h-5 w-5 place-items-center rounded-md border transition-colors ${
+                                                            className={`grid h-5 w-5 place-items-center rounded-md transition-colors ${
                                                                 isChecked
-                                                                    ? "bg-primary border-primary text-white"
-                                                                    : "border-input bg-background"
+                                                                    ? "bg-primary text-primary-foreground"
+                                                                    : "border border-input bg-background"
                                                             }`}
                                                         >
                                                             {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                                                         </div>
-                                                        <span className="text-xs font-bold text-foreground">{channel.name}</span>
+                                                        <span className="text-sm font-bold text-foreground">{channel.name}</span>
                                                     </div>
 
                                                     <span
-                                                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                                                            isChecked ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                                                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                                                            isChecked ? "text-primary" : "text-muted-foreground"
                                                         }`}
                                                     >
                                                         {isChecked ? "Active" : "Disabled"}
@@ -417,18 +405,18 @@ export function MultiChannelPublishDialog({
                             {/* LEFT COLUMN: Products Selection (7 cols) */}
                             <div className="md:col-span-7 space-y-3">
                                 {/* Combined Search & Category Filter Header */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2.5">
                                     {availableCategories.length > 0 && (
-                                        <div className="relative min-w-[150px] max-w-[180px]">
+                                        <div className="relative min-w-[160px] max-w-[190px]">
                                             <button
                                                 type="button"
                                                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                                                className="w-full h-10 px-3 flex items-center justify-between gap-1.5 text-xs font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+                                                className="w-full h-11 px-3.5 flex items-center justify-between gap-1.5 text-sm font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
                                             >
                                                 <span className="truncate">
                                                     {selectedCategory === "ALL" ? "All Categories" : selectedCategory}
                                                 </span>
-                                                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`} />
+                                                <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`} />
                                             </button>
 
                                             {isCategoryOpen && (
@@ -437,21 +425,21 @@ export function MultiChannelPublishDialog({
                                                         className="fixed inset-0 z-40"
                                                         onClick={() => setIsCategoryOpen(false)}
                                                     />
-                                                    <div className="absolute left-0 top-11 z-50 min-w-[190px] max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl space-y-0.5 animate-in fade-in-50 zoom-in-95">
+                                                    <div className="absolute left-0 top-12 z-50 min-w-[200px] max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl space-y-0.5 animate-in fade-in-50 zoom-in-95">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
                                                                 setSelectedCategory("ALL");
                                                                 setIsCategoryOpen(false);
                                                             }}
-                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                                                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                                                                 selectedCategory === "ALL"
                                                                     ? "bg-primary/10 text-primary font-bold"
                                                                     : "hover:bg-muted text-foreground"
                                                             }`}
                                                         >
                                                             <span>All Categories</span>
-                                                            {selectedCategory === "ALL" && <Check className="h-3.5 w-3.5 text-primary stroke-[3]" />}
+                                                            {selectedCategory === "ALL" && <Check className="h-4 w-4 text-primary stroke-[3]" />}
                                                         </button>
 
                                                         {availableCategories.map((cat) => {
@@ -464,14 +452,14 @@ export function MultiChannelPublishDialog({
                                                                         setSelectedCategory(cat);
                                                                         setIsCategoryOpen(false);
                                                                     }}
-                                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                                                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                                                                         isSelected
                                                                             ? "bg-primary/10 text-primary font-bold"
                                                                             : "hover:bg-muted text-foreground"
                                                                     }`}
                                                                 >
                                                                     <span className="truncate">{cat}</span>
-                                                                    {isSelected && <Check className="h-3.5 w-3.5 text-primary stroke-[3]" />}
+                                                                    {isSelected && <Check className="h-4 w-4 text-primary stroke-[3]" />}
                                                                 </button>
                                                             );
                                                         })}
@@ -482,21 +470,21 @@ export function MultiChannelPublishDialog({
                                     )}
 
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             type="text"
                                             placeholder="Search product..."
                                             value={productSearchQuery}
                                             onChange={(e) => setProductSearchQuery(e.target.value)}
-                                            className="h-10 pl-9 pr-8 text-xs font-semibold rounded-xl border border-border bg-card text-foreground"
+                                            className="h-11 pl-10 pr-9 text-sm font-semibold rounded-xl border border-border bg-card text-foreground"
                                         />
                                         {productSearchQuery && (
                                             <button
                                                 type="button"
                                                 onClick={() => setProductSearchQuery("")}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                             >
-                                                <X className="h-3.5 w-3.5" />
+                                                <X className="h-4 w-4" />
                                             </button>
                                         )}
                                     </div>
@@ -504,18 +492,18 @@ export function MultiChannelPublishDialog({
 
                                 {/* Product List Header */}
                                 <div className="flex items-center justify-between px-1">
-                                    <span className="text-xs font-bold text-foreground">Select Products</span>
+                                    <span className="text-sm font-bold text-foreground">Select Products</span>
                                     <button
                                         type="button"
                                         onClick={toggleSelectAllFilteredProducts}
-                                        className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                                        className="text-sm font-bold text-primary hover:underline cursor-pointer"
                                     >
                                         Select All in Category
                                     </button>
                                 </div>
 
-                                {/* Spacious Clean Product List */}
-                                <div className="h-72 overflow-y-auto rounded-2xl border border-border/80 bg-muted/20 p-2 space-y-1.5">
+                                {/* Product List Container */}
+                                <div className="h-72 overflow-y-auto rounded-2xl bg-transparent p-1 space-y-1 border-none">
                                     {filteredProducts.length === 0 ? (
                                         <div className="py-16 text-center text-xs text-muted-foreground">
                                             No products found matching filter.
@@ -527,47 +515,32 @@ export function MultiChannelPublishDialog({
                                                 <div
                                                     key={item.id}
                                                     onClick={() => toggleProductCheck(item.id)}
-                                                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all text-xs border ${
+                                                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${
                                                         isChecked
-                                                            ? "bg-card border-primary/40 text-foreground shadow-2xs font-bold"
-                                                            : "bg-card/60 border-border/50 text-muted-foreground hover:bg-card hover:border-border"
+                                                            ? "text-foreground font-bold"
+                                                            : "text-muted-foreground"
                                                     }`}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div
-                                                            className={`grid h-4 w-4 place-items-center rounded border shrink-0 transition-colors ${
+                                                            className={`grid h-5 w-5 place-items-center rounded-md shrink-0 transition-colors ${
                                                                 isChecked
-                                                                    ? "bg-primary border-primary text-white"
-                                                                    : "border-input bg-background"
+                                                                    ? "bg-primary text-primary-foreground"
+                                                                    : "border border-input bg-background"
                                                             }`}
                                                         >
-                                                            {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
-                                                        </div>
-
-                                                        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted border border-border overflow-hidden">
-                                                            {item.images?.[0]?.url ? (
-                                                                <img
-                                                                    src={item.images[0].url}
-                                                                    alt={item.name || "Product"}
-                                                                    className="h-full w-full object-cover"
-                                                                />
-                                                            ) : (
-                                                                <Package className="h-4 w-4 text-muted-foreground" />
-                                                            )}
+                                                            {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                                                         </div>
 
                                                         <div className="min-w-0">
-                                                            <p className="truncate font-bold text-foreground text-xs">{item.name || "Unnamed item"}</p>
-                                                            <p className="text-[10px] text-muted-foreground truncate">
-                                                                {item.itemGroup?.name ? `${item.itemGroup.name} · ` : ""}
-                                                                {item.sku ? `SKU: ${item.sku}` : item.barcode ? `BC: ${item.barcode}` : ""}
-                                                            </p>
+                                                            <p className="truncate font-bold text-foreground text-sm">{item.name || "Unnamed item"}</p>
+                                                            {(item.itemGroup?.name || item.category?.name) && (
+                                                                <p className="text-xs text-muted-foreground truncate">
+                                                                    {item.itemGroup?.name || item.category?.name}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
-
-                                                    <span className="text-xs font-bold text-foreground shrink-0 ml-2">
-                                                        {format(item.price ?? 0)}
-                                                    </span>
                                                 </div>
                                             );
                                         })
@@ -579,47 +552,46 @@ export function MultiChannelPublishDialog({
                             <div className="md:col-span-5 space-y-3 flex flex-col justify-between">
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between px-1">
-                                        <span className="text-xs font-bold text-foreground">Target Channels</span>
+                                        <span className="text-sm font-bold text-foreground">Target Channels</span>
                                         <button
                                             type="button"
                                             onClick={toggleSelectAllChannels}
-                                            className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                                            className="text-sm font-bold text-primary hover:underline cursor-pointer"
                                         >
-                                            Toggle All
+                                            {checkedChannelIds.size === activeSalesChannels.length ? "Deselect All" : "Select All"}
                                         </button>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-1">
                                         {activeSalesChannels.map((channel) => {
                                             const isChecked = checkedChannelIds.has(channel.id);
-                                            const IconComp = CHANNEL_ICONS[channel.code.toUpperCase()] || Store;
 
                                             return (
                                                 <div
                                                     key={channel.id}
                                                     onClick={() => toggleChannel(channel.id)}
-                                                    className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                                                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${
                                                         isChecked
-                                                            ? "border-primary/40 bg-primary/5 text-foreground shadow-2xs font-bold"
-                                                            : "border-border/60 bg-card text-muted-foreground hover:border-border"
+                                                            ? "text-foreground font-bold"
+                                                            : "text-muted-foreground"
                                                     }`}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div
-                                                            className={`grid h-4 w-4 place-items-center rounded border shrink-0 transition-colors ${
+                                                            className={`grid h-5 w-5 place-items-center rounded-md shrink-0 transition-colors ${
                                                                 isChecked
-                                                                    ? "bg-primary border-primary text-white"
-                                                                    : "border-input bg-background"
+                                                                    ? "bg-primary text-primary-foreground"
+                                                                    : "border border-input bg-background"
                                                             }`}
                                                         >
-                                                            {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                                                            {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                                                         </div>
-                                                        <span className="text-xs font-bold truncate text-foreground">{channel.name}</span>
+                                                        <span className="text-sm font-bold truncate text-foreground">{channel.name}</span>
                                                     </div>
 
                                                     <span
-                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                            isChecked ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                                                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                                                            isChecked ? "text-primary" : "text-muted-foreground"
                                                         }`}
                                                     >
                                                         {isChecked ? "Active" : "Disabled"}
@@ -634,13 +606,13 @@ export function MultiChannelPublishDialog({
                     )}
 
                     {/* Modal Footer */}
-                    <DialogFooter className="pt-3 border-t border-border/60 flex items-center justify-end gap-2">
+                    <DialogFooter className="pt-4 border-none flex items-center justify-end gap-2.5">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={onClose}
                             disabled={isSaving}
-                            className="rounded-xl border-border font-semibold text-xs h-10 px-4"
+                            className="rounded-xl border-none bg-muted hover:bg-muted/80 font-bold text-sm h-11 px-5"
                         >
                             Cancel
                         </Button>
@@ -650,7 +622,7 @@ export function MultiChannelPublishDialog({
                                 isSaving ||
                                 (initialItemId ? isSingleItemLoading : checkedProductIds.size === 0 || checkedChannelIds.size === 0)
                             }
-                            className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs h-10 px-6 shadow-sm cursor-pointer"
+                            className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm h-11 px-6 shadow-sm cursor-pointer"
                         >
                             {isSaving ? (
                                 <>
