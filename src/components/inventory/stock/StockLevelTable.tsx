@@ -154,7 +154,7 @@ function StockItemAddOnsTreeRow({ row }: { row: StockLevelRow }) {
                             className="flex cursor-pointer items-center justify-between gap-4 rounded-xl px-2 py-1 transition-colors hover:bg-muted/40"
                         >
                             <div className="flex items-center gap-3.5 min-w-0">
-                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
                                     <FolderPlus className="size-5" />
                                 </span>
                                 <div className="min-w-0">

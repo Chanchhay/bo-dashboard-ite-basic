@@ -346,10 +346,9 @@ export function ChannelMatrixTable({
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm border-collapse">
-                        <thead className="bg-muted/50 text-xs font-bold text-foreground uppercase tracking-wider border-b border-border">
+                        <thead className="bg-muted/50 text-sm font-bold text-foreground uppercase tracking-wider border-b border-border">
                             <tr>
                                 <th className="px-5 py-3.5 w-[280px]">Product Info</th>
-                                <th className="px-5 py-3.5 w-[110px]">Price</th>
 
                                 {/* Dynamic Visible Sales Channel Columns */}
                                 {visibleChannels.map((channel) => {
@@ -368,7 +367,7 @@ export function ChannelMatrixTable({
                                             key={channel.id}
                                             className="px-5 py-3.5 text-center min-w-[140px]"
                                         >
-                                            <div className="inline-flex items-center gap-1.5 justify-center font-bold text-foreground">
+                                            <div className="inline-flex items-center gap-1.5 justify-center font-bold text-foreground text-sm">
                                                 <span>{channelHeadingName}</span>
                                             </div>
                                         </th>
@@ -385,34 +384,16 @@ export function ChannelMatrixTable({
                                 <tr key={item.id} className="hover:bg-muted/40 transition-colors">
                                     {/* Product Details */}
                                     <TableCell className="px-5 py-3.5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted border border-border overflow-hidden">
-                                                {item.images?.[0]?.url ? (
-                                                    <img
-                                                        src={item.images[0].url}
-                                                        alt={item.name || "Product"}
-                                                        className="h-full w-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <Package className="h-4 w-4 text-muted-foreground" />
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="font-bold text-foreground truncate text-xs">
-                                                    {item.name || "Unnamed item"}
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-foreground truncate text-sm">
+                                                {item.name || "Unnamed item"}
+                                            </p>
+                                            {(item.itemGroup?.name || item.category?.name) && (
+                                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                                    {item.itemGroup?.name || item.category?.name}
                                                 </p>
-                                                <p className="text-[11px] text-muted-foreground truncate">
-                                                    {item.sku ? `SKU: ${item.sku}` : item.code ? `Code: ${item.code}` : item.barcode ? `BC: ${item.barcode}` : ""}
-                                                </p>
-                                            </div>
+                                            )}
                                         </div>
-                                    </TableCell>
-
-                                    {/* Price */}
-                                    <TableCell className="px-5 py-3.5 font-bold text-xs text-foreground">
-                                        {item.price != null && item.price > 0 ? format(item.price) : (
-                                            <span className="text-amber-600 dark:text-amber-400 font-normal">Unpriced</span>
-                                        )}
                                     </TableCell>
 
                                     {/* Visible Channel Columns with Cell Status */}
