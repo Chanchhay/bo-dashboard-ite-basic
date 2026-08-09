@@ -24,7 +24,7 @@ import {
 function AvailabilityBadge({ available }: { available: boolean }) {
     return (
         <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                 available
                     ? "bg-success/10 text-success"
                     : "bg-muted text-muted-foreground"
@@ -55,7 +55,7 @@ function ItemCard({
         >
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
                 <div className="flex items-center gap-2">
-                    <p className="font-semibold text-foreground text-base">
+                    <p className="font-semibold text-foreground text-sm sm:text-base">
                         {item.name}
                     </p>
                     <AvailabilityBadge available={item.available} />
@@ -66,35 +66,34 @@ function ItemCard({
             </div>
 
             <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[540px] text-left text-sm">
+                <table className="w-full min-w-[540px] text-left text-xs sm:text-sm">
                     <thead className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                         <tr>
                             <th className="pb-2.5 pr-4">Sold as</th>
                             <th className="pb-2.5 pr-4">Capacity</th>
-                            <th className="pb-2.5 pr-4">Base Price</th>
+                            <th className="pb-2.5 pr-4">
+                                <span className="flex items-center gap-1">
+                                    Base Selling Price
+                                    <span className="text-[10px] font-normal lowercase tracking-normal text-muted-foreground">(Global)</span>
+                                </span>
+                            </th>
                             <th className="pb-2.5">
-                                Unit Cost (per {item.baseUnitLabel.toLowerCase()})
+                                <span className="flex items-center gap-1">
+                                    Stock Purchase Cost
+                                    <span className="text-[10px] font-normal lowercase tracking-normal text-muted-foreground">(From Stock)</span>
+                                </span>
                             </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
                         {item.units.map((unit) => {
                             const price = item.basePrices[unit.id];
-                            const perBase = unitEconomics(price, unit.factor);
-                            const basePer = unitEconomics(
-                                item.basePrices[baseUnit?.id ?? ""],
-                                baseUnit?.factor ?? 1,
-                            );
-
-                            const dearer =
-                                perBase !== undefined &&
-                                basePer !== undefined &&
-                                unit.factor > 1 &&
-                                perBase > basePer;
+                            // Stock Purchase Cost is fixed from Stock Inventory when stock was added, completely independent of Base Selling Price
+                            const stockCost = item.unitCost !== undefined ? item.unitCost * unit.factor : undefined;
 
                             return (
                                 <tr key={unit.id} className="group">
-                                    <td className="py-3 pr-4 font-medium text-foreground">
+                                    <td className="py-3 pr-4 font-medium text-foreground text-xs sm:text-sm">
                                         {unit.label}
                                     </td>
                                     <td className="py-3 pr-4 text-xs text-muted-foreground">
@@ -119,41 +118,25 @@ function ItemCard({
                                                     )
                                                 }
                                                 placeholder="Not sold"
-                                                aria-label={`${item.name} ${unit.label} price`}
-                                                className={`${controlClassName} h-9 pl-6 pr-2 text-xs font-semibold`}
+                                                aria-label={`${item.name} ${unit.label} base selling price`}
+                                                className={`${controlClassName} h-9 pl-6 pr-2 text-xs sm:text-sm font-semibold`}
                                             />
                                         </div>
                                     </td>
-                                    <td className="py-3 text-xs">
-                                        {perBase === undefined ? (
+                                    <td className="py-3 text-xs sm:text-sm">
+                                        {stockCost === undefined ? (
                                             <span className="text-muted-foreground">
                                                 —
                                             </span>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 <span
-                                                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium ${
-                                                        dearer
-                                                            ? "bg-warning/15 text-warning font-semibold"
-                                                            : "bg-muted text-muted-foreground"
-                                                    }`}
-                                                    title={
-                                                        dearer
-                                                            ? "This package costs more per unit than buying singles"
-                                                            : undefined
-                                                    }
+                                                    className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium cursor-not-allowed select-none bg-muted/80 text-muted-foreground border border-border/60"
+                                                    title="Stock purchase cost recorded when adding stock in Inventory Management"
                                                 >
-                                                    {dearer && (
-                                                        <AlertTriangle className="size-3 shrink-0" />
-                                                    )}
-                                                    {format(perBase)} /{" "}
+                                                    {format(stockCost)} /{" "}
                                                     {item.baseUnitLabel.toLowerCase()}
                                                 </span>
-                                                {dearer && (
-                                                    <span className="text-[11px] font-medium text-warning">
-                                                        Higher than single
-                                                    </span>
-                                                )}
                                             </div>
                                         )}
                                     </td>
@@ -223,13 +206,13 @@ export function ItemsPricingTab() {
             {/* Sleek Search & Filter Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="relative flex-1 min-w-[240px] max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                     <Input
                         type="text"
                         placeholder="Search items by name or SKU..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`${controlClassName} h-10 pl-10 pr-4 text-xs sm:text-sm font-medium bg-card shadow-2xs border-border`}
+                        className={`${controlClassName} h-10 pl-10 pr-8 text-xs sm:text-sm font-medium bg-card shadow-2xs border-border`}
                     />
                     {searchQuery && (
                         <button
@@ -243,13 +226,13 @@ export function ItemsPricingTab() {
                 </div>
 
                 <div className="flex items-center gap-3 ml-auto">
-                    <span className="text-xs font-medium text-muted-foreground hidden sm:inline-block">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground hidden sm:inline-block">
                         Showing <strong className="font-semibold text-foreground">{filteredItems.length}</strong> items
                     </span>
                     <button
                         type="button"
                         onClick={toggleExpandAll}
-                        className="flex items-center gap-1.5 h-10 px-3.5 text-xs font-semibold text-foreground rounded-xl border border-border bg-card hover:bg-muted/60 transition-all shadow-2xs"
+                        className="flex items-center gap-1.5 h-10 px-3.5 text-xs sm:text-sm font-semibold text-foreground rounded-xl border border-border bg-card hover:bg-muted/60 transition-all shadow-2xs"
                     >
                         <ChevronDown
                             className={`size-3.5 transition-transform duration-200 ${
@@ -285,10 +268,10 @@ export function ItemsPricingTab() {
                                 <PackageOpen className="size-5" />
                             </span>
                             <div className="min-w-0 flex-1">
-                                <h2 className="font-semibold text-foreground text-base">
+                                <h2 className="font-semibold text-foreground text-sm sm:text-base">
                                     {group.name}
                                 </h2>
-                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
                                     {groupItems.length} item
                                     {groupItems.length === 1 ? "" : "s"}
                                 </p>

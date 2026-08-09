@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Zap, RotateCcw, Plus, Check, Save, Store, Globe, Send, MessageSquare, ShoppingBag, Search, X, Filter, Layers } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Zap, RotateCcw, Plus, Check, Save, Store, Globe, Send, MessageSquare, ShoppingBag, Search, X, Filter, Layers, SlidersHorizontal, ScanBarcode } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
 import { useToast } from "@/components/ui/toast";
@@ -9,6 +9,8 @@ import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { controlClassName } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
 import {
     Select,
     SelectContent,
@@ -52,11 +54,34 @@ const channelIcons: Record<string, React.ElementType> = {
     MESSENGER: MessageSquare,
 };
 
+export interface AdvancedFilterState {
+    category: string;
+    unit: string;
+    itemType: string;
+    sortBy: string;
+    minPrice: string;
+    maxPrice: string;
+    sku: string;
+    barcode: string;
+}
+
+const initialFilters: AdvancedFilterState = {
+    category: "ALL",
+    unit: "ALL",
+    itemType: "ALL",
+    sortBy: "name,asc",
+    minPrice: "",
+    maxPrice: "",
+    sku: "",
+    barcode: "",
+};
+
 /**
  * Enhanced Selling Products Tab:
  * - Global Channel Rule (e.g. +10% across entire channel)
  * - Clean Inline Overrides (clutter-free by default, expand on edit)
  * - Sticky Save Action Bar for dirty state feedback
+ * - Advanced Filters panel matching standard catalogue design
  */
 export function SellingProductsTab() {
     const { format } = useMoney();
@@ -72,9 +97,14 @@ export function SellingProductsTab() {
     );
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    // Large Catalogue UX state
+    // Filter & UI states
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [scannerOpen, setScannerOpen] = useState(false);
+
+    const [draftFilters, setDraftFilters] = useState<AdvancedFilterState>(initialFilters);
+    const [appliedFilters, setAppliedFilters] = useState<AdvancedFilterState>(initialFilters);
+
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedGroupId, setSelectedGroupId] = useState("ALL");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "OVERRIDDEN" | "DEFAULT">("ALL");
 
     const channel = sampleChannels.find((entry) => entry.id === channelId);
@@ -165,30 +195,160 @@ export function SellingProductsTab() {
     const globalRule = listing?.globalRule;
     const globalKind = globalRule?.kind ?? "INHERIT";
 
-    // Filter items based on search query, category, and override status
-    const filteredItems = samplePricedItems.filter((item) => {
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            const matchesName = item.name.toLowerCase().includes(query);
-            const matchesSku = item.sku.toLowerCase().includes(query);
-            if (!matchesName && !matchesSku) return false;
-        }
+    const categoryOptionsMap = useMemo(() => {
+        return {
+            ALL: "All categories",
+            ...Object.fromEntries(sampleGroups.map((g) => [g.id, g.name])),
+        };
+    }, []);
 
-        if (selectedGroupId !== "ALL" && item.groupId !== selectedGroupId) {
-            return false;
-        }
+    const statusDisplayMap = useMemo(() => {
+        return {
+            ALL: "ALL",
+            OVERRIDDEN: "With Overrides",
+            DEFAULT: "Channel Default",
+        };
+    }, []);
 
-        if (statusFilter !== "ALL") {
-            const hasAnyOverride = item.units.some((unit) => {
-                const key = listingKey(item.id, unit.id);
-                return listing?.overrides[key] !== undefined;
-            });
-            if (statusFilter === "OVERRIDDEN" && !hasAnyOverride) return false;
-            if (statusFilter === "DEFAULT" && hasAnyOverride) return false;
-        }
+    const unitOptions = useMemo(() => {
+        const set = new Set<string>();
+        samplePricedItems.forEach((item) => {
+            item.units.forEach((u) => set.add(u.label));
+        });
+        return Array.from(set).map((label) => ({ id: label, label }));
+    }, []);
 
-        return true;
-    });
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (appliedFilters.category !== "ALL") count++;
+        if (appliedFilters.unit !== "ALL") count++;
+        if (appliedFilters.itemType !== "ALL") count++;
+        if (appliedFilters.minPrice !== "") count++;
+        if (appliedFilters.maxPrice !== "") count++;
+        if (appliedFilters.sku !== "") count++;
+        if (appliedFilters.barcode !== "") count++;
+        if (appliedFilters.sortBy !== "name,asc") count++;
+        return count;
+    }, [appliedFilters]);
+
+    function handleApplyFilters() {
+        setAppliedFilters({ ...draftFilters });
+    }
+
+    function handleResetFilters() {
+        setDraftFilters(initialFilters);
+        setAppliedFilters(initialFilters);
+        setSearchQuery("");
+        setStatusFilter("ALL");
+    }
+
+    function updateDraftFilter<K extends keyof AdvancedFilterState>(
+        field: K,
+        value: AdvancedFilterState[K],
+    ) {
+        setDraftFilters((current) => ({
+            ...current,
+            [field]: value,
+        }));
+    }
+
+    // Filter and sort items based on search query, advanced filters, and rule status
+    const filteredItems = useMemo(() => {
+        let result = samplePricedItems.filter((item) => {
+            // Live Search Query (Name, SKU, Barcode)
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase().trim();
+                const matchesName = item.name.toLowerCase().includes(query);
+                const matchesSku = item.sku.toLowerCase().includes(query);
+                const matchesBarcode = item.barcode?.toLowerCase().includes(query) ?? false;
+                if (!matchesName && !matchesSku && !matchesBarcode) return false;
+            }
+
+            // Category Filter
+            if (appliedFilters.category !== "ALL" && item.groupId !== appliedFilters.category) {
+                return false;
+            }
+
+            // Unit Filter
+            if (appliedFilters.unit !== "ALL") {
+                const hasUnit = item.units.some(
+                    (u) => u.id === appliedFilters.unit || u.label === appliedFilters.unit,
+                );
+                if (!hasUnit) return false;
+            }
+
+            // Item Type Filter
+            if (appliedFilters.itemType !== "ALL" && (item.itemType ?? "Standard") !== appliedFilters.itemType) {
+                return false;
+            }
+
+            // SKU Filter
+            if (appliedFilters.sku.trim()) {
+                const targetSku = appliedFilters.sku.toLowerCase().trim();
+                if (!item.sku.toLowerCase().includes(targetSku)) return false;
+            }
+
+            // Barcode Filter
+            if (appliedFilters.barcode.trim()) {
+                const targetBc = appliedFilters.barcode.toLowerCase().trim();
+                if (!item.barcode || !item.barcode.toLowerCase().includes(targetBc)) return false;
+            }
+
+            // Price Range Filter
+            const prices = Object.values(item.basePrices).filter((p): p is number => p !== undefined);
+            const minItemPrice = prices.length > 0 ? Math.min(...prices) : 0;
+            const maxItemPrice = prices.length > 0 ? Math.max(...prices) : 0;
+
+            if (appliedFilters.minPrice !== "") {
+                const minVal = Number(appliedFilters.minPrice);
+                if (Number.isFinite(minVal) && maxItemPrice < minVal) return false;
+            }
+
+            if (appliedFilters.maxPrice !== "") {
+                const maxVal = Number(appliedFilters.maxPrice);
+                if (Number.isFinite(maxVal) && minItemPrice > maxVal) return false;
+            }
+
+            // Status Filter (ALL, OVERRIDDEN, DEFAULT)
+            if (statusFilter !== "ALL") {
+                const hasAnyOverride = item.units.some((unit) => {
+                    const key = listingKey(item.id, unit.id);
+                    return listing?.overrides[key] !== undefined;
+                });
+                if (statusFilter === "OVERRIDDEN" && !hasAnyOverride) return false;
+                if (statusFilter === "DEFAULT" && hasAnyOverride) return false;
+            }
+
+            return true;
+        });
+
+        // Sorting
+        return [...result].sort((a, b) => {
+            switch (appliedFilters.sortBy) {
+                case "name,desc":
+                    return b.name.localeCompare(a.name);
+                case "sku,asc":
+                    return a.sku.localeCompare(b.sku);
+                case "price,asc": {
+                    const aPrices = Object.values(a.basePrices).filter((p): p is number => p !== undefined);
+                    const bPrices = Object.values(b.basePrices).filter((p): p is number => p !== undefined);
+                    const aMin = aPrices.length ? Math.min(...aPrices) : 0;
+                    const bMin = bPrices.length ? Math.min(...bPrices) : 0;
+                    return aMin - bMin;
+                }
+                case "price,desc": {
+                    const aPrices = Object.values(a.basePrices).filter((p): p is number => p !== undefined);
+                    const bPrices = Object.values(b.basePrices).filter((p): p is number => p !== undefined);
+                    const aMax = aPrices.length ? Math.max(...aPrices) : 0;
+                    const bMax = bPrices.length ? Math.max(...bPrices) : 0;
+                    return bMax - aMax;
+                }
+                case "name,asc":
+                default:
+                    return a.name.localeCompare(b.name);
+            }
+        });
+    }, [appliedFilters, searchQuery, statusFilter, listing]);
 
     return (
         <div className="flex flex-col gap-4 relative pb-16">
@@ -197,9 +357,6 @@ export function SellingProductsTab() {
                 {sampleChannels.map((entry) => {
                     const active = entry.id === channelId;
                     const Icon = channelIcons[entry.code.toUpperCase()] ?? ShoppingBag;
-                    const count =
-                        listings.find((row) => row.channelId === entry.id)
-                            ?.itemIds.length ?? 0;
                     const open = isOpenAt(
                         schedules[entry.id] ?? emptySchedule(),
                         new Date(),
@@ -251,7 +408,7 @@ export function SellingProductsTab() {
                 }}
             />
 
-            {/* Global Channel Markup Rule Card (Matching Schedule Card style) */}
+            {/* Global Channel Markup Rule Card */}
             <section className="overflow-hidden rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -264,7 +421,7 @@ export function SellingProductsTab() {
                                     Global Channel Markup Rule
                                 </h3>
                                 {globalKind !== "INHERIT" && (
-                                    <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                                    <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
                                         Active: {describeOverride(globalRule)}
                                     </span>
                                 )}
@@ -280,7 +437,7 @@ export function SellingProductsTab() {
                     </div>
 
                     {/* Clean Rule Select Controls */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                         <Select
                             value={globalKind}
                             onValueChange={(val) =>
@@ -292,8 +449,9 @@ export function SellingProductsTab() {
                             items={overrideKindLabels}
                         >
                             <SelectTrigger
+                                size="sm"
                                 aria-label="Global channel rule"
-                                className={`${controlClassName} h-9.5 w-44 bg-card px-3.5 text-xs font-semibold border-border shadow-2xs hover:border-primary/40`}
+                                className={`${controlClassName} !h-10 w-48 bg-card px-3.5 text-sm font-semibold rounded-xl border border-border shadow-2xs hover:border-primary/40`}
                             >
                                 <SelectValue />
                             </SelectTrigger>
@@ -316,7 +474,7 @@ export function SellingProductsTab() {
                                     onChange={(e) =>
                                         setGlobalRule(globalKind, e.target.value)
                                     }
-                                    className={`${controlClassName} h-9.5 w-28 bg-card pl-3 pr-7 text-xs font-semibold shadow-2xs`}
+                                    className={`${controlClassName} !h-10 w-28 bg-card pl-3.5 pr-7 text-sm font-semibold rounded-xl`}
                                 />
                                 <span className="absolute right-2.5 text-xs font-bold text-muted-foreground pointer-events-none">
                                     {globalKind === "MARKUP_PERCENT" ? "%" : "$"}
@@ -328,20 +486,18 @@ export function SellingProductsTab() {
 
                 {/* Bottom Action Buttons Inside Global Rule Card */}
                 {hasUnsavedChanges && (
-                    <div className="mt-3 flex items-center justify-end gap-2.5 animate-in fade-in duration-200">
+                    <div className="mt-3.5 flex items-center justify-end gap-2.5 animate-in fade-in duration-200">
                         <Button
                             type="button"
-                            size="sm"
                             onClick={handleResetChanges}
-                            className="h-9 px-4 text-xs font-semibold bg-[#D14341] text-white hover:bg-[#D14341]/90 rounded-xl shadow-xs transition-colors"
+                            className="!h-10 px-4 text-sm font-semibold bg-[#D14341] text-white hover:bg-[#D14341]/90 rounded-xl shadow-xs transition-colors"
                         >
                             Reset
                         </Button>
                         <Button
                             type="button"
-                            size="sm"
                             onClick={handleSaveChanges}
-                            className="h-9 px-5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-xs transition-colors"
+                            className="!h-10 px-5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-xs transition-colors"
                         >
                             Save Changes
                         </Button>
@@ -370,77 +526,260 @@ export function SellingProductsTab() {
                     </span>
                 </div>
 
-                {/* Search & Category Filter Toolbar for Large Catalogues */}
-                <div className="border-b border-border bg-muted/20 p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                    {/* Live Search Input */}
-                    <div className="relative flex-1 max-w-sm">
-                        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <Input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search item name or SKU..."
-                            className={`${controlClassName} h-9 pl-9 pr-8 text-xs bg-card`}
-                        />
-                        {searchQuery && (
-                            <button
-                                type="button"
-                                onClick={() => setSearchQuery("")}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                                <X className="size-3.5" />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Category & Status Filter Tabs */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        {/* Category Filter */}
-                        <div className="flex items-center gap-1 bg-card rounded-xl border border-border p-1 shadow-2xs">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedGroupId("ALL")}
-                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                                    selectedGroupId === "ALL"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "text-muted-foreground hover:text-foreground"
-                                }`}
-                            >
-                                All Categories
-                            </button>
-                            {sampleGroups.map((group) => (
+                    {/* Advanced Filter Toolbar matching provided UI designs */}
+                <div className="p-3 sm:p-4 border-b border-border bg-muted/15 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                        {/* Live Search Input */}
+                        <div className="relative flex-1 min-w-[220px]">
+                            <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <Input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search items..."
+                                className={`${controlClassName} !h-10 pl-10 pr-9 text-sm font-medium bg-card rounded-xl border-border`}
+                            />
+                            {searchQuery && (
                                 <button
-                                    key={group.id}
                                     type="button"
-                                    onClick={() => setSelectedGroupId(group.id)}
-                                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                                        selectedGroupId === group.id
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                 >
-                                    {group.name}
+                                    <X className="size-4" />
                                 </button>
-                            ))}
+                            )}
                         </div>
 
-                        {/* Status Filter */}
-                        <Select
-                            value={statusFilter}
-                            onValueChange={(val) =>
-                                setStatusFilter((val || "ALL") as any)
-                            }
+                        {/* Advanced Filters Button */}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setFilterPanelOpen((prev) => !prev)}
+                            className="!h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card text-foreground hover:bg-muted transition-all shrink-0 gap-2"
                         >
-                            <SelectTrigger aria-label="Rule Status Filter" className={`${controlClassName} h-9 w-36 text-xs bg-card font-semibold`}>
-                                <SelectValue placeholder="All States" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">All Rule States</SelectItem>
-                                <SelectItem value="OVERRIDDEN">With Overrides</SelectItem>
-                                <SelectItem value="DEFAULT">Channel Default</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            <SlidersHorizontal className="size-4 shrink-0" />
+                            <span>Advanced filters</span>
+                            {activeFilterCount > 0 && (
+                                <span className="grid size-5 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </Button>
+
+                        {/* Scan Barcode Button */}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setScannerOpen(true)}
+                            className="!h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 gap-2"
+                        >
+                            <ScanBarcode className="size-4 shrink-0" />
+                            <span>Scan barcode</span>
+                        </Button>
+
+                        {/* Status Filter */}
+                        <div className="w-32 sm:w-36 shrink-0">
+                            <Select
+                                value={statusFilter}
+                                items={statusDisplayMap}
+                                onValueChange={(val) =>
+                                    setStatusFilter((val || "ALL") as any)
+                                }
+                            >
+                                <SelectTrigger size="sm" aria-label="Rule Status Filter" className={`${controlClassName} !h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card text-foreground hover:bg-muted transition-all shrink-0`}>
+                                    <SelectValue placeholder="ALL" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">ALL</SelectItem>
+                                    <SelectItem value="OVERRIDDEN">With Overrides</SelectItem>
+                                    <SelectItem value="DEFAULT">Channel Default</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
+
+                    {/* Expandable Advanced Filters Box */}
+                    {filterPanelOpen && (
+                        <div className="mt-2.5 rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="flex flex-col gap-1">
+                                <h3 className="font-bold text-foreground text-base sm:text-lg">
+                                    Advanced filters
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Narrow the catalogue, then apply all fields together.
+                                </p>
+                            </div>
+
+                            <div className="mt-5 grid gap-4.5 sm:grid-cols-2 lg:grid-cols-4">
+                                {/* Row 1: Category */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Category
+                                    </Label>
+                                    <Select
+                                        value={draftFilters.category}
+                                        items={categoryOptionsMap}
+                                        onValueChange={(val) => updateDraftFilter("category", val || "ALL")}
+                                    >
+                                        <SelectTrigger className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium border-border px-3.5`}>
+                                            <SelectValue placeholder="All categories" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">All categories</SelectItem>
+                                            {sampleGroups.map((g) => (
+                                                <SelectItem key={g.id} value={g.id}>
+                                                    {g.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Unit */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Unit
+                                    </Label>
+                                    <Select
+                                        value={draftFilters.unit}
+                                        onValueChange={(val) => updateDraftFilter("unit", val || "ALL")}
+                                    >
+                                        <SelectTrigger className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium border-border px-3.5`}>
+                                            <SelectValue placeholder="ALL" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">ALL</SelectItem>
+                                            {unitOptions.map((unit) => (
+                                                <SelectItem key={unit.id} value={unit.id}>
+                                                    {unit.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Item type */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Item type
+                                    </Label>
+                                    <Select
+                                        value={draftFilters.itemType}
+                                        onValueChange={(val) => updateDraftFilter("itemType", val || "ALL")}
+                                    >
+                                        <SelectTrigger className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium border-border px-3.5`}>
+                                            <SelectValue placeholder="ALL" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">ALL</SelectItem>
+                                            <SelectItem value="Standard">Standard</SelectItem>
+                                            <SelectItem value="Combo">Combo</SelectItem>
+                                            <SelectItem value="Service">Service</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Sort by */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Sort by
+                                    </Label>
+                                    <Select
+                                        value={draftFilters.sortBy}
+                                        onValueChange={(val) => updateDraftFilter("sortBy", val || "name,asc")}
+                                    >
+                                        <SelectTrigger className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium border-border px-3.5`}>
+                                            <SelectValue placeholder="name,asc" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="name,asc">name,asc</SelectItem>
+                                            <SelectItem value="name,desc">name,desc</SelectItem>
+                                            <SelectItem value="price,asc">price,asc</SelectItem>
+                                            <SelectItem value="price,desc">price,desc</SelectItem>
+                                            <SelectItem value="sku,asc">sku,asc</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Row 2: Minimum price */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Minimum price
+                                    </Label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={draftFilters.minPrice}
+                                        onChange={(e) => updateDraftFilter("minPrice", e.target.value)}
+                                        className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium px-3.5`}
+                                    />
+                                </div>
+
+                                {/* Maximum price */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Maximum price
+                                    </Label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="No maximum"
+                                        value={draftFilters.maxPrice}
+                                        onChange={(e) => updateDraftFilter("maxPrice", e.target.value)}
+                                        className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium px-3.5`}
+                                    />
+                                </div>
+
+                                {/* SKU */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        SKU
+                                    </Label>
+                                    <Input
+                                        type="text"
+                                        placeholder="Exact SKU"
+                                        value={draftFilters.sku}
+                                        onChange={(e) => updateDraftFilter("sku", e.target.value)}
+                                        className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium px-3.5`}
+                                    />
+                                </div>
+
+                                {/* Barcode */}
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-semibold text-foreground">
+                                        Barcode
+                                    </Label>
+                                    <Input
+                                        type="text"
+                                        placeholder="Exact barcode"
+                                        value={draftFilters.barcode}
+                                        onChange={(e) => updateDraftFilter("barcode", e.target.value)}
+                                        className={`${controlClassName} h-10 bg-card rounded-xl text-sm font-medium px-3.5`}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Bottom Action Buttons */}
+                            <div className="mt-6 flex items-center justify-end gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={handleApplyFilters}
+                                    className="h-10 px-6 text-sm font-semibold bg-[#00A651] hover:bg-[#008f45] text-white rounded-xl shadow-xs transition-colors"
+                                >
+                                    Apply filters
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleResetFilters}
+                                    className="h-10 px-5 text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground transition-colors"
+                                >
+                                    Reset fields
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="divide-y divide-border">
@@ -453,11 +792,7 @@ export function SellingProductsTab() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                    setSearchQuery("");
-                                    setSelectedGroupId("ALL");
-                                    setStatusFilter("ALL");
-                                }}
+                                onClick={handleResetFilters}
                                 className="mt-4 text-xs font-semibold rounded-xl"
                             >
                                 Clear All Filters
@@ -517,7 +852,7 @@ export function SellingProductsTab() {
                                                         Sold as
                                                     </th>
                                                     <th className="pb-2 pr-4">
-                                                        Base Price
+                                                        Base Sell Price
                                                     </th>
                                                     <th className="pb-2 pr-4">
                                                         Sells for
@@ -599,17 +934,17 @@ export function SellingProductsTab() {
                                                                               )}
                                                                     </span>
                                                                     {itemHasOverride ? (
-                                                                        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                                                                        <span className="rounded-full bg-warning/15 px-2.5 py-1 text-xs font-semibold text-warning">
                                                                             Item override ({describeOverride(override)})
                                                                         </span>
                                                                     ) : globalRule &&
                                                                       globalRule.kind !==
                                                                           "INHERIT" ? (
-                                                                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                                                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                                                                             Global ({describeOverride(globalRule)})
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                                                                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
                                                                             Same as base
                                                                         </span>
                                                                     )}
@@ -617,7 +952,7 @@ export function SellingProductsTab() {
                                                             </td>
                                                             <td className="py-2.5 text-right">
                                                                 {isEditing ? (
-                                                                    <div className="flex items-center justify-end gap-2">
+                                                                    <div className="flex items-center justify-end gap-2.5">
                                                                         <Select
                                                                             value={
                                                                                 kind
@@ -640,8 +975,9 @@ export function SellingProductsTab() {
                                                                             }
                                                                         >
                                                                             <SelectTrigger
+                                                                                size="sm"
                                                                                 aria-label={`${unit.label} price rule`}
-                                                                                className={`${controlClassName} h-8 w-36 px-2.5 text-xs`}
+                                                                                className={`${controlClassName} !h-10 w-44 bg-card px-3.5 text-sm font-semibold rounded-xl border border-border shadow-2xs hover:border-primary/40`}
                                                                             >
                                                                                 <SelectValue />
                                                                             </SelectTrigger>
@@ -690,9 +1026,9 @@ export function SellingProductsTab() {
                                                                                                 .value,
                                                                                         )
                                                                                     }
-                                                                                    className={`${controlClassName} h-8 w-24 bg-card pl-2.5 pr-6 text-xs font-semibold shadow-2xs`}
+                                                                                    className={`${controlClassName} !h-10 w-28 bg-card pl-3.5 pr-7 text-sm font-semibold rounded-xl shadow-2xs`}
                                                                                 />
-                                                                                <span className="absolute right-2 text-xs font-bold text-muted-foreground pointer-events-none">
+                                                                                <span className="absolute right-2.5 text-xs font-bold text-muted-foreground pointer-events-none">
                                                                                     {kind === "MARKUP_PERCENT" ? "%" : "$"}
                                                                                 </span>
                                                                             </div>
@@ -701,7 +1037,6 @@ export function SellingProductsTab() {
                                                                         <Button
                                                                             type="button"
                                                                             variant="ghost"
-                                                                            size="icon-xs"
                                                                             title="Reset to channel default"
                                                                             onClick={() =>
                                                                                 setOverride(
@@ -711,23 +1046,23 @@ export function SellingProductsTab() {
                                                                                     "",
                                                                                 )
                                                                             }
+                                                                            className="!size-10 rounded-xl p-0"
                                                                         >
-                                                                            <RotateCcw className="size-3.5 text-muted-foreground hover:text-destructive" />
+                                                                            <RotateCcw className="size-4 text-muted-foreground hover:text-destructive" />
                                                                         </Button>
                                                                     </div>
                                                                 ) : (
                                                                     <Button
                                                                         type="button"
                                                                         variant="outline"
-                                                                        size="xs"
                                                                         onClick={() =>
                                                                             toggleEditingOverride(
                                                                                 key,
                                                                             )
                                                                         }
-                                                                        className="h-8 gap-1 rounded-lg text-xs font-semibold"
+                                                                        className="!h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground transition-all gap-1.5"
                                                                     >
-                                                                        <Plus className="size-3" />
+                                                                        <Plus className="size-4" />
                                                                         Add Override
                                                                     </Button>
                                                                 )}
@@ -745,6 +1080,19 @@ export function SellingProductsTab() {
                 </div>
             </section>
 
+            <BarcodeScannerDialog
+                open={scannerOpen}
+                onOpenChange={setScannerOpen}
+                onItemFound={(item) => {
+                    if (item.barcode) {
+                        updateDraftFilter("barcode", item.barcode);
+                        setAppliedFilters((curr) => ({ ...curr, barcode: item.barcode ?? "" }));
+                    } else if (item.sku) {
+                        updateDraftFilter("sku", item.sku);
+                        setAppliedFilters((curr) => ({ ...curr, sku: item.sku ?? "" }));
+                    }
+                }}
+            />
         </div>
     );
 }
