@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Zap, RotateCcw, Plus, Check, Save, Store, Globe, Send, MessageSquare, ShoppingBag, Search, X, Filter, Layers, SlidersHorizontal, ScanBarcode } from "lucide-react";
+import { Zap, RotateCcw, Plus, Check, Save, Store, Globe, Send, MessageSquare, ShoppingBag, Search, X, Filter, Layers, SlidersHorizontal, ScanBarcode, ChevronDown } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
 import { useToast } from "@/components/ui/toast";
@@ -106,6 +106,24 @@ export function SellingProductsTab() {
 
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "OVERRIDDEN" | "DEFAULT">("ALL");
+    const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(() => new Set());
+
+    function toggleItemCollapse(itemId: string) {
+        setCollapsedItemIds((current) => {
+            const next = new Set(current);
+            if (next.has(itemId)) next.delete(itemId);
+            else next.add(itemId);
+            return next;
+        });
+    }
+
+    function toggleExpandAllItems() {
+        if (collapsedItemIds.size > 0) {
+            setCollapsedItemIds(new Set());
+        } else {
+            setCollapsedItemIds(new Set(samplePricedItems.map((item) => item.id)));
+        }
+    }
 
     const channel = sampleChannels.find((entry) => entry.id === channelId);
     const listing = listings.find((entry) => entry.channelId === channelId);
@@ -577,6 +595,20 @@ export function SellingProductsTab() {
                             <span>Scan barcode</span>
                         </Button>
 
+                        {/* Expand All / Collapse All Button */}
+                        <Button
+                            type="button"
+                            onClick={toggleExpandAllItems}
+                            className="!h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground transition-all shrink-0 gap-2 shadow-2xs"
+                        >
+                            <ChevronDown
+                                className={`size-4 shrink-0 transition-transform duration-200 ${
+                                    collapsedItemIds.size > 0 ? "-rotate-90" : ""
+                                }`}
+                            />
+                            <span>{collapsedItemIds.size > 0 ? "Expand All" : "Collapse All"}</span>
+                        </Button>
+
                         {/* Status Filter */}
                         <div className="w-32 sm:w-36 shrink-0">
                             <Select
@@ -802,27 +834,51 @@ export function SellingProductsTab() {
                         filteredItems.map((item) => {
                         const listed = listing?.itemIds.includes(item.id);
                         const sellable = item.available;
+                        const isItemCollapsed = collapsedItemIds.has(item.id);
 
                         return (
                             <div key={item.id} className="p-4 sm:p-5">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="font-semibold text-foreground">
-                                                {item.name}
-                                            </p>
-                                            {sellable ? null : (
-                                                <span
-                                                    className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground"
-                                                    title="Unavailable in Inventory"
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleItemCollapse(item.id)}
+                                            className="p-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-all shrink-0 shadow-2xs"
+                                            aria-label={isItemCollapsed ? `Expand ${item.name}` : `Collapse ${item.name}`}
+                                        >
+                                            <ChevronDown
+                                                className={`size-4 transition-transform duration-200 ${
+                                                    isItemCollapsed ? "-rotate-90" : ""
+                                                }`}
+                                            />
+                                        </button>
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleItemCollapse(item.id)}
+                                                    className="font-semibold text-foreground text-left hover:text-primary transition-colors"
                                                 >
-                                                    Unavailable in Inventory
-                                                </span>
-                                            )}
+                                                    {item.name}
+                                                </button>
+                                                {sellable ? null : (
+                                                    <span
+                                                        className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground"
+                                                        title="Unavailable in Inventory"
+                                                    >
+                                                        Unavailable in Inventory
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                                {item.sku}
+                                                {isItemCollapsed && (
+                                                    <span className="ml-2 font-medium text-foreground/70">
+                                                        · {item.units.length} unit{item.units.length === 1 ? "" : "s"}
+                                                    </span>
+                                                )}
+                                            </p>
                                         </div>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {item.sku}
-                                        </p>
                                     </div>
 
                                     <label className="flex shrink-0 items-center gap-2.5 text-sm">
@@ -843,7 +899,7 @@ export function SellingProductsTab() {
                                     </label>
                                 </div>
 
-                                {listed ? (
+                                {listed && !isItemCollapsed ? (
                                     <div className="mt-4 overflow-x-auto">
                                         <table className="w-full min-w-[620px] text-left text-sm">
                                             <thead className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -852,7 +908,7 @@ export function SellingProductsTab() {
                                                         Sold as
                                                     </th>
                                                     <th className="pb-2 pr-4">
-                                                        Base Sell Price
+                                                        Sell Price
                                                     </th>
                                                     <th className="pb-2 pr-4">
                                                         Sells for
