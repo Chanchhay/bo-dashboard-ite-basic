@@ -54,6 +54,8 @@ export type PricedItem = {
     id: string;
     name: string;
     sku: string;
+    barcode?: string;
+    itemType?: string;
     groupId: string;
     /** Mirrors the item's inventory status — read-only here. */
     available: boolean;
@@ -61,6 +63,8 @@ export type PricedItem = {
     units: PriceUnit[];
     /** Base price per unit id. A unit with no entry is simply not priced. */
     basePrices: Record<string, number | undefined>;
+    /** Stock unit cost from inventory when stock was added (read-only in pricing). */
+    unitCost?: number;
 };
 
 export type PricingGroup = {

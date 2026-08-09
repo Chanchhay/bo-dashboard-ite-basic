@@ -223,7 +223,7 @@ function SectionItem({
                                             "flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-[14px] font-medium outline-none transition-colors marker:hidden focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden",
                                             leafActive
                                                 ? "bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.25)] border border-transparent dark:border-[#2a3042] font-semibold"
-                                                : "text-[#8a8f89] dark:text-[#94a3b8] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
+                                                : "text-[#5c6660] dark:text-[#94a3b8] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
                                         )}
                                     >
                                         <span className="flex-1">

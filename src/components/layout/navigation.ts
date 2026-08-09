@@ -243,7 +243,7 @@ export const NAVIGATION: NavSection[] = [
                         href: "/sales/pricing?tab=items",
                         exact: true,
                         permission: PERMISSIONS.SALES_MANAGE,
-                        alsoActiveOn: [/^\/sales\/pricing$/],
+                        alsoActiveOn: [/^\/sales\/pricing(\?.*tab=items)?$/],
                     },
                     {
                         label: "Channel Pricing",
