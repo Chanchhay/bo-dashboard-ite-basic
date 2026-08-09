@@ -247,6 +247,66 @@ export const inventoryItemQuerySchema = z
 
 export type InventoryItemQuery = z.infer<typeof inventoryItemQuerySchema>;
 
+/**
+ * The entry types an operator may record by hand.
+ *
+ * `SALE` and `RETURN` are excluded deliberately: the order flow writes those,
+ * and a hand-written one can never reconcile against an order, so it corrupts
+ * the ledger's meaning. They stay in `stockEntryTypes` because existing entries
+ * still have to render.
+ */
+export const manualStockEntryTypes = [
+    "OPENING_STOCK",
+    "STOCK_IN",
+    "STOCK_OUT",
+    "ADJUSTMENT",
+] as const;
+
+export const stockEntryTypeLabels: Record<
+    (typeof stockEntryTypes)[number],
+    string
+> = {
+    OPENING_STOCK: "Opening stock",
+    STOCK_IN: "Stock in",
+    STOCK_OUT: "Stock out",
+    ADJUSTMENT: "Adjustment",
+    SALE: "Sale",
+    RETURN: "Return",
+};
+
+export type StockState = "OUT" | "LOW" | "IN";
+
+/**
+ * The one definition of stock health, used by every screen that shows it.
+ *
+ * Three incompatible versions of this used to exist — the stock screen excluded
+ * zero from "low", the dashboard included it, and the POS read a threshold and
+ * never compared against it, so every sold line raised an alert. One rule:
+ *
+ *   out   quantity has run out
+ *   low   some left, at or below the threshold
+ *   in    everything else
+ *
+ * A threshold of 0 therefore means "only warn me at zero", which is what a
+ * merchant who never set one would expect.
+ */
+export function stockState(
+    quantity: number | undefined,
+    threshold: number | undefined,
+): StockState {
+    const onHand = quantity ?? 0;
+
+    if (onHand <= 0) return "OUT";
+
+    return onHand <= (threshold ?? 0) ? "LOW" : "IN";
+}
+
+export const stockStateLabels: Record<StockState, string> = {
+    OUT: "Out of stock",
+    LOW: "Low stock",
+    IN: "In stock",
+};
+
 export type StockSummary = {
     itemId: string;
     quantityOnHand?: number;
@@ -271,6 +331,38 @@ export type StockEntry = {
     createdBy?: string;
     createdDate?: string;
 };
+
+/**
+ * The most recently recorded cost per item, read off the ledger.
+ *
+ * Stock value has to come from somewhere now that inventory holds no prices,
+ * and `unitCost` is the number that was always right for it — the old tile
+ * multiplied quantity by *selling* price and called the result inventory value,
+ * which is retail value, not what the stock is worth.
+ *
+ * Latest cost rather than a moving average: it is one number a merchant can
+ * verify against their last invoice. Items that never had a cost recorded
+ * contribute nothing, and the screen says how many those are rather than
+ * quietly understating the total.
+ */
+export function latestUnitCosts(entries: readonly StockEntry[]) {
+    const newest = new Map<string, { cost: number; at: number }>();
+
+    for (const entry of entries) {
+        if (!entry.itemId || entry.unitCost === undefined) continue;
+
+        const at = new Date(entry.createdDate || 0).getTime();
+        const current = newest.get(entry.itemId);
+
+        if (!current || at >= current.at) {
+            newest.set(entry.itemId, { cost: entry.unitCost, at });
+        }
+    }
+
+    return new Map(
+        [...newest].map(([itemId, { cost }]) => [itemId, cost] as const),
+    );
+}
 
 const optionalUuidSchema = z
     .string()

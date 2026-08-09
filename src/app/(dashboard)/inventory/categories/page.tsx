@@ -1,5 +1,6 @@
-import { InventoryCategories } from "@/components/inventory/InventoryCategories";
+import { redirect } from "next/navigation";
 
+/** Categories are now "Item groups", under Item Config. */
 export default function InventoryCategoriesPage() {
-    return <InventoryCategories />;
+    redirect("/inventory/config");
 }

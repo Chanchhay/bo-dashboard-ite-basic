@@ -132,7 +132,7 @@ export const NAVIGATION: NavSection[] = [
         },
         children: [
             {
-                label: "Overview",
+                label: "Items",
                 href: "/inventory",
                 exact: true,
                 permission: PERMISSIONS.INVENTORY_ITEMS,
@@ -142,14 +142,18 @@ export const NAVIGATION: NavSection[] = [
                 ],
             },
             {
-                label: "Categories",
-                href: "/inventory/categories",
-                permission: PERMISSIONS.INVENTORY_CATEGORIES,
-            },
-            {
                 label: "Stock",
                 href: "/inventory/stock",
                 permission: PERMISSIONS.INVENTORY_STOCK,
+            },
+            {
+                // Units, conversions, item groups, add-ons and option presets —
+                // the building blocks items are assembled from. Categories used
+                // to live at `/inventory/categories`, which now redirects here.
+                label: "Item config",
+                href: "/inventory/config",
+                permission: PERMISSIONS.INVENTORY_CATEGORIES,
+                alsoActiveOn: [/^\/inventory\/categories$/],
             },
         ],
     },
@@ -185,6 +189,14 @@ export const NAVIGATION: NavSection[] = [
                 href: "/sales",
                 exact: true,
                 permission: PERMISSIONS.SALES_ORDERS,
+            },
+            {
+                // Base prices per item and package, then what each channel
+                // charges. Sits above Customers because it is the thing most
+                // owners open Sale Management to do.
+                label: "Items & pricing",
+                href: "/sales/pricing",
+                permission: PERMISSIONS.SALES_MANAGE,
             },
             {
                 label: "Customers",
