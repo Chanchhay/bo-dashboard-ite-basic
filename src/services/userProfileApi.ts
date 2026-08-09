@@ -20,11 +20,24 @@ export const userProfileApi = baseApi.injectEndpoints({
             UserProfile,
             UserProfileUpdate
         >({
-            query: ({ file, ...fields }) => ({
-                url: "/user-profile",
-                method: "PATCH",
-                body: toUserProfileFormData(fields, file),
-            }),
+            query: ({ file, ...fields }) => {
+                if (file) {
+                    return {
+                        url: "/user-profile",
+                        method: "PATCH",
+                        body: toUserProfileFormData(fields, file),
+                    };
+                }
+
+                return {
+                    url: "/user-profile",
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: fields,
+                };
+            },
         }),
         // Answers 204, so there is nothing to publish: the form patches the
         // cached profile itself once the picture is gone.
