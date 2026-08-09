@@ -14,6 +14,19 @@ export function useCustomerDisplayListener(
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // 0. Read cached payload from localStorage immediately (0ms initial state when opened after items added)
+    try {
+      const stored =
+        localStorage.getItem(`ipos_customer_display_${terminalId}`) ||
+        localStorage.getItem("ipos_customer_display_latest");
+      if (stored) {
+        const parsed = JSON.parse(stored) as CustomerDisplayPayload;
+        if (parsed && parsed.status) {
+          setData(parsed);
+        }
+      }
+    } catch {}
+
     // 1. Local BroadcastChannel Listener (Instant 0ms sync)
     let channel: BroadcastChannel | null = null;
     try {
@@ -22,6 +35,9 @@ export function useCustomerDisplayListener(
         if (event.data && typeof event.data === "object" && event.data.status) {
           if (!terminalId || event.data.terminalId === terminalId) {
             setData(event.data);
+            try {
+              localStorage.setItem(`ipos_customer_display_${terminalId}`, JSON.stringify(event.data));
+            } catch {}
           }
         }
       };

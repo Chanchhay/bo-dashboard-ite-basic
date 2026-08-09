@@ -38,6 +38,20 @@ function orderFilterParams(input: OrderHistoryQuery | void | null) {
     };
 }
 
+let inFlightCount = 0;
+
+function handleFulfilled(dispatch: any, data: PosOrder | null) {
+    if (inFlightCount <= 0 && data) {
+        dispatch(
+            posOrderApi.util.updateQueryData(
+                "getCurrentOrder",
+                undefined,
+                () => data,
+            ),
+        );
+    }
+}
+
 export const posOrderApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getCurrentOrder: builder.query<PosOrder | null, void>({
@@ -152,6 +166,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                 body: { itemId, variantId, quantity },
             }),
             async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                inFlightCount++;
                 const patchResult = dispatch(
                     posOrderApi.util.updateQueryData(
                         "getCurrentOrder",
@@ -197,17 +212,13 @@ export const posOrderApi = baseApi.injectEndpoints({
 
                 try {
                     const { data } = await queryFulfilled;
-                    if (data) {
-                        dispatch(
-                            posOrderApi.util.updateQueryData(
-                                "getCurrentOrder",
-                                undefined,
-                                () => data,
-                            ),
-                        );
-                    }
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
                 } catch {
-                    patchResult.undo();
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
                 }
             },
         }),
@@ -222,6 +233,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                 body: { quantity },
             }),
             async onQueryStarted({ orderItemId, quantity }, { dispatch, queryFulfilled }) {
+                inFlightCount++;
                 const patchResult = dispatch(
                     posOrderApi.util.updateQueryData(
                         "getCurrentOrder",
@@ -245,17 +257,13 @@ export const posOrderApi = baseApi.injectEndpoints({
 
                 try {
                     const { data } = await queryFulfilled;
-                    if (data) {
-                        dispatch(
-                            posOrderApi.util.updateQueryData(
-                                "getCurrentOrder",
-                                undefined,
-                                () => data,
-                            ),
-                        );
-                    }
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
                 } catch {
-                    patchResult.undo();
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
                 }
             },
         }),
@@ -266,6 +274,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                 method: "DELETE",
             }),
             async onQueryStarted(orderItemId, { dispatch, queryFulfilled }) {
+                inFlightCount++;
                 const patchResult = dispatch(
                     posOrderApi.util.updateQueryData(
                         "getCurrentOrder",
@@ -284,17 +293,13 @@ export const posOrderApi = baseApi.injectEndpoints({
 
                 try {
                     const { data } = await queryFulfilled;
-                    if (data) {
-                        dispatch(
-                            posOrderApi.util.updateQueryData(
-                                "getCurrentOrder",
-                                undefined,
-                                () => data,
-                            ),
-                        );
-                    }
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
                 } catch {
-                    patchResult.undo();
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
                 }
             },
         }),
@@ -368,6 +373,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                 body,
             }),
             async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                inFlightCount++;
                 const patchResult = dispatch(
                     posOrderApi.util.updateQueryData(
                         "getCurrentOrder",
@@ -381,17 +387,13 @@ export const posOrderApi = baseApi.injectEndpoints({
 
                 try {
                     const { data } = await queryFulfilled;
-                    if (data) {
-                        dispatch(
-                            posOrderApi.util.updateQueryData(
-                                "getCurrentOrder",
-                                undefined,
-                                () => data,
-                            ),
-                        );
-                    }
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
                 } catch {
-                    patchResult.undo();
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
                 }
             },
         }),
@@ -403,6 +405,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                 body,
             }),
             async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                inFlightCount++;
                 const patchResult = dispatch(
                     posOrderApi.util.updateQueryData(
                         "getCurrentOrder",
@@ -417,17 +420,13 @@ export const posOrderApi = baseApi.injectEndpoints({
 
                 try {
                     const { data } = await queryFulfilled;
-                    if (data) {
-                        dispatch(
-                            posOrderApi.util.updateQueryData(
-                                "getCurrentOrder",
-                                undefined,
-                                () => data,
-                            ),
-                        );
-                    }
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    handleFulfilled(dispatch, data);
                 } catch {
-                    patchResult.undo();
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    if (inFlightCount === 0) {
+                        patchResult.undo();
+                    }
                 }
             },
         }),

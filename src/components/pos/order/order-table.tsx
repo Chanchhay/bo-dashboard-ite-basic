@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Crown,
   Minus,
@@ -91,9 +91,9 @@ interface ItemRowProps {
   item: PosOrderItem;
   /** The order's own currency — an order opened before a base change keeps it. */
   currency?: string;
-  onIncrease: () => void;
-  onDecrease: () => void;
-  onRemove: () => void;
+  onIncrease: (item: PosOrderItem) => void;
+  onDecrease: (item: PosOrderItem) => void;
+  onRemove: (orderItemId: string) => void;
   /** Quantity buttons are held while the line is being written. */
   busy?: boolean;
 }
@@ -119,8 +119,9 @@ const ItemRow = memo(function ItemRow({
           <button
             type="button"
             aria-label={`Decrease ${item.itemName}`}
-            onClick={onDecrease}
+            onClick={() => onDecrease(item)}
             disabled={busy}
+            style={{ touchAction: "manipulation" }}
             className="flex size-7 shrink-0 items-center justify-center rounded-full border border-red-400 text-brand-red transition hover:bg-red-50 active:scale-90 disabled:opacity-40 sm:size-5"
           >
             <Minus className="h-3 w-3" />
@@ -131,8 +132,9 @@ const ItemRow = memo(function ItemRow({
           <button
             type="button"
             aria-label={`Increase ${item.itemName}`}
-            onClick={onIncrease}
+            onClick={() => onIncrease(item)}
             disabled={busy}
+            style={{ touchAction: "manipulation" }}
             className="flex size-7 shrink-0 items-center justify-center rounded-full border border-green-500 text-primary transition hover:bg-green-50 active:scale-90 disabled:opacity-40 sm:size-5"
           >
             <Plus className="h-3 w-3" />
@@ -154,8 +156,9 @@ const ItemRow = memo(function ItemRow({
           <button
             type="button"
             aria-label={`Remove ${item.itemName}`}
-            onClick={onRemove}
+            onClick={() => onRemove(item.id)}
             disabled={busy}
+            style={{ touchAction: "manipulation" }}
             className="grid size-9 place-items-center rounded-full text-brand-red transition hover:bg-red-50 active:scale-90 disabled:opacity-40 sm:size-8"
           >
             <Trash2 className="h-4 w-4" />
@@ -195,6 +198,69 @@ export function OrderTable({
   // Modals for POS customer & discount
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
+
+  const lineQuantityRef = useRef<Map<string, number>>(new Map());
+
+  // Keep lineQuantityRef in sync with actual order items from server
+  useEffect(() => {
+    if (order?.items) {
+      order.items.forEach((i) => {
+        lineQuantityRef.current.set(i.id, i.quantity);
+      });
+    }
+  }, [order?.items]);
+
+  const handleIncrease = useCallback(
+    (item: PosOrderItem) => {
+      const current = lineQuantityRef.current.get(item.id) ?? item.quantity;
+      const nextQty = current + 1;
+      lineQuantityRef.current.set(item.id, nextQty);
+
+      void runLineChange(
+        item.id,
+        () =>
+          updateOrderItem({
+            orderItemId: item.id,
+            quantity: nextQty,
+          }).unwrap(),
+        "Could not change the quantity",
+      );
+    },
+    [updateOrderItem],
+  );
+
+  const handleDecrease = useCallback(
+    (item: PosOrderItem) => {
+      const current = lineQuantityRef.current.get(item.id) ?? item.quantity;
+      const nextQty = Math.max(0, current - 1);
+      lineQuantityRef.current.set(item.id, nextQty);
+
+      void runLineChange(
+        item.id,
+        () =>
+          nextQty <= 0
+            ? removeOrderItem(item.id).unwrap()
+            : updateOrderItem({
+                orderItemId: item.id,
+                quantity: nextQty,
+              }).unwrap(),
+        "Could not change the quantity",
+      );
+    },
+    [removeOrderItem, updateOrderItem],
+  );
+
+  const handleRemove = useCallback(
+    (orderItemId: string) => {
+      lineQuantityRef.current.delete(orderItemId);
+      void runLineChange(
+        orderItemId,
+        () => removeOrderItem(orderItemId).unwrap(),
+        "Could not remove that item",
+      );
+    },
+    [removeOrderItem],
+  );
 
   // Active persistent discount rule for current order
   const [activeDiscountRule, setActiveDiscountRule] =
@@ -412,37 +478,9 @@ export function OrderTable({
       item={item}
       currency={order?.currency}
       busy={busyLineId === item.id}
-      onIncrease={() =>
-        runLineChange(
-          item.id,
-          () =>
-            updateOrderItem({
-              orderItemId: item.id,
-              quantity: item.quantity + 1,
-            }).unwrap(),
-          "Could not change the quantity",
-        )
-      }
-      onDecrease={() =>
-        runLineChange(
-          item.id,
-          () =>
-            item.quantity <= 1
-              ? removeOrderItem(item.id).unwrap()
-              : updateOrderItem({
-                orderItemId: item.id,
-                quantity: item.quantity - 1,
-              }).unwrap(),
-          "Could not change the quantity",
-        )
-      }
-      onRemove={() =>
-        runLineChange(
-          item.id,
-          () => removeOrderItem(item.id).unwrap(),
-          "Could not remove that item",
-        )
-      }
+      onIncrease={handleIncrease}
+      onDecrease={handleDecrease}
+      onRemove={handleRemove}
     />
   );
 

@@ -28,33 +28,32 @@ export function useCustomerDisplaySync({
   const { data: business } = useGetBusinessProfileQuery();
   const [publishCustomerDisplay] = usePublishCustomerDisplayMutation();
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const lastPayloadKeyRef = useRef<string>("");
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
-  // Listen for sync request from newly opened Customer Display windows
+  // Maintain long-lived BroadcastChannel instance for maximum performance
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    let channel: BroadcastChannel | null = null;
     try {
-      channel = new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
-      channel.onmessage = (event: MessageEvent) => {
-        if (
-          event.data &&
-          typeof event.data === "object" &&
-          event.data.type === "REQUEST_CUSTOMER_DISPLAY_SYNC"
-        ) {
-          // Force resync on next effect run
-          lastPayloadKeyRef.current = "";
-        }
-      };
-    } catch {
-      // Channel unsupported
-    }
+      if (!channelRef.current) {
+        channelRef.current = new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
+        channelRef.current.onmessage = (event: MessageEvent) => {
+          if (
+            event.data &&
+            typeof event.data === "object" &&
+            event.data.type === "REQUEST_CUSTOMER_DISPLAY_SYNC"
+          ) {
+            lastPayloadKeyRef.current = "";
+          }
+        };
+      }
+    } catch {}
 
     return () => {
-      if (channel) {
-        channel.close();
+      if (channelRef.current) {
+        channelRef.current.close();
+        channelRef.current = null;
       }
     };
   }, []);
@@ -100,16 +99,22 @@ export function useCustomerDisplaySync({
       updatedAt: new Date().toISOString(),
     };
 
-    // 2. Broadcast Local (0ms latency for dual monitor setups on same PC)
-    try {
-      const channel = new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
-      channel.postMessage(payload);
-      channel.close();
-    } catch {
-      // BroadcastChannel might fail in unsupported browsers / restricted environments
-    }
+    // Non-blocking local broadcast & storage (0ms UI thread impact)
+    setTimeout(() => {
+      try {
+        const jsonStr = JSON.stringify(payload);
+        localStorage.setItem(`ipos_customer_display_${terminalId}`, jsonStr);
+        localStorage.setItem("ipos_customer_display_latest", jsonStr);
+      } catch {}
 
-    // 3. Remote Publish to Backend API (Debounced 200ms for standalone screens)
+      if (channelRef.current) {
+        try {
+          channelRef.current.postMessage(payload);
+        } catch {}
+      }
+    }, 0);
+
+    // Remote Publish to Backend API (Debounced 200ms for standalone screens)
     const activeBusinessId = businessId || business?.id;
     if (!activeBusinessId) return;
 
@@ -122,10 +127,8 @@ export function useCustomerDisplaySync({
         businessId: activeBusinessId,
         terminalId,
         payload,
-      }).catch((err) => {
-        console.warn("[CustomerDisplaySync] Publish error:", err);
-      });
-    }, 200);
+      }).catch(() => {});
+    }, 250);
 
     return () => {
       if (debounceTimerRef.current) {

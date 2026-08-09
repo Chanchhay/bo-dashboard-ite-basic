@@ -8,6 +8,7 @@ import type { Item } from "@/types/pos-type";
 
 export interface PosCardProps {
   item: Item;
+  formattedPrice?: string;
   onSelect?: (item: Item) => void;
 }
 
@@ -21,15 +22,16 @@ export interface PosCardProps {
  * Sized by its grid cell instead of a fixed width, so the row stays even
  * however many columns the breakpoint gives it.
  */
-const PosCardComponent = ({ item, onSelect }: PosCardProps) => {
+const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
   const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
+  const displayPrice = formattedPrice || format(item.price);
 
   return (
     <button
       type="button"
       disabled={isDisabled}
-      aria-label={`${item.name}, ${format(item.price)}`}
+      aria-label={`${item.name}, ${displayPrice}`}
       onClick={() => onSelect?.(item)}
       style={{ touchAction: "manipulation" }}
       className={`group flex w-full select-none flex-col text-left outline-none transition-transform duration-75 focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
@@ -57,12 +59,20 @@ const PosCardComponent = ({ item, onSelect }: PosCardProps) => {
           {item.name}
         </span>
         <span className="text-base font-bold leading-7 text-brand-red">
-          {format(item.price)}
+          {displayPrice}
         </span>
       </span>
     </button>
   );
 };
 
-export const PosCard = memo(PosCardComponent);
+export const PosCard = memo(
+  PosCardComponent,
+  (prev, next) =>
+    prev.item.id === next.item.id &&
+    prev.item.price === next.item.price &&
+    prev.item.is_available === next.item.is_available &&
+    prev.formattedPrice === next.formattedPrice &&
+    prev.onSelect === next.onSelect,
+);
 export default PosCard;
