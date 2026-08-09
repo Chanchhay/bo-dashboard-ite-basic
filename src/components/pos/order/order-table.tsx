@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import {
+  posOrderApi,
   useGetCurrentOrderQuery,
   useParkOrderMutation,
   useRemoveOrderItemMutation,
@@ -120,50 +121,46 @@ const ItemRow = memo(function ItemRow({
             type="button"
             aria-label={`Decrease ${item.itemName}`}
             onClick={() => onDecrease(item)}
-            disabled={busy}
-            style={{ touchAction: "manipulation" }}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-red-400 text-brand-red transition hover:bg-red-50 active:scale-90 disabled:opacity-40 sm:size-5"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40"
+            title={item.quantity <= 1 ? "Remove item" : "Decrease quantity"}
           >
-            <Minus className="h-3 w-3" />
+            {item.quantity <= 1 ? (
+              <Trash2 className="h-3.5 w-3.5 text-brand-red" />
+            ) : (
+              <Minus className="h-3.5 w-3.5" />
+            )}
           </button>
-          <span className="w-4 text-center tabular-nums text-gray-800">
+
+          <span className="w-8 text-center font-mono text-sm font-bold text-gray-900">
             {item.quantity}
           </span>
+
           <button
             type="button"
-            aria-label={`Increase ${item.itemName}`}
+            disabled={busy}
             onClick={() => onIncrease(item)}
-            disabled={busy}
-            style={{ touchAction: "manipulation" }}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-green-500 text-primary transition hover:bg-green-50 active:scale-90 disabled:opacity-40 sm:size-5"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40"
+            title="Increase quantity"
           >
-            <Plus className="h-3 w-3" />
+            <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
       </td>
 
-      <td className="px-2 py-2.5 text-xs font-semibold text-brand-red sm:px-4 sm:text-sm">
+      <td className="py-2.5 pl-2 pr-2 text-right font-mono text-sm font-bold text-[#1e1e1e]">
         {format(item.lineTotal, currency)}
-        {item.quantity > 1 && (
-          <span className="mt-0.5 block text-xs font-normal text-gray-400">
-            {format(item.unitPrice, currency)} each
-          </span>
-        )}
       </td>
 
-      <td className="px-2 py-2.5 sm:px-4">
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            aria-label={`Remove ${item.itemName}`}
-            onClick={() => onRemove(item.id)}
-            disabled={busy}
-            style={{ touchAction: "manipulation" }}
-            className="grid size-9 place-items-center rounded-full text-brand-red transition hover:bg-red-50 active:scale-90 disabled:opacity-40 sm:size-8"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+      <td className="py-2.5 pl-1 pr-4 text-right">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onRemove(item.id)}
+          className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-brand-red focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:outline-none disabled:opacity-40"
+          title="Remove line"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </td>
     </tr>
   );
@@ -189,19 +186,16 @@ export function OrderTable({
   const [setOrderCustomer] = useSetOrderCustomerMutation();
   const [setOrderDiscount] = useSetOrderDiscountMutation();
 
-  // Which line is mid-request, so only its own buttons are held.
   const [busyLineId, setBusyLineId] = useState("");
 
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
-  // Modals for POS customer & discount
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
 
   const lineQuantityRef = useRef<Map<string, number>>(new Map());
 
-  // Keep lineQuantityRef in sync with actual order items from server
   useEffect(() => {
     if (order?.items) {
       order.items.forEach((i) => {
@@ -209,6 +203,23 @@ export function OrderTable({
       });
     }
   }, [order?.items]);
+
+  /** Runs one line change, reporting rather than silently swallowing failure. */
+  async function runLineChange(
+    _lineId: string,
+    change: () => Promise<unknown>,
+    failure: string,
+  ) {
+    try {
+      await change();
+    } catch (cause) {
+      toast({
+        tone: "error",
+        title: failure,
+        description: getApiErrorMessage(cause, "Please try again."),
+      });
+    }
+  }
 
   const handleIncrease = useCallback(
     (item: PosOrderItem) => {
@@ -262,11 +273,9 @@ export function OrderTable({
     [removeOrderItem],
   );
 
-  // Active persistent discount rule for current order
   const [activeDiscountRule, setActiveDiscountRule] =
     useState<AppliedDiscountRule | null>(null);
 
-  // Auto-sync & auto-recalculate discount whenever order items or subtotal change
   useEffect(() => {
     if (!order?.id) {
       setActiveDiscountRule(null);
@@ -301,7 +310,6 @@ export function OrderTable({
         Math.max(0, parseFloat(targetAmount.toFixed(2)))
       );
 
-      // Auto-update discount if cart subtotal changed (e.g. new item added)
       if (Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001) {
         void setOrderDiscount({
           discountAmount: targetAmount,
@@ -315,28 +323,10 @@ export function OrderTable({
     }
   }, [order?.id, order?.subtotal, order?.discountAmount, setOrderDiscount]);
 
-  // Attached customer object matching order.customerId
   const selectedCustomer = useMemo(() => {
     if (!order?.customerId) return null;
     return customers.find((c) => c.id === order.customerId) ?? null;
   }, [customers, order?.customerId]);
-
-  /** Runs one line change, reporting rather than silently swallowing failure. */
-  async function runLineChange(
-    _lineId: string,
-    change: () => Promise<unknown>,
-    failure: string,
-  ) {
-    try {
-      await change();
-    } catch (cause) {
-      toast({
-        tone: "error",
-        title: failure,
-        description: getApiErrorMessage(cause, "Please try again."),
-      });
-    }
-  }
 
   const handleSelectCustomer = async (customerId: string | null) => {
     try {
@@ -408,7 +398,6 @@ export function OrderTable({
   };
   const totalSecondary = secondaryFor(summary.total, order);
 
-  /** Names and parks the current cart without cancelling it. */
   const handleCreateOrder = async (data: { name: string }) => {
     try {
       if (order?.id) {
@@ -440,9 +429,6 @@ export function OrderTable({
     }
   };
 
-  /**
-   * Settles the sale.
-   */
   const handleValidatePayment = async (
     method: "CASH" | "DIGITAL",
     receivedAmount?: number,
