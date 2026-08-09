@@ -60,6 +60,9 @@ export async function GET() {
             Boolean(paymentStatus?.paid) ||
             paymentStatus?.orderStatus === "PAID" ||
             paymentStatus?.qrStatus === "PAID" ||
+            (paymentStatus as any)?.status === "PAID" ||
+            (paymentStatus as any)?.paymentStatus === "PAID" ||
+            (paymentStatus as any)?.paymentStatus === "SUCCESS" ||
             order?.status === "PAID";
 
         if (!isPaid || !order) {

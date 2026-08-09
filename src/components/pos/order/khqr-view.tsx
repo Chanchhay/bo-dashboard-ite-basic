@@ -52,7 +52,10 @@ export function KhqrView({
         Boolean(data?.sale) ||
         Boolean(data?.status?.paid) ||
         data?.status?.orderStatus === "PAID" ||
-        data?.status?.qrStatus === "PAID";
+        data?.status?.qrStatus === "PAID" ||
+        (data?.status as any)?.status === "PAID" ||
+        (data?.status as any)?.paymentStatus === "PAID" ||
+        (data?.status as any)?.paymentStatus === "SUCCESS";
 
     const paidSale: Sale | null = data?.sale ?? (isPaidSignal ? {
         id: khqr.billNumber || "sale_settled",
