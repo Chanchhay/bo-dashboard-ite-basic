@@ -22,13 +22,11 @@
 
 export type PriceOverride =
     | { kind: "INHERIT" }
-    | { kind: "ABSOLUTE"; amount: number }
     | { kind: "MARKUP_PERCENT"; percent: number }
     | { kind: "MARKUP_AMOUNT"; amount: number };
 
 export const overrideKinds = [
     "INHERIT",
-    "ABSOLUTE",
     "MARKUP_PERCENT",
     "MARKUP_AMOUNT",
 ] as const;
@@ -37,7 +35,6 @@ export type OverrideKind = (typeof overrideKinds)[number];
 
 export const overrideKindLabels: Record<OverrideKind, string> = {
     INHERIT: "Same as base",
-    ABSOLUTE: "Fixed price",
     MARKUP_PERCENT: "Base + %",
     MARKUP_AMOUNT: "Base + amount",
 };
@@ -50,6 +47,13 @@ export type PriceUnit = {
     factor: number;
 };
 
+export type ItemAddOn = {
+    id: string;
+    name: string;
+    price: number;
+    available: boolean;
+};
+
 export type PricedItem = {
     id: string;
     name: string;
@@ -57,7 +61,7 @@ export type PricedItem = {
     barcode?: string;
     itemType?: string;
     groupId: string;
-    /** Mirrors the item's inventory status — read-only here. */
+    /** Mirrors the item's inventory status — configurable here or via inventory. */
     available: boolean;
     baseUnitLabel: string;
     units: PriceUnit[];
@@ -65,6 +69,8 @@ export type PricedItem = {
     basePrices: Record<string, number | undefined>;
     /** Stock unit cost from inventory when stock was added (read-only in pricing). */
     unitCost?: number;
+    /** Category add-ons / modifiers (e.g. Extra 1 shot, Milk, Syrup) */
+    addOns?: ItemAddOn[];
 };
 
 export type PricingGroup = {
@@ -114,8 +120,6 @@ export function effectivePrice(
 
     if (!activeRule || activeRule.kind === "INHERIT") return base;
 
-    if (activeRule.kind === "ABSOLUTE") return toMoney(activeRule.amount);
-
     if (base === undefined) return undefined;
 
     if (activeRule.kind === "MARKUP_PERCENT") {
@@ -129,7 +133,7 @@ export function isOverridden(override: PriceOverride | undefined) {
     return Boolean(override) && override!.kind !== "INHERIT";
 }
 
-/** Short label for the override chip: "+15%", "Fixed", "+$0.50". */
+/** Short label for the override chip: "+15%", "+$0.50". */
 export function describeOverride(
     override: PriceOverride | undefined,
     globalRule?: PriceOverride,
@@ -139,7 +143,6 @@ export function describeOverride(
 
     if (!activeRule || activeRule.kind === "INHERIT") return "";
 
-    if (activeRule.kind === "ABSOLUTE") return "Fixed";
     if (activeRule.kind === "MARKUP_PERCENT") {
         const sign = activeRule.percent >= 0 ? "+" : "";
         return `${sign}${activeRule.percent}%`;
@@ -164,8 +167,6 @@ export function buildOverride(
     const safe = Number.isFinite(value) ? value : 0;
 
     switch (kind) {
-        case "ABSOLUTE":
-            return { kind, amount: safe };
         case "MARKUP_PERCENT":
             return { kind, percent: safe };
         case "MARKUP_AMOUNT":

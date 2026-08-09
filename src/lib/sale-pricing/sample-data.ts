@@ -93,6 +93,11 @@ export const samplePricedItems: PricedItem[] = [
         unitCost: 1.5,
         units: [{ id: "u-cup", label: "Cup", factor: 1 }],
         basePrices: { "u-cup": 3.5 },
+        addOns: [
+            { id: "ao-latte-shot", name: "Extra Espresso (1 shot)", price: 0.5, available: true },
+            { id: "ao-latte-milk", name: "Oat Milk / Soy Milk", price: 0.75, available: true },
+            { id: "ao-latte-syrup", name: "Vanilla / Caramel Syrup", price: 0.5, available: true },
+        ],
     },
     {
         id: "i-coffee",
@@ -110,6 +115,10 @@ export const samplePricedItems: PricedItem[] = [
             { id: "u-1kg", label: "1 kg bag", factor: 1000 },
         ],
         basePrices: { "u-250": 6.5, "u-1kg": 22 },
+        addOns: [
+            { id: "ao-coffee-roast", name: "Dark Roast Grind", price: 0.0, available: true },
+            { id: "ao-coffee-gift", name: "Gift Box Packaging", price: 1.5, available: true },
+        ],
     },
     {
         id: "i-croissant",
@@ -143,9 +152,7 @@ export const sampleListings: ChannelListing[] = [
             // when the base moves.
             "i-beer:u-case": { kind: "MARKUP_PERCENT", percent: 8 },
             "i-coffee:u-1kg": { kind: "MARKUP_AMOUNT", amount: 1.5 },
-            // A round number the storefront advertises, negotiated rather than
-            // derived — so it is absolute on purpose.
-            "i-croissant:u-box6": { kind: "ABSOLUTE", amount: 17.5 },
+            "i-croissant:u-box6": { kind: "MARKUP_AMOUNT", amount: 2.5 },
         },
     },
     {
