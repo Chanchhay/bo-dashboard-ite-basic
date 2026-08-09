@@ -2,6 +2,7 @@ import { baseApi } from "@/lib/baseApi";
 import type {
     InventoryItem,
     InventoryItemInput,
+    ItemPricingInput,
     InventoryItemPage,
     InventoryItemQuery,
     ItemGroup,
@@ -209,6 +210,17 @@ export const inventoryApi = baseApi.injectEndpoints({
             query: () => "/inventory/stock-entries",
             providesTags: ["InventoryStockEntries"],
         }),
+        updateItemPricing: builder.mutation<
+            InventoryItem,
+            { itemId: string; pricing: ItemPricingInput }
+        >({
+            query: ({ itemId, pricing }) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/pricing`,
+                method: "PUT",
+                body: pricing,
+            }),
+            invalidatesTags: ["InventoryItems"],
+        }),
         createStockEntry: builder.mutation<
             StockEntry,
             StockEntryInput
@@ -246,4 +258,5 @@ export const {
     useGetCurrentStockQuery,
     useGetStockEntriesQuery,
     useCreateStockEntryMutation,
+    useUpdateItemPricingMutation,
 } = inventoryApi;

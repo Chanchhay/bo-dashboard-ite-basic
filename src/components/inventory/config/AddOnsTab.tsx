@@ -30,18 +30,6 @@ function describeRule(set: AddOnSet) {
     return `${choice} · ${set.required ? "required" : "optional"}`;
 }
 
-function stockState(addOn: AddOn) {
-    if (addOn.onHand <= 0) {
-        return { label: "Out of stock", className: "bg-danger/10 text-danger" };
-    }
-
-    if (addOn.onHand <= addOn.lowStockThreshold) {
-        return { label: "Low", className: "bg-warning/15 text-warning" };
-    }
-
-    return { label: "In stock", className: "bg-success/10 text-success" };
-}
-
 export function AddOnsTab() {
     const { toast } = useToast();
     const units = sampleUnits;
@@ -120,9 +108,8 @@ export function AddOnsTab() {
                             <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                 <tr>
                                     <th className="px-5 py-3">Name</th>
-                                    <th className="px-5 py-3">On hand</th>
+                                    <th className="px-5 py-3">Unit</th>
                                     <th className="px-5 py-3">One order uses</th>
-                                    <th className="px-5 py-3">State</th>
                                     <th className="px-5 py-3">Used by</th>
                                     <th className="px-5 py-3 text-right">
                                         Actions
@@ -132,7 +119,6 @@ export function AddOnsTab() {
                             <tbody className="divide-y divide-border">
                                 {addOns.map((addOn) => {
                                     const symbol = unitSymbol(addOn.baseUnitId);
-                                    const state = stockState(addOn);
                                     const usage =
                                         sampleAddOnUsage[addOn.id] ?? 0;
 
@@ -156,24 +142,14 @@ export function AddOnsTab() {
                                                     </p>
                                                 ) : null}
                                             </td>
-                                            <td className="px-5 py-4 font-semibold">
-                                                {formatAmount(addOn.onHand)}{" "}
-                                                <span className="font-normal text-muted-foreground">
-                                                    {symbol}
-                                                </span>
+                                            <td className="px-5 py-4 text-muted-foreground">
+                                                {symbol}
                                             </td>
                                             <td className="px-5 py-4 text-muted-foreground">
                                                 {formatAmount(
                                                     addOn.usePerOrder,
                                                 )}{" "}
                                                 {symbol}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${state.className}`}
-                                                >
-                                                    {state.label}
-                                                </span>
                                             </td>
                                             <td className="px-5 py-4 text-muted-foreground">
                                                 {usage}{" "}

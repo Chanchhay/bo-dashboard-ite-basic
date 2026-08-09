@@ -46,9 +46,12 @@ export const samplePricedItems: PricedItem[] = [
         id: "i-beer",
         name: "Angkor Lager",
         sku: "BEER-ANG",
+        barcode: "88510001001",
+        itemType: "Standard",
         groupId: "g-beer",
         available: true,
         baseUnitLabel: "Can",
+        unitCost: 0.85,
         units: [
             { id: "u-can", label: "Can", factor: 1 },
             { id: "u-sixpack", label: "Six-pack", factor: 6 },
@@ -66,9 +69,12 @@ export const samplePricedItems: PricedItem[] = [
         id: "i-cider",
         name: "Apple Cider",
         sku: "BEER-CID",
+        barcode: "88510002002",
+        itemType: "Standard",
         groupId: "g-beer",
         available: false,
         baseUnitLabel: "Bottle",
+        unitCost: 1.2,
         units: [
             { id: "u-bottle", label: "Bottle", factor: 1 },
             { id: "u-crate", label: "Crate", factor: 12 },
@@ -79,35 +85,51 @@ export const samplePricedItems: PricedItem[] = [
         id: "i-latte",
         name: "Ice Latte",
         sku: "DRK-LAT",
+        barcode: "88510003003",
+        itemType: "Standard",
         groupId: "g-drinks",
         available: true,
         baseUnitLabel: "Cup",
+        unitCost: 1.5,
         units: [{ id: "u-cup", label: "Cup", factor: 1 }],
         basePrices: { "u-cup": 3.5 },
+        addOns: [
+            { id: "ao-latte-shot", name: "Extra Espresso (1 shot)", price: 0.5, available: true },
+            { id: "ao-latte-milk", name: "Oat Milk / Soy Milk", price: 0.75, available: true },
+            { id: "ao-latte-syrup", name: "Vanilla / Caramel Syrup", price: 0.5, available: true },
+        ],
     },
     {
         id: "i-coffee",
         name: "House Coffee beans",
         sku: "DRK-BEAN",
+        barcode: "88510004004",
+        itemType: "Standard",
         groupId: "g-drinks",
         available: true,
         baseUnitLabel: "Gram",
+        unitCost: 0.015,
         units: [
             { id: "u-g", label: "Gram", factor: 1 },
             { id: "u-250", label: "250 g bag", factor: 250 },
             { id: "u-1kg", label: "1 kg bag", factor: 1000 },
         ],
-        // The loose gram is deliberately unpriced: you stock in grams but only
-        // ever sell bags. An unpriced unit is simply not sellable.
         basePrices: { "u-250": 6.5, "u-1kg": 22 },
+        addOns: [
+            { id: "ao-coffee-roast", name: "Dark Roast Grind", price: 0.0, available: true },
+            { id: "ao-coffee-gift", name: "Gift Box Packaging", price: 1.5, available: true },
+        ],
     },
     {
         id: "i-croissant",
         name: "Butter Croissant",
         sku: "FD-CRS",
+        barcode: "88510005005",
+        itemType: "Combo",
         groupId: "g-food",
         available: true,
         baseUnitLabel: "Piece",
+        unitCost: 1.1,
         units: [
             { id: "u-pc", label: "Piece", factor: 1 },
             { id: "u-box6", label: "Box of 6", factor: 6 },
@@ -130,9 +152,7 @@ export const sampleListings: ChannelListing[] = [
             // when the base moves.
             "i-beer:u-case": { kind: "MARKUP_PERCENT", percent: 8 },
             "i-coffee:u-1kg": { kind: "MARKUP_AMOUNT", amount: 1.5 },
-            // A round number the storefront advertises, negotiated rather than
-            // derived — so it is absolute on purpose.
-            "i-croissant:u-box6": { kind: "ABSOLUTE", amount: 17.5 },
+            "i-croissant:u-box6": { kind: "MARKUP_AMOUNT", amount: 2.5 },
         },
     },
     {

@@ -131,9 +131,7 @@
 //   );
 // }
 
-"use client";
-
-import { useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Banknote, X, Delete } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
@@ -150,6 +148,28 @@ export interface AmountReceivedDialogProps {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
 
+const KeypadButton = memo(function KeypadButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: (key: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onPress(label)}
+      style={{ touchAction: "manipulation" }}
+      aria-label={label === "back" ? "Delete last digit" : undefined}
+      className={`flex h-12 items-center justify-center rounded-lg bg-[#f2f4f6] text-xl font-semibold text-[#191c1e] shadow-[0_1px_1px_rgba(0,0,0,0.05)] outline-none transition-transform duration-75 hover:bg-[#e9ecef] active:scale-[0.96] active:bg-[#e2e6e9] min-[400px]:h-14 sm:h-16 sm:text-2xl ${
+        label === "back" ? "text-brand-red" : ""
+      }`}
+    >
+      {label === "back" ? <Delete className="size-5" aria-hidden="true" /> : label}
+    </button>
+  );
+});
+
 export function AmountReceived({
   open,
   onOpenChange,
@@ -160,6 +180,33 @@ export function AmountReceived({
 }: AmountReceivedDialogProps) {
   const { format, secondary } = useMoney();
   const [received, setReceived] = useState("");
+  const receivedRef = useRef(received);
+
+  useEffect(() => {
+    receivedRef.current = received;
+  }, [received]);
+
+  // Reset input when dialog opens
+  useEffect(() => {
+    if (open) {
+      setReceived("");
+      receivedRef.current = "";
+    }
+  }, [open]);
+
+  const handleKey = useCallback((key: string) => {
+    setReceived((prev) => {
+      if (key === "back") {
+        return prev.slice(0, -1);
+      }
+      if (key === ".") {
+        if (prev.includes(".")) return prev;
+        return prev ? prev + "." : "0.";
+      }
+      if (prev.replace(".", "").length >= 9) return prev;
+      return prev + key;
+    });
+  }, []);
 
   const receivedAmount = parseFloat(received || "0");
   const changeToGive = receivedAmount - amountDue;
@@ -167,15 +214,41 @@ export function AmountReceived({
   // Change is handed over in cash, so the second currency matters most here.
   const changeSecondary = secondary(Math.max(changeToGive, 0), currency);
 
-  function handleKey(key: string) {
-    if (key === "back") {
-      setReceived((prev) => prev.slice(0, -1));
-      return;
+  // Listen for physical keyboard events when modal is open (without tearing down on every keystroke)
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return;
+
+      const key = e.key;
+
+      if (/^[0-9]$/.test(key)) {
+        e.preventDefault();
+        handleKey(key);
+      } else if (key === "." || key === ",") {
+        e.preventDefault();
+        handleKey(".");
+      } else if (key === "Backspace" || key === "Delete") {
+        e.preventDefault();
+        handleKey("back");
+      } else if (key === "Enter") {
+        e.preventDefault();
+        const currentVal = parseFloat(receivedRef.current || "0");
+        if (!isProcessing && currentVal >= amountDue) {
+          onValidate(currentVal);
+        }
+      } else if (key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
+      }
     }
-    if (key === "." && received.includes(".")) return;
-    if (received.replace(".", "").length >= 9) return;
-    setReceived((prev) => prev + key);
-  }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, handleKey, amountDue, isProcessing, onValidate, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,17 +320,7 @@ export function AmountReceived({
           {/* Keypad */}
           <div className="mt-3 grid grid-cols-3 gap-2.5 sm:gap-3">
             {KEYS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => handleKey(key)}
-                aria-label={key === "back" ? "Delete last digit" : undefined}
-                className={`flex h-12 items-center justify-center rounded-lg bg-[#f2f4f6] text-xl font-semibold text-[#191c1e] shadow-[0_1px_1px_rgba(0,0,0,0.05)] outline-none transition-colors hover:bg-[#e9ecef] focus-visible:ring-2 focus-visible:ring-primary/30 active:bg-[#e2e6e9] min-[400px]:h-14 sm:h-16 sm:text-2xl ${
-                  key === "back" ? "text-brand-red" : ""
-                }`}
-              >
-                {key === "back" ? <Delete className="size-5" aria-hidden="true" /> : key}
-              </button>
+              <KeypadButton key={key} label={key} onPress={handleKey} />
             ))}
           </div>
         </div>

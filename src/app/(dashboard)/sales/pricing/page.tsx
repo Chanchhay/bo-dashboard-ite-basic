@@ -1,77 +1,60 @@
 "use client";
 
-import { useState } from "react";
-import { Store, Tags } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { ItemsPricingTab } from "@/components/sales/pricing/ItemsPricingTab";
 import { SellingProductsTab } from "@/components/sales/pricing/SellingProductsTab";
 
-const tabs = [
-    { id: "items", label: "Items & Pricing", icon: Tags },
-    { id: "selling", label: "Selling Products", icon: Store },
-] as const;
+type TabId = "items" | "selling";
 
-type TabId = (typeof tabs)[number]["id"];
+function SalesPricingContent() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const tabParam = searchParams.get("tab");
 
-export default function SalesPricingPage() {
-    const [tab, setTab] = useState<TabId>("items");
+    const [tab, setTab] = useState<TabId>(() => {
+        return tabParam === "selling" ? "selling" : "items";
+    });
+
+    useEffect(() => {
+        if (tabParam === "selling") {
+            setTab("selling");
+        } else if (tabParam === "items") {
+            setTab("items");
+        }
+    }, [tabParam]);
+
+    function handleTabChange(nextTab: TabId) {
+        setTab(nextTab);
+        router.push(`${pathname}?tab=${nextTab}`);
+    }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 w-full">
             <InventoryPageHeader
-                title="Items &amp; pricing"
-                description="Set what everything costs, then choose where it sells and whether that channel charges anything different."
+                title={tab === "selling" ? "Channel Pricing" : "Set Price"}
+                description={
+                    tab === "selling"
+                        ? "Configure channel-specific pricing rules and overrides for POS, Telegram, and Online Store."
+                        : "Set master prices for your items across all sellable packages."
+                }
             />
 
-            <p
-                className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning"
-                role="status"
-            >
-                Preview — sample catalogue, nothing is saved yet. The API is
-                built once this flow is approved.
-            </p>
 
-            <div
-                role="tablist"
-                aria-label="Items and pricing"
-                className="scrollbar-none -mx-1 overflow-x-auto px-1 [&::-webkit-scrollbar]:hidden"
-            >
-                <div className="flex w-max min-w-full items-center gap-1 rounded-2xl border border-border bg-card p-1">
-                    {tabs.map((entry) => {
-                        const Icon = entry.icon;
-                        const active = entry.id === tab;
-
-                        return (
-                            <button
-                                key={entry.id}
-                                type="button"
-                                role="tab"
-                                id={`pricing-tab-${entry.id}`}
-                                aria-selected={active}
-                                aria-controls={`pricing-panel-${entry.id}`}
-                                onClick={() => setTab(entry.id)}
-                                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:text-sm ${
-                                    active
-                                        ? "bg-primary text-primary-foreground"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                }`}
-                            >
-                                <Icon className="size-4 shrink-0" />
-                                {entry.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            <div
-                role="tabpanel"
-                id={`pricing-panel-${tab}`}
-                aria-labelledby={`pricing-tab-${tab}`}
-            >
-                {tab === "items" ? <ItemsPricingTab /> : <SellingProductsTab />}
+            <div>
+                {tab === "selling" ? <SellingProductsTab /> : <ItemsPricingTab />}
             </div>
         </div>
+    );
+}
+
+export default function SalesPricingPage() {
+    return (
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading pricing...</div>}>
+            <SalesPricingContent />
+        </Suspense>
     );
 }

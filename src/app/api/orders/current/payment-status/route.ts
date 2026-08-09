@@ -11,15 +11,10 @@ import {
     readOrderId,
 } from "@/lib/api/pos-order-backend";
 
-/**
- * Whether the customer has paid yet. Polled while the code is on screen.
- *
- * Bakong settles the order itself, so once it reports paid there is no sale to
- * create here — only one to report. `SaleResponse` is returned exclusively by
- * the pay endpoint, which cannot be called on an order that is already paid,
- * so the sale is rebuilt from the order it settled. That is exact for digital:
- * the amount tendered is the total and there is never change.
- */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+
 export async function GET() {
     const orderId = await readOrderId();
 
@@ -34,17 +29,52 @@ export async function GET() {
         const businessId = await getCurrentBusinessId();
         const encoded = encodeURIComponent(orderId);
 
-        const status = await backendRequest<PaymentStatus>(
-            ordersPath(businessId, `/${encoded}/payment-status`),
-        );
-
-        if (!status.paid) {
-            return Response.json({ status, sale: null });
+    
+        let paymentStatus: PaymentStatus | null = null;
+        try {
+            paymentStatus = await backendRequest<PaymentStatus>(
+                ordersPath(businessId, `/${encoded}/payment-status`),
+            );
+        } catch (statusError) {
+            if (
+                statusError instanceof BackendApiError &&
+                statusError.status === 404
+            ) {
+                paymentStatus = null;
+            } else {
+               
+                console.error(
+                    "payment-status: backend payment-status check failed",
+                    statusError,
+                );
+                throw statusError;
+            }
         }
 
+   
         const order = await backendRequest<PosOrder>(
             ordersPath(businessId, `/${encoded}`),
         );
+
+        const isPaid =
+            Boolean(paymentStatus?.paid) ||
+            paymentStatus?.orderStatus === "PAID" ||
+            paymentStatus?.qrStatus === "PAID" ||
+            (paymentStatus as any)?.status === "PAID" ||
+            (paymentStatus as any)?.paymentStatus === "PAID" ||
+            (paymentStatus as any)?.paymentStatus === "SUCCESS" ||
+            order?.status === "PAID";
+
+        if (!isPaid || !order) {
+            return Response.json(
+                { status: paymentStatus, sale: null },
+                {
+                    headers: {
+                        "Cache-Control": "no-store, no-cache, must-revalidate",
+                    },
+                },
+            );
+        }
 
         const sale: Sale = {
             id: order.id,
@@ -61,25 +91,31 @@ export async function GET() {
             displayCurrency: order.displayCurrency,
             displayExchangeRate: order.displayExchangeRate,
             paymentMethod: "DIGITAL",
-            itemCount: order.items.reduce(
+            itemCount: (order.items || []).reduce(
                 (count, line) => count + line.quantity,
                 0,
             ),
             note: order.note,
-            soldAt: status.paidAt,
+            soldAt: paymentStatus?.paidAt || new Date().toISOString(),
         };
 
         // Settled, so this is no longer the cart.
         await forgetOrder();
 
-        return Response.json({ status, sale });
+        return Response.json(
+            { status: paymentStatus || { paid: true }, sale },
+            {
+                headers: {
+                    "Cache-Control": "no-store, no-cache, must-revalidate",
+                },
+            },
+        );
     } catch (error) {
-        // No code has been generated for this order yet — a normal state while
-        // the cashier is still choosing how to take payment.
         if (error instanceof BackendApiError && error.status === 404) {
             return Response.json({ status: null, sale: null });
         }
 
+        console.error("payment-status: request failed", error);
         return backendErrorResponse(error);
     }
 }

@@ -130,6 +130,8 @@ export const addOrderItemSchema = z.object({
         .int("Quantity must be a whole number.")
         .positive("Quantity must be at least 1.")
         .default(1),
+    itemName: z.string().optional(),
+    unitPrice: z.number().optional(),
 });
 
 export const updateOrderItemSchema = z.object({
@@ -152,6 +154,19 @@ export const payOrderSchema = z.object({
 });
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;
+
+export const setOrderCustomerSchema = z.object({
+    customerId: z.string().nullable().optional(),
+});
+
+export const setOrderDiscountSchema = z.object({
+    discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
+    discountId: z.string().optional(),
+    discountCode: z.string().optional(),
+});
+
+export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;
+export type SetOrderDiscountInput = z.infer<typeof setOrderDiscountSchema>;
 
 /** A KHQR the customer scans to pay. */
 export type Khqr = {

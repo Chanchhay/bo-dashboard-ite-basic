@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
     ArrowLeft,
+    Boxes,
+    Calculator,
+    Check,
     LoaderCircle,
+    Minus,
     PackageOpen,
+    Plus,
     ScanBarcode,
     SlidersHorizontal,
+    Tag,
+    TrendingDown,
+    TrendingUp,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { SearchableItemSelect } from "@/components/inventory/SearchableItemSelect";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -22,25 +32,48 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    manualStockEntryTypes,
+    latestUnitCosts,
     stockEntrySchema,
     stockEntryTypeLabels,
     type InventoryItem,
+    type StockEntry,
 } from "@/lib/api/inventory";
 import {
     useCreateStockEntryMutation,
     useGetCurrentStockQuery,
     useGetInventoryItemOptionsQuery,
+    useGetStockEntriesQuery,
 } from "@/services/inventoryApi";
+import { useMoney } from "@/hooks/useMoney";
+
+/**
+ * The "no linked record" choice. A sentinel rather than an empty string, which
+ * the select would read as nothing chosen and answer with its placeholder.
+ */
+const noRecordValue = "NONE";
+
+/** Same trick for "no particular option" — see {@link noRecordValue}. */
+const noOptionValue = "WHOLE_ITEM";
+
+/**
+ * What the API stores, and therefore what may be sent: quantities carry three
+ * decimal places, costs two. Anything longer is rejected outright, so values
+ * are rounded here rather than bounced back from the server.
+ */
+const quantityDecimals = 3;
+const unitCostDecimals = 2;
+
+function roundTo(value: number, decimals: number) {
+    return Number(value.toFixed(decimals));
+}
+
+const entryDateFormat = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+});
 
 function Field({
     label,
@@ -91,16 +124,50 @@ function getOptionalFormValue(formData: FormData, name: string) {
 
 export function StockAdjustmentForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramItemId = searchParams?.get("itemId") || "";
+    /** Set when the form was opened from a movement's Adjust button. */
+    const paramEntryId = searchParams?.get("entryId") || "";
     const { toast } = useToast();
+    const { format: formatMoney } = useMoney();
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const stockQuery = useGetCurrentStockQuery();
+    const entriesQuery = useGetStockEntriesQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
-    const [quantityChange, setQuantityChange] = useState("");
+    const [adjustmentType, setAdjustmentType] = useState<"OVERSTATED" | "UNDERSTATED" | "MANUAL">("OVERSTATED");
+    const [quantityInput, setQuantityInput] = useState("");
+    const [unitCostInput, setUnitPriceInput] = useState("");
+    const [batchLot, setBatchLot] = useState("");
+    const [batchManufacturedAt, setBatchManufacturedAt] = useState("");
+    const [batchExpiresAt, setBatchExpiresAt] = useState("");
+    const [overrideQuantity, setOverrideQuantity] = useState(true);
+    const [overrideUnitCost, setOverrideUnitCost] = useState(false);
+    const [overrideBatchLot, setOverrideBatchLot] = useState(false);
+    const [overrideBatchMfg, setOverrideBatchMfg] = useState(false);
+    const [overrideBatchExp, setOverrideBatchExp] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    const [selectedItemId, setSelectedItemId] = useState("");
+    const [selectedItemId, setSelectedItemId] = useState(paramItemId);
+    /**
+     * The stock in or stock out this correction is made against.
+     *
+     * Empty means the adjustment stands alone — a plain count correction with
+     * no earlier record to blame. Anything else is written to `referenceId`, so
+     * the movements ledger can say what the adjustment acts on instead of
+     * showing a bare quantity nobody can trace.
+     */
+    const [adjustedEntryId, setAdjustedEntryId] = useState(paramEntryId);
+    /**
+     * Which variation this adjustment is about.
+     *
+     * Stock is held per item — a stock entry carries no variant — so choosing
+     * one cannot move a balance of its own. It is written into the reason
+     * instead, which is a real field, so the ledger at least records which
+     * variation was counted rather than losing it entirely.
+     */
+    const [optionName, setOptionName] = useState("");
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
 
@@ -127,17 +194,93 @@ export function StockAdjustmentForm() {
         (stockQuery.data || []).find(
             (summary) => summary.itemId === selectedItemId,
         )?.quantityOnHand ?? 0;
-    const change = Number(quantityChange);
-    // Showing the balance this lands on is what turns "-40" from a guess into a
-    // decision — and it is the only place a negative result becomes visible
-    // before it is committed.
+    const entries = entriesQuery.data || [];
+    const costsMap = latestUnitCosts(entries);
+
+    /**
+     * The records this item already has, newest first — what an adjustment can
+     * be made against. Adjustments are excluded: correcting a correction tells
+     * nobody where the count actually went wrong.
+     */
+    const adjustableEntries = entries
+        .filter(
+            (entry) =>
+                entry.itemId === selectedItemId &&
+                entry.entryType !== "ADJUSTMENT",
+        )
+        .sort(
+            (left, right) =>
+                new Date(right.createdDate || 0).getTime() -
+                new Date(left.createdDate || 0).getTime(),
+        );
+
+    const adjustedEntry = adjustableEntries.find(
+        (entry) => entry.id === adjustedEntryId,
+    );
+
+    const itemOptions = (selectedItem?.variants || [])
+        .filter((variant) => variant.name?.trim())
+        .map((variant) => variant.name || "");
+
+    function describeEntry(entry: StockEntry) {
+        const change = entry.quantityChange || 0;
+
+        return [
+            entry.entryType
+                ? stockEntryTypeLabels[entry.entryType]
+                : "Stock entry",
+            `${change > 0 ? "+" : ""}${change} ${unitLabel}`.trim(),
+            entry.createdDate
+                ? entryDateFormat.format(new Date(entry.createdDate))
+                : "",
+            entry.referenceNumber,
+        ]
+            .filter(Boolean)
+            .join(" · ");
+    }
+
+    /** Undefined when this item has never had a cost recorded against it. */
+    const existingUnitCost = selectedItemId
+        ? costsMap.get(selectedItemId)
+        : undefined;
+
+    const isManual = adjustmentType === "MANUAL";
+    const rawNum = Number(quantityInput);
+    const parsedQty = Math.abs(rawNum);
+    const quantityEditable = !isManual || overrideQuantity;
+    const qtyValid =
+        quantityEditable &&
+        quantityInput.trim() !== "" &&
+        Number.isFinite(rawNum) &&
+        roundTo(rawNum, quantityDecimals) !== 0;
+    // Overstated decreases stock (-), Understated increases stock (+), Manual allows direct +/- input
+    const change = qtyValid
+        ? roundTo(
+              adjustmentType === "OVERSTATED"
+                  ? -parsedQty
+                  : adjustmentType === "UNDERSTATED"
+                    ? parsedQty
+                    : rawNum,
+              quantityDecimals,
+          )
+        : 0;
     const resulting =
-        quantityChange.trim() !== "" && Number.isFinite(change)
-            ? onHand + change
-            : undefined;
+        selectedItemId &&
+        quantityEditable &&
+        quantityInput.trim() !== "" &&
+        Number.isFinite(rawNum)
+            ? roundTo(onHand + change, quantityDecimals)
+            : selectedItemId
+              ? onHand
+              : undefined;
+    // The backend refuses an entry that would take the count below zero, so the
+    // form refuses it first and says so where the number was typed.
+    const goesNegative = resulting !== undefined && resulting < 0;
 
     function handleScannedItem(item: InventoryItem) {
         setSelectedItemId(item.id);
+        setAdjustedEntryId("");
+        setOptionName("");
         setScannedItemName(item.name || "Unnamed item");
         setFieldErrors((current) => {
             if (!current.itemId) {
@@ -155,42 +298,91 @@ export function StockAdjustmentForm() {
 
         const formData = new FormData(event.currentTarget);
         const batchData: Record<string, string> = {};
-        const batchFields = [
-            ["lot", "batchLot"],
-            ["manufacturedAt", "batchManufacturedAt"],
-            ["expiresAt", "batchExpiresAt"],
-        ] as const;
-
-        for (const [apiKey, fieldName] of batchFields) {
-            const value = getOptionalFormValue(formData, fieldName);
-            if (value) {
-                batchData[apiKey] = value;
-            }
+        if (isManual) {
+            if (overrideBatchLot && batchLot.trim()) batchData.lot = batchLot.trim();
+            if (overrideBatchMfg && batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
+            if (overrideBatchExp && batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
         }
 
-        const unitCostValue = getOptionalFormValue(
-            formData,
-            "unitCost",
+        if (isManual && !overrideQuantity) {
+            const message =
+                "Quantity is preserved, so there is nothing to record. Tick \u201cEdit quantity\u201d to adjust it.";
+            setFieldErrors({ quantityChange: message });
+            toast({
+                tone: "error",
+                title: "Nothing to adjust",
+                description: message,
+            });
+            return;
+        }
+
+        // Every adjustment is a new entry with a non-zero change; the API has no
+        // way to amend one already written.
+        const typedQuantity = Number(quantityInput);
+        if (
+            !quantityInput.trim() ||
+            !Number.isFinite(typedQuantity) ||
+            roundTo(typedQuantity, quantityDecimals) === 0
+        ) {
+            const message = "Please enter a non-zero quantity change.";
+            setFieldErrors({ quantityChange: message });
+            toast({
+                tone: "error",
+                title: "Check the highlighted stock information",
+                description: message,
+            });
+            return;
+        }
+
+        const calculatedChange = roundTo(
+            adjustmentType === "OVERSTATED"
+                ? -Math.abs(typedQuantity)
+                : adjustmentType === "UNDERSTATED"
+                  ? Math.abs(typedQuantity)
+                  : typedQuantity,
+            quantityDecimals,
         );
+
+        if (roundTo(onHand + calculatedChange, quantityDecimals) < 0) {
+            const message = `Only ${onHand} ${unitLabel} on hand — this would take stock below zero.`;
+            setFieldErrors({ quantityChange: message });
+            toast({
+                tone: "error",
+                title: "Check the highlighted stock information",
+                description: message,
+            });
+            return;
+        }
+
+        /**
+         * The cost carries forward unless it is being changed on purpose.
+         *
+         * The item's cost is read off its newest entry, so an adjustment that
+         * sends none would leave the item looking as if it cost nothing, and
+         * every valuation built on it would be wrong.
+         */
+        const typedUnitCost =
+            isManual && overrideUnitCost
+                ? getOptionalFormValue(formData, "unitCost")
+                : "";
+        const unitCost =
+            typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
+
         const result = stockEntrySchema.safeParse({
-            itemId: String(formData.get("itemId") || ""),
-            entryType: String(formData.get("entryType") || ""),
-            quantityChange: Number(
-                formData.get("quantityChange") || 0,
-            ),
+            itemId: selectedItemId,
+            entryType: "ADJUSTMENT",
+            quantityChange: calculatedChange,
             unitCost:
-                unitCostValue === ""
+                unitCost === undefined || !Number.isFinite(unitCost)
                     ? undefined
-                    : Number(unitCostValue),
+                    : roundTo(unitCost, unitCostDecimals),
             batchData,
-            referenceType: String(
-                formData.get("referenceType") || "",
-            ),
-            referenceId: String(formData.get("referenceId") || ""),
-            referenceNumber: String(
-                formData.get("referenceNumber") || "",
-            ),
-            reason: String(formData.get("reason") || ""),
+            referenceType: "ADJUSTMENT_FORM",
+            referenceId: adjustedEntryId,
+            referenceNumber: "",
+            reason: [optionName, String(formData.get("reason") || "").trim()]
+                .filter(Boolean)
+                .join(" — "),
         });
 
         if (!result.success) {
@@ -239,15 +431,16 @@ export function StockAdjustmentForm() {
                         variant="outline"
                         render={<Link href="/inventory/stock" />}
                         nativeButton={false}
-                        className="h-10 gap-2"
+                        className="h-10 gap-2 rounded-xl"
                     >
-                        <ArrowLeft />
+                        <ArrowLeft className="size-4" />
                         Back to stock
                     </Button>
                 }
             />
 
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
+                <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <div className="flex items-start gap-4">
                     <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <SlidersHorizontal className="size-5" />
@@ -275,45 +468,35 @@ export function StockAdjustmentForm() {
                             hint={
                                 scannedItemName
                                     ? `${scannedItemName} selected by barcode.`
-                                    : "Choose an item or scan its barcode."
+                                    : "Search item by name, SKU, or barcode."
                             }
                             error={fieldErrors.itemId}
                         >
                             <div className="flex gap-2">
-                                <Select
-                                    name="itemId"
-                                    value={selectedItemId}
-                                    onValueChange={(value) => {
-                                        setSelectedItemId(value || "");
+                                <SearchableItemSelect
+                                    items={items}
+                                    selectedItemId={selectedItemId}
+                                    onSelect={(id) => {
+                                        setSelectedItemId(id);
+                                        setAdjustedEntryId("");
+                                        setOptionName("");
                                         setScannedItemName(null);
+                                        setFieldErrors((current) => {
+                                            const next = { ...current };
+                                            delete next.itemId;
+                                            return next;
+                                        });
                                     }}
-                                    items={Object.fromEntries(
-                                        items.map((item) => [
-                                            item.id,
-                                            item.name || "Unnamed item",
+                                    stockSummaryMap={Object.fromEntries(
+                                        (stockQuery.data || []).map((s) => [
+                                            s.itemId,
+                                            s.quantityOnHand,
                                         ]),
                                     )}
-                                >
-                                    <SelectTrigger
-                                        id="itemId"
-                                        className={`${inventoryControlClassName} w-full flex-1`}
-                                        aria-invalid={Boolean(
-                                            fieldErrors.itemId,
-                                        )}
-                                    >
-                                        <SelectValue placeholder="Choose an item" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {items.map((item) => (
-                                            <SelectItem
-                                                key={item.id}
-                                                value={item.id}
-                                            >
-                                                {item.name || "Unnamed item"}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    placeholder="Search item by name, SKU, or barcode..."
+                                    ariaInvalid={Boolean(fieldErrors.itemId)}
+                                    className="flex-1"
+                                />
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -326,83 +509,196 @@ export function StockAdjustmentForm() {
                                 </Button>
                             </div>
                         </Field>
+
+                        {/* Adjustment Action Dropdown */}
                         <Field
-                            label="Entry type *"
-                            name="entryType"
-                            error={fieldErrors.entryType}
-                        >
-                            <Select
-                                name="entryType"
-                                defaultValue="ADJUSTMENT"
-                                items={Object.fromEntries(
-                                    manualStockEntryTypes.map((entryType) => [
-                                        entryType,
-                                        stockEntryTypeLabels[entryType],
-                                    ]),
-                                )}
-                            >
-                                <SelectTrigger
-                                    id="entryType"
-                                    className={`${inventoryControlClassName} w-full`}
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {manualStockEntryTypes.map((entryType) => (
-                                        <SelectItem
-                                            key={entryType}
-                                            value={entryType}
-                                        >
-                                            {stockEntryTypeLabels[entryType]}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                        <Field
-                            label="Quantity change *"
-                            name="quantityChange"
+                            label="Adjustment Action *"
+                            name="adjustmentAction"
                             hint={
-                                selectedItemId
-                                    ? undefined
-                                    : "Positive adds stock, negative removes it."
+                                adjustmentType === "OVERSTATED"
+                                    ? "Overstated deducts stock from current balance."
+                                    : adjustmentType === "UNDERSTATED"
+                                      ? "Understated adds stock to current balance."
+                                      : "Manual mode allows entering positive or negative quantity change."
                             }
-                            error={fieldErrors.quantityChange}
                         >
+                            <SelectField
+                                id="adjustmentAction"
+                                name="adjustmentAction"
+                                value={adjustmentType}
+                                onValueChange={(val) =>
+                                    setAdjustmentType(val as "OVERSTATED" | "UNDERSTATED" | "MANUAL")
+                                }
+                                options={[
+                                    { value: "OVERSTATED", label: "Overstated" },
+                                    { value: "UNDERSTATED", label: "Understated" },
+                                    { value: "MANUAL", label: "Manual" },
+                                ]}
+                                className={inventoryControlClassName}
+                            />
+                        </Field>
+
+                        {/* Which variation, when the item has any */}
+                        {itemOptions.length ? (
+                            <div className="sm:col-span-2 md:col-span-2">
+                                <Field
+                                    label="Option"
+                                    name="optionName"
+                                    hint="Stock is counted for the item as a whole, so this is recorded on the movement rather than moving a balance of its own."
+                                >
+                                    <SelectField
+                                        id="optionName"
+                                        name="optionName"
+                                        value={optionName || noOptionValue}
+                                        onValueChange={(value) =>
+                                            setOptionName(
+                                                value === noOptionValue
+                                                    ? ""
+                                                    : value,
+                                            )
+                                        }
+                                        options={[
+                                            {
+                                                value: noOptionValue,
+                                                label: "The item as a whole",
+                                            },
+                                            ...itemOptions.map((name) => ({
+                                                value: name,
+                                                label: name,
+                                            })),
+                                        ]}
+                                        className={inventoryControlClassName}
+                                    />
+                                </Field>
+                            </div>
+                        ) : null}
+
+                        {/* Which record this correction is made against */}
+                        <div className="sm:col-span-2 md:col-span-2">
+                            <Field
+                                label="Adjust against record"
+                                name="adjustedEntryId"
+                                hint={
+                                    !selectedItemId
+                                        ? "Select an item to see the records it already has."
+                                        : adjustableEntries.length === 0
+                                          ? "This item has no stock in or stock out yet, so the correction stands alone."
+                                          : "Pick the stock in or stock out this correction applies to. It is shown against the adjustment in the movements ledger."
+                                }
+                            >
+                                <SelectField
+                                    id="adjustedEntryId"
+                                    name="adjustedEntryId"
+                                    value={adjustedEntryId || noRecordValue}
+                                    onValueChange={(value) =>
+                                        setAdjustedEntryId(
+                                            value === noRecordValue
+                                                ? ""
+                                                : value,
+                                        )
+                                    }
+                                    disabled={
+                                        !selectedItemId ||
+                                        adjustableEntries.length === 0
+                                    }
+                                    options={[
+                                        {
+                                            value: noRecordValue,
+                                            label: "Not linked — plain count correction",
+                                        },
+                                        ...adjustableEntries.map((entry) => ({
+                                            value: entry.id,
+                                            label: describeEntry(entry),
+                                        })),
+                                    ]}
+                                    className={inventoryControlClassName}
+                                />
+                            </Field>
+                        </div>
+
+                        {/* Quantity Field with Manual edit checkbox */}
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">
+                                    Quantity *
+                                </Label>
+                                {isManual ? (
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={overrideQuantity}
+                                            onChange={(e) => setOverrideQuantity(e.target.checked)}
+                                            className="size-3.5 rounded border-border text-primary"
+                                        />
+                                        <span>Edit quantity</span>
+                                    </label>
+                                ) : null}
+                            </div>
                             <div className="flex items-center gap-2">
                                 <Input
-                                    id="quantityChange"
-                                    name="quantityChange"
+                                    id="quantity"
+                                    name="quantity"
                                     type="number"
                                     step="0.01"
-                                    value={quantityChange}
-                                    onChange={(event) =>
-                                        setQuantityChange(event.target.value)
-                                    }
-                                    placeholder="10 or -3"
+                                    disabled={isManual && !overrideQuantity}
+                                    value={quantityInput}
+                                    onKeyDown={(e) => {
+                                        if (!isManual && (e.key === "-" || e.key === "e")) {
+                                            e.preventDefault();
+                                        }
+                                    }}
+                                    onChange={(event) => {
+                                        const val = isManual ? event.target.value : event.target.value.replace(/-/g, "");
+                                        setQuantityInput(val);
+                                        setFieldErrors((current) => {
+                                            const next = { ...current };
+                                            delete next.quantityChange;
+                                            return next;
+                                        });
+                                    }}
+                                    placeholder={isManual && !overrideQuantity ? "Unchecked (Preserved / 0 change)" : isManual ? "e.g. 10 or -5" : "e.g. 10"}
                                     aria-invalid={Boolean(
                                         fieldErrors.quantityChange,
                                     )}
-                                    className={`${inventoryControlClassName} flex-1`}
+                                    className={`${inventoryControlClassName} flex-1 disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                 />
                                 {unitLabel ? (
-                                    <span className="shrink-0 text-sm text-muted-foreground">
+                                    <span className="shrink-0 text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-2 rounded-lg border border-border">
                                         {unitLabel}
                                     </span>
                                 ) : null}
                             </div>
-                            {selectedItemId ? (
+                            {fieldErrors.quantityChange ? (
+                                <p className="text-xs text-danger" role="alert">
+                                    {fieldErrors.quantityChange}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    {isManual && !overrideQuantity
+                                        ? "Existing quantity preserved (check box above to edit)."
+                                        : selectedItemId
+                                          ? `Current stock: ${onHand} ${unitLabel} · ${
+                                                adjustmentType === "OVERSTATED"
+                                                    ? "Overstated (- deducts stock)"
+                                                    : adjustmentType === "UNDERSTATED"
+                                                      ? "Understated (+ adds stock)"
+                                                      : "Manual quantity change"
+                                            }`
+                                        : "Enter number of units."}
+                                </p>
+                            )}
+                            {selectedItemId && (!isManual || overrideQuantity) ? (
                                 <p
                                     className={
                                         resulting !== undefined && resulting < 0
-                                            ? "text-xs text-danger"
+                                            ? "text-xs text-danger font-medium"
                                             : "text-xs text-muted-foreground"
                                     }
                                     aria-live="polite"
                                 >
-                                    {resulting === undefined ? (
-                                        `${onHand} ${unitLabel} on hand. Positive adds, negative removes.`
-                                    ) : resulting < 0 ? (
+                                    {quantityInput.trim() === "" ? (
+                                        `${onHand} ${unitLabel} on hand.`
+                                    ) : resulting !== undefined && resulting < 0 ? (
                                         <>
                                             {onHand} → <strong>{resulting}</strong>{" "}
                                             {unitLabel} — this takes stock below
@@ -416,175 +712,323 @@ export function StockAdjustmentForm() {
                                     )}
                                 </p>
                             ) : null}
-                        </Field>
-                        <Field
-                            label="Unit cost"
-                            name="unitCost"
-                            hint={
-                                unitLabel
-                                    ? `What one ${unitLabel.toLowerCase()} cost you. Feeds stock value.`
-                                    : "What one unit cost you. Feeds stock value."
-                            }
-                            error={fieldErrors.unitCost}
-                        >
+                        </div>
+
+                        {/* Unit cost field */}
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="unitCost" className="text-sm font-semibold text-foreground">
+                                    Unit cost ($)
+                                </Label>
+                                {isManual ? (
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={overrideUnitCost}
+                                            onChange={(e) => setOverrideUnitCost(e.target.checked)}
+                                            className="size-3.5 rounded border-border text-primary"
+                                        />
+                                        <span>Edit unit cost</span>
+                                    </label>
+                                ) : null}
+                            </div>
                             <Input
                                 id="unitCost"
                                 name="unitCost"
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                placeholder="0.00"
-                                aria-invalid={Boolean(
-                                    fieldErrors.unitCost,
-                                )}
-                                className={inventoryControlClassName}
+                                disabled={!isManual || !overrideUnitCost}
+                                value={unitCostInput}
+                                onChange={(e) => setUnitPriceInput(e.target.value)}
+                                placeholder={
+                                    existingUnitCost === undefined
+                                        ? "None recorded yet"
+                                        : formatMoney(existingUnitCost)
+                                }
+                                aria-invalid={Boolean(fieldErrors.unitCost)}
+                                className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                             />
-                        </Field>
-                        <Field
-                            label="Reference type"
-                            name="referenceType"
-                            error={fieldErrors.referenceType}
-                        >
-                            <Input
-                                id="referenceType"
-                                name="referenceType"
-                                placeholder="PURCHASE_ORDER"
-                                aria-invalid={Boolean(
-                                    fieldErrors.referenceType,
-                                )}
-                                className={inventoryControlClassName}
-                            />
-                        </Field>
-                        <Field
-                            label="Reference number"
-                            name="referenceNumber"
-                            error={fieldErrors.referenceNumber}
-                        >
-                            <Input
-                                id="referenceNumber"
-                                name="referenceNumber"
-                                placeholder="PO-2026-001"
-                                aria-invalid={Boolean(
-                                    fieldErrors.referenceNumber,
-                                )}
-                                className={inventoryControlClassName}
-                            />
-                        </Field>
-                        <Field
-                            label="Reference ID"
-                            name="referenceId"
-                            hint="Optional UUID linking this entry to another record."
-                            error={fieldErrors.referenceId}
-                        >
-                            <Input
-                                id="referenceId"
-                                name="referenceId"
-                                placeholder="00000000-0000-0000-0000-000000000000"
-                                aria-invalid={Boolean(
-                                    fieldErrors.referenceId,
-                                )}
-                                className={inventoryControlClassName}
-                            />
-                        </Field>
-                        <Field
-                            label="Reason"
-                            name="reason"
-                            error={fieldErrors.reason}
-                        >
-                            <Input
-                                id="reason"
+                            <p className="text-xs text-muted-foreground">
+                                {isManual && overrideUnitCost
+                                    ? "Enter new unit cost for this adjustment."
+                                    : existingUnitCost === undefined
+                                      ? "No cost recorded for this item yet, so this adjustment records none."
+                                      : `Carries forward the last cost recorded, ${formatMoney(existingUnitCost)}.`}
+                            </p>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <Field
+                                label="Reason"
                                 name="reason"
-                                placeholder="Cycle count correction"
-                                aria-invalid={Boolean(
-                                    fieldErrors.reason,
-                                )}
-                                className={inventoryControlClassName}
-                            />
-                        </Field>
-                        <div className="rounded-xl border border-border bg-transparent p-4 md:col-span-2 sm:p-5">
-                            <div className="flex items-start gap-3">
-                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                                    <PackageOpen className="size-5" />
-                                </span>
-                                <div>
-                                    <h3 className="font-semibold text-foreground">
-                                        Batch details
-                                    </h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Optional. Use these fields when stock
-                                        is tracked by lot or expiration date.
-                                        No JSON is required.
-                                    </p>
+                                error={fieldErrors.reason}
+                            >
+                                <Input
+                                    id="reason"
+                                    name="reason"
+                                    maxLength={255}
+                                    placeholder="e.g. Cycle count correction, Damaged stock, Spoilage"
+                                    aria-invalid={Boolean(
+                                        fieldErrors.reason,
+                                    )}
+                                    className={inventoryControlClassName}
+                                />
+                            </Field>
+                        </div>
+
+                        {/* Batch Details Card */}
+                        <div className={cn("sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5 transition-opacity", !isManual && "opacity-60")}>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                        <PackageOpen className="size-5" />
+                                    </span>
+                                    <div>
+                                        <h3 className="font-semibold text-foreground flex items-center gap-2">
+                                            <span>Batch details</span>
+                                            {!isManual ? (
+                                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                    Locked (Select Manual to edit)
+                                                </span>
+                                            ) : null}
+                                        </h3>
+                                        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                                            {!isManual
+                                                ? "Locked. Select Manual mode to enable editing."
+                                                : "Check the box above any batch field you wish to modify. Unchecked fields remain unchanged."}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                <Field
-                                    label="Batch / lot number"
-                                    name="batchLot"
-                                    hint="For example, LOT-01."
-                                >
+                            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                                {/* Batch Lot Number */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchLot" className="text-xs font-semibold text-foreground">
+                                            Batch / lot number
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchLot}
+                                                    onChange={(e) => setOverrideBatchLot(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit lot #</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <Input
                                         id="batchLot"
                                         name="batchLot"
-                                        placeholder="LOT-01"
-                                        className={
-                                            inventoryControlClassName
-                                        }
+                                        disabled={!isManual || !overrideBatchLot}
+                                        value={batchLot}
+                                        onChange={(e) => setBatchLot(e.target.value)}
+                                        placeholder={!isManual ? "Locked" : overrideBatchLot ? "LOT-01" : "Unchanged"}
+                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                     />
-                                </Field>
-                                <Field
-                                    label="Manufactured date"
-                                    name="batchManufacturedAt"
-                                >
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {!isManual
+                                            ? "Locked"
+                                            : !overrideBatchLot
+                                              ? "Existing lot # kept unchanged"
+                                              : "For example, LOT-01"}
+                                    </p>
+                                </div>
+
+                                {/* Manufactured Date */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchManufacturedAt" className="text-xs font-semibold text-foreground">
+                                            Manufactured date
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchMfg}
+                                                    onChange={(e) => setOverrideBatchMfg(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit Mfg date</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <Input
                                         id="batchManufacturedAt"
                                         name="batchManufacturedAt"
                                         type="date"
-                                        className={
-                                            inventoryControlClassName
-                                        }
+                                        disabled={!isManual || !overrideBatchMfg}
+                                        value={batchManufacturedAt}
+                                        onChange={(e) => setBatchManufacturedAt(e.target.value)}
+                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                     />
-                                </Field>
-                                <Field
-                                    label="Expiration date"
-                                    name="batchExpiresAt"
-                                >
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {!isManual ? "Locked" : !overrideBatchMfg ? "Existing date kept unchanged" : "Select date"}
+                                    </p>
+                                </div>
+
+                                {/* Expiration Date */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchExpiresAt" className="text-xs font-semibold text-foreground">
+                                            Expiration date
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchExp}
+                                                    onChange={(e) => setOverrideBatchExp(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit Exp date</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <Input
                                         id="batchExpiresAt"
                                         name="batchExpiresAt"
                                         type="date"
-                                        className={
-                                            inventoryControlClassName
-                                        }
+                                        disabled={!isManual || !overrideBatchExp}
+                                        value={batchExpiresAt}
+                                        onChange={(e) => setBatchExpiresAt(e.target.value)}
+                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                                     />
-                                </Field>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {!isManual ? "Locked" : !overrideBatchExp ? "Existing date kept unchanged" : "Select date"}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
             </section>
 
-            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
-                <Button
-                    variant="outline"
-                    render={<Link href="/inventory/stock" />}
-                    nativeButton={false}
-                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="submit"
-                    disabled={createState.isLoading || items.length === 0}
-                    className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
-                >
-                    {createState.isLoading ? (
-                        <LoaderCircle className="size-4 animate-spin shrink-0" />
-                    ) : null}
-                    <span>Save adjustment</span>
-                </Button>
+            {/* Side Live Summary Panel */}
+            <div className="flex flex-col gap-4 sticky top-6">
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-3">
+                        <Calculator className="size-4 text-primary" />
+                        <span>Movement Summary</span>
+                    </h3>
+
+                    <div className="mt-4 flex flex-col gap-3.5 text-sm">
+                        <div className="flex justify-between items-center text-muted-foreground">
+                            <span>Selected Item</span>
+                            <span className="font-medium text-foreground truncate max-w-[160px]">
+                                {selectedItem ? selectedItem.name : "None"}
+                            </span>
+                        </div>
+
+                        <div className="flex justify-between items-start gap-3 text-muted-foreground">
+                            <span className="shrink-0">Adjusting</span>
+                            <span className="text-right text-xs font-medium text-foreground">
+                                {adjustedEntry
+                                    ? describeEntry(adjustedEntry)
+                                    : "No linked record"}
+                            </span>
+                        </div>
+
+                        {itemOptions.length ? (
+                            <div className="flex justify-between items-center text-muted-foreground">
+                                <span>Option</span>
+                                <span className="font-medium text-foreground">
+                                    {optionName || "Whole item"}
+                                </span>
+                            </div>
+                        ) : null}
+
+                        <div className="flex justify-between items-center text-muted-foreground">
+                            <span>Current Stock</span>
+                            <span className="font-semibold text-foreground">
+                                {selectedItemId ? `${onHand} ${unitLabel}` : "-"}
+                            </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-muted-foreground">
+                            <span>Quantity Adjustment</span>
+                            <span
+                                className={`font-semibold ${
+                                    change > 0 ? "text-emerald-600 dark:text-emerald-400" : change < 0 ? "text-rose-600 dark:text-rose-400" : ""
+                                }`}
+                            >
+                                {qtyValid
+                                    ? `${change > 0 ? "+" : ""}${change} ${unitLabel}`
+                                    : "-"}
+                            </span>
+                        </div>
+
+                        {isManual && overrideUnitCost && unitCostInput.trim() !== "" ? (
+                            <div className="flex justify-between items-center text-muted-foreground">
+                                <span>New Unit Cost</span>
+                                <span className="font-semibold text-foreground">
+                                    {formatMoney(Number(unitCostInput))}
+                                </span>
+                            </div>
+                        ) : null}
+
+                        <div className="border-t border-border pt-3 flex justify-between items-center">
+                            <span className="font-medium text-foreground">Projected Stock</span>
+                            <span
+                                className={`text-base font-bold ${
+                                    resulting !== undefined && resulting < 0
+                                        ? "text-rose-600 dark:text-rose-400"
+                                        : "text-foreground"
+                                }`}
+                            >
+                                {selectedItemId && resulting !== undefined
+                                    ? `${resulting} ${unitLabel}`
+                                    : selectedItemId
+                                      ? `${onHand} ${unitLabel}`
+                                      : "-"}
+                            </span>
+                        </div>
+
+                        {resulting !== undefined && resulting < 0 ? (
+                            <p className="text-xs text-rose-600 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20">
+                                Warning: This adjustment takes stock below zero!
+                            </p>
+                        ) : null}
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-2.5">
+                    <Button
+                        type="submit"
+                        size="lg"
+                        disabled={
+                            createState.isLoading ||
+                            items.length === 0 ||
+                            !selectedItemId ||
+                            !qtyValid ||
+                            goesNegative
+                        }
+                        className="w-full rounded-xl gap-2"
+                    >
+                        {createState.isLoading ? (
+                            <LoaderCircle className="size-4 animate-spin shrink-0" />
+                        ) : (
+                            <Check className="size-4 shrink-0" />
+                        )}
+                        <span>Save adjustment</span>
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        render={<Link href="/inventory/stock" />}
+                        nativeButton={false}
+                        className="w-full rounded-xl"
+                    >
+                        Cancel
+                    </Button>
+                </div>
             </div>
+        </div>
             </form>
             <BarcodeScannerDialog
                 open={scannerOpen}

@@ -53,7 +53,8 @@ export type PreviewItem = {
     description: string;
     images: string[];
     badge: string;
-    price: number;
+    /** Undefined until a price is set — the store shows that honestly. */
+    price?: number;
     compareAtPrice?: number;
     sku: string;
     categoryName: string;
@@ -92,8 +93,8 @@ export function toPreviewItem(item: InventoryItem): PreviewItem {
         description: item.description || "",
         images: gallery.filter(Boolean),
         badge: item.badge || "",
-        price: item.price || 0,
-        compareAtPrice: item.compareAtPrice,
+        price: item.price ?? undefined,
+        compareAtPrice: item.compareAtPrice ?? undefined,
         sku: item.sku || "",
         categoryName: item.itemGroup?.name || "",
         unitName: item.unit?.name || "",
@@ -114,7 +115,7 @@ export function toPreviewItem(item: InventoryItem): PreviewItem {
         descriptionBlocks: toBlocks(item.descriptionBlocks || []),
         variants: (item.variants || []).map((variant) => ({
             name: variant.name || "",
-            price: variant.price,
+            price: variant.price ?? undefined,
             available: variant.available,
         })),
     };
@@ -209,7 +210,7 @@ function Storefront({
     // A compare-at price above the live price is what makes it a discount.
     const compareAt = item.compareAtPrice;
     const discount =
-        compareAt && compareAt > activePrice
+        compareAt && activePrice !== undefined && compareAt > activePrice
             ? Math.round(((compareAt - activePrice) / compareAt) * 100)
             : 0;
 
@@ -248,8 +249,16 @@ function Storefront({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-2xl font-bold text-danger">
-                            {formatMoney(activePrice)}
+                        <span
+                            className={
+                                activePrice === undefined
+                                    ? "text-base font-semibold text-[#657064] dark:text-[#94a3b8]"
+                                    : "text-2xl font-bold text-danger"
+                            }
+                        >
+                            {formatMoney(activePrice, undefined, {
+                                fallback: "Price not set",
+                            })}
                         </span>
                         {discount ? (
                             <>

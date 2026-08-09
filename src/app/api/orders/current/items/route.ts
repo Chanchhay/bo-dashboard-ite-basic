@@ -24,9 +24,14 @@ export async function POST(request: Request) {
         const businessId = await getCurrentBusinessId();
         const order = await ensureCurrentOrder(businessId);
 
+        const { itemId, variantId, quantity } = result.data;
+
         const updated = await backendRequest<PosOrder>(
             ordersPath(businessId, `/${encodeURIComponent(order.id)}/items`),
-            { method: "POST", body: JSON.stringify(result.data) },
+            {
+                method: "POST",
+                body: JSON.stringify({ itemId, variantId, quantity }),
+            },
         );
 
         return Response.json(updated);

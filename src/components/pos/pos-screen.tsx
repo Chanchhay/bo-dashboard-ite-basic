@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 
 import type { Item } from "@/types/pos-type";
@@ -20,6 +20,8 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { authClient } from "@/lib/auth/auth-client";
 import { useSessionSubject } from "@/lib/auth/session-context";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
+import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
+import { useGetCurrentStockQuery } from "@/services/inventoryApi";
 import {
   useAddOrderItemMutation,
   useGetCurrentOrderQuery,
@@ -110,22 +112,36 @@ export function PosScreen({
   const [addOrderItem] = useAddOrderItemMutation();
   const { toast } = useToast();
 
-  const addItem = async (itemId: string) => {
-    try {
-      await addOrderItem({ itemId, quantity: 1 }).unwrap();
-    } catch (error) {
-      // A tap that silently does nothing is worse than one that says why —
-      // the cashier would otherwise keep tapping.
-      toast({
-        tone: "error",
-        title: "Could not add that item",
-        description: getApiErrorMessage(error, "Please try again."),
-      });
-    }
-  };
+  const addItem = useCallback(
+    async (item: Item) => {
+      try {
+        await addOrderItem({
+          itemId: item.id,
+          quantity: 1,
+          itemName: item.name,
+          unitPrice: Number(item.price ?? 0),
+        }).unwrap();
+      } catch (error) {
+        toast({
+          tone: "error",
+          title: "Could not add that item",
+          description: getApiErrorMessage(error, "Please try again."),
+        });
+      }
+    },
+    [addOrderItem, toast],
+  );
   // The same cached order the cart panel renders, so the mobile bar can never
   // disagree with the panel behind it.
   const { data: currentOrder } = useGetCurrentOrderQuery();
+
+  useCustomerDisplaySync({
+    businessId: paidReceipt?.order.businessId || currentOrder?.businessId,
+    terminalId: "term_default",
+    order: paidReceipt ? paidReceipt.order : currentOrder,
+    sale: paidReceipt ? paidReceipt.sale : null,
+    statusOverride: paidReceipt ? "COMPLETED" : undefined,
+  });
   const showCart = TABS_WITH_CART.includes(activeTab);
   const itemCount =
     currentOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
@@ -137,6 +153,16 @@ export function PosScreen({
   /* The backend matches receiverId against the Keycloak subject, not against
      Better Auth's local user.id. */
   const subject = useSessionSubject();
+
+  const { data: currentStockList = [] } = useGetCurrentStockQuery();
+
+  const stockByItemId = useMemo(() => {
+    const map = new Map<string, number>();
+    currentStockList.forEach((s) => {
+      map.set(s.itemId, s.quantityOnHand ?? 0);
+    });
+    return map;
+  }, [currentStockList]);
 
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
     setPaidReceipt({ order, sale });
@@ -162,26 +188,41 @@ export function PosScreen({
         deepLink: "/dashboard/pos",
       }).catch(() => {});
 
-      // 2. Check sold items for low stock warnings
+      // 2. Check sold items for ACTUAL low stock warnings
       if (order.items && order.items.length > 0) {
         order.items.forEach((line) => {
           const itemMatch = channelItems.find(
             (ci) => ci.item.id === line.itemId || ci.item.name?.toLowerCase() === line.itemName?.toLowerCase()
           );
 
-          const lowThreshold = (itemMatch?.item as any)?.lowStockDefault ?? 5;
-          const itemName = line.itemName || itemMatch?.item?.name || "Product";
+          if (!itemMatch?.item) return;
 
-          // Dispatch real-time low stock warning for Business Owner / Team
-          createNotification({
-            senderId: subject,
-            senderName: "Inventory System",
-            receiverIds: [subject],
-            type: "INVENTORY",
-            title: `Low Stock Warning: ${itemName}`,
-            content: `Item "${itemName}" stock updated after sale. Check inventory to restock!`,
-            deepLink: "/inventory/stock",
-          }).catch(() => {});
+          const itemObj = itemMatch.item as any;
+          // Skip digital/service items that do not track inventory
+          if (itemObj.itemType === "DIGITAL") return;
+
+          const lowThreshold = Number(itemObj.lowStockDefault || 0);
+          // Skip if low stock threshold is disabled (0 or unset)
+          if (lowThreshold <= 0) return;
+
+          const currentStock = stockByItemId.get(itemObj.id) ?? 0;
+          const remainingStock = Math.max(0, currentStock - line.quantity);
+
+          // ONLY notify if remaining quantity drops to or below the low stock threshold
+          if (remainingStock <= lowThreshold) {
+            const itemName = line.itemName || itemObj.name || "Product";
+            const statusLabel = remainingStock <= 0 ? "OUT OF STOCK" : `${remainingStock} left`;
+
+            createNotification({
+              senderId: subject,
+              senderName: "Inventory System",
+              receiverIds: [subject],
+              type: "INVENTORY",
+              title: `Low Stock Warning: ${itemName} (${statusLabel})`,
+              content: `Item "${itemName}" is now ${remainingStock <= 0 ? "out of stock" : `low on stock (${remainingStock} remaining, threshold is ${lowThreshold})`}. Please restock!`,
+              deepLink: "/inventory/stock",
+            }).catch(() => {});
+          }
         });
       }
     }
@@ -255,7 +296,7 @@ export function PosScreen({
                       <PosCard
                         key={item.id}
                         item={item}
-                        onSelect={(id) => addItem(id)}
+                        onSelect={addItem}
                       />
                     ))}
                   </div>

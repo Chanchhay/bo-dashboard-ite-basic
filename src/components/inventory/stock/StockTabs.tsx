@@ -4,7 +4,6 @@ import { History, Package, PlusCircle } from "lucide-react";
 
 export const stockTabs = [
     { id: "items", label: "Items", icon: Package },
-    { id: "add-ons", label: "Add-ons", icon: PlusCircle },
     { id: "movements", label: "Movements", icon: History },
 ] as const;
 
@@ -47,15 +46,6 @@ export function StockTabs({
                         >
                             <Icon className="size-4 shrink-0" />
                             {tab.label}
-                            <span
-                                className={`rounded-full px-1.5 text-[11px] ${
-                                    active
-                                        ? "bg-white/20"
-                                        : "bg-muted text-muted-foreground"
-                                }`}
-                            >
-                                {counts[tab.id]}
-                            </span>
                         </button>
                     );
                 })}

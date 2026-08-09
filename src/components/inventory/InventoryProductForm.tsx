@@ -17,10 +17,16 @@ import {
     Download,
     Eye,
     LoaderCircle,
+    Pencil,
     Plus,
     Save,
     Trash2,
 } from "lucide-react";
+import { attributeIcon } from "@/lib/api/attribute-icons";
+import {
+    itemAttributePlacementLabels,
+    itemAttributeTypeLabels,
+} from "@/lib/api/inventory";
 
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
 import {
@@ -33,7 +39,8 @@ import {
     ItemAttributeDialog,
     type AttributeDraft,
 } from "@/components/inventory/ItemAttributeDialog";
-import { ItemOptionsCard } from "@/components/inventory/ItemOptionsCard";
+import { AddOnDialog } from "@/components/inventory/config/AddOnDialog";
+import { ItemPickerDialog } from "@/components/inventory/ItemPickerDialog";
 import {
     ItemPreviewDialog,
     type PreviewItem,
@@ -65,8 +72,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import { useMoney } from "@/hooks/useMoney";
 import {
     inventoryItemSchema,
     itemImageRules,
@@ -78,7 +87,12 @@ import {
     type ItemAttribute,
     type ItemAttributePlacement,
 } from "@/lib/api/inventory";
-import type { OptionPreset } from "@/lib/inventory-config/types";
+import {
+    sampleAddOns,
+    sampleUnits,
+} from "@/lib/inventory-config/sample-data";
+import type { AddOn, OptionPreset } from "@/lib/inventory-config/types";
+import { formatAmount } from "@/lib/inventory-config/units";
 import {
     useCreateInventoryItemMutation,
     useDeleteItemImageMutation,
@@ -230,6 +244,18 @@ function toAttributeDrafts(
     }));
 }
 
+function describeAttribute(attribute: AttributeDraft) {
+    if (attribute.type === "TOGGLE") {
+        return "On or off";
+    }
+
+    return attribute.values.length
+        ? attribute.values
+            .map((value) => value.label || value.value)
+            .join(", ")
+        : "No values";
+}
+
 function toBlockDrafts(
     blocks: DescriptionBlock[] | undefined,
 ): BlockDraft[] {
@@ -291,19 +317,71 @@ function fromBlockDraft(block: BlockDraft): BlockPayload {
  */
 function preservedCommerceFields(initialItem: InventoryItem | undefined) {
     return {
-        price: initialItem?.price ?? 0,
+        price: initialItem?.price,
         compareAtPrice: initialItem?.compareAtPrice,
         variants: (initialItem?.variants || [])
             .filter((variant) => variant.name?.trim())
             .map((variant) => ({
                 name: variant.name || "",
                 available: variant.available !== false,
-                ...(variant.price === undefined
-                    ? {}
-                    : { price: variant.price }),
+                ...(variant.price == null ? {} : { price: variant.price }),
             })),
     };
 }
+
+/**
+ * What each schema field is called on screen.
+ *
+ * A validation message is useless when it cannot be traced to a control —
+ * "check the highlighted information" is a dead end if the field that failed is
+ * one the form never renders an error beside.
+ */
+function emptyOption(): OptionRow {
+    return {
+        id: createRowId(),
+        name: "",
+        sku: "",
+        barcode: "",
+        available: true,
+    };
+}
+
+type OptionRow = {
+    id: string;
+    name: string;
+    /**
+     * Each variation is scanned and counted on its own, so it needs its own
+     * SKU and barcode.
+     *
+     * Neither is saved yet: `ItemVariantRequest` carries only name, price and
+     * availability, so these are held on screen until the API grows the
+     * fields. Nothing is silently dropped without saying so.
+     */
+    sku: string;
+    barcode: string;
+    available: boolean;
+    /** Whatever Sale Management has set. Shown here, never edited here. */
+    price?: number;
+};
+
+const fieldLabels: Record<string, string> = {
+    itemGroupId: "Category",
+    unitId: "Base unit of measure",
+    name: "Item name",
+    sku: "SKU",
+    code: "Internal code",
+    description: "Description",
+    badge: "Badge",
+    barcode: "Barcode",
+    price: "Price",
+    compareAtPrice: "Compare-at price",
+    itemType: "Item type",
+    attributes: "Attributes",
+    descriptionBlocks: "Store page",
+    variants: "Variants",
+    lowStockDefault: "Low-stock threshold",
+    status: "Status",
+};
 
 function fieldErrorsFromIssues(
     issues: { path: PropertyKey[]; message: string }[],
@@ -323,6 +401,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const { toast } = useToast();
     const { data: groups, error: groupsError } = useGetItemGroupsQuery();
     const { data: units, error: unitsError } = useGetInventoryUnitsQuery();
+    const { format: formatMoney } = useMoney();
     const [createItem, createState] = useCreateInventoryItemMutation();
     const [updateItem, updateState] = useUpdateInventoryItemMutation();
     const [generateBarcode, generateBarcodeState] =
@@ -339,6 +418,37 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [newPlacement, setNewPlacement] =
         useState<ItemAttributePlacement>("OPTION");
     const [attachedAddOnIds, setAttachedAddOnIds] = useState<string[]>([]);
+    const [addOnPickerOpen, setAddOnPickerOpen] = useState(false);
+    const [newAddOnOpen, setNewAddOnOpen] = useState(false);
+    /**
+     * The item's options: same item, different size or pack, each sold on its
+     * own. They are the API's `variants`, which is why a price rides along —
+     * but it is never typed here. Pricing is per sales channel in Sale
+     * Management, so a new option stays unpriced until that is done.
+     */
+    const updateOption = (id: string, patch: Partial<OptionRow>) =>
+        setOptions((current) =>
+            current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+        );
+
+    const [options, setOptions] = useState<OptionRow[]>(() =>
+        (initialItem?.variants || []).map((variant) => ({
+            id: createRowId(),
+            name: variant.name || "",
+            sku: "",
+            barcode: "",
+            available: variant.available !== false,
+            price: variant.price ?? undefined,
+        })),
+    );
+    /**
+     * The shared add-on library, plus anything created from this form.
+     *
+     * A new add-on belongs to the library, not to this item — it is attached
+     * here as a convenience so the flow does not break off to Inventory config
+     * mid-item. Nothing is saved anywhere yet; see the config plan.
+     */
+    const [addOnLibrary, setAddOnLibrary] = useState<AddOn[]>(sampleAddOns);
     const [uomDraft, setUomDraft] = useState<ItemUomDraft>(() => ({
         ...emptyUomDraft,
         baseUnitId: initialItem?.unit?.id || "",
@@ -403,6 +513,23 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 delete next.barcode;
                 return next;
             });
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Barcode not generated",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to generate a unique barcode.",
+                ),
+            });
+        }
+    }
+
+    /** Same generator the item's own barcode uses, aimed at one option. */
+    async function generateOptionBarcode(id: string) {
+        try {
+            const result = await generateBarcode().unwrap();
+            updateOption(id, { barcode: result.barcode });
         } catch (error) {
             toast({
                 tone: "error",
@@ -518,8 +645,8 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         setAttributes((current) =>
             draft.id
                 ? current.map((attribute) =>
-                      attribute.id === draft.id ? draft : attribute,
-                  )
+                    attribute.id === draft.id ? draft : attribute,
+                )
                 : [...current, { ...draft, id: createRowId() }],
         );
     }
@@ -549,6 +676,29 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         });
     }
 
+    const attachedAddOns = attachedAddOnIds
+        .map((id) => addOnLibrary.find((addOn) => addOn.id === id))
+        .filter((addOn) => addOn !== undefined);
+
+    const addOnUnitSymbol = (unitId: string) =>
+        sampleUnits.find((unit) => unit.id === unitId)?.symbol ?? "";
+
+    function createAddOn(addOn: AddOn) {
+        setAddOnLibrary((current) => [...current, addOn]);
+        attachAddOns([addOn.id]);
+        toast({
+            tone: "success",
+            title: `${addOn.name} created`,
+            description: "Attached to this item and added to the library.",
+        });
+    }
+
+    function detachAddOn(id: string) {
+        setAttachedAddOnIds((current) =>
+            current.filter((addOnId) => addOnId !== id),
+        );
+    }
+
     function attachAddOns(ids: string[]) {
         setAttachedAddOnIds((current) => [
             ...current,
@@ -576,8 +726,8 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             description: read("description"),
             images: galleryUrls,
             badge: read("badge"),
-            price: preserved.price,
-            compareAtPrice: preserved.compareAtPrice,
+            price: preserved.price ?? undefined,
+            compareAtPrice: preserved.compareAtPrice ?? undefined,
             sku: read("sku"),
             categoryName:
                 categoryOptions.find((option) => option.id === categoryId)
@@ -622,7 +772,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     : String(formData.get("unitId") || ""),
             name: String(formData.get("name") || ""),
             sku: String(formData.get("sku") || ""),
-            code: String(formData.get("code") || ""),
+            // No input for this any more — SKU is the code people use. An
+            // item that already carries one keeps it.
+            code: initialItem?.code || "",
             description: String(formData.get("description") || ""),
             badge: String(formData.get("badge") || ""),
             barcode: String(formData.get("barcode") || ""),
@@ -632,15 +784,39 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             lowStockDefault: Number(formData.get("lowStockDefault") || 0),
             status: String(formData.get("status") || ""),
             ...preservedCommerceFields(initialItem),
+            variants: options
+                .filter((option) => option.name.trim())
+                .map((option) => ({
+                    name: option.name.trim(),
+                    available: option.available,
+                    ...(option.price === undefined
+                        ? {}
+                        : { price: option.price }),
+                })),
         });
 
         if (!result.success) {
-            setFieldErrors(fieldErrorsFromIssues(result.error.issues));
+            const errors = fieldErrorsFromIssues(result.error.issues);
+            setFieldErrors(errors);
+
+            const [firstIssue] = result.error.issues;
+            const field = String(firstIssue?.path[0] ?? "form");
+            const label = fieldLabels[field];
+
             toast({
                 tone: "error",
                 title: `Item not ${isEditing ? "updated" : "created"}`,
-                description: "Check the highlighted item information.",
+                description: label
+                    ? `${label}: ${firstIssue?.message}`
+                    : (firstIssue?.message ??
+                      "Check the highlighted item information."),
             });
+
+            // Some of these fields sit far down the page, and one of them has
+            // no error slot of its own, so the form goes to the offender.
+            document
+                .getElementById(field)
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
         }
 
@@ -745,20 +921,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             defaultValue={initialItem?.sku}
                             placeholder="LAT-001"
                             aria-invalid={Boolean(fieldErrors.sku)}
-                            className={inventoryControlClassName}
-                        />
-                    </Field>
-                    <Field
-                        label="Internal code"
-                        name="code"
-                        error={fieldErrors.code}
-                    >
-                        <Input
-                            id="code"
-                            name="code"
-                            defaultValue={initialItem?.code}
-                            placeholder="ITEM-001"
-                            aria-invalid={Boolean(fieldErrors.code)}
                             className={inventoryControlClassName}
                         />
                     </Field>
@@ -962,6 +1124,188 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 </p>
             </section>
 
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <SectionHeading
+                        title={
+                            options.length
+                                ? `Options · ${options.length}`
+                                : "Options"
+                        }
+                        description="Variations of this item — Small, Large, 6-pack. Each is scanned and counted on its own, and priced per sales channel in Sale Management."
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setOptions((current) => [...current, emptyOption()])}
+                    >
+                        <Plus />
+                        Add option
+                    </Button>
+                </div>
+
+                {options.length ? (
+                    <>
+                        <ul className="mt-5 flex flex-col gap-3">
+                            {options.map((option, index) => (
+                                <li
+                                    key={option.id}
+                                    className="rounded-xl border border-[#e8e8e8] bg-muted/20 p-4 dark:border-[#2a3042]"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                                                {index + 1}
+                                            </span>
+                                            <span className="text-sm font-semibold text-foreground">
+                                                {option.name || "New option"}
+                                            </span>
+                                            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                                {option.price === undefined
+                                                    ? "Price not set"
+                                                    : formatMoney(option.price)}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex shrink-0 items-center gap-3">
+                                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                <span>On sale</span>
+                                                <Switch
+                                                    aria-label={`${option.name || `Option ${index + 1}`} on sale`}
+                                                    checked={option.available}
+                                                    onCheckedChange={(checked) =>
+                                                        updateOption(option.id, {
+                                                            available: checked,
+                                                        })
+                                                    }
+                                                />
+                                            </label>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                aria-label={`Remove option ${option.name || index + 1}`}
+                                                onClick={() =>
+                                                    setOptions((current) =>
+                                                        current.filter(
+                                                            (row) => row.id !== option.id,
+                                                        ),
+                                                    )
+                                                }
+                                            >
+                                                <Trash2 />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                                Option name
+                                            </Label>
+                                            <Input
+                                                aria-label={`Option ${index + 1} name`}
+                                                value={option.name}
+                                                onChange={(event) =>
+                                                    updateOption(option.id, {
+                                                        name: event.target.value,
+                                                    })
+                                                }
+                                                placeholder="e.g. Large"
+                                                className={`${inventoryControlClassName} h-10`}
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                                SKU
+                                            </Label>
+                                            <Input
+                                                aria-label={`Option ${index + 1} SKU`}
+                                                value={option.sku}
+                                                onChange={(event) =>
+                                                    updateOption(option.id, {
+                                                        sku: event.target.value,
+                                                    })
+                                                }
+                                                placeholder="e.g. TEA-L"
+                                                className={`${inventoryControlClassName} h-10`}
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                                Barcode
+                                            </Label>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    aria-label={`Option ${index + 1} barcode`}
+                                                    value={option.barcode}
+                                                    onChange={(event) =>
+                                                        updateOption(option.id, {
+                                                            barcode: event.target.value,
+                                                        })
+                                                    }
+                                                    placeholder="Scan, type or generate"
+                                                    className={`${inventoryControlClassName} h-10 flex-1 font-mono`}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    disabled={
+                                                        generateBarcodeState.isLoading
+                                                    }
+                                                    onClick={() =>
+                                                        generateOptionBarcode(option.id)
+                                                    }
+                                                    aria-label={`Generate a unique barcode for option ${index + 1}`}
+                                                    title="Generate unique barcode"
+                                                    className="shrink-0 self-center"
+                                                >
+                                                    {generateBarcodeState.isLoading ? (
+                                                        <LoaderCircle className="animate-spin" />
+                                                    ) : (
+                                                        <Dices />
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+
+                        <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+                            Option names and availability are saved. Per-option
+                            SKU and barcode are not — the API has no field for
+                            them yet, so they stay on this screen for now.
+                        </p>
+                    </>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setOptions([emptyOption()])}
+                        className="mt-5 flex w-full cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed border-[#e8e8e8] px-4 py-8 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 dark:border-[#2a3042]"
+                    >
+                        <Plus className="size-5 text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">
+                            Add an option
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                            Only if this item sells in more than one size or
+                            pack.
+                        </span>
+                    </button>
+                )}
+
+                {fieldErrors.variants ? (
+                    <p className="mt-3 text-xs text-danger" role="alert">
+                        {fieldErrors.variants}
+                    </p>
+                ) : null}
+            </section>
+
             <ItemUomCard
                 apiUnits={units || []}
                 lowStockDefault={initialItem?.lowStockDefault ?? 0}
@@ -1055,28 +1399,206 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 </ImageDropzone>
             </section>
 
-            <ItemOptionsCard
-                attributes={attributes}
-                onAddOption={() => openAttributeDialog(null, "OPTION")}
-                onAddAttribute={() =>
-                    openAttributeDialog(null, "SPECIFICATION")
-                }
-                onEditAttribute={(id) => openAttributeDialog(id)}
-                onRemoveAttribute={(id) =>
-                    setAttributes((current) =>
-                        current.filter((row) => row.id !== id),
-                    )
-                }
-                onApplyPreset={applyPreset}
-                attachedAddOnIds={attachedAddOnIds}
-                onAttachAddOns={attachAddOns}
-                onDetachAddOn={(id) =>
-                    setAttachedAddOnIds((current) =>
-                        current.filter((addOnId) => addOnId !== id),
-                    )
-                }
-                optionsError={fieldErrors.attributes}
-            />
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                    <SectionHeading
+                        title="Attributes"
+                        description="Define typed attributes such as size, colour or status."
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => openAttributeDialog(null)}
+                    >
+                        <Plus />
+                        Add attribute
+                    </Button>
+                </div>
+                <div className="mt-5 flex flex-col gap-3">
+                    {attributes.length ? (
+                        attributes.map((attribute) => (
+                            <div
+                                key={attribute.id}
+                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-4 py-3"
+                            >
+                                {attribute.icon ? (
+                                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                        {(() => {
+                                            const Glyph = attributeIcon(
+                                                attribute.icon,
+                                            );
+
+                                            return (
+                                                <Glyph className="size-4" />
+                                            );
+                                        })()}
+                                    </span>
+                                ) : null}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-medium text-[#1a222b] dark:text-[#f8fafc]">
+                                            {attribute.name}
+                                        </p>
+                                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                            {
+                                                itemAttributeTypeLabels[
+                                                attribute.type
+                                                ]
+                                            }
+                                        </span>
+                                        <span className="rounded-full bg-[#f2f3f1] dark:bg-[#252a38] px-2.5 py-0.5 text-xs font-medium text-[#657064] dark:text-[#cbd5e1]">
+                                            {
+                                                itemAttributePlacementLabels[
+                                                    attribute.placement
+                                                ].label
+                                            }
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 truncate text-sm text-[#657064] dark:text-[#94a3b8]">
+                                        {describeAttribute(attribute)}
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Edit ${attribute.name}`}
+                                    onClick={() =>
+                                        openAttributeDialog(attribute.id)
+                                    }
+                                >
+                                    <Pencil />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon-sm"
+                                    aria-label={`Remove ${attribute.name}`}
+                                    onClick={() =>
+                                        setAttributes((current) =>
+                                            current.filter(
+                                                (row) =>
+                                                    row.id !== attribute.id,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <Trash2 />
+                                </Button>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="rounded-xl border border-dashed border-[#e8e8e8] dark:border-[#2a3042] px-4 py-6 text-center text-sm text-[#657064] dark:text-[#94a3b8]">
+                            No attributes yet. Add one to describe this item.
+                        </p>
+                    )}
+                    {fieldErrors.attributes ? (
+                        <p className="text-xs text-danger" role="alert">
+                            {fieldErrors.attributes}
+                        </p>
+                    ) : null}
+                </div>
+
+                <ItemAttributeDialog
+                    open={attributeDialogOpen}
+                    onOpenChange={setAttributeDialogOpen}
+                    initialAttribute={editingAttribute}
+                    existingNames={attributes
+                        .filter(
+                            (attribute) =>
+                                attribute.id !== editingAttributeId,
+                        )
+                        .map((attribute) => attribute.name.toLowerCase())}
+                    onSubmit={saveAttribute}
+                />
+            </section>
+
+            <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                    <SectionHeading
+                        title="Add-ons"
+                        description="Extras a customer can choose with this item. Each one is defined once in Inventory config and attached here."
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setAddOnPickerOpen(true)}
+                        >
+                            Attach existing
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setNewAddOnOpen(true)}
+                        >
+                            <Plus />
+                            New add-on
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3">
+                    {attachedAddOns.length ? (
+                        attachedAddOns.map((addOn) => (
+                            <div
+                                key={addOn.id}
+                                className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] px-4 py-3"
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-semibold text-foreground">
+                                        {addOn.name}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                        Uses {formatAmount(addOn.usePerOrder)}{" "}
+                                        {addOnUnitSymbol(addOn.baseUnitId)} per
+                                        order
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Remove ${addOn.name} from this item`}
+                                    onClick={() => detachAddOn(addOn.id)}
+                                >
+                                    <Trash2 />
+                                </Button>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="rounded-xl border border-dashed border-[#e8e8e8] dark:border-[#2a3042] px-4 py-6 text-center text-sm text-[#657064] dark:text-[#94a3b8]">
+                            No add-ons attached. Attach one to offer it with
+                            this item.
+                        </p>
+                    )}
+                </div>
+
+                <ItemPickerDialog
+                    open={addOnPickerOpen}
+                    onOpenChange={setAddOnPickerOpen}
+                    title="Attach an add-on"
+                    description="Pick one from the shared library."
+                    emptyMessage="Every add-on is already attached."
+                    options={addOnLibrary
+                        .filter(
+                            (addOn) => !attachedAddOnIds.includes(addOn.id),
+                        )
+                        .map((addOn) => ({
+                            id: addOn.id,
+                            label: addOn.name,
+                            hint: `Uses ${formatAmount(addOn.usePerOrder)} ${addOnUnitSymbol(addOn.baseUnitId)} per order`,
+                        }))}
+                    onPick={(id) => attachAddOns([id])}
+                />
+
+                <AddOnDialog
+                    open={newAddOnOpen}
+                    onOpenChange={setNewAddOnOpen}
+                    units={sampleUnits}
+                    onSave={createAddOn}
+                />
+            </section>
 
             <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
@@ -1095,6 +1617,28 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     ) : null}
                 </div>
             </section>
+
+            {Object.keys(fieldErrors).length ? (
+                <div
+                    className="rounded-2xl border border-danger/30 bg-danger/5 p-4 text-sm"
+                    role="alert"
+                >
+                    <p className="font-semibold text-danger">
+                        This item cannot be saved yet
+                    </p>
+                    <ul className="mt-2 flex flex-col gap-1 text-xs text-danger">
+                        {Object.entries(fieldErrors).map(
+                            ([field, message]) => (
+                                <li key={field}>
+                                    {fieldLabels[field]
+                                        ? `${fieldLabels[field]}: ${message}`
+                                        : message}
+                                </li>
+                            ),
+                        )}
+                    </ul>
+                </div>
+            ) : null}
 
             <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
                 <Button
