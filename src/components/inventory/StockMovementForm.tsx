@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import {
     ArrowLeft,
@@ -11,7 +11,9 @@ import {
     Check,
     LoaderCircle,
     Package,
+    PackageOpen,
     ScanBarcode,
+    SlidersHorizontal,
 } from "lucide-react";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
@@ -77,6 +79,8 @@ function FormField({
 
 export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramItemId = searchParams?.get("itemId") || "";
     const { toast } = useToast();
     const { format: formatMoney } = useMoney();
 
@@ -84,10 +88,13 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const stockQuery = useGetCurrentStockQuery();
     const [createEntry, createState] = useCreateStockEntryMutation();
 
-    const [selectedItemId, setSelectedItemId] = useState("");
+    const [selectedItemId, setSelectedItemId] = useState(paramItemId);
     const [quantityInput, setQuantityInput] = useState("");
     const [unitPriceInput, setUnitPriceInput] = useState("");
     const [reasonInput, setReasonInput] = useState("");
+    const [batchLot, setBatchLot] = useState("");
+    const [batchManufacturedAt, setBatchManufacturedAt] = useState("");
+    const [batchExpiresAt, setBatchExpiresAt] = useState("");
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -172,6 +179,10 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         setFieldErrors({});
 
         const quantityChange = isStockIn ? qty : -qty;
+        const batchData: Record<string, string> = {};
+        if (batchLot.trim()) batchData.lot = batchLot.trim();
+        if (batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
+        if (batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
 
         try {
             await createEntry({
@@ -179,7 +190,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 entryType: isStockIn ? "STOCK_IN" : "STOCK_OUT",
                 quantityChange,
                 unitCost: isValidPrice ? price : undefined,
-                batchData: {},
+                batchData,
                 referenceType: isStockIn ? "STOCK_IN_FORM" : "STOCK_OUT_FORM",
                 referenceId: "",
                 referenceNumber: "",
@@ -410,6 +421,66 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                         />
                                     </FormField>
                                 </div>
+
+                                {/* Batch Details Card */}
+                                <div className="sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5">
+                                    <div className="flex items-start gap-3">
+                                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                            <PackageOpen className="size-5" />
+                                        </span>
+                                        <div>
+                                            <h3 className="font-semibold text-foreground">
+                                                Batch details
+                                            </h3>
+                                            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                                                Optional. Use these fields when stock is tracked by lot or expiration date. No JSON is required.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                                        <FormField
+                                            label="Batch / lot number"
+                                            name="batchLot"
+                                            hint="For example, LOT-01."
+                                        >
+                                            <Input
+                                                id="batchLot"
+                                                name="batchLot"
+                                                value={batchLot}
+                                                onChange={(e) => setBatchLot(e.target.value)}
+                                                placeholder="LOT-01"
+                                                className={inventoryControlClassName}
+                                            />
+                                        </FormField>
+                                        <FormField
+                                            label="Manufactured date"
+                                            name="batchManufacturedAt"
+                                        >
+                                            <Input
+                                                id="batchManufacturedAt"
+                                                name="batchManufacturedAt"
+                                                type="date"
+                                                value={batchManufacturedAt}
+                                                onChange={(e) => setBatchManufacturedAt(e.target.value)}
+                                                className={inventoryControlClassName}
+                                            />
+                                        </FormField>
+                                        <FormField
+                                            label="Expiration date"
+                                            name="batchExpiresAt"
+                                        >
+                                            <Input
+                                                id="batchExpiresAt"
+                                                name="batchExpiresAt"
+                                                type="date"
+                                                value={batchExpiresAt}
+                                                onChange={(e) => setBatchExpiresAt(e.target.value)}
+                                                className={inventoryControlClassName}
+                                            />
+                                        </FormField>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </section>
@@ -499,6 +570,8 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                 )}
                                 <span>{isStockIn ? "Save Stock In" : "Save Stock Out"}</span>
                             </Button>
+
+
 
                             <Button
                                 type="button"

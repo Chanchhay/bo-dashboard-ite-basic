@@ -163,6 +163,11 @@ export const NAVIGATION: NavSection[] = [
                         href: "/inventory/stock/out",
                         permission: PERMISSIONS.INVENTORY_STOCK,
                     },
+                    {
+                        label: "Adjust stock",
+                        href: "/inventory/stock/adjust",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
                 ],
             },
             {
