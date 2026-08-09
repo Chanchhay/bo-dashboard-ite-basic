@@ -231,7 +231,7 @@ function AddOnCategoryDropdown({
                                         {addOn.name}
                                     </p>
                                     <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                        {formatAmount(addOn.onHand)} {symbol} in stock · uses {formatAmount(addOn.usePerOrder)} {symbol} per order
+                                        Uses {formatAmount(addOn.usePerOrder)} {symbol} per order
                                     </p>
                                 </div>
 
@@ -550,7 +550,7 @@ export function ItemOptionsCard({
                     .map((addOn) => ({
                         id: addOn.id,
                         label: addOn.name,
-                        hint: `${formatAmount(addOn.onHand)} ${unitSymbol(addOn.baseUnitId)} in stock`,
+                        hint: `Uses ${formatAmount(addOn.usePerOrder)} ${unitSymbol(addOn.baseUnitId)} per order`,
                     }))}
                 onPick={(id) => onAttachAddOns([id])}
             />

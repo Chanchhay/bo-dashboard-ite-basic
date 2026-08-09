@@ -388,9 +388,9 @@ export function ChannelMatrixTable({
                                             <p className="font-bold text-foreground truncate text-sm">
                                                 {item.name || "Unnamed item"}
                                             </p>
-                                            {(item.itemGroup?.name || item.category?.name) && (
+                                            {(item.itemGroup?.name) && (
                                                 <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                                    {item.itemGroup?.name || item.category?.name}
+                                                    {item.itemGroup?.name}
                                                 </p>
                                             )}
                                         </div>

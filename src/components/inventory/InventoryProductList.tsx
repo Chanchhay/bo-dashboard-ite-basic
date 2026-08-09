@@ -124,13 +124,13 @@ function FilterChip({
  */
 function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     const [addOnStates, setAddOnStates] = useState<
-        Record<string, { enabled: boolean; price: string; stock: string; usage: string }>
+        Record<string, { enabled: boolean; price: string; usage: string }>
     >({
-        "a-pearls": { enabled: true, price: "+$0.50", stock: "2,400 g in stock", usage: "30 g / order" },
-        "a-jelly": { enabled: true, price: "+$0.60", stock: "180 g in stock", usage: "30 g / order" },
-        "a-pudding": { enabled: false, price: "+$0.75", stock: "1,250 g in stock", usage: "40 g / order" },
-        "a-shot": { enabled: true, price: "+$1.00", stock: "840 shots in stock", usage: "1 shot / order" },
-        "a-syrup": { enabled: true, price: "+$0.50", stock: "1,800 ml in stock", usage: "15 ml / order" },
+        "a-pearls": { enabled: true, price: "+$0.50", usage: "30 g / order" },
+        "a-jelly": { enabled: true, price: "+$0.60", usage: "30 g / order" },
+        "a-pudding": { enabled: false, price: "+$0.75", usage: "40 g / order" },
+        "a-shot": { enabled: true, price: "+$1.00", usage: "1 shot / order" },
+        "a-syrup": { enabled: true, price: "+$0.50", usage: "15 ml / order" },
     });
 
     const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
@@ -149,7 +149,7 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     const toggleAddOn = (addOnId: string, enabled: boolean) => {
         setAddOnStates((prev) => ({
             ...prev,
-            [addOnId]: { ...(prev[addOnId] || { enabled: true, price: "+$0.50", stock: "100 in stock", usage: "1 per order" }), enabled },
+            [addOnId]: { ...(prev[addOnId] || { enabled: true, price: "+$0.50", usage: "1 per order" }), enabled },
         }));
     };
 
@@ -225,7 +225,6 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                                     const state = addOnStates[addOn.id] || {
                                         enabled: true,
                                         price: "+$0.50",
-                                        stock: "100 in stock",
                                         usage: "1 per order",
                                     };
 
@@ -257,8 +256,6 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                                                     <span className="font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                                         {state.price}
                                                     </span>
-                                                    <span>•</span>
-                                                    <span>{state.stock}</span>
                                                     <span>•</span>
                                                     <span>{state.usage}</span>
                                                 </div>
@@ -1112,8 +1109,17 @@ export function InventoryProductList() {
                                                     ? titleCase(item.itemType)
                                                     : "—"}
                                             </td>
-                                            <td className="px-5 py-4 font-semibold">
-                                                {formatMoney(item.price)}
+                                            <td
+                                                className={
+                                                    item.price === undefined ||
+                                                    item.price === null
+                                                        ? "px-5 py-4 text-muted-foreground"
+                                                        : "px-5 py-4 font-semibold"
+                                                }
+                                            >
+                                                {formatMoney(item.price, undefined, {
+                                                    fallback: "Not set",
+                                                })}
                                             </td>
                                             <td className="px-5 py-4 text-muted-foreground">
                                                 {item.unit?.name || "—"}

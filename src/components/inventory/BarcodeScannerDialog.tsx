@@ -144,7 +144,10 @@ export function BarcodeScannerDialog({
                                     {foundItem.name || "Unnamed item"}
                                 </p>
                                 <p className="text-sm text-[#657064] dark:text-[#94a3b8]">
-                                    {foundItem.sku || "No SKU"} · {formatMoney(foundItem.price)}
+                                    {foundItem.sku || "No SKU"} ·{" "}
+                                    {formatMoney(foundItem.price, undefined, {
+                                        fallback: "Price not set",
+                                    })}
                                 </p>
                             </div>
                             <BarcodePreview

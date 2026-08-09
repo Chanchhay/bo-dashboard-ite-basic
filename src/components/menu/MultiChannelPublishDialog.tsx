@@ -331,9 +331,9 @@ export function MultiChannelPublishDialog({
                                     <p className="text-sm font-bold text-foreground truncate">
                                         {singleItem.name || "Unnamed Item"}
                                     </p>
-                                    {(singleItem.itemGroup?.name || singleItem.category?.name) && (
+                                    {(singleItem.itemGroup?.name) && (
                                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                            {singleItem.itemGroup?.name || singleItem.category?.name}
+                                            {singleItem.itemGroup?.name}
                                         </p>
                                     )}
                                 </div>
@@ -534,9 +534,9 @@ export function MultiChannelPublishDialog({
 
                                                         <div className="min-w-0">
                                                             <p className="truncate font-bold text-foreground text-sm">{item.name || "Unnamed item"}</p>
-                                                            {(item.itemGroup?.name || item.category?.name) && (
+                                                            {(item.itemGroup?.name) && (
                                                                 <p className="text-xs text-muted-foreground truncate">
-                                                                    {item.itemGroup?.name || item.category?.name}
+                                                                    {item.itemGroup?.name}
                                                                 </p>
                                                             )}
                                                         </div>

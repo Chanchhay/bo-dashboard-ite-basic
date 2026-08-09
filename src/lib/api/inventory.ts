@@ -132,7 +132,8 @@ export type ItemVariant = {
     id?: string;
     slug?: string;
     name?: string;
-    price?: number;
+    /** Null on a variant the API holds with no price set. */
+    price?: number | null;
     available?: boolean;
 };
 
@@ -149,8 +150,8 @@ export type InventoryItem = {
     images?: ItemImage[];
     badge?: string;
     barcode?: string;
-    price?: number;
-    compareAtPrice?: number;
+    price?: number | null;
+    compareAtPrice?: number | null;
     itemType?: (typeof itemTypes)[number];
     attributes?: ItemAttribute[];
     descriptionBlocks?: DescriptionBlock[];
@@ -375,13 +376,28 @@ const optionalUuidSchema = z
 const optionalText = (maximum: number, message: string) =>
     z.string().trim().max(maximum, message);
 
+/**
+ * A money field that may simply not be set.
+ *
+ * Unset reaches us two ways — absent on a form that never asks for it, and
+ * `null` on a record the API has already stored — and both have to mean the
+ * same thing, or editing an item the API returned would fail validation on a
+ * field the screen never shows.
+ */
+const optionalMoney = (message: string) =>
+    z
+        .number()
+        .min(0, message)
+        .nullish()
+        .transform((value) => value ?? undefined);
+
 export const itemVariantSchema = z.object({
     name: z
         .string()
         .trim()
         .min(1, "Variant name is required.")
         .max(150, "Variant name must be 150 characters or fewer."),
-    price: z.number().min(0, "Variant price cannot be negative.").optional(),
+    price: optionalMoney("Variant price cannot be negative."),
     available: z.boolean(),
 });
 
@@ -592,11 +608,8 @@ export const inventoryItemSchema = z.object({
         100,
         "Barcode must be 100 characters or fewer.",
     ),
-    price: z.number().min(0, "Price cannot be negative."),
-    compareAtPrice: z
-        .number()
-        .min(0, "Compare-at price cannot be negative.")
-        .optional(),
+    price: optionalMoney("Price cannot be negative."),
+    compareAtPrice: optionalMoney("Compare-at price cannot be negative."),
     itemType: z.enum(itemTypes),
     attributes: z
         .array(itemAttributeSchema)
@@ -621,6 +634,27 @@ export const inventoryItemSchema = z.object({
 });
 
 export type InventoryItemInput = z.infer<typeof inventoryItemSchema>;
+
+export const itemVariantsSchema = z.array(itemVariantSchema);
+
+export type ItemVariantInput = z.infer<typeof itemVariantSchema>;
+
+/**
+ * A pricing-only change.
+ *
+ * Every field is optional because the update applies what it is given: send a
+ * price to set it, send variants to replace them, send both to do both.
+ */
+export const itemPricingSchema = z.object({
+    price: z.number().min(0, "Price cannot be negative.").optional(),
+    compareAtPrice: z
+        .number()
+        .min(0, "Compare-at price cannot be negative.")
+        .optional(),
+    variants: itemVariantsSchema.optional(),
+});
+
+export type ItemPricingInput = z.infer<typeof itemPricingSchema>;
 
 export const itemGroupSchema = z.object({
     name: z
@@ -710,13 +744,13 @@ export function toItemRequest(input: InventoryItemInput) {
         description: input.description,
         badge: input.badge,
         barcode: input.barcode,
-        price: input.price,
         itemType: input.itemType,
         attributes: input.attributes.map(toAttributeRequest),
         descriptionBlocks: input.descriptionBlocks.map(toBlockRequest),
         variants: input.variants,
         lowStockDefault: input.lowStockDefault,
         status: input.status,
+        ...(input.price === undefined ? {} : { price: input.price }),
         ...(input.compareAtPrice === undefined
             ? {}
             : { compareAtPrice: input.compareAtPrice }),
@@ -830,6 +864,55 @@ export function toItemMultipart(
             `Content-Type: ${file.type || "application/octet-stream"}`,
         ]);
         parts.push(file, multipartLineBreak);
+    }
+
+    parts.push(`--${boundary}--${multipartLineBreak}`);
+
+    return {
+        body: new Blob(parts),
+        contentType: `multipart/form-data; boundary=${boundary}`,
+    };
+}
+
+/**
+ * Prices only: the item's own amount, its options, or both.
+ *
+ * The item update applies each field only when it is sent, so pricing needs
+ * nothing else — round-tripping a whole item to change one number risks
+ * overwriting fields the pricing screen never loaded.
+ */
+export function toItemPricingMultipart(
+    input: ItemPricingInput,
+): MultipartPayload {
+    const boundary = `----itemBoundary${crypto.randomUUID().replace(/-/g, "")}`;
+    const parts: BlobPart[] = [];
+
+    const openPart = (headers: readonly string[]) => {
+        parts.push(
+            `--${boundary}${multipartLineBreak}` +
+                headers
+                    .map((header) => `${header}${multipartLineBreak}`)
+                    .join("") +
+                multipartLineBreak,
+        );
+    };
+
+    if (input.price !== undefined) {
+        openPart(['Content-Disposition: form-data; name="price"']);
+        parts.push(String(input.price), multipartLineBreak);
+    }
+
+    if (input.compareAtPrice !== undefined) {
+        openPart(['Content-Disposition: form-data; name="compareAtPrice"']);
+        parts.push(String(input.compareAtPrice), multipartLineBreak);
+    }
+
+    if (input.variants) {
+        openPart([
+            'Content-Disposition: form-data; name="variants"',
+            "Content-Type: application/json",
+        ]);
+        parts.push(JSON.stringify(input.variants), multipartLineBreak);
     }
 
     parts.push(`--${boundary}--${multipartLineBreak}`);

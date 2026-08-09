@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
     AlertTriangle,
@@ -32,7 +31,10 @@ import {
     StockMovementDialog,
     type MovementTarget,
 } from "@/components/inventory/stock/StockMovementDialog";
-import { StockMovementsTab } from "@/components/inventory/stock/StockMovementsTab";
+import {
+    StockMovementsTab,
+    type MovementTargetInfo,
+} from "@/components/inventory/stock/StockMovementsTab";
 import {
     StockTabs,
     type StockTabId,
@@ -44,10 +46,6 @@ import {
     stockState,
     type StockState,
 } from "@/lib/api/inventory";
-import {
-    sampleAddOns,
-    sampleUnits,
-} from "@/lib/inventory-config/sample-data";
 import {
     useGetCurrentStockQuery,
     useGetInventoryItemOptionsQuery,
@@ -88,7 +86,6 @@ function MetricCard({
 }
 
 export function InventoryStock() {
-    const router = useRouter();
     const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
     const stockSearch = useAppSelector(
@@ -159,41 +156,38 @@ export function InventoryStock() {
         };
     });
 
-    const addOnRows = sampleAddOns.map((addOn) => {
-        const onHand = addOn.onHand + draftBalance(drafts, "ADDON", addOn.id);
-
-        return {
-            addOn,
-            onHand,
-            cost: costFor("ADDON", addOn.id),
-            state: stockState(onHand, addOn.lowStockThreshold),
-            pendingChange: draftBalance(drafts, "ADDON", addOn.id),
-            symbol:
-                sampleUnits.find((unit) => unit.id === addOn.baseUnitId)
-                    ?.symbol ?? "",
-        };
-    });
-
     const visibleItems = itemRows.filter(({ item }) =>
         matches([item.name, item.sku, item.barcode]),
     );
-    const visibleAddOns = addOnRows.filter(({ addOn }) => matches([addOn.name]));
 
     const countState = (state: StockState) =>
-        itemRows.filter((row) => row.state === state).length +
-        addOnRows.filter((row) => row.state === state).length;
+        itemRows.filter((row) => row.state === state).length;
 
-    const stockValue = [
-        ...itemRows.map((row) => row.onHand * (row.cost ?? 0)),
-        ...addOnRows.map((row) => row.onHand * (row.cost ?? 0)),
-    ].reduce((total, value) => total + value, 0);
-    const uncosted = [...itemRows, ...addOnRows].filter(
+    const stockValue = itemRows
+        .map((row) => row.onHand * (row.cost ?? 0))
+        .reduce((total, value) => total + value, 0);
+    const uncosted = itemRows.filter(
         (row) => row.cost === undefined && row.onHand > 0,
     ).length;
 
-    const itemNames = new Map(
-        items.map((item) => [item.id, item.name || "Unnamed item"]),
-    );
+    /**
+     * What the movements ledger needs to read each row accurately: the unit the
+     * quantity is counted in, and the balance *before* any draft is applied, so
+     * a movement can be shown as a step in a running balance.
+     */
+    const movementTargets = new Map<string, MovementTargetInfo>([
+        ...items.map(
+            (item) =>
+                [
+                    `ITEM:${item.id}`,
+                    {
+                        name: item.name || "Unnamed item",
+                        unitLabel: item.unit?.name || "",
+                        onHand: summaries.get(item.id)?.quantityOnHand || 0,
+                    },
+                ] as const,
+        ),
+    ]);
 
     function openMovement(
         target: MovementTarget,
@@ -222,30 +216,6 @@ export function InventoryStock() {
                     label: row.item.unit?.name || "units",
                     factor: 1,
                 },
-            ],
-        };
-    }
-
-    function addOnTarget(id: string): MovementTarget | null {
-        const row = addOnRows.find(({ addOn }) => addOn.id === id);
-        if (!row) return null;
-
-        return {
-            kind: "ADDON",
-            id: row.addOn.id,
-            name: row.addOn.name,
-            onHand: row.onHand,
-            baseUnitLabel: row.symbol,
-            entryUnits: [
-                { id: "base", label: row.symbol, factor: 1 },
-                ...row.addOn.conversions.map((conversion) => ({
-                    id: conversion.id,
-                    label:
-                        sampleUnits.find(
-                            (unit) => unit.id === conversion.unitId,
-                        )?.name ?? "unit",
-                    factor: conversion.factor,
-                })),
             ],
         };
     }
@@ -280,28 +250,13 @@ export function InventoryStock() {
         valueAtCost:
             row.cost === undefined ? undefined : row.onHand * row.cost,
         pendingChange: row.pendingChange,
+        options: (row.item.variants || [])
+            .filter((variant) => variant.name?.trim())
+            .map((variant) => ({
+                name: variant.name || "",
+                available: variant.available !== false,
+            })),
     }));
-
-    const addOnLevelRows: StockLevelRow[] = visibleAddOns.map((row) => {
-        const servings = row.addOn.usePerOrder
-            ? Math.floor(row.onHand / row.addOn.usePerOrder)
-            : 0;
-
-        return {
-            id: row.addOn.id,
-            name: row.addOn.name,
-            // Orders remaining is what a barista actually wants to know; grams
-            // on hand is not.
-            subtitle: `${servings} more order${servings === 1 ? "" : "s"}`,
-            onHand: row.onHand,
-            unitLabel: row.symbol,
-            threshold: row.addOn.lowStockThreshold,
-            state: row.state,
-            valueAtCost:
-                row.cost === undefined ? undefined : row.onHand * row.cost,
-            pendingChange: row.pendingChange,
-        };
-    });
 
     return (
         <div className="flex flex-col gap-6">
@@ -324,8 +279,8 @@ export function InventoryStock() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                     label="Tracked"
-                    value={String(items.length + sampleAddOns.length)}
-                    hint={`${items.length} items · ${sampleAddOns.length} add-ons`}
+                    value={String(items.length)}
+                    hint={items.length === 1 ? "1 item" : `${items.length} items`}
                     icon={Boxes}
                     accent="bg-success/10 text-success"
                 />
@@ -408,7 +363,6 @@ export function InventoryStock() {
                         }
                         valueColumnLabel="Value at cost"
                         formatValue={formatMoney}
-                        onAdjust={(id) => router.push(`/inventory/stock/adjust?itemId=${id}`)}
                     />
                 ) : null}
 
@@ -416,7 +370,7 @@ export function InventoryStock() {
                     <StockMovementsTab
                         drafts={drafts}
                         entries={entries}
-                        itemNames={itemNames}
+                        targets={movementTargets}
                         onUndo={(id) =>
                             setDrafts((current) =>
                                 current.filter(

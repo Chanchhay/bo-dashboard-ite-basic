@@ -37,7 +37,9 @@ import { useToast } from "@/components/ui/toast";
 import {
     latestUnitCosts,
     stockEntrySchema,
+    stockEntryTypeLabels,
     type InventoryItem,
+    type StockEntry,
 } from "@/lib/api/inventory";
 import {
     useCreateStockEntryMutation,
@@ -46,6 +48,32 @@ import {
     useGetStockEntriesQuery,
 } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
+
+/**
+ * The "no linked record" choice. A sentinel rather than an empty string, which
+ * the select would read as nothing chosen and answer with its placeholder.
+ */
+const noRecordValue = "NONE";
+
+/** Same trick for "no particular option" — see {@link noRecordValue}. */
+const noOptionValue = "WHOLE_ITEM";
+
+/**
+ * What the API stores, and therefore what may be sent: quantities carry three
+ * decimal places, costs two. Anything longer is rejected outright, so values
+ * are rounded here rather than bounced back from the server.
+ */
+const quantityDecimals = 3;
+const unitCostDecimals = 2;
+
+function roundTo(value: number, decimals: number) {
+    return Number(value.toFixed(decimals));
+}
+
+const entryDateFormat = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+});
 
 function Field({
     label,
@@ -98,10 +126,13 @@ export function StockAdjustmentForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const paramItemId = searchParams?.get("itemId") || "";
+    /** Set when the form was opened from a movement's Adjust button. */
+    const paramEntryId = searchParams?.get("entryId") || "";
     const { toast } = useToast();
     const { format: formatMoney } = useMoney();
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const stockQuery = useGetCurrentStockQuery();
+    const entriesQuery = useGetStockEntriesQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
     const [adjustmentType, setAdjustmentType] = useState<"OVERSTATED" | "UNDERSTATED" | "MANUAL">("OVERSTATED");
@@ -119,6 +150,24 @@ export function StockAdjustmentForm() {
         Record<string, string>
     >({});
     const [selectedItemId, setSelectedItemId] = useState(paramItemId);
+    /**
+     * The stock in or stock out this correction is made against.
+     *
+     * Empty means the adjustment stands alone — a plain count correction with
+     * no earlier record to blame. Anything else is written to `referenceId`, so
+     * the movements ledger can say what the adjustment acts on instead of
+     * showing a bare quantity nobody can trace.
+     */
+    const [adjustedEntryId, setAdjustedEntryId] = useState(paramEntryId);
+    /**
+     * Which variation this adjustment is about.
+     *
+     * Stock is held per item — a stock entry carries no variant — so choosing
+     * one cannot move a balance of its own. It is written into the reason
+     * instead, which is a real field, so the ledger at least records which
+     * variation was counted rather than losing it entirely.
+     */
+    const [optionName, setOptionName] = useState("");
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
 
@@ -145,32 +194,93 @@ export function StockAdjustmentForm() {
         (stockQuery.data || []).find(
             (summary) => summary.itemId === selectedItemId,
         )?.quantityOnHand ?? 0;
-    const entriesQuery = useGetStockEntriesQuery();
     const entries = entriesQuery.data || [];
     const costsMap = latestUnitCosts(entries);
-    const existingUnitCost = selectedItemId ? costsMap.get(selectedItemId)?.cost ?? 0 : 0;
+
+    /**
+     * The records this item already has, newest first — what an adjustment can
+     * be made against. Adjustments are excluded: correcting a correction tells
+     * nobody where the count actually went wrong.
+     */
+    const adjustableEntries = entries
+        .filter(
+            (entry) =>
+                entry.itemId === selectedItemId &&
+                entry.entryType !== "ADJUSTMENT",
+        )
+        .sort(
+            (left, right) =>
+                new Date(right.createdDate || 0).getTime() -
+                new Date(left.createdDate || 0).getTime(),
+        );
+
+    const adjustedEntry = adjustableEntries.find(
+        (entry) => entry.id === adjustedEntryId,
+    );
+
+    const itemOptions = (selectedItem?.variants || [])
+        .filter((variant) => variant.name?.trim())
+        .map((variant) => variant.name || "");
+
+    function describeEntry(entry: StockEntry) {
+        const change = entry.quantityChange || 0;
+
+        return [
+            entry.entryType
+                ? stockEntryTypeLabels[entry.entryType]
+                : "Stock entry",
+            `${change > 0 ? "+" : ""}${change} ${unitLabel}`.trim(),
+            entry.createdDate
+                ? entryDateFormat.format(new Date(entry.createdDate))
+                : "",
+            entry.referenceNumber,
+        ]
+            .filter(Boolean)
+            .join(" · ");
+    }
+
+    /** Undefined when this item has never had a cost recorded against it. */
+    const existingUnitCost = selectedItemId
+        ? costsMap.get(selectedItemId)
+        : undefined;
 
     const isManual = adjustmentType === "MANUAL";
     const rawNum = Number(quantityInput);
     const parsedQty = Math.abs(rawNum);
-    const qtyValid = (!isManual || overrideQuantity) && quantityInput.trim() !== "" && Number.isFinite(rawNum) && rawNum !== 0;
+    const quantityEditable = !isManual || overrideQuantity;
+    const qtyValid =
+        quantityEditable &&
+        quantityInput.trim() !== "" &&
+        Number.isFinite(rawNum) &&
+        roundTo(rawNum, quantityDecimals) !== 0;
     // Overstated decreases stock (-), Understated increases stock (+), Manual allows direct +/- input
     const change = qtyValid
-        ? adjustmentType === "OVERSTATED"
-            ? -parsedQty
-            : adjustmentType === "UNDERSTATED"
-              ? parsedQty
-              : rawNum
+        ? roundTo(
+              adjustmentType === "OVERSTATED"
+                  ? -parsedQty
+                  : adjustmentType === "UNDERSTATED"
+                    ? parsedQty
+                    : rawNum,
+              quantityDecimals,
+          )
         : 0;
     const resulting =
-        selectedItemId && (!isManual || overrideQuantity) && quantityInput.trim() !== "" && Number.isFinite(rawNum)
-            ? onHand + change
+        selectedItemId &&
+        quantityEditable &&
+        quantityInput.trim() !== "" &&
+        Number.isFinite(rawNum)
+            ? roundTo(onHand + change, quantityDecimals)
             : selectedItemId
               ? onHand
               : undefined;
+    // The backend refuses an entry that would take the count below zero, so the
+    // form refuses it first and says so where the number was typed.
+    const goesNegative = resulting !== undefined && resulting < 0;
 
     function handleScannedItem(item: InventoryItem) {
         setSelectedItemId(item.id);
+        setAdjustedEntryId("");
+        setOptionName("");
         setScannedItemName(item.name || "Unnamed item");
         setFieldErrors((current) => {
             if (!current.itemId) {
@@ -194,49 +304,85 @@ export function StockAdjustmentForm() {
             if (overrideBatchExp && batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
         }
 
-        let calculatedChange = 0;
-        if (!isManual || overrideQuantity) {
-            const rawNum = Number(quantityInput);
-            if (!quantityInput.trim() || Number.isNaN(rawNum) || rawNum === 0) {
-                setFieldErrors({ quantityChange: "Please enter a non-zero quantity change." });
-                toast({
-                    tone: "error",
-                    title: "Check the highlighted stock information",
-                    description: "Please enter a non-zero quantity change.",
-                });
-                return;
-            }
-
-            calculatedChange = adjustmentType === "OVERSTATED"
-                ? -Math.abs(rawNum)
-                : adjustmentType === "UNDERSTATED"
-                  ? Math.abs(rawNum)
-                  : rawNum;
-        } else if (isManual && !overrideQuantity && !overrideUnitCost && !overrideBatchLot && !overrideBatchMfg && !overrideBatchExp) {
+        if (isManual && !overrideQuantity) {
+            const message =
+                "Quantity is preserved, so there is nothing to record. Tick \u201cEdit quantity\u201d to adjust it.";
+            setFieldErrors({ quantityChange: message });
             toast({
                 tone: "error",
-                title: "No changes selected",
-                description: "Please check at least one field to edit in Manual mode.",
+                title: "Nothing to adjust",
+                description: message,
             });
             return;
         }
 
-        const unitCostValue = isManual && overrideUnitCost
-            ? getOptionalFormValue(formData, "unitCost")
-            : "";
+        // Every adjustment is a new entry with a non-zero change; the API has no
+        // way to amend one already written.
+        const typedQuantity = Number(quantityInput);
+        if (
+            !quantityInput.trim() ||
+            !Number.isFinite(typedQuantity) ||
+            roundTo(typedQuantity, quantityDecimals) === 0
+        ) {
+            const message = "Please enter a non-zero quantity change.";
+            setFieldErrors({ quantityChange: message });
+            toast({
+                tone: "error",
+                title: "Check the highlighted stock information",
+                description: message,
+            });
+            return;
+        }
+
+        const calculatedChange = roundTo(
+            adjustmentType === "OVERSTATED"
+                ? -Math.abs(typedQuantity)
+                : adjustmentType === "UNDERSTATED"
+                  ? Math.abs(typedQuantity)
+                  : typedQuantity,
+            quantityDecimals,
+        );
+
+        if (roundTo(onHand + calculatedChange, quantityDecimals) < 0) {
+            const message = `Only ${onHand} ${unitLabel} on hand — this would take stock below zero.`;
+            setFieldErrors({ quantityChange: message });
+            toast({
+                tone: "error",
+                title: "Check the highlighted stock information",
+                description: message,
+            });
+            return;
+        }
+
+        /**
+         * The cost carries forward unless it is being changed on purpose.
+         *
+         * The item's cost is read off its newest entry, so an adjustment that
+         * sends none would leave the item looking as if it cost nothing, and
+         * every valuation built on it would be wrong.
+         */
+        const typedUnitCost =
+            isManual && overrideUnitCost
+                ? getOptionalFormValue(formData, "unitCost")
+                : "";
+        const unitCost =
+            typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
+
         const result = stockEntrySchema.safeParse({
-            itemId: String(formData.get("itemId") || ""),
+            itemId: selectedItemId,
             entryType: "ADJUSTMENT",
             quantityChange: calculatedChange,
             unitCost:
-                unitCostValue === ""
+                unitCost === undefined || !Number.isFinite(unitCost)
                     ? undefined
-                    : Number(unitCostValue),
+                    : roundTo(unitCost, unitCostDecimals),
             batchData,
             referenceType: "ADJUSTMENT_FORM",
-            referenceId: "",
+            referenceId: adjustedEntryId,
             referenceNumber: "",
-            reason: String(formData.get("reason") || ""),
+            reason: [optionName, String(formData.get("reason") || "").trim()]
+                .filter(Boolean)
+                .join(" — "),
         });
 
         if (!result.success) {
@@ -332,6 +478,8 @@ export function StockAdjustmentForm() {
                                     selectedItemId={selectedItemId}
                                     onSelect={(id) => {
                                         setSelectedItemId(id);
+                                        setAdjustedEntryId("");
+                                        setOptionName("");
                                         setScannedItemName(null);
                                         setFieldErrors((current) => {
                                             const next = { ...current };
@@ -389,6 +537,84 @@ export function StockAdjustmentForm() {
                                 className={inventoryControlClassName}
                             />
                         </Field>
+
+                        {/* Which variation, when the item has any */}
+                        {itemOptions.length ? (
+                            <div className="sm:col-span-2 md:col-span-2">
+                                <Field
+                                    label="Option"
+                                    name="optionName"
+                                    hint="Stock is counted for the item as a whole, so this is recorded on the movement rather than moving a balance of its own."
+                                >
+                                    <SelectField
+                                        id="optionName"
+                                        name="optionName"
+                                        value={optionName || noOptionValue}
+                                        onValueChange={(value) =>
+                                            setOptionName(
+                                                value === noOptionValue
+                                                    ? ""
+                                                    : value,
+                                            )
+                                        }
+                                        options={[
+                                            {
+                                                value: noOptionValue,
+                                                label: "The item as a whole",
+                                            },
+                                            ...itemOptions.map((name) => ({
+                                                value: name,
+                                                label: name,
+                                            })),
+                                        ]}
+                                        className={inventoryControlClassName}
+                                    />
+                                </Field>
+                            </div>
+                        ) : null}
+
+                        {/* Which record this correction is made against */}
+                        <div className="sm:col-span-2 md:col-span-2">
+                            <Field
+                                label="Adjust against record"
+                                name="adjustedEntryId"
+                                hint={
+                                    !selectedItemId
+                                        ? "Select an item to see the records it already has."
+                                        : adjustableEntries.length === 0
+                                          ? "This item has no stock in or stock out yet, so the correction stands alone."
+                                          : "Pick the stock in or stock out this correction applies to. It is shown against the adjustment in the movements ledger."
+                                }
+                            >
+                                <SelectField
+                                    id="adjustedEntryId"
+                                    name="adjustedEntryId"
+                                    value={adjustedEntryId || noRecordValue}
+                                    onValueChange={(value) =>
+                                        setAdjustedEntryId(
+                                            value === noRecordValue
+                                                ? ""
+                                                : value,
+                                        )
+                                    }
+                                    disabled={
+                                        !selectedItemId ||
+                                        adjustableEntries.length === 0
+                                    }
+                                    options={[
+                                        {
+                                            value: noRecordValue,
+                                            label: "Not linked — plain count correction",
+                                        },
+                                        ...adjustableEntries.map((entry) => ({
+                                            value: entry.id,
+                                            label: describeEntry(entry),
+                                        })),
+                                    ]}
+                                    className={inventoryControlClassName}
+                                />
+                            </Field>
+                        </div>
 
                         {/* Quantity Field with Manual edit checkbox */}
                         <div className="flex flex-col gap-2">
@@ -458,7 +684,7 @@ export function StockAdjustmentForm() {
                                                       ? "Understated (+ adds stock)"
                                                       : "Manual quantity change"
                                             }`
-                                          : "Enter number of units."}
+                                        : "Enter number of units."}
                                 </p>
                             )}
                             {selectedItemId && (!isManual || overrideQuantity) ? (
@@ -515,16 +741,20 @@ export function StockAdjustmentForm() {
                                 disabled={!isManual || !overrideUnitCost}
                                 value={unitCostInput}
                                 onChange={(e) => setUnitPriceInput(e.target.value)}
-                                placeholder={!isManual ? "Locked" : overrideUnitCost ? "0.00" : "Unchecked (Preserved)"}
+                                placeholder={
+                                    existingUnitCost === undefined
+                                        ? "None recorded yet"
+                                        : formatMoney(existingUnitCost)
+                                }
                                 aria-invalid={Boolean(fieldErrors.unitCost)}
                                 className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                             />
                             <p className="text-xs text-muted-foreground">
-                                {!isManual
-                                    ? "Locked. Selecting an item does not edit unit cost."
-                                    : !overrideUnitCost
-                                      ? "Existing unit cost preserved (check box above to edit)."
-                                      : "Enter new unit cost for this adjustment."}
+                                {isManual && overrideUnitCost
+                                    ? "Enter new unit cost for this adjustment."
+                                    : existingUnitCost === undefined
+                                      ? "No cost recorded for this item yet, so this adjustment records none."
+                                      : `Carries forward the last cost recorded, ${formatMoney(existingUnitCost)}.`}
                             </p>
                         </div>
                         <div className="sm:col-span-2">
@@ -536,6 +766,7 @@ export function StockAdjustmentForm() {
                                 <Input
                                     id="reason"
                                     name="reason"
+                                    maxLength={255}
                                     placeholder="e.g. Cycle count correction, Damaged stock, Spoilage"
                                     aria-invalid={Boolean(
                                         fieldErrors.reason,
@@ -692,6 +923,24 @@ export function StockAdjustmentForm() {
                             </span>
                         </div>
 
+                        <div className="flex justify-between items-start gap-3 text-muted-foreground">
+                            <span className="shrink-0">Adjusting</span>
+                            <span className="text-right text-xs font-medium text-foreground">
+                                {adjustedEntry
+                                    ? describeEntry(adjustedEntry)
+                                    : "No linked record"}
+                            </span>
+                        </div>
+
+                        {itemOptions.length ? (
+                            <div className="flex justify-between items-center text-muted-foreground">
+                                <span>Option</span>
+                                <span className="font-medium text-foreground">
+                                    {optionName || "Whole item"}
+                                </span>
+                            </div>
+                        ) : null}
+
                         <div className="flex justify-between items-center text-muted-foreground">
                             <span>Current Stock</span>
                             <span className="font-semibold text-foreground">
@@ -751,7 +1000,13 @@ export function StockAdjustmentForm() {
                     <Button
                         type="submit"
                         size="lg"
-                        disabled={createState.isLoading || items.length === 0}
+                        disabled={
+                            createState.isLoading ||
+                            items.length === 0 ||
+                            !selectedItemId ||
+                            !qtyValid ||
+                            goesNegative
+                        }
                         className="w-full rounded-xl gap-2"
                     >
                         {createState.isLoading ? (
