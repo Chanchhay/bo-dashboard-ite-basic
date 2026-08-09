@@ -42,8 +42,7 @@ export function Payment({
   const [khqr, setKhqr] = useState<Khqr | null>(null);
 
   const { toast } = useToast();
-  // Asked up front: a cashier must not discover mid-sale that KHQR was never
-  // set up, so the option is simply not offered when it cannot work.
+ 
   const { data: bakong } = useGetBakongStatusQuery();
   const [generateKhqr, { isLoading: isGenerating }] = useGenerateKhqrMutation();
 
@@ -67,13 +66,13 @@ export function Payment({
   const totalSecondary = secondaryFor(total, order);
 
   const storedDiscountRule = useMemo(() => {
-    if (!order?.id || typeof window === "undefined") return null;
+    if (!order.id || typeof window === "undefined") return null;
     try {
       const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
       if (raw) return JSON.parse(raw);
     } catch {}
     return null;
-  }, [order?.id]);
+  }, [order.id]);
 
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
   const discountLabel =

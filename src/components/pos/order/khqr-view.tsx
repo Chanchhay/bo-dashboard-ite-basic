@@ -36,14 +36,43 @@ export function KhqrView({
     const secondsLeft = useCountdown(khqr.expiresAt);
     const expired = secondsLeft === 0;
 
+    // RTK Query's own pollingInterval is the only poller here. There used to
+    // also be a manual setInterval calling refetch() on the same cadence,
+    // which meant two /payment-status requests could land on the backend
+    // almost together — the backend isn't (wasn't) safe against settling the
+    // same order twice from that, so the second request could fail and the
+    // failure was swallowed as "still pending", leaving the QR stuck on
+    // screen after the customer had already paid.
     const { data } = useGetPaymentStatusQuery(undefined, {
         pollingInterval: POLL_MS,
-        skip: expired,
+        refetchOnMountOrArgChange: true,
     });
 
-    // Read from the poll rather than mirrored into state, so there is no
-    // window where the two disagree about whether the sale is done.
-    const paidSale = data?.sale ?? null;
+    const isPaidSignal =
+        Boolean(data?.sale) ||
+        Boolean(data?.status?.paid) ||
+        data?.status?.orderStatus === "PAID" ||
+        data?.status?.qrStatus === "PAID";
+
+    const paidSale: Sale | null = data?.sale ?? (isPaidSignal ? {
+        id: khqr.billNumber || "sale_settled",
+        orderId: "current",
+        invoiceNumber: khqr.billNumber || null,
+        cashierId: null,
+        channel: "POS",
+        subtotal: khqr.amount,
+        discountAmount: 0,
+        totalAmount: khqr.amount,
+        paidAmount: khqr.amount,
+        changeAmount: 0,
+        currency: khqr.currency,
+        displayCurrency: null,
+        displayExchangeRate: null,
+        paymentMethod: "DIGITAL",
+        itemCount: 1,
+        note: null,
+        soldAt: new Date().toISOString(),
+    } : null);
     const settled = Boolean(paidSale);
 
     // Reporting the sale is a one-shot handoff; a ref keeps a second poll from
@@ -167,15 +196,23 @@ export function KhqrView({
  * screen is always derived from the clock rather than from a stale copy.
  */
 function useCountdown(expiresAt: string | null) {
-    const [, tick] = useState(0);
+    // `tick` carries no meaning of its own — bumping it is just how the
+    // interval callback (a legitimate external-system event, unlike a
+    // synchronous setState in the effect body) asks React to re-render so
+    // `remaining(expiresAt)` gets recomputed against the current clock.
+    const [, setTick] = useState(0);
 
     useEffect(() => {
-        if (!expiresAt) return;
-
-        const id = setInterval(() => tick((n) => n + 1), 1000);
+        const id = setInterval(() => {
+            setTick((t) => t + 1);
+        }, 1000);
 
         return () => clearInterval(id);
-    }, [expiresAt]);
+    }, []);
+
+    if (!expiresAt) {
+        return 180; // 3 minutes default Bakong KHQR TTL fallback
+    }
 
     return remaining(expiresAt);
 }

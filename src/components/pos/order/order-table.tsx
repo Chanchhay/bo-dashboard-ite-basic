@@ -257,12 +257,10 @@ export function OrderTable({
 
   /** Runs one line change, reporting rather than silently swallowing failure. */
   async function runLineChange(
-    lineId: string,
+    _lineId: string,
     change: () => Promise<unknown>,
     failure: string,
   ) {
-    setBusyLineId(lineId);
-
     try {
       await change();
     } catch (cause) {
@@ -271,8 +269,6 @@ export function OrderTable({
         title: failure,
         description: getApiErrorMessage(cause, "Please try again."),
       });
-    } finally {
-      setBusyLineId("");
     }
   }
 

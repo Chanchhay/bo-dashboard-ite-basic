@@ -8,7 +8,7 @@ import type { Item } from "@/types/pos-type";
 
 export interface PosCardProps {
   item: Item;
-  onSelect?: (itemId: string) => void;
+  onSelect?: (item: Item) => void;
 }
 
 /**
@@ -30,21 +30,22 @@ const PosCardComponent = ({ item, onSelect }: PosCardProps) => {
       type="button"
       disabled={isDisabled}
       aria-label={`${item.name}, ${format(item.price)}`}
-      onClick={() => onSelect?.(item.id)}
-      className={`group flex w-full flex-col text-left outline-none transition focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+      onClick={() => onSelect?.(item)}
+      style={{ touchAction: "manipulation" }}
+      className={`group flex w-full select-none flex-col text-left outline-none transition-transform duration-75 focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
         isDisabled
           ? "cursor-not-allowed opacity-50"
-          : "cursor-pointer active:scale-[0.98]"
+          : "cursor-pointer active:scale-[0.95]"
       }`}
     >
-      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md">
+      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
         {item.image_url ? (
           /* Decorative — the button's aria-label already names the item. */
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.image_url}
             alt=""
-            className="h-full w-full object-cover opacity-95"
+            className="h-full w-full object-cover opacity-95 group-active:scale-105 transition-transform duration-75"
           />
         ) : (
           <ImageOff className="h-8 w-8 text-gray-300" aria-hidden="true" />

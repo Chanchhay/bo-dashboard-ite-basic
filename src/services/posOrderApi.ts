@@ -146,24 +146,118 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         addOrderItem: builder.mutation<PosOrder, AddOrderItemInput>({
-            query: (body) => ({
+            query: ({ itemId, variantId, quantity }) => ({
                 url: "/orders/current/items",
                 method: "POST",
-                body,
+                body: { itemId, variantId, quantity },
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            const addQty = arg.quantity || 1;
+                            const existingIndex = draft.items.findIndex(
+                                (item) =>
+                                    item.itemId === arg.itemId &&
+                                    (!arg.variantId || item.variantId === arg.variantId),
+                            );
+
+                            if (existingIndex !== -1) {
+                                const existing = draft.items[existingIndex];
+                                existing.quantity += addQty;
+                                existing.lineTotal =
+                                    existing.quantity * existing.unitPrice -
+                                    existing.discountAmount;
+                            } else {
+                                const unitPrice = arg.unitPrice ?? 0;
+                                const lineTotal = addQty * unitPrice;
+                                draft.items.push({
+                                    id: `temp-${Date.now()}-${Math.random()}`,
+                                    itemId: arg.itemId,
+                                    variantId: arg.variantId ?? null,
+                                    itemName: arg.itemName ?? "Item",
+                                    quantity: addQty,
+                                    unitPrice,
+                                    discountAmount: 0,
+                                    lineTotal,
+                                });
+                            }
+
+                            draft.subtotal = draft.items.reduce(
+                                (sum, i) => sum + i.lineTotal + i.discountAmount,
+                                0,
+                            );
+                            draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data) {
+                        dispatch(
+                            posOrderApi.util.updateQueryData(
+                                "getCurrentOrder",
+                                undefined,
+                                () => data,
+                            ),
+                        );
+                    }
+                } catch {
+                    patchResult.undo();
+                }
+            },
         }),
 
         updateOrderItem: builder.mutation<
             PosOrder,
             { orderItemId: string } & UpdateOrderItemInput
         >({
-            query: ({ orderItemId, ...body }) => ({
+            query: ({ orderItemId, quantity }) => ({
                 url: `/order-items/${orderItemId}`,
                 method: "PATCH",
-                body,
+                body: { quantity },
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted({ orderItemId, quantity }, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            const item = draft.items.find((i) => i.id === orderItemId);
+                            if (item) {
+                                item.quantity = quantity;
+                                item.lineTotal =
+                                    item.quantity * item.unitPrice - item.discountAmount;
+                                draft.subtotal = draft.items.reduce(
+                                    (sum, i) => sum + i.lineTotal + i.discountAmount,
+                                    0,
+                                );
+                                draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                            }
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data) {
+                        dispatch(
+                            posOrderApi.util.updateQueryData(
+                                "getCurrentOrder",
+                                undefined,
+                                () => data,
+                            ),
+                        );
+                    }
+                } catch {
+                    patchResult.undo();
+                }
+            },
         }),
 
         removeOrderItem: builder.mutation<PosOrder | null, string>({
@@ -171,7 +265,38 @@ export const posOrderApi = baseApi.injectEndpoints({
                 url: `/order-items/${orderItemId}`,
                 method: "DELETE",
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted(orderItemId, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            draft.items = draft.items.filter((i) => i.id !== orderItemId);
+                            draft.subtotal = draft.items.reduce(
+                                (sum, i) => sum + i.lineTotal + i.discountAmount,
+                                0,
+                            );
+                            draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data) {
+                        dispatch(
+                            posOrderApi.util.updateQueryData(
+                                "getCurrentOrder",
+                                undefined,
+                                () => data,
+                            ),
+                        );
+                    }
+                } catch {
+                    patchResult.undo();
+                }
+            },
         }),
 
         renameOrder: builder.mutation<PosOrder, { note: string }>({
@@ -212,7 +337,13 @@ export const posOrderApi = baseApi.injectEndpoints({
             { status: PaymentStatus | null; sale: Sale | null },
             void
         >({
-            query: () => "/orders/current/payment-status",
+            query: () => ({
+                url: "/orders/current/payment-status",
+                headers: {
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    Pragma: "no-cache",
+                },
+            }),
             async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
                 try {
                     const { data } = await queryFulfilled;
@@ -236,7 +367,33 @@ export const posOrderApi = baseApi.injectEndpoints({
                 method: "PATCH",
                 body,
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            draft.customerId = body.customerId ?? null;
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data) {
+                        dispatch(
+                            posOrderApi.util.updateQueryData(
+                                "getCurrentOrder",
+                                undefined,
+                                () => data,
+                            ),
+                        );
+                    }
+                } catch {
+                    patchResult.undo();
+                }
+            },
         }),
 
         setOrderDiscount: builder.mutation<PosOrder, SetOrderDiscountInput>({
@@ -245,7 +402,34 @@ export const posOrderApi = baseApi.injectEndpoints({
                 method: "PATCH",
                 body,
             }),
-            onQueryStarted: writeBackOrder,
+            async onQueryStarted(body, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    posOrderApi.util.updateQueryData(
+                        "getCurrentOrder",
+                        undefined,
+                        (draft) => {
+                            if (!draft) return;
+                            draft.discountAmount = body.discountAmount;
+                            draft.total = Math.max(0, draft.subtotal - body.discountAmount);
+                        },
+                    ),
+                );
+
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data) {
+                        dispatch(
+                            posOrderApi.util.updateQueryData(
+                                "getCurrentOrder",
+                                undefined,
+                                () => data,
+                            ),
+                        );
+                    }
+                } catch {
+                    patchResult.undo();
+                }
+            },
         }),
 
         /** Settles the sale. The cart is gone afterwards, so the cache is dropped. */

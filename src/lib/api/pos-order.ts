@@ -130,6 +130,8 @@ export const addOrderItemSchema = z.object({
         .int("Quantity must be a whole number.")
         .positive("Quantity must be at least 1.")
         .default(1),
+    itemName: z.string().optional(),
+    unitPrice: z.number().optional(),
 });
 
 export const updateOrderItemSchema = z.object({

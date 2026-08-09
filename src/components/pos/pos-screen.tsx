@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 
 import type { Item } from "@/types/pos-type";
@@ -112,19 +112,27 @@ export function PosScreen({
   const [addOrderItem] = useAddOrderItemMutation();
   const { toast } = useToast();
 
-  const addItem = async (itemId: string) => {
-    try {
-      await addOrderItem({ itemId, quantity: 1 }).unwrap();
-    } catch (error) {
-      // A tap that silently does nothing is worse than one that says why —
-      // the cashier would otherwise keep tapping.
-      toast({
-        tone: "error",
-        title: "Could not add that item",
-        description: getApiErrorMessage(error, "Please try again."),
-      });
-    }
-  };
+  const addItem = useCallback(
+    async (item: Item) => {
+      try {
+        await addOrderItem({
+          itemId: item.id,
+          quantity: 1,
+          itemName: item.name,
+          unitPrice: Number(item.price ?? 0),
+        }).unwrap();
+      } catch (error) {
+        // A tap that silently does nothing is worse than one that says why —
+        // the cashier would otherwise keep tapping.
+        toast({
+          tone: "error",
+          title: "Could not add that item",
+          description: getApiErrorMessage(error, "Please try again."),
+        });
+      }
+    },
+    [addOrderItem, toast],
+  );
   // The same cached order the cart panel renders, so the mobile bar can never
   // disagree with the panel behind it.
   const { data: currentOrder } = useGetCurrentOrderQuery();
@@ -289,7 +297,7 @@ export function PosScreen({
                       <PosCard
                         key={item.id}
                         item={item}
-                        onSelect={(id) => addItem(id)}
+                        onSelect={addItem}
                       />
                     ))}
                   </div>
