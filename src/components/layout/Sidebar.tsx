@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -26,6 +26,10 @@ export default function Sidebar({
     permissions: Permission[];
 }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const fullPath = searchParams.toString()
+        ? `${pathname}?${searchParams.toString()}`
+        : pathname;
 
     const allowed = visibleSections(permissions);
     // The shell belongs to the app you opened, so the sidebar shows that app's
@@ -103,6 +107,7 @@ export default function Sidebar({
                                 <SectionItem
                                     section={section}
                                     pathname={pathname}
+                                    fullPath={fullPath}
                                     onNavigate={onClose}
                                 />
                             </li>
@@ -146,10 +151,12 @@ function LaunchButton({
 function SectionItem({
     section,
     pathname,
+    fullPath,
     onNavigate,
 }: {
     section: NavSection;
     pathname: string;
+    fullPath: string;
     onNavigate: () => void;
 }) {
     const active = isSectionActive(section, pathname);
@@ -202,7 +209,7 @@ function SectionItem({
                 className="mt-1 ml-[26px] flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-3"
             >
                 {section.children.map((leaf) => {
-                    const leafActive = isLeafActive(leaf, pathname);
+                    const leafActive = isLeafActive(leaf, fullPath);
 
                     if (isNavGroup(leaf)) {
                         return (
@@ -215,8 +222,8 @@ function SectionItem({
                                         className={cn(
                                             "flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-[14px] font-medium outline-none transition-colors marker:hidden focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden",
                                             leafActive
-                                                ? "bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.25)] border border-transparent dark:border-[#2a3042]"
-                                                : "text-[#5c6660] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
+                                                ? "bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.25)] border border-transparent dark:border-[#2a3042] font-semibold"
+                                                : "text-[#8a8f89] dark:text-[#94a3b8] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
                                         )}
                                     >
                                         <span className="flex-1">
@@ -228,14 +235,12 @@ function SectionItem({
                                         />
                                     </summary>
 
-                                    <ul className="mt-1 ml-2 flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-2.5">
+                                    <ul className="mt-1 ml-3 flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-3">
                                         {leaf.children.map((child) => {
                                             const childActive = isLeafActive(
                                                 child,
-                                                pathname,
+                                                fullPath,
                                             );
-                                            const ChildIcon = child.icon;
-
                                             return (
                                                 <li key={child.href}>
                                                     <Link
@@ -247,31 +252,15 @@ function SectionItem({
                                                                 : undefined
                                                         }
                                                         className={cn(
-                                                            "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
+                                                            "flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
                                                             childActive
-                                                                ? "bg-white dark:bg-[#1e2330] text-primary dark:text-primary font-semibold shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.25)] border border-transparent dark:border-[#2a3042]"
+                                                                ? "bg-primary/10 text-primary font-bold"
                                                                 : "text-[#5c6660] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] hover:bg-black/[.04] dark:hover:bg-white/[.05]",
                                                         )}
                                                     >
-                                                        {ChildIcon && (
-                                                            <ChildIcon
-                                                                className={cn(
-                                                                    "size-4 shrink-0",
-                                                                    childActive
-                                                                        ? "text-primary"
-                                                                        : "text-[#8a8f89] dark:text-[#94a3b8]",
-                                                                )}
-                                                                aria-hidden="true"
-                                                            />
-                                                        )}
                                                         <span className="flex-1">
                                                             {child.label}
                                                         </span>
-                                                        {child.badge !== undefined && (
-                                                            <span className="rounded-md bg-[#feb90d] px-1.5 py-0.5 text-[11px] font-medium text-[#3d2c00]">
-                                                                {child.badge}
-                                                            </span>
-                                                        )}
                                                     </Link>
                                                 </li>
                                             );

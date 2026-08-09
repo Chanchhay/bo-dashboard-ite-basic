@@ -82,6 +82,7 @@ export type SellingChannel = {
 export type ChannelListing = {
     channelId: string;
     itemIds: string[];
+    globalRule?: PriceOverride;
     overrides: Record<string, PriceOverride>;
 };
 
@@ -102,18 +103,22 @@ function toMoney(value: number) {
 export function effectivePrice(
     base: number | undefined,
     override: PriceOverride | undefined,
+    globalRule?: PriceOverride,
 ): number | undefined {
-    if (!override || override.kind === "INHERIT") return base;
+    const activeRule =
+        !override || override.kind === "INHERIT" ? globalRule : override;
 
-    if (override.kind === "ABSOLUTE") return toMoney(override.amount);
+    if (!activeRule || activeRule.kind === "INHERIT") return base;
+
+    if (activeRule.kind === "ABSOLUTE") return toMoney(activeRule.amount);
 
     if (base === undefined) return undefined;
 
-    if (override.kind === "MARKUP_PERCENT") {
-        return toMoney(base * (1 + override.percent / 100));
+    if (activeRule.kind === "MARKUP_PERCENT") {
+        return toMoney(base * (1 + activeRule.percent / 100));
     }
 
-    return toMoney(base + override.amount);
+    return toMoney(base + activeRule.amount);
 }
 
 export function isOverridden(override: PriceOverride | undefined) {
@@ -121,17 +126,23 @@ export function isOverridden(override: PriceOverride | undefined) {
 }
 
 /** Short label for the override chip: "+15%", "Fixed", "+$0.50". */
-export function describeOverride(override: PriceOverride | undefined) {
-    if (!override || override.kind === "INHERIT") return "";
+export function describeOverride(
+    override: PriceOverride | undefined,
+    globalRule?: PriceOverride,
+) {
+    const activeRule =
+        !override || override.kind === "INHERIT" ? globalRule : override;
 
-    if (override.kind === "ABSOLUTE") return "Fixed";
-    if (override.kind === "MARKUP_PERCENT") {
-        const sign = override.percent >= 0 ? "+" : "";
-        return `${sign}${override.percent}%`;
+    if (!activeRule || activeRule.kind === "INHERIT") return "";
+
+    if (activeRule.kind === "ABSOLUTE") return "Fixed";
+    if (activeRule.kind === "MARKUP_PERCENT") {
+        const sign = activeRule.percent >= 0 ? "+" : "";
+        return `${sign}${activeRule.percent}%`;
     }
 
-    const sign = override.amount >= 0 ? "+" : "";
-    return `${sign}${override.amount}`;
+    const sign = activeRule.amount >= 0 ? "+" : "";
+    return `${sign}${activeRule.amount}`;
 }
 
 /** The number the override's own input shows, so editing round-trips. */

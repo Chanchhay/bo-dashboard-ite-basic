@@ -236,8 +236,21 @@ export const NAVIGATION: NavSection[] = [
                 // charges. Sits above Customers because it is the thing most
                 // owners open Sale Management to do.
                 label: "Items & pricing",
-                href: "/sales/pricing",
                 permission: PERMISSIONS.SALES_MANAGE,
+                children: [
+                    {
+                        label: "Set Price",
+                        href: "/sales/pricing?tab=items",
+                        exact: true,
+                        permission: PERMISSIONS.SALES_MANAGE,
+                        alsoActiveOn: [/^\/sales\/pricing$/],
+                    },
+                    {
+                        label: "Channel Pricing",
+                        href: "/sales/pricing?tab=selling",
+                        permission: PERMISSIONS.SALES_MANAGE,
+                    },
+                ],
             },
             {
                 label: "Customers",
