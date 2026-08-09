@@ -152,7 +152,18 @@ export function ItemChannelTable({
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <span className="font-bold text-foreground">{format(item.price ?? 0)}</span>
+                                                <span
+                                                    className={
+                                                        item.price === undefined ||
+                                                        item.price === null
+                                                            ? "text-xs text-muted-foreground"
+                                                            : "font-bold text-foreground"
+                                                    }
+                                                >
+                                                    {format(item.price, undefined, {
+                                                        fallback: "Not set",
+                                                    })}
+                                                </span>
                                                 {isAlreadyOnChannel ? (
                                                     <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-md flex items-center gap-1">
                                                         <Check className="h-3 w-3" /> Added
@@ -280,9 +291,9 @@ export function ItemChannelTable({
                                                 <p className="text-base font-bold text-foreground truncate">
                                                     {item.name || "Unnamed item"}
                                                 </p>
-                                                {(item.itemGroup?.name || item.category?.name) && (
+                                                {(item.itemGroup?.name) && (
                                                     <p className="text-xs font-semibold text-muted-foreground truncate mt-0.5">
-                                                        {item.itemGroup?.name || item.category?.name}
+                                                        {item.itemGroup?.name}
                                                     </p>
                                                 )}
                                             </div>

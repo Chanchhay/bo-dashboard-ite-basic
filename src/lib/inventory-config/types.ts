@@ -19,20 +19,17 @@ export type AddOn = {
     id: string;
     name: string;
     /**
-     * The smallest quantity this is used in. Stock is held in this unit, and
-     * every conversion below resolves into it.
+     * The smallest quantity this is used in. Every conversion below resolves
+     * into it. Add-ons carry no stock of their own — only how much of this
+     * unit one selection takes.
      */
     baseUnitId: string;
-    /** Current balance, in base units. Read-only outside the stock ledger. */
-    onHand: number;
     /**
      * How much one selection takes off, in base units. Defaults to 1, so a
      * "shot" behaves the obvious way and grams of pearls don't have to be
      * re-expressed as servings.
      */
     usePerOrder: number;
-    /** In base units. */
-    lowStockThreshold: number;
     /** Larger units this is bought in — "1 bag = 3000 g". */
     conversions: UomConversion[];
     note?: string;

@@ -3,8 +3,6 @@ import {
     ArrowDownToLine,
     ArrowUpFromLine,
     ChevronDown,
-    Eye,
-    EyeOff,
     FolderPlus,
     SlidersHorizontal,
 } from "lucide-react";
@@ -35,56 +33,21 @@ export type StockLevelRow = {
     valueAtCost?: number;
     /** Non-zero when unsaved movements are sitting on this row. */
     pendingChange: number;
+    /** The item's variations, when it has any. */
+    options?: { name: string; available: boolean }[];
 };
 
 function StockItemAddOnsTreeRow({ row }: { row: StockLevelRow }) {
+    // Add-ons hold no stock of their own — what matters here is the unit they
+    // are measured in and how much one selection uses.
     const [addOnStates, setAddOnStates] = useState<
-        Record<
-            string,
-            {
-                enabled: boolean;
-                onHand: string;
-                warnBelow: string;
-                valueAtCost: string;
-                stateLabel: string;
-            }
-        >
+        Record<string, { enabled: boolean; usePerOrder: string }>
     >({
-        "a-pearls": {
-            enabled: true,
-            onHand: "2,400 g",
-            warnBelow: "500 g",
-            valueAtCost: "$420.00",
-            stateLabel: "In stock",
-        },
-        "a-jelly": {
-            enabled: true,
-            onHand: "180 g",
-            warnBelow: "500 g",
-            valueAtCost: "$95.00",
-            stateLabel: "Low stock",
-        },
-        "a-pudding": {
-            enabled: false,
-            onHand: "1,250 g",
-            warnBelow: "400 g",
-            valueAtCost: "$280.00",
-            stateLabel: "Disabled",
-        },
-        "a-shot": {
-            enabled: true,
-            onHand: "840 shots",
-            warnBelow: "100 shots",
-            valueAtCost: "$120.00",
-            stateLabel: "In stock",
-        },
-        "a-syrup": {
-            enabled: true,
-            onHand: "1,800 ml",
-            warnBelow: "250 ml",
-            valueAtCost: "$150.00",
-            stateLabel: "In stock",
-        },
+        "a-pearls": { enabled: true, usePerOrder: "30 g per order" },
+        "a-jelly": { enabled: true, usePerOrder: "30 g per order" },
+        "a-pudding": { enabled: false, usePerOrder: "40 g per order" },
+        "a-shot": { enabled: true, usePerOrder: "1 shot per order" },
+        "a-syrup": { enabled: true, usePerOrder: "15 ml per order" },
     });
 
     const [collapsedCategories, setCollapsedCategories] = useState<
@@ -106,10 +69,7 @@ function StockItemAddOnsTreeRow({ row }: { row: StockLevelRow }) {
             [addOnId]: {
                 ...(prev[addOnId] || {
                     enabled: true,
-                    onHand: "100",
-                    warnBelow: "10",
-                    valueAtCost: "$50.00",
-                    stateLabel: "In stock",
+                    usePerOrder: "1 per order",
                 }),
                 enabled,
             },
@@ -187,10 +147,7 @@ function StockItemAddOnsTreeRow({ row }: { row: StockLevelRow }) {
                                 {category.addOns.map((addOn) => {
                                     const state = addOnStates[addOn.id] || {
                                         enabled: true,
-                                        onHand: "100 g",
-                                        warnBelow: "20 g",
-                                        valueAtCost: "$50.00",
-                                        stateLabel: "In stock",
+                                        usePerOrder: "1 per order",
                                     };
 
                                     return (
@@ -216,29 +173,12 @@ function StockItemAddOnsTreeRow({ row }: { row: StockLevelRow }) {
                                                     </span>
                                                 </div>
 
-                                                {/* Stock Properties matching table headers */}
-                                                <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                                    <span>
-                                                        On hand:{" "}
-                                                        <strong className="text-foreground">
-                                                            {state.onHand}
-                                                        </strong>
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span>
-                                                        Warn below:{" "}
-                                                        <span className="text-muted-foreground">
-                                                            {state.warnBelow}
-                                                        </span>
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span>
-                                                        Value at cost:{" "}
-                                                        <strong className="text-foreground">
-                                                            {state.valueAtCost}
-                                                        </strong>
-                                                    </span>
-                                                </div>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                    Uses{" "}
+                                                    <strong className="text-foreground">
+                                                        {state.usePerOrder}
+                                                    </strong>
+                                                </p>
                                             </div>
 
                                             {/* Toggle Management */}
@@ -264,6 +204,62 @@ function StockItemAddOnsTreeRow({ row }: { row: StockLevelRow }) {
                     </div>
                 );
             })}
+        </div>
+    );
+}
+
+/**
+ * The item's options, listed under it.
+ *
+ * Stock is held against the item as a whole: the API keeps one balance per
+ * item and its stock entries carry no variant, so an option cannot show a
+ * count of its own without inventing one. Each row says where its quantity
+ * lives instead of printing a number nobody recorded.
+ */
+function StockItemOptionsRow({ row }: { row: StockLevelRow }) {
+    const options = row.options || [];
+
+    return (
+        <div className="space-y-2 py-1">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Options · {options.length}
+            </p>
+
+            <div className="relative ml-3 space-y-1.5 border-l-2 border-primary/20 pl-4 dark:border-primary/30">
+                {options.map((option) => (
+                    <div
+                        key={option.name}
+                        className="relative flex flex-wrap items-center justify-between gap-3 rounded-xl border border-transparent px-3.5 py-2.5 transition-colors hover:border-border/40 hover:bg-muted/40"
+                    >
+                        <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 -translate-y-1/2 bg-primary/30 dark:bg-primary/40" />
+
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                                {option.name}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                Counted with the item
+                            </p>
+                        </div>
+
+                        <span
+                            className={cn(
+                                "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                                option.available
+                                    ? "bg-success/10 text-success"
+                                    : "bg-muted text-muted-foreground",
+                            )}
+                        >
+                            {option.available ? "On sale" : "Off sale"}
+                        </span>
+                    </div>
+                ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+                One balance covers every option. Per-option stock arrives when
+                the API tracks a variant on each movement.
+            </p>
         </div>
     );
 }
@@ -340,9 +336,9 @@ export function StockLevelTable({
                                             <button
                                                 type="button"
                                                 onClick={() => toggleRowAddOns(row.id)}
-                                                aria-label={`Toggle add-ons tree for ${row.name}`}
+                                                aria-label={`Toggle options and add-ons for ${row.name}`}
                                                 className="grid size-7 shrink-0 place-items-center rounded-full bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer"
-                                                title="View add-ons tree"
+                                                title="View options and add-ons"
                                             >
                                                 <ChevronDown
                                                     className={cn(
@@ -455,7 +451,12 @@ export function StockLevelTable({
                         const treeRow = (
                             <tr key={`${row.id}-addons-tree`} className="bg-muted/20">
                                 <td colSpan={hasActions ? 6 : 5} className="px-5 py-4 border-b border-border">
-                                    <StockItemAddOnsTreeRow row={row} />
+                                    <>
+                                        {row.options?.length ? (
+                                            <StockItemOptionsRow row={row} />
+                                        ) : null}
+                                        <StockItemAddOnsTreeRow row={row} />
+                                    </>
                                 </td>
                             </tr>
                         );

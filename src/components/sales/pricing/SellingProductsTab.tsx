@@ -32,6 +32,7 @@ import {
     type OverrideKind,
     type PriceOverride,
 } from "@/lib/sale-pricing/pricing";
+import { ItemOptionPricing } from "@/components/sales/pricing/ItemOptionPricing";
 import {
     sampleChannels,
     sampleGroups,
@@ -1135,6 +1136,8 @@ export function SellingProductsTab() {
                     }))}
                 </div>
             </section>
+
+            <ItemOptionPricing readOnly />
 
             <BarcodeScannerDialog
                 open={scannerOpen}

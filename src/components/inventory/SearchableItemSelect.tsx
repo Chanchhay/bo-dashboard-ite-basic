@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
     Check,
     Package,
-    Search,
     X,
 } from "lucide-react";
 
@@ -85,8 +84,6 @@ export function SearchableItemSelect({
         <div ref={containerRef} className={cn("relative w-full", className)}>
             {/* Input Bar without Chevron Dropdown Icon */}
             <div className="relative flex items-center w-full">
-                <Search className="absolute left-3.5 size-4 text-muted-foreground pointer-events-none" />
-
                 <Input
                     ref={inputRef}
                     type="text"
@@ -101,7 +98,7 @@ export function SearchableItemSelect({
                     placeholder={placeholder}
                     className={cn(
                         inventoryControlClassName,
-                        "pl-10 pr-9 w-full transition-colors",
+                        "pr-9 w-full transition-colors",
                         ariaInvalid && "border-danger ring-danger/20",
                         open && "ring-2 ring-primary/30 border-primary",
                     )}
