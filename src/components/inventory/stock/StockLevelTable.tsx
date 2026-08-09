@@ -6,6 +6,7 @@ import {
     Eye,
     EyeOff,
     FolderPlus,
+    SlidersHorizontal,
 } from "lucide-react";
 
 import { InventoryEmpty } from "@/components/inventory/InventoryUi";
@@ -275,6 +276,7 @@ export function StockLevelTable({
     formatValue,
     onStockIn,
     onStockOut,
+    onAdjust,
 }: {
     rows: readonly StockLevelRow[];
     emptyTitle: string;
@@ -283,6 +285,7 @@ export function StockLevelTable({
     formatValue: (value: number) => string;
     onStockIn?: (id: string) => void;
     onStockOut?: (id: string) => void;
+    onAdjust?: (id: string) => void;
 }) {
     const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(
         new Set(),
@@ -303,7 +306,7 @@ export function StockLevelTable({
         );
     }
 
-    const hasActions = Boolean(onStockIn && onStockOut);
+    const hasActions = Boolean(onStockIn || onStockOut || onAdjust);
 
     return (
         <div className="overflow-x-auto">
@@ -399,32 +402,48 @@ export function StockLevelTable({
                                 {hasActions ? (
                                     <td className="px-5 py-4">
                                         <div className="flex justify-end gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => onStockIn?.(row.id)}
-                                                aria-label={`Stock in ${row.name}`}
-                                            >
-                                                <ArrowDownToLine />
-                                                In
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={row.onHand <= 0}
-                                                title={
-                                                    row.onHand <= 0
-                                                        ? "Nothing on hand to remove"
-                                                        : undefined
-                                                }
-                                                onClick={() => onStockOut?.(row.id)}
-                                                aria-label={`Stock out ${row.name}`}
-                                            >
-                                                <ArrowUpFromLine />
-                                                Out
-                                            </Button>
+                                            {onStockIn ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => onStockIn(row.id)}
+                                                    aria-label={`Stock in ${row.name}`}
+                                                >
+                                                    <ArrowDownToLine />
+                                                    In
+                                                </Button>
+                                            ) : null}
+                                            {onStockOut ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={row.onHand <= 0}
+                                                    title={
+                                                        row.onHand <= 0
+                                                            ? "Nothing on hand to remove"
+                                                            : undefined
+                                                    }
+                                                    onClick={() => onStockOut(row.id)}
+                                                    aria-label={`Stock out ${row.name}`}
+                                                >
+                                                    <ArrowUpFromLine />
+                                                    Out
+                                                </Button>
+                                            ) : null}
+                                            {onAdjust ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => onAdjust(row.id)}
+                                                    aria-label={`Adjust stock for ${row.name}`}
+                                                >
+                                                    <SlidersHorizontal className="size-3.5" />
+                                                    Adjust
+                                                </Button>
+                                            ) : null}
                                         </div>
                                     </td>
                                 ) : null}

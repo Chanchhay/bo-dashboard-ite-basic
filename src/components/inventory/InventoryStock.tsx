@@ -1,12 +1,17 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
     AlertTriangle,
+    ArrowDownRight,
+    ArrowUpRight,
     Boxes,
     CircleDollarSign,
     PackageX,
     Search,
+    SlidersHorizontal,
 } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
@@ -32,6 +37,7 @@ import {
     StockTabs,
     type StockTabId,
 } from "@/components/inventory/stock/StockTabs";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
     latestUnitCosts,
@@ -82,6 +88,7 @@ function MetricCard({
 }
 
 export function InventoryStock() {
+    const router = useRouter();
     const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
     const stockSearch = useAppSelector(
@@ -301,6 +308,17 @@ export function InventoryStock() {
             <InventoryPageHeader
                 title="Stock"
                 description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."
+                action={
+                    <Button
+                        variant="outline"
+                        render={<Link href="/inventory/stock/adjust" />}
+                        nativeButton={false}
+                        className="h-10 gap-2 rounded-xl"
+                    >
+                        <SlidersHorizontal className="size-4 text-foreground" />
+                        Adjust Stock
+                    </Button>
+                }
             />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -390,6 +408,7 @@ export function InventoryStock() {
                         }
                         valueColumnLabel="Value at cost"
                         formatValue={formatMoney}
+                        onAdjust={(id) => router.push(`/inventory/stock/adjust?itemId=${id}`)}
                     />
                 ) : null}
 
