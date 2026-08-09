@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Moon,
@@ -12,6 +12,9 @@ import {
 import { useCustomerDisplayListener } from "@/hooks/useCustomerDisplayListener";
 import { useMoney } from "@/hooks/useMoney";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
+import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import type { Business } from "@/lib/api/business";
+import type { PosOrder, Sale } from "@/lib/api/pos-order";
 import Image from "next/image";
 
 interface CustomerDisplayPageProps {
@@ -48,11 +51,86 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const secondaryTotal = secondaryFor(total, { currency });
 
+  const businessObj = useMemo(
+    () =>
+      ({
+        id: businessProfile?.id || displayData?.businessId || "",
+        name: storeName,
+        logo: storeLogo || null,
+        address: businessProfile?.address,
+        cityOrProvince: businessProfile?.cityOrProvince,
+        phoneNumber: businessProfile?.phoneNumber,
+        website: businessProfile?.website,
+      }) as Business,
+    [businessProfile, displayData?.businessId, storeName, storeLogo],
+  );
+
+  const completedOrderObj = useMemo(
+    () =>
+      ({
+        id: "completed-order",
+        businessId: businessProfile?.id || "",
+        channel: "POS",
+        invoiceNumber: displayData?.invoiceNumber || "—",
+        currency: currency,
+        subtotal: subtotal,
+        discountAmount: discount,
+        total: total,
+        createdDate: displayData?.updatedAt,
+        items: items.map((i) => ({
+          id: i.id,
+          itemId: i.itemId,
+          itemName: i.name,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          discountAmount: i.discountAmount,
+          lineTotal: i.lineTotal,
+        })),
+      }) as PosOrder,
+    [
+      businessProfile?.id,
+      displayData?.invoiceNumber,
+      displayData?.updatedAt,
+      currency,
+      subtotal,
+      discount,
+      total,
+      items,
+    ],
+  );
+
+  const completedSaleObj = useMemo(() => {
+    if (status !== "COMPLETED") return null;
+    return {
+      id: "completed-sale",
+      orderId: "completed-order",
+      invoiceNumber: displayData?.invoiceNumber || "",
+      paymentMethod: displayData?.paymentMethod || "CASH",
+      paidAmount: displayData?.paidAmount ?? total,
+      changeAmount: displayData?.changeAmount ?? 0,
+      subtotal: subtotal,
+      discountAmount: discount,
+      totalAmount: total,
+      currency: currency,
+      soldAt: displayData?.updatedAt || new Date().toISOString(),
+    } as Sale;
+  }, [
+    status,
+    displayData?.invoiceNumber,
+    displayData?.paymentMethod,
+    displayData?.paidAmount,
+    displayData?.changeAmount,
+    displayData?.updatedAt,
+    subtotal,
+    discount,
+    total,
+    currency,
+  ]);
+
   return (
     <div
-      className={`flex h-screen w-screen overflow-hidden font-sans select-none transition-colors duration-300 ${
-        isDarkMode ? "bg-slate-950 text-slate-100" : "bg-[#f4f6f9] text-slate-900"
-      }`}
+      className={`flex h-screen w-screen overflow-hidden font-sans select-none transition-colors duration-300 ${isDarkMode ? "bg-slate-950 text-slate-100" : "bg-[#f4f6f9] text-slate-900"
+        }`}
     >
       {/* LEFT PANEL: Full-Bleed Business Thumbnail Cover (38% width) */}
       <div className="relative flex w-[38%] flex-col overflow-hidden border-r border-slate-200 dark:border-slate-800 bg-slate-900 text-white">
@@ -95,7 +173,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             </span>
           </div> */}
 
-          {/* Center Content (BIG KHQR Code during payment / Hero Welcome Card during idle) */}
+          {/* Center Content (BIG KHQR Code during payment / Receipt Ticket on COMPLETED / Hero Welcome Card during idle) */}
           {status === "PAYMENT_PENDING" ? (
             <div className="my-auto flex flex-col items-center text-center px-2 animate-in fade-in zoom-in-95 duration-200">
               <div className="mb-2 flex items-center gap-1.5 rounded-full bg-amber-500/20 px-4 py-1.5 text-xs font-extrabold text-amber-300 border border-amber-500/30 backdrop-blur-md">
@@ -141,6 +219,19 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 Accepts Bakong, ABA, ACLEDA & all Banking Apps
               </p>
             </div>
+          ) : status === "COMPLETED" ? (
+            <div className="my-auto flex flex-col items-center overflow-y-auto px-1 py-2 animate-in fade-in duration-300 w-full max-h-[92vh] scrollbar-hide">
+              <div className="mb-2 flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold text-emerald-300 border border-emerald-500/30 backdrop-blur-md">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <span>RECEIPT · វិក្កយបត្រ</span>
+              </div>
+              <ReceiptTicket
+                business={businessObj}
+                order={completedOrderObj}
+                sale={completedSaleObj}
+                className="mx-auto my-1 max-h-[82vh] overflow-y-auto shadow-2xl border border-white/20 text-slate-900 scale-95"
+              />
+            </div>
           ) : (
             <div className="my-auto flex flex-col items-center text-center px-4 animate-in fade-in duration-200">
               {/* Store Logo Hero Icon */}
@@ -158,27 +249,19 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
               </div>
 
               <h2 className="text-3xl lg:text-4xl font-black text-white drop-shadow-lg tracking-tight">
-                {status === "COMPLETED" ? "Thank You!" : `Welcome to ${storeName}`}
+                Welcome to {storeName}
               </h2>
               <p className="mt-3 text-sm text-slate-200 max-w-xs leading-relaxed font-medium drop-shadow-md">
-                {status === "COMPLETED"
-                  ? "Your payment was received successfully. Please come again!"
-                  : "Enjoy special member rewards & instant promotions on every purchase."}
+                Enjoy special member rewards & instant promotions on every purchase.
               </p>
             </div>
           )}
-
-          {/* Bottom Footer Info */}
-          {/* <div className="flex items-center justify-between text-[11px] font-semibold text-white/70 pt-4 border-t border-white/15">
-            <span>{storeName} Customer Terminal</span>
-            <span className="font-mono text-amber-400 font-bold">{terminalId}</span>
-          </div> */}
         </div>
       </div>
 
       {/* RIGHT PANEL: Header, Cart Table & Totals (62% width) */}
       <div className="flex flex-1 flex-col">
-        {/* Top Primary Header Bar (Matching Image 2) */}
+        {/* Top Primary Header Bar */}
         <div className="flex h-16 shrink-0 items-center justify-between bg-primary px-6 text-white shadow-md">
           {/* Store Logo & Real Name */}
           <div className="flex items-center gap-3">
@@ -196,14 +279,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 <Store className="h-5 w-5" />
               </div>
             )}
-            {/* <div>
-              <h1 className="text-lg font-black tracking-tight leading-none text-white">
-                {storeName}
-              </h1>
-              <p className="text-[11px] text-white/80 font-medium mt-0.5">
-                Customer Display Terminal: <span className="font-mono">{terminalId}</span>
-              </p>
-            </div> */}
           </div>
 
           {/* Header Controls (Light/Dark mode + Status) */}
@@ -224,7 +299,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           </div>
         </div>
 
-        {/* Item List Table (បញ្ជីទំនិញ) */}
+        {/* Item List Table / Completion Screen */}
         <div className="flex-1 overflow-y-auto p-6">
           {status === "IDLE" || items.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center p-8">
@@ -237,16 +312,32 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
               </p>
             </div>
           ) : status === "COMPLETED" ? (
-            <div className="flex h-full flex-col items-center justify-center text-center p-8">
-              <CheckCircle2 className="h-20 w-20 text-emerald-500 mb-3" />
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white">
+            <div className="flex h-full flex-col items-center justify-center text-center p-8 animate-in fade-in zoom-in-95 duration-300">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-inner">
+                <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+              </div>
+              <h3 className={`text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-slate-900"}`}>
                 ទូទាត់ប្រាក់រួចរាល់ (Sale Completed)
               </h3>
               {displayData?.invoiceNumber && (
-                <p className="mt-2 font-mono text-sm font-bold text-slate-600 dark:text-slate-300">
+                <p className={`mt-2 font-mono text-base font-bold ${isDarkMode ? "text-emerald-400" : "text-primary"}`}>
                   Invoice #{displayData.invoiceNumber}
                 </p>
               )}
+              <p className={`mt-3 text-sm max-w-sm font-medium leading-relaxed ${isDarkMode ? "text-slate-300" : "text-slate-500"}`}>
+                Your payment was received successfully. Thank you for shopping with us!
+              </p>
+
+              <div className={`mt-6 grid grid-cols-2 gap-4 w-full max-w-md p-4 rounded-2xl border ${isDarkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"}`}>
+                <div className={`flex flex-col items-center p-3 rounded-xl shadow-sm ${isDarkMode ? "bg-slate-950" : "bg-white"}`}>
+                  <span className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Total Items</span>
+                  <span className={`text-xl font-bold mt-1 ${isDarkMode ? "text-white" : "text-slate-900"}`}>{totalQuantity}</span>
+                </div>
+                <div className={`flex flex-col items-center p-3 rounded-xl shadow-sm ${isDarkMode ? "bg-slate-950" : "bg-white"}`}>
+                  <span className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Grand Total</span>
+                  <span className="text-xl font-bold text-emerald-500 mt-1">{format(total, currency)}</span>
+                </div>
+              </div>
             </div>
           ) : (
             /* Structured Table (Matching Image 2) */
@@ -254,11 +345,10 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
               <table className="w-full text-left text-xs">
                 {/* Table Header */}
                 <thead
-                  className={`border-b text-xs font-bold ${
-                    isDarkMode
+                  className={`border-b text-xs font-bold ${isDarkMode
                       ? "border-slate-800 bg-slate-900 text-slate-300"
                       : "border-slate-200 bg-slate-100 text-slate-700"
-                  }`}
+                    }`}
                 >
                   <tr>
                     <th className="py-3 px-4">ឈ្មោះទំនិញ (Item Name)</th>
@@ -271,11 +361,10 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
 
                 {/* Table Body */}
                 <tbody
-                  className={`divide-y text-xs font-medium ${
-                    isDarkMode
+                  className={`divide-y text-xs font-medium ${isDarkMode
                       ? "divide-slate-800 text-slate-200"
                       : "divide-slate-200 text-slate-800"
-                  }`}
+                    }`}
                 >
                   {items.map((item, index) => (
                     <tr
@@ -286,8 +375,8 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                             ? "bg-slate-900/40"
                             : "bg-white"
                           : isDarkMode
-                          ? "bg-slate-900/80"
-                          : "bg-slate-50/70"
+                            ? "bg-slate-900/80"
+                            : "bg-slate-50/70"
                       }
                     >
                       <td className="py-3.5 px-4 font-bold text-sm">
@@ -315,53 +404,54 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           )}
         </div>
 
-        {/* Bottom Total Block (Matching Image 2) */}
-        <div
-          className={`shrink-0 border-t p-6 shadow-lg transition-colors duration-300 ${
-            isDarkMode
-              ? "border-slate-800 bg-slate-900"
-              : "border-slate-200 bg-white"
-          }`}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            {/* Left calculation summary */}
-            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
-              <div className="flex justify-between">
-                <span>ចំនួនទំនិញសរុប (Total Items):</span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {totalQuantity}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>សរុប (Subtotal):</span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {format(subtotal, currency)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>បញ្ចុះតម្លៃ (%) (Discount):</span>
-                <span className="font-bold text-emerald-500">
-                  -{format(discount, currency)}
-                </span>
-              </div>
-            </div>
-
-            {/* Right Grand Total Box (Matching Image 2) */}
-            <div className="flex flex-col items-end justify-center rounded-2xl bg-primary/10 dark:bg-primary/20 p-4 border border-primary/20">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary dark:text-sky-300">
-                សរុបចុងក្រោយ (Grand Total)
-              </span>
-              <div className="text-3xl lg:text-4xl font-black tracking-tight text-primary dark:text-sky-400">
-                {format(total, currency)}
-              </div>
-              {secondaryTotal && (
-                <div className="text-sm font-extrabold text-slate-600 dark:text-slate-300 mt-0.5">
-                  {format(secondaryTotal.amount, secondaryTotal.currency.code)}
+        {/* Bottom Total Block (Hidden when COMPLETED to prevent duplicate summary bar) */}
+        {status !== "COMPLETED" && (
+          <div
+            className={`shrink-0 border-t p-6 shadow-lg transition-colors duration-300 ${isDarkMode
+                ? "border-slate-800 bg-slate-900"
+                : "border-slate-200 bg-white"
+              }`}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              {/* Left calculation summary */}
+              <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                <div className="flex justify-between">
+                  <span>ចំនួនទំនិញសរុប (Total Items):</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {totalQuantity}
+                  </span>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <span>សរុប (Subtotal):</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {format(subtotal, currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>បញ្ចុះតម្លៃ (%) (Discount):</span>
+                  <span className="font-bold text-emerald-500">
+                    -{format(discount, currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Grand Total Box */}
+              <div className="flex flex-col items-end justify-center rounded-2xl bg-primary/10 dark:bg-primary/20 p-4 border border-primary/20">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary dark:text-sky-300">
+                  សរុបចុងក្រោយ (Grand Total)
+                </span>
+                <div className="text-3xl lg:text-4xl font-black tracking-tight text-primary dark:text-sky-400">
+                  {format(total, currency)}
+                </div>
+                {secondaryTotal && (
+                  <div className="text-sm font-extrabold text-slate-600 dark:text-slate-300 mt-0.5">
+                    {format(secondaryTotal.amount, secondaryTotal.currency.code)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Footer info bar */}
         {/* <div className="flex h-8 shrink-0 items-center justify-between bg-slate-900 px-6 text-[11px] font-semibold text-slate-400">
