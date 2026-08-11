@@ -5,36 +5,15 @@ import { Store, ShoppingBag } from "lucide-react";
 
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { ChannelMatrixTable } from "@/components/menu/ChannelMatrixTable";
+import { SalesChannelsChart } from "@/components/menu/SalesChannelsChart";
 import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
-import { useGetSalesChannelsQuery } from "@/services/salesChannelApi";
-import { ChannelSelector } from "@/components/menu/ChannelSelector";
-import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
-import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
-import { ChannelHeader } from "@/components/menu/ChannelHeader";
 import {
-    useCreateItemChannelMutation,
-    useDeleteItemChannelMutation,
-    useGetChannelItemsQuery,
     useGetSalesChannelsQuery,
 } from "@/services/salesChannelApi";
 import type { InventoryItem } from "@/lib/api/inventory";
-
-// Presentation only — the channels themselves come from the backend. A code
-// with no entry here still renders, just without the colour and blurb.
-const CHANNEL_METADATA: Record<
-    string,
-    { name: string; description: string; icon: React.ElementType; color: string }
-> = {
-    POS: {
-        name: "Point of Sale (POS)",
-        description: "Items available to sell at the in-store till.",
-        icon: Store,
-        color: "bg-primary text-primary/700 border-primary",
-    },
-};
 
 const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
     {
@@ -73,38 +52,15 @@ const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
 
 export default function SalesChannelsPage() {
     const { toast } = useToast();
-    const [activeChannelCode, setActiveChannelCode] = useState<string>("POS");
-    const [searchQuery, setSearchQuery] = useState<string>("");
-    const [selectedItemId, setSelectedItemId] = useState<string>("");
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
-    const [pendingItemId, setPendingItemId] = useState<string>("");
-    
-    const [confirmAction, setConfirmAction] = useState<{
-        mode: "add" | "remove";
-        itemId: string;
-    } | null>(null);
-    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
 
-    // State for Select Channels by Item dialog
+    // Dialog & Remove State
     const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
     const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
-
-    // Destructive Remove State
     const [removeItemId, setRemoveItemId] = useState<string | null>(null);
 
     function openMultiChannelDialog(itemId?: string) {
-        if (itemId) {
-            setMultiChannelTargetItemId(itemId);
-        } else {
-            setMultiChannelTargetItemId("");
-        }
+        setMultiChannelTargetItemId(itemId || "");
         setIsMultiChannelDialogOpen(true);
-    }
-
-    /** Opens the confirmation dialog for one row action. */
-    function askToConfirm(mode: "add" | "remove", itemId: string) {
-        setConfirmAction({ mode, itemId });
-        setIsConfirmOpen(true);
     }
 
     // Queries
@@ -118,7 +74,7 @@ export default function SalesChannelsPage() {
         useGetInventoryItemOptionsQuery();
 
     const activeChannels = useMemo(
-        () => salesChannels.filter((c) => c.isActive),
+        () => salesChannels.filter((c) => c.isActive || c.active !== false),
         [salesChannels]
     );
 
@@ -126,49 +82,6 @@ export default function SalesChannelsPage() {
         () => (inventoryItems.length > 0 ? inventoryItems : MOCK_INVENTORY_ITEMS),
         [inventoryItems]
     );
-
-    // Published mapping: channel code -> set of item IDs
-    const [publishedMap, setPublishedMap] = useState<Record<string, Set<string>>>({
-        ONLINE: new Set(["item-coca", "item-iphone", "item-lenovo", "item-macbook"]),
-        POS: new Set(["item-lenovo", "item-macbook"]),
-    });
-
-    const activeChannels = useMemo(
-        () => salesChannels.filter((c) => c.active !== false),
-        [salesChannels],
-    );
-
-    // Multi-Channel Publish Dialog state
-    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
-    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
-
-    // Destructive Remove State
-    const [removeItemId, setRemoveItemId] = useState<string | null>(null);
-
-    function openMultiChannelDialog(itemId?: string) {
-        setMultiChannelTargetItemId(itemId || "");
-        setIsMultiChannelDialogOpen(true);
-    }
-
-    const itemToRemove = useMemo(
-        () => inventoryItems.find((i) => i.id === removeItemId),
-        [inventoryItems, removeItemId],
-    );
-    function handleToggleChannelState(itemId: string, channelCode: string) {
-        setPublishedMap((prev) => {
-            const currentSet = new Set(prev[channelCode] || []);
-            if (currentSet.has(itemId)) {
-                currentSet.delete(itemId);
-            } else {
-                currentSet.add(itemId);
-            }
-            return { ...prev, [channelCode]: currentSet };
-        });
-    }
-
-    function handleRemoveItem(itemId: string) {
-        setRemoveItemId(itemId);
-    }
 
     function confirmRemoveItem() {
         if (!removeItemId) return;
@@ -191,6 +104,9 @@ export default function SalesChannelsPage() {
                 title="Sales Channels"
                 description="Choose which items are sold on each sales channel, or assign items to multiple channels at once."
             />
+
+            {/* Sales Channel Actions & Performance Chart */}
+            <SalesChannelsChart />
 
             {!channelsLoading && activeChannels.length === 0 ? (
                 <section className="rounded-2xl border border-border bg-card p-10 text-center shadow-xs">

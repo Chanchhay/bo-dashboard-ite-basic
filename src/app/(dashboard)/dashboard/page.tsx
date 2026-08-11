@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { SalesChannelsChart } from "@/components/menu/SalesChannelsChart";
 import { backendRequest } from "@/lib/api/backend";
 import {
     getAllInventoryItems,
@@ -150,6 +151,9 @@ export default async function DashboardPage() {
                         />
                     </div>
                 </section>
+
+                {/* Sales Channel Actions & Performance Chart */}
+                <SalesChannelsChart />
 
                 <section
                     aria-labelledby="stock-heading"
