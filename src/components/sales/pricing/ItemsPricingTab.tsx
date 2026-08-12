@@ -24,6 +24,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { controlClassName } from "@/components/ui/form-controls";
+import { ItemOptionPricing } from "@/components/sales/pricing/ItemOptionPricing";
 import {
     overrideKindLabels,
     overrideKinds,
@@ -531,6 +532,8 @@ export function ItemsPricingTab() {
                     </section>
                 );
             })}
+
+            <ItemOptionPricing />
         </div>
     );
 }

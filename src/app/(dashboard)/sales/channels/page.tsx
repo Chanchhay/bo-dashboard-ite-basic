@@ -10,6 +10,13 @@ import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublish
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
+<<<<<<< HEAD
+=======
+import { ChannelSelector } from "@/components/menu/ChannelSelector";
+import { PostChannelDialog } from "@/components/menu/PostChannelDialog";
+import { ItemChannelTable } from "@/components/menu/ItemChannelTable";
+import { ChannelHeader } from "@/components/menu/ChannelHeader";
+>>>>>>> e7649fc4cbb51f7c3c7877e90506224ebbbbbcc3
 import {
     useGetSalesChannelsQuery,
 } from "@/services/salesChannelApi";
@@ -52,6 +59,7 @@ const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
 
 export default function SalesChannelsPage() {
     const { toast } = useToast();
+<<<<<<< HEAD
 
     // Dialog & Remove State
     const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
@@ -61,6 +69,24 @@ export default function SalesChannelsPage() {
     function openMultiChannelDialog(itemId?: string) {
         setMultiChannelTargetItemId(itemId || "");
         setIsMultiChannelDialogOpen(true);
+=======
+    const [activeChannelCode, setActiveChannelCode] = useState<string>("POS");
+    const [searchQuery, setSearchQuery] = useState<string>("");
+    const [selectedItemId, setSelectedItemId] = useState<string>("");
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
+    const [pendingItemId, setPendingItemId] = useState<string>("");
+
+    const [confirmAction, setConfirmAction] = useState<{
+        mode: "add" | "remove";
+        itemId: string;
+    } | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+
+    /** Opens the confirmation dialog for one row action. */
+    function askToConfirm(mode: "add" | "remove", itemId: string) {
+        setConfirmAction({ mode, itemId });
+        setIsConfirmOpen(true);
+>>>>>>> e7649fc4cbb51f7c3c7877e90506224ebbbbbcc3
     }
 
     // Queries
@@ -73,16 +99,56 @@ export default function SalesChannelsPage() {
     const { data: inventoryItems = [], isLoading: inventoryLoading } =
         useGetInventoryItemOptionsQuery();
 
+<<<<<<< HEAD
     const activeChannels = useMemo(
         () => salesChannels.filter((c) => c.isActive || c.active !== false),
         [salesChannels]
     );
 
+=======
+>>>>>>> e7649fc4cbb51f7c3c7877e90506224ebbbbbcc3
     const activeInventoryItems = useMemo(
         () => (inventoryItems.length > 0 ? inventoryItems : MOCK_INVENTORY_ITEMS),
         [inventoryItems]
     );
 
+<<<<<<< HEAD
+=======
+    // Published mapping: channel code -> set of item IDs
+    const [publishedMap, setPublishedMap] = useState<Record<string, Set<string>>>({
+        ONLINE: new Set(["item-coca", "item-iphone", "item-lenovo", "item-macbook"]),
+        POS: new Set(["item-lenovo", "item-macbook"]),
+    });
+
+    // Multi-Channel Publish Dialog state
+    const [isMultiChannelDialogOpen, setIsMultiChannelDialogOpen] = useState<boolean>(false);
+    const [multiChannelTargetItemId, setMultiChannelTargetItemId] = useState<string>("");
+
+    // Destructive Remove State
+    const [removeItemId, setRemoveItemId] = useState<string | null>(null);
+
+    function openMultiChannelDialog(itemId?: string) {
+        setMultiChannelTargetItemId(itemId || "");
+        setIsMultiChannelDialogOpen(true);
+    }
+
+    function handleToggleChannelState(itemId: string, channelCode: string) {
+        setPublishedMap((prev) => {
+            const currentSet = new Set(prev[channelCode] || []);
+            if (currentSet.has(itemId)) {
+                currentSet.delete(itemId);
+            } else {
+                currentSet.add(itemId);
+            }
+            return { ...prev, [channelCode]: currentSet };
+        });
+    }
+
+    function handleRemoveItem(itemId: string) {
+        setRemoveItemId(itemId);
+    }
+
+>>>>>>> e7649fc4cbb51f7c3c7877e90506224ebbbbbcc3
     function confirmRemoveItem() {
         if (!removeItemId) return;
         toast({
@@ -105,10 +171,14 @@ export default function SalesChannelsPage() {
                 description="Choose which items are sold on each sales channel, or assign items to multiple channels at once."
             />
 
+<<<<<<< HEAD
             {/* Sales Channel Actions & Performance Chart */}
             <SalesChannelsChart />
 
             {!channelsLoading && activeChannels.length === 0 ? (
+=======
+            {!channelsLoading && salesChannels.length === 0 ? (
+>>>>>>> e7649fc4cbb51f7c3c7877e90506224ebbbbbcc3
                 <section className="rounded-2xl border border-border bg-card p-10 text-center shadow-xs">
                     <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
                         <ShoppingBag
@@ -133,8 +203,8 @@ export default function SalesChannelsPage() {
                 </section>
             ) : (
                 <ChannelMatrixTable
-                    channels={activeChannels}
-                    inventoryItems={inventoryItems}
+                    channels={salesChannels}
+                    inventoryItems={activeInventoryItems}
                     inventoryLoading={inventoryLoading}
                     onRefresh={() => refetchChannels()}
                     onManageItemChannels={(itemId) => openMultiChannelDialog(itemId)}
@@ -147,8 +217,8 @@ export default function SalesChannelsPage() {
             <MultiChannelPublishDialog
                 open={isMultiChannelDialogOpen}
                 onClose={() => setIsMultiChannelDialogOpen(false)}
-                inventoryItems={inventoryItems}
-                salesChannels={activeChannels}
+                inventoryItems={activeInventoryItems}
+                salesChannels={salesChannels}
                 initialItemId={multiChannelTargetItemId}
                 onSuccess={() => refetchChannels()}
             />

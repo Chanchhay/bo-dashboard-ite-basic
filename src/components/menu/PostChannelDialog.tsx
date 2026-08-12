@@ -37,7 +37,7 @@ interface PostChannelDialogProps {
 
 /** What one item reads as, both in the list and in the closed trigger. */
 function itemLabel(item: InventoryItem) {
-    const categoryName = item.itemGroup?.name || item.category?.name;
+    const categoryName = item.itemGroup?.name;
     const catLabel = categoryName ? ` (${categoryName})` : "";
 
     return `${item.name || "Unnamed item"}${catLabel}`;
