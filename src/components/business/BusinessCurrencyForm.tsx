@@ -25,6 +25,7 @@ import {
     useGetBusinessCurrenciesQuery,
     useUpdateBusinessCurrenciesMutation,
 } from "@/services/currencyApi";
+import LiveExchangeRatesSection from "./LiveExchangeRatesSection";
 
 function getApiErrorMessage(error: unknown, fallback: string) {
     if (
@@ -335,6 +336,46 @@ function CurrencyEditor({
             )?.code || "",
         );
         setNewCurrencyCode("");
+    }
+
+    function handleApplyLiveRate(code: string, liveRate: number) {
+        updateCurrency(code, { exchangeRate: liveRate });
+    }
+
+    function handleSyncAllLiveRates(ratesMap: Record<string, number>) {
+        setCurrencies((current) =>
+            current.map((curr) => {
+                if (curr.code === baseCurrency) return curr;
+                const liveRate = ratesMap[curr.code];
+                if (liveRate && liveRate > 0) {
+                    return { ...curr, exchangeRate: liveRate };
+                }
+                return curr;
+            })
+        );
+    }
+
+    function handleAddAndConfigureCurrency(code: string, liveRate: number) {
+        const details = getCurrencyDetails(code);
+        const name = details?.name || code;
+        const symbol = details?.symbol || code;
+
+        if (!currencies.some((c) => c.code === code)) {
+            setCurrencies((current) => [
+                ...current,
+                {
+                    code,
+                    name,
+                    symbol,
+                    exchangeRate: liveRate,
+                    decimalPlaces: 2,
+                },
+            ]);
+            setSelectedTarget(code);
+        } else {
+            updateCurrency(code, { exchangeRate: liveRate });
+            setSelectedTarget(code);
+        }
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -659,6 +700,14 @@ function CurrencyEditor({
                     )}
                 </div>
             </section>
+
+            <LiveExchangeRatesSection
+                baseCurrency={baseCurrency}
+                configuredCurrencies={currencies}
+                onApplyLiveRate={handleApplyLiveRate}
+                onSyncAllLiveRates={handleSyncAllLiveRates}
+                onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
+            />
 
             <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-6">
                 <Button
