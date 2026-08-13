@@ -12,6 +12,8 @@ import {
     InventoryError,
     InventoryLoading,
 } from "@/components/inventory/InventoryUi";
+import { ChoiceImageField } from "@/components/inventory/ChoiceImageField";
+import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
@@ -40,7 +42,7 @@ type OptionPreset = {
     name: string;
     type: "SELECTION" | "COLOR";
     required: boolean;
-    values: { id: string; value: string; colorHex?: string }[];
+    values: { id: string; value: string; colorHex?: string; imageUrl?: string }[];
 };
 
 function toScreenPreset(preset: ApiOptionPreset): OptionPreset {
@@ -53,23 +55,40 @@ function toScreenPreset(preset: ApiOptionPreset): OptionPreset {
             id: `${preset.id}-${index}`,
             value: value.value || "",
             ...(value.colorHex ? { colorHex: value.colorHex } : {}),
+            ...(value.imageUrl ? { imageUrl: value.imageUrl } : {}),
         })),
     };
 }
+
+type DraftValue = {
+    value: string;
+    colorHex: string;
+    /** The picture this choice puts on the storefront gallery. */
+    imageUrl: string;
+};
 
 type PresetDraft = {
     name: string;
     type: OptionPreset["type"];
     required: boolean;
-    /** One value per line while editing — the same shape the block editor uses. */
-    values: string;
+    /**
+     * One row per choice.
+     *
+     * This was a textarea where a colour had to be typed as `Black #161d16`.
+     * Nobody knows what `#161d16` looks like, the format was undiscoverable,
+     * and a typo silently dropped the swatch — the parser simply read the whole
+     * line as a name. A row with a swatch to click cannot go wrong that way.
+     */
+    values: DraftValue[];
 };
+
+const emptyValue: DraftValue = { value: "", colorHex: "", imageUrl: "" };
 
 const emptyDraft: PresetDraft = {
     name: "",
     type: "SELECTION",
     required: true,
-    values: "",
+    values: [{ ...emptyValue }, { ...emptyValue }],
 };
 
 const typeLabels: Record<OptionPreset["type"], string> = {
@@ -82,31 +101,23 @@ function toDraft(preset: OptionPreset): PresetDraft {
         name: preset.name,
         type: preset.type,
         required: preset.required,
-        values: preset.values
-            .map((value) =>
-                value.colorHex
-                    ? `${value.value} ${value.colorHex}`
-                    : value.value,
-            )
-            .join("\n"),
+        values: preset.values.map((value) => ({
+            value: value.value,
+            colorHex: value.colorHex || "",
+            imageUrl: value.imageUrl || "",
+        })),
     };
 }
 
-/** `Black #161d16` splits into a label and its swatch; the hex is optional. */
-function parseValues(raw: string, type: OptionPreset["type"]) {
-    return raw
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line, index) => {
-            const match = line.match(/^(.*?)\s*(#[0-9a-fA-F]{6})$/);
-
-            return {
-                id: `v-${index}-${line.toLowerCase().replace(/\W+/g, "-")}`,
-                value: (match ? match[1] : line).trim(),
-                ...(type === "COLOR" && match ? { colorHex: match[2] } : {}),
-            };
-        });
+/** Blank rows are how an empty editor looks, not a choice the shop meant. */
+function usedValues(rows: DraftValue[]) {
+    return rows
+        .map((row) => ({
+            value: row.value.trim(),
+            colorHex: row.colorHex.trim(),
+            imageUrl: row.imageUrl.trim(),
+        }))
+        .filter((row) => row.value);
 }
 
 export function OptionPresetsTab() {
@@ -135,8 +146,43 @@ export function OptionPresetsTab() {
         });
     }
 
+    /** A patch, or a function of the row for a decision that depends on it. */
+    function updateValue(
+        index: number,
+        patch: Partial<DraftValue> | ((current: DraftValue) => Partial<DraftValue>),
+    ) {
+        setDraft((current) => ({
+            ...current,
+            values: current.values.map((row, position) =>
+                position === index
+                    ? { ...row, ...(typeof patch === "function" ? patch(row) : patch) }
+                    : row,
+            ),
+        }));
+        setErrors((current) => {
+            if (!current.values) return current;
+            const next = { ...current };
+            delete next.values;
+            return next;
+        });
+    }
+
+    function addValue() {
+        setDraft((current) => ({
+            ...current,
+            values: [...current.values, { ...emptyValue }],
+        }));
+    }
+
+    function removeValue(index: number) {
+        setDraft((current) => ({
+            ...current,
+            values: current.values.filter((_, position) => position !== index),
+        }));
+    }
+
     function resetForm() {
-        setDraft(emptyDraft);
+        setDraft({ ...emptyDraft, values: [{ ...emptyValue }, { ...emptyValue }] });
         setEditingId(null);
         setErrors({});
     }
@@ -152,7 +198,7 @@ export function OptionPresetsTab() {
 
         const found: Record<string, string> = {};
         const name = draft.name.trim();
-        const values = parseValues(draft.values, draft.type);
+        const values = usedValues(draft.values);
 
         if (!name) {
             found.name = "Name is required.";
@@ -177,8 +223,7 @@ export function OptionPresetsTab() {
             draft.type === "COLOR" &&
             values.some((value) => !value.colorHex)
         ) {
-            found.values =
-                "Every colour needs a hex code, for example: Black #161d16";
+            found.values = "Pick a colour for every choice.";
         }
 
         if (Object.keys(found).length) {
@@ -197,7 +242,8 @@ export function OptionPresetsTab() {
             required: draft.required,
             values: values.map((value) => ({
                 value: value.value,
-                colorHex: value.colorHex || "",
+                colorHex: value.colorHex,
+                imageUrl: value.imageUrl,
             })),
         };
 
@@ -451,22 +497,86 @@ export function OptionPresetsTab() {
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="preset-values">Choices *</Label>
-                            <textarea
-                                id="preset-values"
-                                value={draft.values}
-                                onChange={(event) =>
-                                    updateDraft({ values: event.target.value })
-                                }
-                                rows={5}
-                                placeholder={
-                                    draft.type === "COLOR"
-                                        ? "Black #161d16\nWhite #f5f5f5"
-                                        : "Small\nMedium\nLarge"
-                                }
-                                aria-invalid={Boolean(errors.values)}
-                                className="min-h-28 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary aria-invalid:border-danger"
-                            />
+                            <Label>Choices *</Label>
+
+                            <div className="flex flex-col gap-3">
+                                {draft.values.map((row, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col gap-3 rounded-xl border border-border px-3 py-3"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                value={row.value}
+                                                onChange={(event) =>
+                                                    updateValue(index, {
+                                                        value: event.target.value,
+                                                    })
+                                                }
+                                                placeholder={
+                                                    draft.type === "COLOR"
+                                                        ? "Red"
+                                                        : "Medium"
+                                                }
+                                                aria-label={`Choice ${index + 1}`}
+                                                className={inventoryControlClassName}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-lg"
+                                                aria-label={`Remove choice ${index + 1}`}
+                                                onClick={() => removeValue(index)}
+                                                disabled={draft.values.length <= 1}
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </Button>
+                                        </div>
+
+                                        {draft.type === "COLOR" ? (
+                                            <ColorSwatchButton
+                                                value={row.colorHex}
+                                                colorName={row.value}
+                                                label={`Choice ${index + 1} colour`}
+                                                onChange={(patch) =>
+                                                    updateValue(index, {
+                                                        ...(patch.colorHex === undefined
+                                                            ? {}
+                                                            : { colorHex: patch.colorHex }),
+                                                        // A preset value *is* the
+                                                        // colour's name, so naming
+                                                        // it here names the choice.
+                                                        ...(patch.colorName === undefined
+                                                            ? {}
+                                                            : { value: patch.colorName }),
+                                                    })
+                                                }
+                                            />
+                                        ) : null}
+
+                                        <ChoiceImageField
+                                            value={row.imageUrl}
+                                            label={`Choice ${index + 1} photo`}
+                                            onChange={(url) =>
+                                                updateValue(index, {
+                                                    imageUrl: url,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={addValue}
+                                className="self-start"
+                            >
+                                <Plus className="size-4" />
+                                Add choice
+                            </Button>
+
                             <p
                                 className={
                                     errors.values
@@ -477,8 +587,8 @@ export function OptionPresetsTab() {
                             >
                                 {errors.values ||
                                     (draft.type === "COLOR"
-                                        ? "One per line, each ending in a hex code."
-                                        : "One choice per line.")}
+                                        ? "Pick a colour for each choice. The photo is what the store shows once a shopper picks it."
+                                        : "At least two choices. The photo is what the store shows once a shopper picks it.")}
                             </p>
                         </div>
 

@@ -1,5 +1,9 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
+    ItemChannelStock,
+    SaveItemChannelStockInput,
+} from "@/lib/api/channel-stock";
+import type {
     AddOn,
     AddOnInput,
     AddOnSet,
@@ -344,6 +348,36 @@ export const inventoryApi = baseApi.injectEndpoints({
                 { type: "InventoryStockBatches", id: itemId },
             ],
         }),
+        /**
+         * How one item's balance is shared out between its channels.
+         *
+         * Read per item rather than for the catalogue: the split is edited one
+         * item at a time, and most items never have one — a shop-wide read
+         * would carry a page of "SHARED" to answer a question about one row.
+         */
+        getItemChannelStock: builder.query<ItemChannelStock, string>({
+            query: (itemId) =>
+                `/inventory/items/${encodeURIComponent(itemId)}/channel-stock`,
+            providesTags: (_result, _error, itemId) => [
+                { type: "ItemChannelStock", id: itemId },
+            ],
+        }),
+        saveItemChannelStock: builder.mutation<
+            ItemChannelStock,
+            { itemId: string; body: SaveItemChannelStockInput }
+        >({
+            query: ({ itemId, body }) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/channel-stock`,
+                method: "PUT",
+                body,
+            }),
+            // The stock screens show what each channel may sell, so a changed
+            // split is a changed answer there too.
+            invalidatesTags: (_result, _error, { itemId }) => [
+                { type: "ItemChannelStock", id: itemId },
+                "InventoryStock",
+            ],
+        }),
         getStockEntries: builder.query<StockEntry[], void>({
             query: () => "/inventory/stock-entries",
             providesTags: ["InventoryStockEntries"],
@@ -379,7 +413,13 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body: pricing,
             }),
-            invalidatesTags: ["InventoryItems"],
+            // The item's own entry too: the edit form reads that one, and
+            // saving it writes the whole item back, so a stale copy would
+            // push the old prices over the ones just set.
+            invalidatesTags: (_result, _error, { itemId }) => [
+                "InventoryItems",
+                { type: "InventoryItems", id: itemId },
+            ],
         }),
         createStockEntry: builder.mutation<
             StockEntry,
@@ -432,6 +472,8 @@ export const {
     useDeleteUnitMutation,
     useGetCurrentStockQuery,
     useGetItemStockBatchesQuery,
+    useGetItemChannelStockQuery,
+    useSaveItemChannelStockMutation,
     useGetStockEntriesQuery,
     useCreateStockEntryMutation,
     useUpdateItemAddOnAvailabilityMutation,

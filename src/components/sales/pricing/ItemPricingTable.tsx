@@ -12,6 +12,7 @@ import {
     addOnKey,
     draftAmount,
     soldAsRowsOf,
+    type UnitCostLookup,
     type PriceDrafts,
 } from "@/components/sales/pricing/sold-as";
 import { Button } from "@/components/ui/button";
@@ -52,11 +53,11 @@ export const pageSizes = [25, 50, 100] as const;
 /** What one row says, worked out once so the cells can stay dumb. */
 function baseSummary(
     item: InventoryItem,
-    unitCost: number | undefined,
+    unitCostFor: UnitCostLookup,
     addOnCosts: Map<string, number>,
     drafts: PriceDrafts,
 ) {
-    const rows = soldAsRowsOf(item, unitCost);
+    const rows = soldAsRowsOf(item, unitCostFor);
     const addOns = item.addOns || [];
     const prices = rows
         .map((row) => draftAmount(drafts[row.key], row.saved))
@@ -191,6 +192,7 @@ export function ItemPricingTable({
     channelsByItem,
     format,
     unitCosts,
+    unitCostFor,
     addOnCosts,
     drafts,
     overrides,
@@ -208,6 +210,8 @@ export function ItemPricingTable({
     channelsByItem: Map<string, Set<string>>;
     format: (value: number) => string;
     unitCosts: Map<string, number>;
+    /** What one base unit of a given option of a given item cost. */
+    unitCostFor: (itemId: string) => UnitCostLookup;
     addOnCosts: Map<string, number>;
     drafts: PriceDrafts;
     overrides: Record<string, DraftOverride>;
@@ -252,7 +256,7 @@ export function ItemPricingTable({
                         const summary = isBase
                             ? baseSummary(
                                   item,
-                                  unitCosts.get(item.id),
+                                  unitCostFor(item.id),
                                   addOnCosts,
                                   drafts,
                               )

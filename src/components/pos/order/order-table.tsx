@@ -139,6 +139,14 @@ const ItemRow = memo(function ItemRow({
             {item.addOns.map((addOn) => `+ ${addOn.name}`).join(", ")}
           </span>
         ) : null}
+        {/* How it has to be made. Free, but the line is wrong without it. */}
+        {item.selections?.length ? (
+          <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
+            {item.selections
+              .map((selection) => `${selection.attributeName}: ${selection.label}`)
+              .join(" · ")}
+          </span>
+        ) : null}
       </td>
 
       <td className="px-1 py-2.5 sm:px-4">

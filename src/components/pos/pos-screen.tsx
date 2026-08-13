@@ -24,6 +24,8 @@ import { useSessionSubject } from "@/lib/auth/session-context";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
 import { useGetCurrentStockQuery } from "@/services/inventoryApi";
+import { useGetChannelStockAvailabilityQuery } from "@/services/salesChannelApi";
+import { channelAvailabilityMap } from "@/lib/api/channel-stock";
 import {
   useAddOrderItemMutation,
   useGetCurrentOrderQuery,
@@ -82,16 +84,61 @@ export function PosScreen({
   }, [currentStockList]);
 
   /**
+   * The ceiling the counter sells under, where the shop has set one.
+   *
+   * A shop that has given the till six of its twenty has said the other
+   * fourteen are the web's. Showing twenty here would be showing stock this
+   * screen is not allowed to sell — and the sale is refused at settle, which is
+   * far too late to find out.
+   */
+  const { data: channelAvailability } =
+    useGetChannelStockAvailabilityQuery("POS");
+
+  const allowedByChannel = useMemo(
+    () => channelAvailabilityMap(channelAvailability),
+    [channelAvailability],
+  );
+
+  /**
    * On hand for an item, or one option of it, in base units.
    *
    * Undefined means the shop does not track this item at all, which reads
    * differently from zero: nothing should be shown as sold out on the strength
    * of a count nobody keeps.
+   *
+   * Two ceilings where the item's stock is split, and the lower one is what the
+   * till may sell: the counter cannot sell past its share, and nobody can sell
+   * what is not on the shelf.
    */
   const stockFor = useCallback(
-    (itemId: string, variantId?: string) =>
-      stockByItemId.get(variantId ? `${itemId}:${variantId}` : itemId),
-    [stockByItemId],
+    (itemId: string, variantId?: string) => {
+      const key = variantId ? `${itemId}:${variantId}` : itemId;
+      const onHand = stockByItemId.get(key);
+
+      if (onHand === undefined) return undefined;
+
+      // An item sold in options is capped option by option, so the item's own
+      // total is the sum of what each option may sell rather than one figure.
+      if (!variantId && !allowedByChannel.has(key)) {
+        const perOption = [...allowedByChannel.entries()].filter(([entryKey]) =>
+          entryKey.startsWith(`${itemId}:`),
+        );
+
+        if (perOption.length === 0) return onHand;
+
+        return perOption.reduce(
+          (total, [entryKey, allowed]) =>
+            total + Math.min(allowed, stockByItemId.get(entryKey) ?? 0),
+          0,
+        );
+      }
+
+      const allowed = allowedByChannel.get(key);
+
+      // Absent means unsplit: this item has no ceiling on any channel.
+      return allowed === undefined ? onHand : Math.min(onHand, allowed);
+    },
+    [allowedByChannel, stockByItemId],
   );
 
   /**

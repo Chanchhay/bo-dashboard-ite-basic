@@ -29,7 +29,10 @@ import {
     itemAttributeTypeLabels,
 } from "@/lib/api/inventory";
 
+import { cn } from "@/lib/utils";
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
+import { ChoiceImageField } from "@/components/inventory/ChoiceImageField";
+import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
 import {
     createBlockId,
     DescriptionBlockEditor,
@@ -242,6 +245,9 @@ function toAttributeDrafts(
         values: (attribute.values || []).map((value) => ({
             value: value.value || "",
             label: value.label || "",
+            // Retired, and passed straight through: nothing on the form edits
+            // a hex any more, and a value saved under the old colour attribute
+            // has nowhere else that remembers one.
             colorHex: value.colorHex || "",
             available: value.available !== false,
         })),
@@ -340,6 +346,63 @@ function preservedCommerceFields(initialItem: InventoryItem | undefined) {
  * "check the highlighted information" is a dead end if the field that failed is
  * one the form never renders an error beside.
  */
+/** A colour on the item, held while the form is open. */
+type ItemColorDraft = {
+    /** Row key while editing; never sent. */
+    id: string;
+    value: string;
+    colorHex: string;
+    imageUrl: string;
+};
+
+/**
+ * Turns the sizes on screen into the rows that actually carry stock.
+ *
+ * A size that comes in three colours is three countable things — Large/Red,
+ * Large/Navy, Large/Black — because that is the level a shop counts at: Large
+ * being "in stock" says nothing about which colours are left. A size with no
+ * colours ticked stays one row, which is how every item without colours works
+ * and keeps working.
+ *
+ * Price rides down from the size, so every colour of a Large costs what a
+ * Large costs. SKU and barcode do not: they identify one countable thing, and
+ * copying a size's SKU onto three shelves would make three things claim to be
+ * the same one.
+ */
+function toVariantRows(rows: OptionRow[]) {
+    return rows.flatMap((row) => {
+        const size = row.name.trim();
+
+        if (!row.colorValues.length) {
+            return [
+                {
+                    name: size,
+                    sku: row.sku.trim(),
+                    barcode: row.barcode.trim(),
+                    imageUrl: row.imageUrl,
+                    optionName: size,
+                    colorValue: "",
+                    available: row.available,
+                    ...(row.price === undefined ? {} : { price: row.price }),
+                },
+            ];
+        }
+
+        return row.colorValues.map((colour, index) => ({
+            name: `${size} / ${colour}`,
+            // The first pair keeps the size's SKU so an item that only later
+            // gained colours does not lose the code already printed on it.
+            sku: index === 0 ? row.sku.trim() : "",
+            barcode: index === 0 ? row.barcode.trim() : "",
+            imageUrl: row.imageUrl,
+            optionName: size,
+            colorValue: colour,
+            available: row.available,
+            ...(row.price === undefined ? {} : { price: row.price }),
+        }));
+    });
+}
+
 function emptyOption(): OptionRow {
     return {
         id: createRowId(),
@@ -347,6 +410,7 @@ function emptyOption(): OptionRow {
         sku: "",
         barcode: "",
         imageUrl: "",
+        colorValues: [],
         available: true,
     };
 }
@@ -377,6 +441,21 @@ type OptionRow = {
      * alike, and on a picture picked here but not saved yet.
      */
     imageUrl: string;
+    /**
+     * The swatch this option shows on the store — the circle a shopper clicks.
+     *
+     * Empty on an option that is not a colour: a size has nothing to show. It
+     * belongs to the option because the option is what carries the price and
+     * the shelf, and a colour a shop cannot count is not one it can sell.
+     */
+    /**
+     * Which of the item's colours this size comes in.
+     *
+     * Empty means it is not sold by colour and the size alone is the whole
+     * option. Each ticked colour becomes its own countable row on save, which
+     * is what lets Large be out in Navy while Large in Red is stacked up.
+     */
+    colorValues: string[];
     /**
      * A picture picked for this option and not uploaded yet.
      *
@@ -571,18 +650,58 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
         );
 
-    const [options, setOptions] = useState<OptionRow[]>(() =>
-        (initialItem?.variants || []).map((variant) => ({
-            // A saved option keeps its own id as the row key, so the
-            // conversions loaded below already point at the right row.
-            id: variant.id || createRowId(),
-            ...(variant.id ? { variantId: variant.id } : {}),
-            name: variant.name || "",
-            sku: variant.sku || "",
-            barcode: variant.barcode || "",
-            imageUrl: variant.imageUrl || "",
-            available: variant.available !== false,
-            price: variant.price ?? undefined,
+    /**
+     * The saved pairs, folded back into one row per size.
+     *
+     * Storage keeps Large/Red and Large/Navy apart because each has its own
+     * shelf, but the seller typed one Large. Folding on the way in is what
+     * makes the form read the way it was filled in.
+     */
+    const [options, setOptions] = useState<OptionRow[]>(() => {
+        const rows: OptionRow[] = [];
+        const bySize = new Map<string, OptionRow>();
+
+        for (const variant of initialItem?.variants || []) {
+            const size = (variant.optionName || variant.name || "").trim();
+            const colour = (variant.colorValue || "").trim();
+            const key = size.toLowerCase();
+            const held = bySize.get(key);
+
+            if (held) {
+                if (colour && !held.colorValues.includes(colour)) {
+                    held.colorValues.push(colour);
+                }
+                continue;
+            }
+
+            const row: OptionRow = {
+                // A saved option keeps its own id as the row key, so the
+                // conversions loaded below already point at the right row.
+                id: variant.id || createRowId(),
+                ...(variant.id ? { variantId: variant.id } : {}),
+                name: size,
+                sku: variant.sku || "",
+                barcode: variant.barcode || "",
+                imageUrl: variant.imageUrl || "",
+                colorValues: colour ? [colour] : [],
+                available: variant.available !== false,
+                price: variant.price ?? undefined,
+            };
+
+            bySize.set(key, row);
+            rows.push(row);
+        }
+
+        return rows;
+    });
+
+    /** The colours this item comes in, declared once and shared by every size. */
+    const [colors, setColors] = useState<ItemColorDraft[]>(() =>
+        (initialItem?.colors || []).map((color) => ({
+            id: createRowId(),
+            value: color.value || "",
+            colorHex: color.colorHex || "",
+            imageUrl: color.imageUrl || "",
         })),
     );
     /**
@@ -597,18 +716,56 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [uomDraft, setUomDraft] = useState<ItemUomDraft>(() => ({
         ...emptyUomDraft,
         baseUnitId: initialItem?.unit?.id || "",
-        conversions: (initialItem?.uomConversions || [])
-            .filter((conversion) => conversion.unit?.id)
-            .map((conversion) => ({
-                id: conversion.id || createRowId(),
-                unitId: conversion.unit?.id || "",
-                factor: conversion.factor ?? 1,
-                // Which option it is for is part of what it is. A saved option
-                // uses its own id as its row key, so this already lines up.
-                ...(conversion.variantId
-                    ? { variantId: conversion.variantId }
-                    : {}),
-            })),
+        /*
+         * One row per pack per size, not per pack per pair.
+         *
+         * A pack is stored against each countable row, so a six-pack of Small
+         * that comes in three colours is three saved conversions. The seller
+         * declared one, so they are folded back the way the sizes above them
+         * are — and re-pointed at the size's row rather than at whichever pair
+         * happened to be first.
+         */
+        conversions: (() => {
+            const sizeOfVariant = new Map<string, string>();
+            for (const variant of initialItem?.variants || []) {
+                if (variant.id) {
+                    sizeOfVariant.set(
+                        variant.id,
+                        (variant.optionName || variant.name || "").trim().toLowerCase(),
+                    );
+                }
+            }
+
+            const rowOfSize = new Map<string, string>();
+            for (const row of options) {
+                rowOfSize.set(row.name.trim().toLowerCase(), row.id);
+            }
+
+            const seen = new Set<string>();
+
+            return (initialItem?.uomConversions || [])
+                .filter((conversion) => conversion.unit?.id)
+                .flatMap((conversion) => {
+                    const size = conversion.variantId
+                        ? sizeOfVariant.get(conversion.variantId) ?? ""
+                        : "";
+                    const rowId = size ? rowOfSize.get(size) : undefined;
+
+                    // Same pack, same size — the colours of it are one entry.
+                    const key = `${conversion.unit?.id}|${size}`;
+                    if (seen.has(key)) return [];
+                    seen.add(key);
+
+                    return [
+                        {
+                            id: conversion.id || createRowId(),
+                            unitId: conversion.unit?.id || "",
+                            factor: conversion.factor ?? 1,
+                            ...(rowId ? { variantId: rowId } : {}),
+                        },
+                    ];
+                });
+        })(),
     }));
     /**
      * The options a conversion can be declared for.
@@ -618,6 +775,12 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
      * server first. Unnamed rows are left out — the save drops them, and a case
      * of nothing is not a thing.
      */
+    /** Only colours worth offering: a blank row is one still being typed. */
+    const namedColors = useMemo(
+        () => colors.filter((color) => color.value.trim()),
+        [colors],
+    );
+
     const namedOptions = useMemo(
         () =>
             options
@@ -877,27 +1040,82 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
      * are the item's own the moment they land and editing the preset later
      * leaves this item alone.
      */
+    /**
+     * Copies a preset's choices in as Options.
+     *
+     * A copy, never a live link: not every drink comes in Large, so the values
+     * are the item's own the moment they land and editing the preset later
+     * leaves this item alone.
+     */
     function applyPreset(preset: OptionPreset) {
-        setAttributes((current) => [
-            ...current,
-            {
-                id: createRowId(),
-                name: preset.name || "Option",
-                type: preset.type || "SELECTION",
-                placement: "OPTION" as const,
-                icon: "",
-                values: (preset.values || []).map((value) => ({
-                    value: value.value || "",
-                    label: "",
+        // Blank starter rows would otherwise sit above the preset's choices
+        // and save as nothing.
+        const existing = options.filter((row) => row.name.trim());
+        const taken = new Set(
+            existing.map((row) => row.name.trim().toLowerCase()),
+        );
+
+        // A preset of colours describes the item's palette, not its sizes.
+        if (preset.type === "COLOR") {
+            const held = new Set(
+                colors.map((color) => color.value.trim().toLowerCase()),
+            );
+            const fresh = (preset.values || [])
+                .filter((value) => {
+                    const name = (value.value || "").trim();
+                    return name && !held.has(name.toLowerCase());
+                })
+                .map((value) => ({
+                    id: createRowId(),
+                    value: (value.value || "").trim(),
                     colorHex: value.colorHex || "",
-                    available: true,
-                })),
-            },
-        ]);
+                    imageUrl: value.imageUrl || "",
+                }));
+
+            if (!fresh.length) {
+                toast({
+                    tone: "error",
+                    title: `${preset.name} not added`,
+                    description: "This item already has every one of those colours.",
+                });
+                return;
+            }
+
+            setColors((current) => [...current, ...fresh]);
+            toast({
+                tone: "success",
+                title: `${preset.name} added`,
+                description: "Tick the sizes that come in them.",
+            });
+            return;
+        }
+
+        const added: OptionRow[] = (preset.values || [])
+            .filter((value) => {
+                const name = (value.value || "").trim();
+                return name && !taken.has(name.toLowerCase());
+            })
+            .map((value) => ({
+                ...emptyOption(),
+                name: (value.value || "").trim(),
+                // Price stays unset: it is per sales channel, in Sale
+                // Management, exactly as a hand-added option would be.
+            }));
+
+        if (!added.length) {
+            toast({
+                tone: "error",
+                title: `${preset.name} not added`,
+                description: "This item already has every one of those options.",
+            });
+            return;
+        }
+
+        setOptions([...existing, ...added]);
         toast({
             tone: "success",
             title: `${preset.name} added`,
-            description: "Adjust the choices for this item as needed.",
+            description: `${added.length} ${added.length === 1 ? "option" : "options"} added — adjust them for this item as needed.`,
         });
     }
 
@@ -1023,6 +1241,16 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     price: option.price,
                     available: option.available,
                     imageUrl: option.previewUrl || option.imageUrl,
+                    colorValues: option.colorValues,
+                })),
+            // Straight off the colour rows too, so the preview shows the
+            // swatches as they are being typed.
+            colors: colors
+                .filter((color) => color.value.trim())
+                .map((color) => ({
+                    value: color.value.trim(),
+                    colorHex: color.colorHex.trim() || undefined,
+                    imageUrl: color.imageUrl.trim() || undefined,
                 })),
             // The conversions as they stand on screen. A pack's price is not
             // edited here — it is set in Sale Management — so it is read back
@@ -1120,35 +1348,71 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             ...preservedCommerceFields(initialItem),
             // A picture picked but not uploaded yet has no URL to send; the
             // save puts one here once it has carried the file up.
-            variants: namedRows.map((option) => ({
-                name: option.name.trim(),
-                sku: option.sku.trim(),
-                barcode: option.barcode.trim(),
-                imageUrl: option.imageUrl,
-                available: option.available,
-                ...(option.price === undefined ? {} : { price: option.price }),
-            })),
+            // One countable row per size-and-colour pair, which is the level
+            // stock is kept at.
+            variants: toVariantRows(namedRows),
+            colors: colors
+                .filter((color) => color.value.trim())
+                .map((color) => ({
+                    value: color.value.trim(),
+                    colorHex: color.colorHex.trim(),
+                    imageUrl: color.imageUrl.trim(),
+                })),
             addOnIds: attachedAddOnIds,
             // The base unit comes off the form's own `unitId` field; these are
             // the larger units declared against it.
-            uomConversions: uomDraft.conversions.map((conversion) => {
+            /*
+             * A pack belongs to a shelf, and the shelf is the pair.
+             *
+             * The seller declares a six-pack of Small once; Small coming in
+             * three colours makes that three packs, one per countable row,
+             * because a six-pack of Small/Navy draws down Navy and not Red.
+             * They travel by name — the pairs are written in this same request
+             * and a brand-new one has no id yet.
+             */
+            uomConversions: uomDraft.conversions.flatMap((conversion) => {
                 // The option it is for travels by name as well as by id: a
                 // brand-new option has no id yet, and a renamed one is a new
                 // option, so the name is what the server can match on.
                 const option = options.find(
                     (row) => row.id === conversion.variantId,
                 );
+                // Saving replaces the whole list, and what a pack sells for
+                // is set in Sale Management rather than here — so the price
+                // it already carries has to travel back with it.
+                const saved = (initialItem?.uomConversions || []).find(
+                    (row) => row.id && row.id === conversion.id,
+                );
 
-                return {
+                const base = {
                     unitId: conversion.unitId,
                     factor: conversion.factor,
-                    ...(option?.variantId
-                        ? { variantId: option.variantId }
-                        : {}),
-                    ...(option?.name.trim()
-                        ? { variantName: option.name.trim() }
-                        : {}),
+                    ...(saved?.price == null ? {} : { price: saved.price }),
                 };
+
+                const size = option?.name.trim();
+
+                if (!size) return [base];
+
+                if (!option?.colorValues.length) {
+                    return [
+                        {
+                            ...base,
+                            ...(option?.variantId
+                                ? { variantId: option.variantId }
+                                : {}),
+                            variantName: size,
+                        },
+                    ];
+                }
+
+                // Named per pair, and without an id: the pairs are being
+                // written in this same request, so the name is the only handle
+                // both halves of it share.
+                return option.colorValues.map((colour) => ({
+                    ...base,
+                    variantName: `${size} / ${colour}`,
+                }));
             }),
         });
 
@@ -1564,14 +1828,157 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         }
                         description="Variations of this item — Small, Medium, Large. Each is scanned and counted on its own, can carry its own picture, and is priced per sales channel in Sale Management."
                     />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setOptions((current) => [...current, emptyOption()])}
-                    >
-                        <Plus />
-                        Add option
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {(optionPresets || []).length ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setPresetPickerOpen(true)}
+                            >
+                                From preset
+                            </Button>
+                        ) : null}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setOptions((current) => [...current, emptyOption()])}
+                        >
+                            <Plus />
+                            Add option
+                        </Button>
+                    </div>
+                </div>
+
+                {/*
+                 * The colours the item comes in, declared once.
+                 *
+                 * Once, not per size: the same red shirt photographed for
+                 * Small is the same photograph for Large. Each size below then
+                 * ticks which of these it comes in.
+                 */}
+                <div className="mt-5 rounded-xl border border-border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-foreground">
+                                Colours
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Named and photographed once. Every size ticks
+                                the ones it comes in, and stock is kept per
+                                colour.
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                setColors((current) => [
+                                    ...current,
+                                    {
+                                        id: createRowId(),
+                                        value: "",
+                                        colorHex: "",
+                                        imageUrl: "",
+                                    },
+                                ])
+                            }
+                        >
+                            <Plus />
+                            Add colour
+                        </Button>
+                    </div>
+
+                    {colors.length ? (
+                        <ul className="mt-3 flex flex-col gap-2">
+                            {colors.map((color) => (
+                                <li
+                                    key={color.id}
+                                    className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
+                                >
+                                    <Input
+                                        value={color.value}
+                                        onChange={(event) =>
+                                            setColors((current) =>
+                                                current.map((row) =>
+                                                    row.id === color.id
+                                                        ? { ...row, value: event.target.value }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                        placeholder="e.g. Red"
+                                        aria-label="Colour name"
+                                        className={`${inventoryControlClassName} h-10 min-w-32 flex-1`}
+                                    />
+
+                                    <ColorSwatchButton
+                                        value={color.colorHex}
+                                        colorName={color.value}
+                                        label={`${color.value || "Colour"} swatch`}
+                                        onChange={(patch) =>
+                                            setColors((current) =>
+                                                current.map((row) =>
+                                                    row.id === color.id
+                                                        ? {
+                                                              ...row,
+                                                              ...(patch.colorHex === undefined
+                                                                  ? {}
+                                                                  : { colorHex: patch.colorHex }),
+                                                              // The swatch dialog
+                                                              // names the colour,
+                                                              // which is this row.
+                                                              ...(patch.colorName === undefined
+                                                                  ? {}
+                                                                  : { value: patch.colorName }),
+                                                          }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+
+                                    <ChoiceImageField
+                                        value={color.imageUrl}
+                                        label={`${color.value || "Colour"} photo`}
+                                        onChange={(url) =>
+                                            setColors((current) =>
+                                                current.map((row) =>
+                                                    row.id === color.id
+                                                        ? { ...row, imageUrl: url }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Remove ${color.value || "colour"}`}
+                                        onClick={() => {
+                                            const dropped = color.value.trim();
+                                            setColors((current) =>
+                                                current.filter((row) => row.id !== color.id),
+                                            );
+                                            // A size cannot come in a colour the
+                                            // item no longer has.
+                                            setOptions((current) =>
+                                                current.map((row) => ({
+                                                    ...row,
+                                                    colorValues: row.colorValues.filter(
+                                                        (held) => held !== dropped,
+                                                    ),
+                                                })),
+                                            );
+                                        }}
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
                 </div>
 
                 {options.length ? (
@@ -1708,6 +2115,71 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/*
+                                     * Which colours this size comes in. Each
+                                     * tick becomes its own countable row, so
+                                     * Large can be out in Navy while Large in
+                                     * Red is stacked up.
+                                     */}
+                                    {namedColors.length ? (
+                                        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                                Comes in
+                                            </Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {namedColors.map((color) => {
+                                                    const ticked =
+                                                        option.colorValues.includes(
+                                                            color.value.trim(),
+                                                        );
+
+                                                    return (
+                                                        <button
+                                                            key={color.id}
+                                                            type="button"
+                                                            aria-pressed={ticked}
+                                                            onClick={() =>
+                                                                updateOption(option.id, {
+                                                                    colorValues: ticked
+                                                                        ? option.colorValues.filter(
+                                                                              (held) =>
+                                                                                  held !==
+                                                                                  color.value.trim(),
+                                                                          )
+                                                                        : [
+                                                                              ...option.colorValues,
+                                                                              color.value.trim(),
+                                                                          ],
+                                                                })
+                                                            }
+                                                            className={cn(
+                                                                "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
+                                                                ticked
+                                                                    ? "border-primary bg-primary/10 font-medium text-primary"
+                                                                    : "border-border text-muted-foreground hover:border-primary/50",
+                                                            )}
+                                                        >
+                                                            <span
+                                                                className="size-3.5 rounded-full border border-border"
+                                                                style={{
+                                                                    background:
+                                                                        color.colorHex ||
+                                                                        "transparent",
+                                                                }}
+                                                            />
+                                                            {color.value}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {option.colorValues.length
+                                                    ? `${option.colorValues.length} countable ${option.colorValues.length === 1 ? "row" : "rows"} — stock is kept per colour.`
+                                                    : "Not sold by colour; stock is kept for the size as a whole."}
+                                            </p>
+                                        </div>
+                                    ) : null}
                                 </li>
                             ))}
                         </ul>
@@ -1847,18 +2319,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Attributes"
-                        description="Define typed attributes such as size, colour or status."
+                        description="Notes about the item — a spec, a perk, a fact. What a shopper picks between is an Option."
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                        {(optionPresets || []).length ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setPresetPickerOpen(true)}
-                            >
-                                From preset
-                            </Button>
-                        ) : null}
                         <Button
                             type="button"
                             variant="outline"

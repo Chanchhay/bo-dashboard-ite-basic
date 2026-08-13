@@ -4,21 +4,51 @@ import { imageUploadRules } from "@/lib/api/image-upload";
 
 export const itemTypes = ["DIGITAL", "SERVICE", "PHYSICAL"] as const;
 export const itemStatuses = ["ACTIVE", "INACTIVE"] as const;
+/**
+ * What an attribute can be.
+ *
+ * Colour is deliberately absent: a colour is a thing the shop sells, with its
+ * own price, barcode, picture and stock, so it is an Option — see
+ * `ItemVariant.colorHex`. An attribute is a note about the thing, and a colour
+ * that carried no stock was never one a shopper could actually buy.
+ */
 export const itemAttributeTypes = [
     "TEXT",
     "SELECTION",
     "TOGGLE",
     "NUMBER",
-    "COLOR",
+] as const;
+
+/**
+ * Types no longer offered, kept so an item saved under one still loads and
+ * still saves. Nothing here appears in a picker.
+ */
+export const retiredItemAttributeTypes = ["COLOR"] as const;
+
+/**
+ * Every type that may arrive from the API, offered or not.
+ *
+ * Validation reads this rather than the picker's list: a shop that saved a
+ * colour attribute before it was retired must still be able to open that item
+ * and save an unrelated edit to it. Refusing the type on the way out would
+ * make the item uneditable over a choice the shop is no longer offered.
+ */
+export const storedItemAttributeTypes = [
+    ...itemAttributeTypes,
+    ...retiredItemAttributeTypes,
 ] as const;
 
 export type ItemAttributeType = (typeof itemAttributeTypes)[number];
 
-export const itemAttributeTypeLabels: Record<ItemAttributeType, string> = {
+export type StoredItemAttributeType = (typeof storedItemAttributeTypes)[number];
+
+export const itemAttributeTypeLabels: Record<StoredItemAttributeType, string> = {
     TEXT: "Text",
     SELECTION: "Selection",
     TOGGLE: "Toggle",
     NUMBER: "Number",
+    // Retired, and still labelled: an item saved under it is listed like any
+    // other, and a blank chip beside its name would read as a bug.
     COLOR: "Color",
 };
 
@@ -27,14 +57,29 @@ export const itemAttributePlacements = [
     "OPTION",
     "HIGHLIGHT",
     "SPECIFICATION",
-    "HIDDEN",
+] as const;
+
+/**
+ * Placements no longer offered, kept so an item saved under one still loads.
+ * `HIDDEN` was an attribute the storefront never rendered — a note to self with
+ * a form around it.
+ */
+export const retiredItemAttributePlacements = ["HIDDEN"] as const;
+
+/** Every placement that may arrive from the API — see `storedItemAttributeTypes`. */
+export const storedItemAttributePlacements = [
+    ...itemAttributePlacements,
+    ...retiredItemAttributePlacements,
 ] as const;
 
 export type ItemAttributePlacement =
     (typeof itemAttributePlacements)[number];
 
+export type StoredItemAttributePlacement =
+    (typeof storedItemAttributePlacements)[number];
+
 export const itemAttributePlacementLabels: Record<
-    ItemAttributePlacement,
+    StoredItemAttributePlacement,
     { label: string; hint: string }
 > = {
     OPTION: {
@@ -49,6 +94,7 @@ export const itemAttributePlacementLabels: Record<
         label: "Specification",
         hint: "A tile in the spec grid inside the description.",
     },
+    // Retired, and still labelled, for the same reason as COLOR above.
     HIDDEN: {
         label: "Internal only",
         hint: "Kept on the item for reporting; never shown on the store.",
@@ -146,12 +192,20 @@ export type OptionPreset = {
     name?: string;
     type?: "SELECTION" | "COLOR";
     required?: boolean;
-    values?: { value?: string; colorHex?: string | null }[];
+    values?: {
+        value?: string;
+        colorHex?: string | null;
+    /** What the shop calls that colour — "Brown". Shown beside the swatches. */
+    colorName?: string | null;
+        /** Carried onto the item, so a swatch arrives with its picture. */
+        imageUrl?: string | null;
+    }[];
 };
 
 export type ItemAttributeValue = {
     value?: string;
     label?: string;
+    /** Retired: colour moved to Options. Kept so old items still load. */
     colorHex?: string;
     available?: boolean;
 };
@@ -180,6 +234,19 @@ export type ItemImage = {
     position?: number;
 };
 
+/**
+ * One colour the item comes in, declared once for the whole item.
+ *
+ * Once, not per size: the same red shirt photographed for Small is the same
+ * photograph for Large. A size then says which of these it offers, and the
+ * pair of the two is what carries stock.
+ */
+export type ItemColor = {
+    value?: string;
+    colorHex?: string | null;
+    imageUrl?: string | null;
+};
+
 export type ItemVariant = {
     id?: string;
     slug?: string;
@@ -193,6 +260,14 @@ export type ItemVariant = {
      * rather than a file: the store swaps to it when the option is picked.
      */
     imageUrl?: string | null;
+    /**
+     * The swatch this option shows — the circle a shopper clicks. Empty on an
+     * option that is not a colour; a size has nothing to show.
+     */
+    /** The size half of the pair — "Large". */
+    optionName?: string | null;
+    /** Which of the item's colours this row is; null when sold by size alone. */
+    colorValue?: string | null;
     /** Null on a variant the API holds with no price set. */
     price?: number | null;
     available?: boolean;
@@ -277,6 +352,8 @@ export type InventoryItem = {
     compareAtPrice?: number | null;
     itemType?: (typeof itemTypes)[number];
     attributes?: ItemAttribute[];
+    /** The colours this item comes in, shared by every size. */
+    colors?: ItemColor[];
     descriptionBlocks?: DescriptionBlock[];
     variants?: ItemVariant[];
     addOns?: AddOn[];
@@ -569,6 +646,18 @@ export const itemVariantSchema = z.object({
         "Variant image URL must be 500 characters or fewer.",
     ).nullish(),
     price: optionalMoney("Variant price cannot be negative."),
+    /**
+     * The swatch this option shows. Defaulted so the pricing screen, which
+     * restates variants to set prices, need not carry a field it never edits.
+     */
+    /**
+     * The pair this row is. Defaulted so the pricing screen, which restates
+     * variants to set prices, need not carry coordinates it never edits.
+     */
+    optionName: optionalText(150, "An option name must be 150 characters or fewer.")
+        .default(""),
+    colorValue: optionalText(150, "A colour must be 150 characters or fewer.")
+        .default(""),
     available: z.boolean(),
 });
 
@@ -582,13 +671,22 @@ export const itemAttributeValueSchema = z.object({
         .string()
         .trim()
         .max(150, "A label must be 150 characters or fewer."),
+    /**
+     * Retired: colour moved to Options, and no form writes this any more.
+     *
+     * Still carried, because a value saved under the old colour attribute has
+     * a hex and nothing else remembers it — dropping it on the way out would
+     * quietly discard the shop's swatches the first time anyone opened the
+     * item to change its name.
+     */
     colorHex: z
         .string()
         .trim()
         .refine(
             (value) => !value || /^#[0-9a-fA-F]{6}$/.test(value),
             "Use a six-digit hex colour such as #3a3a3c.",
-        ),
+        )
+        .default(""),
     available: z.boolean(),
 });
 
@@ -607,8 +705,8 @@ export const itemAttributeSchema = z
             .trim()
             .min(1, "Attribute name is required.")
             .max(150, "Attribute name must be 150 characters or fewer."),
-        type: z.enum(itemAttributeTypes),
-        placement: z.enum(itemAttributePlacements),
+        type: z.enum(storedItemAttributeTypes),
+        placement: z.enum(storedItemAttributePlacements),
         icon: z
             .string()
             .trim()
@@ -643,17 +741,10 @@ export const itemAttributeSchema = z
 
         if (
             attribute.placement === "OPTION" &&
-            (attribute.type === "SELECTION" || attribute.type === "COLOR") &&
+            attribute.type === "SELECTION" &&
             !count
         ) {
             issue("Add at least one option for shoppers to choose from.");
-        }
-
-        if (
-            attribute.type === "COLOR" &&
-            attribute.values.some((value) => !value.colorHex)
-        ) {
-            issue("Every colour needs a hex value.");
         }
 
         if (
@@ -799,6 +890,35 @@ export const inventoryItemSchema = z.object({
         .array(descriptionBlockSchema)
         .max(30, "A description can hold at most 30 blocks."),
     variants: z.array(itemVariantSchema),
+    colors: z
+        .array(
+            z.object({
+                value: z
+                    .string()
+                    .trim()
+                    .min(1, "A colour needs a name.")
+                    .max(150, "A colour name must be 150 characters or fewer."),
+                colorHex: z
+                    .string()
+                    .trim()
+                    .refine(
+                        (value) => !value || /^#[0-9a-fA-F]{6}$/.test(value),
+                        "Use a six-digit hex colour such as #3a3a3c.",
+                    ),
+                imageUrl: optionalText(
+                    500,
+                    "An image URL must be 500 characters or fewer.",
+                ),
+            }),
+        )
+        .max(50, "An item can hold at most 50 colours.")
+        .default([])
+        .refine(
+            (colors) =>
+                new Set(colors.map((color) => color.value.toLowerCase())).size ===
+                colors.length,
+            "Colours must be unique.",
+        ),
     addOnIds: z.array(z.uuid("Select a valid add-on.")).default([]),
     uomConversions: z
         .array(
@@ -952,6 +1072,10 @@ export const optionPresetSchema = z.object({
                     20,
                     "A colour must be 20 characters or fewer.",
                 ),
+                imageUrl: optionalText(
+                    255,
+                    "An image URL must be 255 characters or fewer.",
+                ),
             }),
         )
         .min(1, "Add at least one value.")
@@ -974,6 +1098,7 @@ export function toOptionPresetRequest(input: OptionPresetInput) {
         values: input.values.map((entry) => ({
             value: entry.value,
             ...(entry.colorHex ? { colorHex: entry.colorHex } : {}),
+            ...(entry.imageUrl ? { imageUrl: entry.imageUrl } : {}),
         })),
     };
 }
@@ -1117,6 +1242,8 @@ function toAttributeRequest(attribute: ItemAttributeInput) {
             value: value.value,
             available: value.available,
             ...(value.label ? { label: value.label } : {}),
+            // Only ever present on an attribute saved before colour was
+            // retired; sent back exactly as it arrived.
             ...(value.colorHex ? { colorHex: value.colorHex } : {}),
         })),
     };
@@ -1164,6 +1291,7 @@ export function toItemRequest(input: InventoryItemInput) {
         attributes: input.attributes.map(toAttributeRequest),
         descriptionBlocks: input.descriptionBlocks.map(toBlockRequest),
         variants: input.variants,
+        colors: input.colors,
         addOnIds: input.addOnIds,
         uomConversions: input.uomConversions,
         lowStockDefault: input.lowStockDefault,
@@ -1194,6 +1322,14 @@ export type UploadedAsset = {
     key?: string;
     url?: string;
 };
+
+/** An Option's or a preset value's picture: same ceiling as the gallery. */
+export const choiceImageRules = imageUploadRules({
+    accept: "image/*",
+    maxBytes: 10 * 1024 * 1024,
+    subject: "a choice image",
+    formats: "PNG, JPG or WebP",
+});
 
 /** Description-block pictures go through the same ceiling as the gallery. */
 export const blockImageRules = imageUploadRules({

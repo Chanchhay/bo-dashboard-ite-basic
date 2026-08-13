@@ -13,6 +13,12 @@ export type PosOrderItem = {
     unitFactor?: number | null;
     /** Extras on this line, priced as they were when it was rung up. */
     addOns?: { addOnId: string | null; name: string; unitPrice: number }[];
+    /**
+     * Options the line was ordered with — "Sugar Level: 50%". Costs nothing
+     * and consumes nothing; it is how the line has to be made, so the counter
+     * needs to see it even though it never reaches the total.
+     */
+    selections?: { attributeName: string; value: string; label: string }[];
     itemName: string;
     quantity: number;
     unitPrice: number;

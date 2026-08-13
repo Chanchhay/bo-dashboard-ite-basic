@@ -20,6 +20,7 @@ export const baseApi = createApi({
         "InventoryStock",
         "InventoryStockBatches",
         "InventoryStockEntries",
+        "ItemChannelStock",
         "InventoryUnits",
         "UserProfile",
         "Staff",

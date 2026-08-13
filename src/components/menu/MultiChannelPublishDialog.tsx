@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
     Check,
     CheckSquare,
@@ -20,52 +20,23 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { InventoryItem } from "@/lib/api/inventory";
 import type { SalesChannel } from "@/lib/api/sales-channels";
 import {
+    ChannelMembershipProbe,
+    mergeMembership,
+    type ChannelMembership,
+} from "@/components/menu/ChannelMembershipProbe";
+import { ChannelStockAllocator } from "@/components/menu/ChannelStockAllocator";
+import { useChannelStockDraft } from "@/components/menu/useChannelStockDraft";
+import {
     useCreateItemChannelMutation,
     useDeleteItemChannelMutation,
-    useGetChannelItemsQuery,
     useGetItemChannelsByItemQuery,
 } from "@/services/salesChannelApi";
-
-/**
- * What one channel already sells, reported up.
- *
- * An item and a channel can only be linked once — the backend has a unique
- * constraint on the pair — so publishing a batch that includes anything already
- * published would fail the whole batch. Reading each channel's items first is
- * what lets the batch skip those pairs instead of choking on them.
- *
- * One component per channel because a hook cannot be called in a loop, and the
- * reads are cached, so this costs one request per channel while the form is open.
- */
-function ChannelMembershipProbe({
-    channelId,
-    channelCode,
-    skip,
-    onLoaded,
-}: {
-    channelId: string;
-    channelCode: string;
-    skip: boolean;
-    onLoaded: (channelId: string, itemIds: string[]) => void;
-}) {
-    const { data } = useGetChannelItemsQuery(channelCode, { skip });
-
-    useEffect(() => {
-        if (!data) return;
-
-        onLoaded(
-            channelId,
-            data.map((entry) => entry.item?.id).filter(Boolean) as string[],
-        );
-    }, [channelId, data, onLoaded]);
-
-    return null;
-}
 
 interface MultiChannelPublishDialogProps {
     open: boolean;
@@ -116,26 +87,28 @@ export function MultiChannelPublishDialog({
         new Set(activeSalesChannels.map((c) => c.id))
     );
     const [isSaving, setIsSaving] = useState(false);
+    /**
+     * Which way the batch runs.
+     *
+     * Publishing and unpublishing are kept apart rather than diffed from the
+     * ticks, because the item list is filtered: a shop that narrowed to Drinks
+     * and saved would otherwise have every unshown item read as "not wanted"
+     * and pulled off the channel. An explicit direction can only ever act on
+     * what was ticked.
+     */
+    const [mode, setMode] = useState<"publish" | "unpublish">("publish");
     /** Channel id -> the items it already sells, so the batch can skip them. */
-    const [published, setPublished] = useState<Record<string, string[]>>({});
+    const [published, setPublished] = useState<Record<string, ChannelMembership>>({});
+    /** The channel whose whole listing is about to be cleared, once confirmed. */
+    const [purgeChannelId, setPurgeChannelId] = useState<string | null>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
-    const collectPublished = useCallback((channelId: string, itemIds: string[]) => {
-        setPublished((prev) => {
-            const previous = prev[channelId];
-
-            // Cached reads re-report the same ids on every render pass, and a
-            // fresh array each time would never settle.
-            if (
-                previous &&
-                previous.length === itemIds.length &&
-                previous.every((id, index) => id === itemIds[index])
-            ) {
-                return prev;
-            }
-
-            return { ...prev, [channelId]: itemIds };
-        });
-    }, []);
+    const collectPublished = useCallback(
+        (channelId: string, membership: ChannelMembership) => {
+            setPublished((prev) => mergeMembership(prev, channelId, membership));
+        },
+        [],
+    );
 
     // Which opening of the form has already been seeded.
     const [seededFor, setSeededFor] = useState<string | null>(null);
@@ -163,6 +136,18 @@ export function MultiChannelPublishDialog({
 
     const [createItemChannel] = useCreateItemChannelMutation();
     const [deleteItemChannel] = useDeleteItemChannelMutation();
+
+    /**
+     * How much of this item's stock each channel may sell.
+     *
+     * Only the single-item form edits it: a share is a number per channel per
+     * option, and a batch that published fifty items could not ask for one
+     * without becoming a spreadsheet.
+     */
+    const stockDraft = useChannelStockDraft({
+        item: singleItem,
+        open: open && Boolean(initialItemId),
+    });
 
     // Existing mapping for single item: salesChannelId -> itemChannelId
     const existingChannelMap = useMemo(() => {
@@ -205,6 +190,7 @@ export function MultiChannelPublishDialog({
             setSingleItemId("");
             setSelectedCategory("ALL");
             setProductSearchQuery("");
+            setMode("publish");
             setCheckedProductIds(new Set(inventoryItems.map((i) => i.id)));
             setCheckedChannelIds(new Set(activeSalesChannels.map((c) => c.id)));
         }
@@ -249,15 +235,64 @@ export function MultiChannelPublishDialog({
         const pairs: { itemId: string; channelId: string }[] = [];
 
         for (const channelId of checkedChannelIds) {
-            const already = new Set(published[channelId] || []);
+            const already = published[channelId] || {};
 
             for (const itemId of checkedProductIds) {
-                if (!already.has(itemId)) pairs.push({ itemId, channelId });
+                if (!already[itemId]) pairs.push({ itemId, channelId });
             }
         }
 
         return pairs;
     }, [initialItemId, checkedChannelIds, checkedProductIds, published]);
+
+    /**
+     * The links to take away — the mirror of the above.
+     *
+     * Only ticked items on ticked channels, and only ones that are actually
+     * there: an item that was never on the channel is not an error to report,
+     * it is simply nothing to do.
+     */
+    const removablePairs = useMemo(() => {
+        if (initialItemId) return [];
+
+        const pairs: { itemId: string; channelId: string; linkId: string }[] = [];
+
+        for (const channelId of checkedChannelIds) {
+            const already = published[channelId] || {};
+
+            for (const itemId of checkedProductIds) {
+                const linkId = already[itemId];
+                if (linkId) pairs.push({ itemId, channelId, linkId });
+            }
+        }
+
+        return pairs;
+    }, [initialItemId, checkedChannelIds, checkedProductIds, published]);
+
+    /** What the footer button is about to do, in the direction chosen. */
+    const pendingPairs = mode === "publish" ? newPairs : removablePairs;
+
+    /**
+     * How much of the catalogue each channel currently sells.
+     *
+     * The old chip read "Active" whether the channel sold everything or
+     * nothing, because it was only echoing its own tick back. A count is the
+     * one thing a shop actually wants to know before it changes anything.
+     */
+    const publishedCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+
+        activeSalesChannels.forEach((channel) => {
+            counts[channel.id] = Object.keys(published[channel.id] || {}).length;
+        });
+
+        return counts;
+    }, [activeSalesChannels, published]);
+
+    const purgeChannel = useMemo(
+        () => activeSalesChannels.find((c) => c.id === purgeChannelId) || null,
+        [activeSalesChannels, purgeChannelId],
+    );
 
     // Toggle one item
     const toggleProductCheck = (productId: string) => {
@@ -318,6 +353,17 @@ export function MultiChannelPublishDialog({
         try {
             if (initialItemId && singleItem) {
                 // One item, opened from its row
+                if (stockDraft.overAllocated(checkedChannelIds)) {
+                    toast({
+                        tone: "error",
+                        title: "More allocated than on hand",
+                        description:
+                            "Lower a channel's share so the total fits the stock you have.",
+                    });
+                    setIsSaving(false);
+                    return;
+                }
+
                 const promises: Promise<unknown>[] = [];
 
                 activeSalesChannels.forEach((channel) => {
@@ -338,6 +384,11 @@ export function MultiChannelPublishDialog({
 
                 await Promise.all(promises);
 
+                // After the links, never before: a share is a share of what a
+                // channel sells, so it is only meaningful once the channel is
+                // actually selling the item.
+                await stockDraft.save(checkedChannelIds);
+
                 toast({
                     tone: "success",
                     title: "Channels Saved",
@@ -357,15 +408,20 @@ export function MultiChannelPublishDialog({
 
                 // An item already on a channel is left alone rather than sent
                 // again: the pair is unique on the backend, so re-sending it
-                // would fail the whole batch over items that were fine.
-                const pending = newPairs;
-
-                if (pending.length === 0) {
+                // would fail the whole batch over items that were fine. The
+                // same reading backwards — an item that was never on the
+                // channel is nothing to remove.
+                if (pendingPairs.length === 0) {
                     toast({
                         tone: "info",
-                        title: "Already published",
+                        title:
+                            mode === "publish"
+                                ? "Already published"
+                                : "Nothing to unpublish",
                         description:
-                            "Every item you picked already sells on those channels.",
+                            mode === "publish"
+                                ? "Every item you picked already sells on those channels."
+                                : "None of the items you picked are on those channels.",
                     });
                     setIsSaving(false);
                     return;
@@ -374,25 +430,35 @@ export function MultiChannelPublishDialog({
                 // Settled rather than all: one rejected pair should not throw
                 // away the rest, which have already been written.
                 const results = await Promise.allSettled(
-                    pending.map((pair) =>
-                        createItemChannel({
-                            itemId: pair.itemId,
-                            salesChannelId: pair.channelId,
-                        }).unwrap()
-                    )
+                    mode === "publish"
+                        ? newPairs.map((pair) =>
+                              createItemChannel({
+                                  itemId: pair.itemId,
+                                  salesChannelId: pair.channelId,
+                              }).unwrap()
+                          )
+                        : removablePairs.map((pair) =>
+                              deleteItemChannel(pair.linkId).unwrap()
+                          )
                 );
 
                 const failed = results.filter((r) => r.status === "rejected").length;
-                const added = results.length - failed;
+                const done = results.length - failed;
+                const channelCount = checkedChannelIds.size;
+                const channelWord = `sales channel${channelCount === 1 ? "" : "s"}`;
 
                 toast({
                     tone: failed ? "error" : "success",
                     title: failed
-                        ? `${added} of ${results.length} published`
-                        : "Items published",
+                        ? `${done} of ${results.length} ${mode === "publish" ? "published" : "unpublished"}`
+                        : mode === "publish"
+                          ? "Items published"
+                          : "Items unpublished",
                     description: failed
-                        ? `${failed} could not be added. Try those again.`
-                        : `Added to ${checkedChannelIds.size} sales channel${checkedChannelIds.size === 1 ? "" : "s"}.`,
+                        ? `${failed} could not be ${mode === "publish" ? "added" : "removed"}. Try those again.`
+                        : mode === "publish"
+                          ? `Added to ${channelCount} ${channelWord}.`
+                          : `Taken off ${channelCount} ${channelWord}. Their channel prices are kept, so republishing restores them.`,
                 });
             }
 
@@ -409,11 +475,66 @@ export function MultiChannelPublishDialog({
         }
     };
 
+    /**
+     * Take a whole channel down for this shop.
+     *
+     * `sales_channels` is shared across every business on the platform, so its
+     * own `isActive` flag is not this shop's to switch — turning Telegram off
+     * there would turn it off for everybody. What a shop can decide is what it
+     * offers, so "deactivate" here means the channel is left selling nothing:
+     * the storefront and the bot then have no menu to show for it.
+     */
+    const handleUnpublishChannel = async () => {
+        if (!purgeChannelId) return;
+
+        const links = Object.values(published[purgeChannelId] || {});
+        const name = purgeChannel?.name || "channel";
+
+        setIsSaving(true);
+
+        try {
+            const results = await Promise.allSettled(
+                links.map((linkId) => deleteItemChannel(linkId).unwrap())
+            );
+
+            const failed = results.filter((r) => r.status === "rejected").length;
+
+            toast({
+                tone: failed ? "error" : "success",
+                title: failed
+                    ? `${results.length - failed} of ${results.length} removed`
+                    : `${name} deactivated`,
+                description: failed
+                    ? `${failed} item${failed === 1 ? "" : "s"} could not be removed. Try again.`
+                    : `${name} now sells nothing. Channel prices are kept, so republishing restores them.`,
+            });
+
+            onSuccess?.();
+        } catch (err) {
+            toast({
+                tone: "error",
+                title: "Failed to deactivate channel",
+                description: getApiErrorMessage(err, "Please try again."),
+            });
+        } finally {
+            setIsSaving(false);
+            setConfirmOpen(false);
+            setPurgeChannelId(null);
+        }
+    };
+
     return (
+        <>
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent
                 className={`rounded-2xl p-6 bg-background transition-all border-none shadow-2xl ${
-                    initialItemId ? "max-w-md" : "max-w-3xl"
+                    !initialItemId
+                        ? "max-w-3xl"
+                        : // The allocation grid needs room to lay a column out
+                          // per channel; the plain channel checklist does not.
+                          stockDraft.mode === "ALLOCATED"
+                          ? "max-w-3xl"
+                          : "max-w-md"
                 }`}
             >
                 {/* Header */}
@@ -424,7 +545,9 @@ export function MultiChannelPublishDialog({
                     <DialogDescription className="text-sm text-muted-foreground">
                         {initialItemId
                             ? `Select allowed sales channels for ${singleItem?.name || "this item"}.`
-                            : "Pick the items you sell, then the channels that sell them."}
+                            : mode === "publish"
+                              ? "Pick the items you sell, then the channels that sell them."
+                              : "Pick the items to take off sale, then the channels to take them off."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -515,9 +638,47 @@ export function MultiChannelPublishDialog({
                                     </div>
                                 )}
                             </div>
+
+                            {/* How much of the one shelf each channel may sell. */}
+                            {!isSingleItemLoading && (
+                                <ChannelStockAllocator
+                                    draft={stockDraft}
+                                    channels={activeSalesChannels}
+                                    checkedChannelIds={checkedChannelIds}
+                                />
+                            )}
                         </div>
                     ) : (
                         /* MODE 2: Ultra-Clean Spacious 2-Column Batch Mode */
+                        <div className="space-y-4">
+                        {/* Which way the batch runs. */}
+                        <div className="inline-flex rounded-xl bg-muted p-1">
+                            {(["publish", "unpublish"] as const).map((value) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => {
+                                        if (value === mode) return;
+                                        setMode(value);
+                                        // A direction is a different question,
+                                        // so nothing carries over: everything
+                                        // ticked for publishing must not become
+                                        // everything ticked for removal.
+                                        setCheckedProductIds(new Set());
+                                    }}
+                                    className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors cursor-pointer ${
+                                        mode === value
+                                            ? value === "publish"
+                                                ? "bg-card text-primary shadow-sm"
+                                                : "bg-card text-danger shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                >
+                                    {value === "publish" ? "Publish" : "Unpublish"}
+                                </button>
+                            ))}
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                             {/* LEFT COLUMN: item selection (7 cols) */}
                             <div className="md:col-span-7 space-y-3">
@@ -628,6 +789,15 @@ export function MultiChannelPublishDialog({
                                     ) : (
                                         filteredProducts.map((item) => {
                                             const isChecked = checkedProductIds.has(item.id);
+
+                                            // Where it sells now, so the choice
+                                            // is made against what is true and
+                                            // not against a memory of it.
+                                            const liveOn = activeSalesChannels.filter(
+                                                (channel) =>
+                                                    Boolean(published[channel.id]?.[item.id]),
+                                            );
+
                                             return (
                                                 <div
                                                     key={item.id}
@@ -642,7 +812,9 @@ export function MultiChannelPublishDialog({
                                                         <div
                                                             className={`grid h-5 w-5 place-items-center rounded-md shrink-0 transition-colors ${
                                                                 isChecked
-                                                                    ? "bg-primary text-primary-foreground"
+                                                                    ? mode === "publish"
+                                                                        ? "bg-primary text-primary-foreground"
+                                                                        : "bg-brand-red text-white"
                                                                     : "border border-input bg-background"
                                                             }`}
                                                         >
@@ -651,11 +823,11 @@ export function MultiChannelPublishDialog({
 
                                                         <div className="min-w-0">
                                                             <p className="truncate font-bold text-foreground text-sm">{item.name || "Unnamed item"}</p>
-                                                            {(item.itemGroup?.name) && (
-                                                                <p className="text-xs text-muted-foreground truncate">
-                                                                    {item.itemGroup?.name}
-                                                                </p>
-                                                            )}
+                                                            <p className="text-xs text-muted-foreground truncate">
+                                                                {liveOn.length
+                                                                    ? `On ${liveOn.map((c) => c.name).join(", ")}`
+                                                                    : item.itemGroup?.name || "Not on any channel"}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -682,12 +854,13 @@ export function MultiChannelPublishDialog({
                                     <div className="space-y-1">
                                         {activeSalesChannels.map((channel) => {
                                             const isChecked = checkedChannelIds.has(channel.id);
+                                            const liveCount = publishedCounts[channel.id] ?? 0;
 
                                             return (
                                                 <div
                                                     key={channel.id}
                                                     onClick={() => toggleChannel(channel.id)}
-                                                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${
+                                                    className={`flex items-center justify-between gap-2 p-3 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${
                                                         isChecked
                                                             ? "text-foreground font-bold"
                                                             : "text-muted-foreground"
@@ -697,28 +870,59 @@ export function MultiChannelPublishDialog({
                                                         <div
                                                             className={`grid h-5 w-5 place-items-center rounded-md shrink-0 transition-colors ${
                                                                 isChecked
-                                                                    ? "bg-primary text-primary-foreground"
+                                                                    ? mode === "publish"
+                                                                        ? "bg-primary text-primary-foreground"
+                                                                        : "bg-brand-red text-white"
                                                                     : "border border-input bg-background"
                                                             }`}
                                                         >
                                                             {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                                                         </div>
-                                                        <span className="text-sm font-bold truncate text-foreground">{channel.name}</span>
+
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold truncate text-foreground">{channel.name}</p>
+                                                            {/* What it sells now, not an echo of the tick. */}
+                                                            <p
+                                                                className={`text-xs truncate ${
+                                                                    liveCount
+                                                                        ? "text-muted-foreground"
+                                                                        : "text-danger"
+                                                                }`}
+                                                            >
+                                                                {liveCount
+                                                                    ? `Selling ${liveCount} item${liveCount === 1 ? "" : "s"}`
+                                                                    : "Selling nothing"}
+                                                            </p>
+                                                        </div>
                                                     </div>
 
-                                                    <span
-                                                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                                                            isChecked ? "text-primary" : "text-muted-foreground"
-                                                        }`}
-                                                    >
-                                                        {isChecked ? "Active" : "Disabled"}
-                                                    </span>
+                                                    {liveCount > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            title={`Take every item off ${channel.name}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setPurgeChannelId(channel.id);
+                                                                setConfirmOpen(true);
+                                                            }}
+                                                            className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+                                                        >
+                                                            Deactivate
+                                                        </button>
+                                                    )}
                                                 </div>
                                             );
                                         })}
                                     </div>
+
+                                    <p className="px-1 text-xs leading-5 text-muted-foreground">
+                                        Deactivating leaves a channel selling nothing, so its
+                                        storefront and bot show no menu. Channel prices are kept
+                                        either way — republishing restores them.
+                                    </p>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     )}
 
@@ -739,18 +943,29 @@ export function MultiChannelPublishDialog({
                                 isSaving ||
                                 (initialItemId
                                     ? isSingleItemLoading
-                                    : newPairs.length === 0)
+                                    : pendingPairs.length === 0)
                             }
-                            className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm h-11 px-6 shadow-sm cursor-pointer"
+                            className={`rounded-xl text-white font-bold text-sm h-11 px-6 shadow-sm cursor-pointer ${
+                                !initialItemId && mode === "unpublish"
+                                    ? "bg-brand-red hover:bg-brand-red/90"
+                                    : "bg-primary hover:bg-primary/90"
+                            }`}
                         >
                             {isSaving ? (
                                 <>
-                                    <LoaderCircle className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Publishing...
+                                    <LoaderCircle className="h-3.5 w-3.5 mr-1.5 animate-spin" />{" "}
+                                    {mode === "publish" ? "Publishing..." : "Unpublishing..."}
                                 </>
                             ) : initialItemId ? (
                                 "Save Changes"
-                            ) : newPairs.length ? (
-                                `Publish ${newPairs.length} link${newPairs.length === 1 ? "" : "s"}`
+                            ) : mode === "unpublish" ? (
+                                pendingPairs.length ? (
+                                    `Unpublish ${pendingPairs.length} link${pendingPairs.length === 1 ? "" : "s"}`
+                                ) : (
+                                    "Nothing to unpublish"
+                                )
+                            ) : pendingPairs.length ? (
+                                `Publish ${pendingPairs.length} link${pendingPairs.length === 1 ? "" : "s"}`
                             ) : (
                                 "Already published"
                             )}
@@ -759,5 +974,20 @@ export function MultiChannelPublishDialog({
                 </form>
             </DialogContent>
         </Dialog>
+
+            <DestructiveConfirmDialog
+                open={confirmOpen}
+                title={`Deactivate ${purgeChannel?.name || "channel"}?`}
+                description={`Every one of the ${purgeChannelId ? publishedCounts[purgeChannelId] ?? 0 : 0} items on ${purgeChannel?.name || "this channel"} comes off sale there. Its channel prices are kept, so publishing them again restores what you set.`}
+                confirmLabel="Deactivate channel"
+                pendingLabel="Deactivating…"
+                isPending={isSaving}
+                onOpenChange={(next) => {
+                    setConfirmOpen(next);
+                    if (!next) setPurgeChannelId(null);
+                }}
+                onConfirm={handleUnpublishChannel}
+            />
+        </>
     );
 }

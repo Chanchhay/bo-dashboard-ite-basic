@@ -203,6 +203,15 @@ export function ReceiptTicket({
                     {item.addOns.map((addOn) => `+ ${addOn.name}`).join(", ")}
                   </p>
                 ) : null}
+                {/* How it was made. Free, so it never shows in the money, but
+                    a refund argued from this receipt turns on it. */}
+                {item.selections?.length ? (
+                  <p className="text-[11px] leading-[1.45] text-[#6d7a77]">
+                    {item.selections
+                      .map((selection) => `${selection.attributeName}: ${selection.label}`)
+                      .join(" · ")}
+                  </p>
+                ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
                 </p>

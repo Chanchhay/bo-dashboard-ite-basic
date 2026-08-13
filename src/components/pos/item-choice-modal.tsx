@@ -368,11 +368,15 @@ export function ItemChoiceModal({
                                     {label}
                                 </p>
                                 <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {/* "Available" rather than "on hand":
+                                        where the shop has given the counter a
+                                        share of the shelf, this is that share
+                                        and not what is in the stockroom. */}
                                     {!counted
                                         ? "No stock to count"
                                         : onHand === undefined
                                           ? "Never received · nothing on hand"
-                                          : `${onHand} on hand · takes ${needed}`}
+                                          : `${onHand} available · takes ${needed}`}
                                 </p>
                             </div>
                             <PriceTag price={price} />

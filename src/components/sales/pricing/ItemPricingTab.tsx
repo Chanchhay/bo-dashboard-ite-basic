@@ -5,6 +5,7 @@ import {
     Globe,
     LoaderCircle,
     MessageSquare,
+    Scale,
     Search,
     Send,
     ShoppingBag,
@@ -12,6 +13,7 @@ import {
     Tag,
 } from "lucide-react";
 
+import { stockTargetKey } from "@/components/inventory/stock/useStockLevels";
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
 import {
     getApiErrorMessage,
@@ -19,6 +21,7 @@ import {
     InventoryLoading,
 } from "@/components/inventory/InventoryUi";
 import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
+import { SplitStockDialog } from "@/components/menu/SplitStockDialog";
 import { ChannelPriceDialog } from "@/components/sales/pricing/ChannelPriceDialog";
 import {
     linesOf,
@@ -274,6 +277,8 @@ export function ItemPricingTab() {
     const [publishingItemId, setPublishingItemId] = useState<string | null>(
         null,
     );
+    /** Whether the bulk "divide the shelf by a rule" form is open. */
+    const [splittingStock, setSplittingStock] = useState(false);
 
     // Base scope only.
     const [drafts, setDrafts] = useState<PriceDrafts>({});
@@ -373,14 +378,24 @@ export function ItemPricingTab() {
      * What one base unit of each item costs.
      *
      * The API works it out from the batch the next unit will come out of, so
-     * it is what the stock actually cost rather than an average. Options share
-     * the item's: they are bought together.
+     * it is what the stock actually cost rather than an average.
+     *
+     * Keyed per option, not per item. Each option is its own shelf and is
+     * received on its own: S/Black bought at $2.00 sits beside S/Blue bought
+     * at $1.50, and one figure for the whole item quoted the wrong margin on
+     * every option but whichever the API happened to list first.
      */
     const unitCosts = useMemo(() => {
         const costs = new Map<string, number>();
 
         for (const summary of stockQuery.data || []) {
             if (!summary.itemId || summary.unitCost === undefined) continue;
+
+            const key = stockTargetKey(summary.itemId, summary.variantId);
+            if (!costs.has(key)) costs.set(key, summary.unitCost);
+
+            // The item's own key answers for a row with no option — and backs
+            // up an option received before it was split out.
             if (!costs.has(summary.itemId)) {
                 costs.set(summary.itemId, summary.unitCost);
             }
@@ -388,6 +403,20 @@ export function ItemPricingTab() {
 
         return costs;
     }, [stockQuery.data]);
+
+    /**
+     * What one base unit of a given option cost, falling back to the item.
+     *
+     * The fallback matters for an option added after stock was already taken
+     * in against the item as a whole: it has no shelf of its own yet, and the
+     * item's figure is the honest answer until it does.
+     */
+    const unitCostFor = useCallback(
+        (itemId: string) => (variantId?: string) =>
+            unitCosts.get(stockTargetKey(itemId, variantId)) ??
+            unitCosts.get(itemId),
+        [unitCosts],
+    );
 
     /** The same for add-ons, which are stocked and costed in their own right. */
     const addOnCosts = useMemo(() => {
@@ -775,15 +804,31 @@ export function ItemPricingTab() {
                     onReset={handleResetFilters}
                     activeFilterCount={activeFilterCount}
                     extra={
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setPublishingItemId("")}
-                            className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
-                        >
-                            <ShoppingBag className="size-4 shrink-0" />
-                            <span>Manage channels</span>
-                        </Button>
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setPublishingItemId("")}
+                                className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
+                            >
+                                <ShoppingBag className="size-4 shrink-0" />
+                                <span>Manage channels</span>
+                            </Button>
+
+                            {/* The same allocation the item form asks for one
+                                number at a time, arrived at by a rule instead
+                                — which is the only way to do it to eighty
+                                items at once. */}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setSplittingStock(true)}
+                                className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
+                            >
+                                <Scale className="size-4 shrink-0" />
+                                <span>Split stock</span>
+                            </Button>
+                        </>
                     }
                 />
 
@@ -972,6 +1017,7 @@ export function ItemPricingTab() {
                             channelsByItem={channelsByItem}
                             format={format}
                             unitCosts={unitCosts}
+                            unitCostFor={unitCostFor}
                             addOnCosts={addOnCosts}
                             drafts={drafts}
                             overrides={draft?.overrides || {}}
@@ -1001,7 +1047,7 @@ export function ItemPricingTab() {
             {editingItem && isBase ? (
                 <SetPriceDialog
                     item={editingItem}
-                    unitCost={unitCosts.get(editingItem.id)}
+                    unitCostFor={unitCostFor(editingItem.id)}
                     addOnCosts={addOnCosts}
                     drafts={drafts}
                     open
@@ -1047,6 +1093,13 @@ export function ItemPricingTab() {
                     channelsQuery.refetch();
                     if (channelId) listingQuery.refetch();
                 }}
+            />
+
+            <SplitStockDialog
+                open={splittingStock}
+                onClose={() => setSplittingStock(false)}
+                inventoryItems={items}
+                salesChannels={channels}
             />
 
             <BarcodeScannerDialog

@@ -85,9 +85,19 @@ export type SoldAsRow = {
  * them, and a row promising three prices that the form does not ask for would
  * be worse than no summary at all.
  */
+/**
+ * What one base unit of a given option cost.
+ *
+ * A lookup rather than a number, because each option is its own shelf: S/Black
+ * received at $2.00 sits beside S/Blue received at $1.50, and one figure for
+ * the whole item would quote the wrong margin on all but one of them. Called
+ * with no option for an item sold as itself.
+ */
+export type UnitCostLookup = (variantId?: string) => number | undefined;
+
 export function soldAsRowsOf(
     item: InventoryItem,
-    unitCost?: number,
+    unitCostFor: UnitCostLookup,
 ): SoldAsRow[] {
     const baseUnitLabel = item.unit?.name || "base unit";
     /** "can", for reading inside a sentence. */
@@ -114,7 +124,7 @@ export function soldAsRowsOf(
                       label: `One ${unitWord}`,
                       description: `What a customer pays for a single ${unitWord}.`,
                       saved: item.price,
-                      unitCost,
+                      unitCost: unitCostFor(),
                       kind: "BASE" as const,
                   },
               ]),
@@ -123,12 +133,15 @@ export function soldAsRowsOf(
             label: option.name || "Option",
             description: `One ${unitWord} of ${option.name}.`,
             saved: option.price,
-            unitCost,
+            unitCost: unitCostFor(option.id),
             kind: "OPTION" as const,
         })),
         ...packs.map((conversion) => {
             const holds = conversion.factor ?? 1;
             const unitName = conversion.unit?.name || "Pack";
+            // A pack draws down the option it was declared for, so it costs
+            // what that option's stock cost.
+            const packUnitCost = unitCostFor(conversion.variantId || undefined);
 
             return {
                 key: soldAsKey(
@@ -146,7 +159,7 @@ export function soldAsRowsOf(
                 }. One sale takes that many off the shelf.`,
                 saved: conversion.price,
                 // It costs what everything inside it cost.
-                unitCost: unitCost === undefined ? undefined : unitCost * holds,
+                unitCost: packUnitCost === undefined ? undefined : packUnitCost * holds,
                 kind: "PACK" as const,
             };
         }),

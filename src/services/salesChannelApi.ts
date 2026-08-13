@@ -3,6 +3,7 @@ import type {
     ChannelListing,
     SaveChannelListingInput,
 } from "@/lib/api/channel-pricing";
+import type { ChannelStockAvailability } from "@/lib/api/channel-stock";
 import type {
     ChannelItem,
     CreateItemChannelInput,
@@ -38,6 +39,22 @@ export const salesChannelApi = baseApi.injectEndpoints({
             providesTags: (_result, _error, channelCode) => [
                 { type: "ItemChannels", id: `channel-${channelCode}` },
                 "ItemChannels",
+            ],
+        }),
+
+        /**
+         * What this channel may still sell, across everything it sells.
+         *
+         * One read for a whole till screen. Items the shop has not split are
+         * absent — they have no ceiling, and the screen already knows what is
+         * on the shelf.
+         */
+        getChannelStockAvailability: builder.query<ChannelStockAvailability[], string>({
+            query: (channelCode) => `/sales-channels/${channelCode}/stock`,
+            providesTags: (_result, _error, channelCode) => [
+                { type: "ItemChannelStock", id: `channel-${channelCode}` },
+                "ItemChannelStock",
+                "InventoryStock",
             ],
         }),
 
@@ -106,6 +123,7 @@ export const salesChannelApi = baseApi.injectEndpoints({
 export const {
     useGetSalesChannelsQuery,
     useGetChannelItemsQuery,
+    useGetChannelStockAvailabilityQuery,
     useCreateItemChannelMutation,
     useGetItemChannelsByItemQuery,
     useLazyGetItemChannelsByItemQuery,

@@ -26,6 +26,7 @@ import {
     PriceInput,
     soldAsKey,
     soldAsRowsOf,
+    type UnitCostLookup,
     type PriceDrafts,
     type SoldAsRow,
 } from "@/components/sales/pricing/sold-as";
@@ -184,7 +185,7 @@ function PriceRow({
  */
 export function SetPriceDialog({
     item,
-    unitCost,
+    unitCostFor,
     addOnCosts,
     drafts,
     open,
@@ -192,8 +193,8 @@ export function SetPriceDialog({
     onDraftChange,
 }: {
     item: InventoryItem;
-    /** What one base unit currently costs, from the batch it will come out of. */
-    unitCost?: number;
+    /** What one base unit of a given option cost, from the batch it comes out of. */
+    unitCostFor: UnitCostLookup;
     /** The same, per add-on. An add-on is stocked and costed in its own right. */
     addOnCosts: Map<string, number>;
     drafts: PriceDrafts;
@@ -213,7 +214,7 @@ export function SetPriceDialog({
         (conversion) => conversion.unit?.id,
     );
     const addOns = item.addOns || [];
-    const soldAs = soldAsRowsOf(item, unitCost);
+    const soldAs = soldAsRowsOf(item, unitCostFor);
 
     /**
      * Nothing is priced before its stock cost is known.
@@ -223,7 +224,9 @@ export function SetPriceDialog({
      * with a unit cost there is nothing to price against, and a number typed
      * here would be a guess dressed up as a decision.
      */
-    const canPrice = unitCost !== undefined;
+    // Priceable as soon as any one way of selling it has a cost: an option
+    // received today can be priced while its sisters are still on order.
+    const canPrice = soldAs.some((row) => row.unitCost !== undefined);
     const blockedHint =
         "Record a stock in with a unit cost for this item before pricing it";
 
@@ -310,6 +313,15 @@ export function SetPriceDialog({
                           name: option.name || "",
                           sku: option.sku || "",
                           barcode: option.barcode || "",
+                          // The option's own picture is one of those things:
+                          // left out, pricing an item would strip every
+                          // picture its options carry.
+                          imageUrl: option.imageUrl || "",
+                          // So is the pair it stands for: pricing an item must
+                          // not turn Large/Red back into a loose "Large" and
+                          // merge two shelves into one.
+                          optionName: option.optionName || option.name || "",
+                          colorValue: option.colorValue || "",
                           available: option.available !== false,
                           price: draftAmount(
                               drafts[soldAsKey(item.id, "OPTION", option.id)],
@@ -478,7 +490,11 @@ export function SetPriceDialog({
                                         row.saved,
                                     )}
                                     format={format}
-                                    disabled={!canPrice}
+                                    // Per row, not per item: a price is set
+                                    // against what that shelf cost, so an
+                                    // option still on order cannot be priced
+                                    // while its sisters can.
+                                    disabled={row.unitCost === undefined}
                                     disabledHint={blockedHint}
                                     onChange={(next) =>
                                         onDraftChange(row.key, next)
