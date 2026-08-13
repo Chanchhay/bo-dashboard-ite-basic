@@ -76,7 +76,7 @@ export default function UserMenu({
                 >
                     <span
                         aria-hidden="true"
-                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-[#006b26] bg-[#00932a] text-[13px] font-medium text-white"
+                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#00932a] text-[13px] font-medium text-white"
                     >
                         {picture ? (
                             // The profile picture URL is supplied by the API.

@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
 import { useGetLiveExchangeRatesQuery } from "@/services/frankfurterApi";
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
+import { CurrencyFlag } from "@/components/ui/currency-flag";
 import {
-    getCurrencyFlag,
     getCurrencySymbol,
 } from "@/lib/api/frankfurter";
 
@@ -90,7 +90,12 @@ export default function CurrencyHeaderWidget() {
                             className="h-8 text-xs min-w-[85px]"
                             options={tickerCurrencies.map((code) => ({
                                 value: code,
-                                label: `${getCurrencyFlag(code)} ${code}`,
+                                label: (
+                                    <span className="flex items-center gap-1.5">
+                                        <CurrencyFlag code={code} size="xs" />
+                                        <span>{code}</span>
+                                    </span>
+                                ),
                             }))}
                         />
                     </div>
@@ -128,8 +133,8 @@ export default function CurrencyHeaderWidget() {
                                         key={code}
                                         className="flex items-center justify-between rounded bg-muted/40 px-2 py-1.5 font-mono"
                                     >
-                                        <span className="flex items-center gap-1 text-[11px]">
-                                            <span>{getCurrencyFlag(code)}</span>
+                                        <span className="flex items-center gap-1.5 text-[11px]">
+                                            <CurrencyFlag code={code} size="xs" />
                                             <span className="font-semibold">{code}</span>
                                         </span>
                                         <span className="text-muted-foreground text-[11px]">
