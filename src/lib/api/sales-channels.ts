@@ -1,4 +1,11 @@
-import type { ItemSubGroup } from "@/lib/api/inventory";
+import type {
+    AddOn,
+    ItemSubGroup,
+    ItemUomConversion,
+    ItemVariant,
+    Unit,
+} from "@/lib/api/inventory";
+import type { itemTypes } from "@/lib/api/inventory";
 
 export type SalesChannelCode = "POS" | "TELEGRAM" | "MESSENGER" | "WEB" | string;
 
@@ -37,12 +44,33 @@ export type ChannelItem = {
         barcode?: string;
         price?: number;
         status?: "ACTIVE" | "INACTIVE";
+        /**
+         * Whether there is anything to count.
+         *
+         * A haircut and a download have no shelf, so the till must not refuse
+         * to sell them for want of a stock figure that will never exist.
+         */
+        itemType?: (typeof itemTypes)[number];
         itemGroup?: ItemSubGroup;
         images?: Array<{
             id?: string;
             url?: string;
             position?: number;
         }>;
+        /**
+         * The item's own base unit, its options and the larger units it is
+         * sold by. The channel endpoint returns the whole item, and the till
+         * needs all three to ring one up: an option and a pack each carry
+         * their own price and take their own amount off the shelf.
+         */
+        unit?: Unit;
+        variants?: ItemVariant[];
+        uomConversions?: ItemUomConversion[];
+        /**
+         * The extras it offers, each carrying whether this item currently
+         * sells it — the till must not offer one taken off the menu.
+         */
+        addOns?: AddOn[];
     };
 };
 

@@ -1,5 +1,15 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
+    ItemChannelStock,
+    SaveItemChannelStockInput,
+} from "@/lib/api/channel-stock";
+import type {
+    AddOn,
+    AddOnInput,
+    AddOnSet,
+    AddOnSetInput,
+    OptionPreset,
+    OptionPresetInput,
     InventoryItem,
     InventoryItemInput,
     ItemPricingInput,
@@ -9,8 +19,10 @@ import type {
     ItemGroupInput,
     StockEntry,
     StockEntryInput,
+    StockBatch,
     StockSummary,
     Unit,
+    UnitInput,
 } from "@/lib/api/inventory";
 
 /**
@@ -198,17 +210,199 @@ export const inventoryApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["InventoryItemGroups", "InventoryItems"],
         }),
+        getOptionPresets: builder.query<OptionPreset[], void>({
+            query: () => "/inventory/option-presets",
+            providesTags: ["InventoryOptionPresets"],
+        }),
+        createOptionPreset: builder.mutation<OptionPreset, OptionPresetInput>({
+            query: (body) => ({
+                url: "/inventory/option-presets",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["InventoryOptionPresets"],
+        }),
+        updateOptionPreset: builder.mutation<
+            OptionPreset,
+            { presetId: string; body: OptionPresetInput }
+        >({
+            query: ({ presetId, body }) => ({
+                url: `/inventory/option-presets/${encodeURIComponent(presetId)}`,
+                method: "PUT",
+                body,
+            }),
+            // Applying a preset copies its values, so items already using it
+            // are untouched by an edit here.
+            invalidatesTags: ["InventoryOptionPresets"],
+        }),
+        deleteOptionPreset: builder.mutation<void, string>({
+            query: (presetId) => ({
+                url: `/inventory/option-presets/${encodeURIComponent(presetId)}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: ["InventoryOptionPresets"],
+        }),
+        getAddOns: builder.query<AddOn[], void>({
+            query: () => "/inventory/add-ons",
+            providesTags: ["InventoryAddOns"],
+        }),
+        createAddOn: builder.mutation<AddOn, AddOnInput>({
+            query: (body) => ({
+                url: "/inventory/add-ons",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["InventoryAddOns"],
+        }),
+        updateAddOn: builder.mutation<
+            AddOn,
+            { addOnId: string; body: AddOnInput }
+        >({
+            query: ({ addOnId, body }) => ({
+                url: `/inventory/add-ons/${encodeURIComponent(addOnId)}`,
+                method: "PUT",
+                body,
+            }),
+            // An add-on is shared, so a change to it changes every item that
+            // offers it.
+            invalidatesTags: ["InventoryAddOns", "InventoryItems"],
+        }),
+        deleteAddOn: builder.mutation<void, string>({
+            query: (addOnId) => ({
+                url: `/inventory/add-ons/${encodeURIComponent(addOnId)}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: ["InventoryAddOns", "InventoryItems"],
+        }),
+        getAddOnSets: builder.query<AddOnSet[], void>({
+            query: () => "/inventory/add-on-sets",
+            providesTags: ["InventoryAddOnSets"],
+        }),
+        createAddOnSet: builder.mutation<AddOnSet, AddOnSetInput>({
+            query: (body) => ({
+                url: "/inventory/add-on-sets",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["InventoryAddOnSets"],
+        }),
+        updateAddOnSet: builder.mutation<
+            AddOnSet,
+            { setId: string; body: AddOnSetInput }
+        >({
+            query: ({ setId, body }) => ({
+                url: `/inventory/add-on-sets/${encodeURIComponent(setId)}`,
+                method: "PUT",
+                body,
+            }),
+            invalidatesTags: ["InventoryAddOnSets"],
+        }),
+        deleteAddOnSet: builder.mutation<void, string>({
+            query: (setId) => ({
+                url: `/inventory/add-on-sets/${encodeURIComponent(setId)}`,
+                method: "DELETE",
+            }),
+            // Only the grouping goes; the add-ons stay in the library.
+            invalidatesTags: ["InventoryAddOnSets"],
+        }),
         getInventoryUnits: builder.query<Unit[], void>({
             query: () => "/inventory/units",
             providesTags: ["InventoryUnits"],
+        }),
+        createUnit: builder.mutation<Unit, UnitInput>({
+            query: (body) => ({
+                url: "/inventory/units",
+                method: "POST",
+                body,
+            }),
+            invalidatesTags: ["InventoryUnits"],
+        }),
+        updateUnit: builder.mutation<
+            Unit,
+            { unitId: string; body: UnitInput }
+        >({
+            query: ({ unitId, body }) => ({
+                url: `/inventory/units/${encodeURIComponent(unitId)}`,
+                method: "PUT",
+                body,
+            }),
+            // Items and add-ons show the unit's symbol, so renaming it
+            // changes what they read.
+            invalidatesTags: ["InventoryUnits", "InventoryItems", "InventoryAddOns"],
+        }),
+        deleteUnit: builder.mutation<void, string>({
+            query: (unitId) => ({
+                url: `/inventory/units/${encodeURIComponent(unitId)}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: ["InventoryUnits"],
         }),
         getCurrentStock: builder.query<StockSummary[], void>({
             query: () => "/inventory/stock/current",
             providesTags: ["InventoryStock"],
         }),
+        /** The deliveries still on the shelf for one item, oldest first. */
+        getItemStockBatches: builder.query<StockBatch[], string>({
+            query: (itemId) => `/inventory/items/${itemId}/stock-batches`,
+            providesTags: (_result, _error, itemId) => [
+                { type: "InventoryStockBatches", id: itemId },
+            ],
+        }),
+        /**
+         * How one item's balance is shared out between its channels.
+         *
+         * Read per item rather than for the catalogue: the split is edited one
+         * item at a time, and most items never have one — a shop-wide read
+         * would carry a page of "SHARED" to answer a question about one row.
+         */
+        getItemChannelStock: builder.query<ItemChannelStock, string>({
+            query: (itemId) =>
+                `/inventory/items/${encodeURIComponent(itemId)}/channel-stock`,
+            providesTags: (_result, _error, itemId) => [
+                { type: "ItemChannelStock", id: itemId },
+            ],
+        }),
+        saveItemChannelStock: builder.mutation<
+            ItemChannelStock,
+            { itemId: string; body: SaveItemChannelStockInput }
+        >({
+            query: ({ itemId, body }) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/channel-stock`,
+                method: "PUT",
+                body,
+            }),
+            // The stock screens show what each channel may sell, so a changed
+            // split is a changed answer there too.
+            invalidatesTags: (_result, _error, { itemId }) => [
+                { type: "ItemChannelStock", id: itemId },
+                "InventoryStock",
+            ],
+        }),
         getStockEntries: builder.query<StockEntry[], void>({
             query: () => "/inventory/stock-entries",
             providesTags: ["InventoryStockEntries"],
+        }),
+        updateItemAddOns: builder.mutation<
+            InventoryItem,
+            { itemId: string; addOnIds: string[] }
+        >({
+            query: ({ itemId, addOnIds }) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/add-ons`,
+                method: "PUT",
+                body: { addOnIds },
+            }),
+            invalidatesTags: ["InventoryItems"],
+        }),
+        updateItemAddOnAvailability: builder.mutation<
+            InventoryItem,
+            { itemId: string; addOnId: string; available: boolean }
+        >({
+            query: ({ itemId, addOnId, available }) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/add-ons/${encodeURIComponent(addOnId)}`,
+                method: "PUT",
+                body: { available },
+            }),
+            invalidatesTags: ["InventoryItems"],
         }),
         updateItemPricing: builder.mutation<
             InventoryItem,
@@ -219,7 +413,13 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body: pricing,
             }),
-            invalidatesTags: ["InventoryItems"],
+            // The item's own entry too: the edit form reads that one, and
+            // saving it writes the whole item back, so a stale copy would
+            // push the old prices over the ones just set.
+            invalidatesTags: (_result, _error, { itemId }) => [
+                "InventoryItems",
+                { type: "InventoryItems", id: itemId },
+            ],
         }),
         createStockEntry: builder.mutation<
             StockEntry,
@@ -254,9 +454,29 @@ export const {
     useCreateItemGroupMutation,
     useUpdateItemGroupMutation,
     useDeleteItemGroupMutation,
+    useGetOptionPresetsQuery,
+    useCreateOptionPresetMutation,
+    useUpdateOptionPresetMutation,
+    useDeleteOptionPresetMutation,
+    useGetAddOnsQuery,
+    useGetAddOnSetsQuery,
+    useCreateAddOnSetMutation,
+    useUpdateAddOnSetMutation,
+    useDeleteAddOnSetMutation,
+    useCreateAddOnMutation,
+    useUpdateAddOnMutation,
+    useDeleteAddOnMutation,
     useGetInventoryUnitsQuery,
+    useCreateUnitMutation,
+    useUpdateUnitMutation,
+    useDeleteUnitMutation,
     useGetCurrentStockQuery,
+    useGetItemStockBatchesQuery,
+    useGetItemChannelStockQuery,
+    useSaveItemChannelStockMutation,
     useGetStockEntriesQuery,
     useCreateStockEntryMutation,
+    useUpdateItemAddOnAvailabilityMutation,
+    useUpdateItemAddOnsMutation,
     useUpdateItemPricingMutation,
 } = inventoryApi;

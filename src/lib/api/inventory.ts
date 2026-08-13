@@ -4,21 +4,51 @@ import { imageUploadRules } from "@/lib/api/image-upload";
 
 export const itemTypes = ["DIGITAL", "SERVICE", "PHYSICAL"] as const;
 export const itemStatuses = ["ACTIVE", "INACTIVE"] as const;
+/**
+ * What an attribute can be.
+ *
+ * Colour is deliberately absent: a colour is a thing the shop sells, with its
+ * own price, barcode, picture and stock, so it is an Option — see
+ * `ItemVariant.colorHex`. An attribute is a note about the thing, and a colour
+ * that carried no stock was never one a shopper could actually buy.
+ */
 export const itemAttributeTypes = [
     "TEXT",
     "SELECTION",
     "TOGGLE",
     "NUMBER",
-    "COLOR",
+] as const;
+
+/**
+ * Types no longer offered, kept so an item saved under one still loads and
+ * still saves. Nothing here appears in a picker.
+ */
+export const retiredItemAttributeTypes = ["COLOR"] as const;
+
+/**
+ * Every type that may arrive from the API, offered or not.
+ *
+ * Validation reads this rather than the picker's list: a shop that saved a
+ * colour attribute before it was retired must still be able to open that item
+ * and save an unrelated edit to it. Refusing the type on the way out would
+ * make the item uneditable over a choice the shop is no longer offered.
+ */
+export const storedItemAttributeTypes = [
+    ...itemAttributeTypes,
+    ...retiredItemAttributeTypes,
 ] as const;
 
 export type ItemAttributeType = (typeof itemAttributeTypes)[number];
 
-export const itemAttributeTypeLabels: Record<ItemAttributeType, string> = {
+export type StoredItemAttributeType = (typeof storedItemAttributeTypes)[number];
+
+export const itemAttributeTypeLabels: Record<StoredItemAttributeType, string> = {
     TEXT: "Text",
     SELECTION: "Selection",
     TOGGLE: "Toggle",
     NUMBER: "Number",
+    // Retired, and still labelled: an item saved under it is listed like any
+    // other, and a blank chip beside its name would read as a bug.
     COLOR: "Color",
 };
 
@@ -27,14 +57,29 @@ export const itemAttributePlacements = [
     "OPTION",
     "HIGHLIGHT",
     "SPECIFICATION",
-    "HIDDEN",
+] as const;
+
+/**
+ * Placements no longer offered, kept so an item saved under one still loads.
+ * `HIDDEN` was an attribute the storefront never rendered — a note to self with
+ * a form around it.
+ */
+export const retiredItemAttributePlacements = ["HIDDEN"] as const;
+
+/** Every placement that may arrive from the API — see `storedItemAttributeTypes`. */
+export const storedItemAttributePlacements = [
+    ...itemAttributePlacements,
+    ...retiredItemAttributePlacements,
 ] as const;
 
 export type ItemAttributePlacement =
     (typeof itemAttributePlacements)[number];
 
+export type StoredItemAttributePlacement =
+    (typeof storedItemAttributePlacements)[number];
+
 export const itemAttributePlacementLabels: Record<
-    ItemAttributePlacement,
+    StoredItemAttributePlacement,
     { label: string; hint: string }
 > = {
     OPTION: {
@@ -49,6 +94,7 @@ export const itemAttributePlacementLabels: Record<
         label: "Specification",
         hint: "A tile in the spec grid inside the description.",
     },
+    // Retired, and still labelled, for the same reason as COLOR above.
     HIDDEN: {
         label: "Internal only",
         hint: "Kept on the item for reporting; never shown on the store.",
@@ -74,11 +120,49 @@ export const stockEntryTypes = [
     "RETURN",
 ] as const;
 
+export const unitCategories = ["MASS", "VOLUME", "COUNT"] as const;
+
+export type UnitCategory = (typeof unitCategories)[number];
+
 export type Unit = {
     id: string;
     name?: string;
     slug?: string;
-    note?: string;
+    /** Short form shown beside amounts — "g", "ml", "pc". */
+    symbol?: string | null;
+    category?: UnitCategory | null;
+    /** A platform unit: selectable everywhere, editable nowhere. */
+    system?: boolean;
+    note?: string | null;
+};
+
+/**
+ * How many of an item's base units make up one of a larger unit.
+ *
+ * Held against the item rather than the unit: a sack of rice and a sack of
+ * flour are both sacks and do not weigh the same.
+ */
+export type ItemUomConversion = {
+    id?: string;
+    unit?: Unit;
+    /**
+     * Which option this larger unit is for.
+     *
+     * A shop that sells Large by the case need not sell Small that way. Null
+     * on an item with no options.
+     */
+    variantId?: string | null;
+    variantName?: string | null;
+    /** Base units per one of `unit`. */
+    factor?: number;
+    /**
+     * What one of this unit sells for — a case, a six-pack.
+     *
+     * Priced in its own right rather than as a multiple: a case is not
+     * twenty-four times a can, or nobody would buy the case. Null means the
+     * item is bought and counted in this unit but never sold in it.
+     */
+    price?: number | null;
 };
 
 export type ItemSubGroup = {
@@ -97,9 +181,31 @@ export type ItemGroup = {
     subGroups?: ItemSubGroup[];
 };
 
+/**
+ * A saved list of option values, so "Small, Medium, Large" is typed once.
+ *
+ * Applying one copies its values onto the item — it is a starting point, not a
+ * live link, so editing it later never rewrites items already using it.
+ */
+export type OptionPreset = {
+    id: string;
+    name?: string;
+    type?: "SELECTION" | "COLOR";
+    required?: boolean;
+    values?: {
+        value?: string;
+        colorHex?: string | null;
+    /** What the shop calls that colour — "Brown". Shown beside the swatches. */
+    colorName?: string | null;
+        /** Carried onto the item, so a swatch arrives with its picture. */
+        imageUrl?: string | null;
+    }[];
+};
+
 export type ItemAttributeValue = {
     value?: string;
     label?: string;
+    /** Retired: colour moved to Options. Kept so old items still load. */
     colorHex?: string;
     available?: boolean;
 };
@@ -128,13 +234,105 @@ export type ItemImage = {
     position?: number;
 };
 
+/**
+ * One colour the item comes in, declared once for the whole item.
+ *
+ * Once, not per size: the same red shirt photographed for Small is the same
+ * photograph for Large. A size then says which of these it offers, and the
+ * pair of the two is what carries stock.
+ */
+export type ItemColor = {
+    value?: string;
+    colorHex?: string | null;
+    imageUrl?: string | null;
+};
+
 export type ItemVariant = {
     id?: string;
     slug?: string;
     name?: string;
+    /** Each variation is scanned and counted on its own. */
+    sku?: string | null;
+    barcode?: string | null;
+    /**
+     * The picture of this variation, if it looks different from the item —
+     * a black phone next to a white one. Already uploaded, so it is a URL
+     * rather than a file: the store swaps to it when the option is picked.
+     */
+    imageUrl?: string | null;
+    /**
+     * The swatch this option shows — the circle a shopper clicks. Empty on an
+     * option that is not a colour; a size has nothing to show.
+     */
+    /** The size half of the pair — "Large". */
+    optionName?: string | null;
+    /** Which of the item's colours this row is; null when sold by size alone. */
+    colorValue?: string | null;
     /** Null on a variant the API holds with no price set. */
     price?: number | null;
     available?: boolean;
+};
+
+/**
+ * An extra piled on top of an item — pearls, an extra shot.
+ *
+ * It belongs to the business library rather than to one item, so the same
+ * "Extra shot" is attached to every drink that offers it — price included,
+ * which is set in Sale Management.
+ */
+export type AddOnUomConversion = {
+    id?: string;
+    unit?: Unit;
+    /** Base units per one of `unit`. */
+    factor?: number;
+};
+
+export type AddOn = {
+    id: string;
+    name?: string;
+    slug?: string;
+    baseUnit?: Unit | null;
+    /** How much one selection takes off, in base units. */
+    usePerOrder?: number | null;
+    /**
+     * What one selection costs, anywhere it is offered.
+     *
+     * One number for the whole business: "Extra shot" costs the same on every
+     * drink that offers it. Null until it has been priced, and it cannot be
+     * sold until it has.
+     */
+    price?: number | null;
+    /**
+     * Whether the item selling it currently offers it.
+     *
+     * Only set when the add-on is read through an item — in the shared
+     * library there is no one item for it to be on sale for. Off means the
+     * item still offers it, but it is not on the menu today.
+     */
+    available?: boolean | null;
+    /** Larger units it is bought in — "1 bag = 3000 g". */
+    uomConversions?: AddOnUomConversion[];
+    note?: string | null;
+};
+
+export const addOnSelectionRules = ["ANY", "UP_TO"] as const;
+
+export type AddOnSelectionRule = (typeof addOnSelectionRules)[number];
+
+/**
+ * A group of add-ons offered together, with how many a customer may pick.
+ *
+ * The add-ons stay in the shared library — a set is the rule around them, so
+ * putting "Pearls" in two sets never duplicates it or its stock.
+ */
+export type AddOnSet = {
+    id: string;
+    name?: string;
+    rule?: AddOnSelectionRule;
+    /** Only meaningful when `rule` is `UP_TO`. */
+    maxChoices?: number | null;
+    required?: boolean;
+    addOns?: AddOn[];
 };
 
 export type InventoryItem = {
@@ -154,8 +352,12 @@ export type InventoryItem = {
     compareAtPrice?: number | null;
     itemType?: (typeof itemTypes)[number];
     attributes?: ItemAttribute[];
+    /** The colours this item comes in, shared by every size. */
+    colors?: ItemColor[];
     descriptionBlocks?: DescriptionBlock[];
     variants?: ItemVariant[];
+    addOns?: AddOn[];
+    uomConversions?: ItemUomConversion[];
     lowStockDefault?: number;
     status?: (typeof itemStatuses)[number];
 };
@@ -308,9 +510,55 @@ export const stockStateLabels: Record<StockState, string> = {
     IN: "In stock",
 };
 
+/**
+ * One delivery still on the shelf, and what it cost.
+ *
+ * Stock is not one number at one price. Each delivery keeps the price it
+ * arrived at and a sale eats the oldest first, so an item can be sitting on
+ * two batches bought months apart at different money — and what the next sale
+ * costs depends which of them it comes out of. This is what makes a margin
+ * explicable rather than something the shop takes on trust.
+ */
+export type StockBatch = {
+    id: string;
+    /** The option this batch arrived for. Null on an item with no options. */
+    variantId?: string | null;
+    variantName?: string | null;
+    unitCost: number;
+    quantityReceived: number;
+    quantityRemaining: number;
+    remainingValue: number;
+    receivedAt?: string | null;
+    /** Where in the queue it sits. The next sale draws from position 1. */
+    position: number;
+};
+
 export type StockSummary = {
-    itemId: string;
+    /** One of the two is set: a movement is against an item or an add-on. */
+    itemId?: string;
+    addOnId?: string;
+    /**
+     * Which option of the item this balance belongs to.
+     *
+     * An item sold in options holds one balance per option, so it has one
+     * summary per option rather than one in total. Null alongside an itemId is
+     * the item as a whole: either it has no options, or the stock was recorded
+     * before it had any and nobody has said which option it belongs in.
+     */
+    variantId?: string;
+    variantName?: string;
     quantityOnHand?: number;
+    /**
+     * What the remaining stock is worth, summed across the batches still
+     * holding it at the price each was bought at.
+     *
+     * Only the API can work this out: it holds the batches. A single cost per
+     * item cannot stand in for it once two deliveries at different prices are
+     * both on the shelf.
+     */
+    stockValue?: number;
+    /** What the next unit out costs: the oldest batch still holding any. */
+    unitCost?: number;
     lastEntryId?: string;
     updatedAt?: string;
 };
@@ -319,11 +567,27 @@ export type StockEntry = {
     id: string;
     businessOwnerId?: string;
     itemId?: string;
+    addOnId?: string;
+    /** The option that moved, when the item is sold in options. */
+    variantId?: string;
+    /** Carried so the ledger reads back after an option is renamed or removed. */
+    variantName?: string;
     entryType?: (typeof stockEntryTypes)[number];
     quantityChange?: number;
     quantityBefore?: number;
     quantityAfter?: number;
+    /**
+     * On the way in, what a base unit was bought for. On the way out, what it
+     * actually cost — worked out from the batches consumed, never typed.
+     */
     unitCost?: number;
+    /** What the whole outgoing movement cost. Absent on the way in. */
+    costOfGoods?: number;
+    /** What a base unit sold for, on a stock-out sold away from the till. */
+    unitSalePrice?: number;
+    /** What was counted, in the unit it was counted in. */
+    enteredQuantity?: number;
+    enteredUnit?: Unit | null;
     batchData?: Record<string, unknown>;
     referenceType?: string;
     referenceId?: string;
@@ -332,38 +596,6 @@ export type StockEntry = {
     createdBy?: string;
     createdDate?: string;
 };
-
-/**
- * The most recently recorded cost per item, read off the ledger.
- *
- * Stock value has to come from somewhere now that inventory holds no prices,
- * and `unitCost` is the number that was always right for it — the old tile
- * multiplied quantity by *selling* price and called the result inventory value,
- * which is retail value, not what the stock is worth.
- *
- * Latest cost rather than a moving average: it is one number a merchant can
- * verify against their last invoice. Items that never had a cost recorded
- * contribute nothing, and the screen says how many those are rather than
- * quietly understating the total.
- */
-export function latestUnitCosts(entries: readonly StockEntry[]) {
-    const newest = new Map<string, { cost: number; at: number }>();
-
-    for (const entry of entries) {
-        if (!entry.itemId || entry.unitCost === undefined) continue;
-
-        const at = new Date(entry.createdDate || 0).getTime();
-        const current = newest.get(entry.itemId);
-
-        if (!current || at >= current.at) {
-            newest.set(entry.itemId, { cost: entry.unitCost, at });
-        }
-    }
-
-    return new Map(
-        [...newest].map(([itemId, { cost }]) => [itemId, cost] as const),
-    );
-}
 
 const optionalUuidSchema = z
     .string()
@@ -397,7 +629,35 @@ export const itemVariantSchema = z.object({
         .trim()
         .min(1, "Variant name is required.")
         .max(150, "Variant name must be 150 characters or fewer."),
+    // Defaulted rather than required: the pricing screen sends variants to
+    // set prices and has no business restating identifiers it never edits.
+    sku: optionalText(100, "Variant SKU must be 100 characters or fewer.")
+        .default(""),
+    barcode: optionalText(
+        100,
+        "Variant barcode must be 100 characters or fewer.",
+    ).default(""),
+    // Uploaded before the item is saved, so what travels is the stored URL.
+    // Optional for the same reason as SKU and barcode — the pricing screen
+    // sends variants to set prices — and nullable because an option the API
+    // holds with no picture of its own comes back as null.
+    imageUrl: optionalText(
+        500,
+        "Variant image URL must be 500 characters or fewer.",
+    ).nullish(),
     price: optionalMoney("Variant price cannot be negative."),
+    /**
+     * The swatch this option shows. Defaulted so the pricing screen, which
+     * restates variants to set prices, need not carry a field it never edits.
+     */
+    /**
+     * The pair this row is. Defaulted so the pricing screen, which restates
+     * variants to set prices, need not carry coordinates it never edits.
+     */
+    optionName: optionalText(150, "An option name must be 150 characters or fewer.")
+        .default(""),
+    colorValue: optionalText(150, "A colour must be 150 characters or fewer.")
+        .default(""),
     available: z.boolean(),
 });
 
@@ -411,13 +671,22 @@ export const itemAttributeValueSchema = z.object({
         .string()
         .trim()
         .max(150, "A label must be 150 characters or fewer."),
+    /**
+     * Retired: colour moved to Options, and no form writes this any more.
+     *
+     * Still carried, because a value saved under the old colour attribute has
+     * a hex and nothing else remembers it — dropping it on the way out would
+     * quietly discard the shop's swatches the first time anyone opened the
+     * item to change its name.
+     */
     colorHex: z
         .string()
         .trim()
         .refine(
             (value) => !value || /^#[0-9a-fA-F]{6}$/.test(value),
             "Use a six-digit hex colour such as #3a3a3c.",
-        ),
+        )
+        .default(""),
     available: z.boolean(),
 });
 
@@ -436,8 +705,8 @@ export const itemAttributeSchema = z
             .trim()
             .min(1, "Attribute name is required.")
             .max(150, "Attribute name must be 150 characters or fewer."),
-        type: z.enum(itemAttributeTypes),
-        placement: z.enum(itemAttributePlacements),
+        type: z.enum(storedItemAttributeTypes),
+        placement: z.enum(storedItemAttributePlacements),
         icon: z
             .string()
             .trim()
@@ -472,17 +741,10 @@ export const itemAttributeSchema = z
 
         if (
             attribute.placement === "OPTION" &&
-            (attribute.type === "SELECTION" || attribute.type === "COLOR") &&
+            attribute.type === "SELECTION" &&
             !count
         ) {
             issue("Add at least one option for shoppers to choose from.");
-        }
-
-        if (
-            attribute.type === "COLOR" &&
-            attribute.values.some((value) => !value.colorHex)
-        ) {
-            issue("Every colour needs a hex value.");
         }
 
         if (
@@ -593,8 +855,10 @@ export const descriptionBlockSchema = z
 export type DescriptionBlockInput = z.infer<typeof descriptionBlockSchema>;
 
 export const inventoryItemSchema = z.object({
-    itemGroupId: optionalUuidSchema,
-    unitId: optionalUuidSchema,
+    // Both are required: an item that is counted in nothing and filed under
+    // nothing cannot be stocked or found again.
+    itemGroupId: z.uuid("Select a category."),
+    unitId: z.uuid("Select a base unit of measure."),
     name: z
         .string()
         .trim()
@@ -626,6 +890,59 @@ export const inventoryItemSchema = z.object({
         .array(descriptionBlockSchema)
         .max(30, "A description can hold at most 30 blocks."),
     variants: z.array(itemVariantSchema),
+    colors: z
+        .array(
+            z.object({
+                value: z
+                    .string()
+                    .trim()
+                    .min(1, "A colour needs a name.")
+                    .max(150, "A colour name must be 150 characters or fewer."),
+                colorHex: z
+                    .string()
+                    .trim()
+                    .refine(
+                        (value) => !value || /^#[0-9a-fA-F]{6}$/.test(value),
+                        "Use a six-digit hex colour such as #3a3a3c.",
+                    ),
+                imageUrl: optionalText(
+                    500,
+                    "An image URL must be 500 characters or fewer.",
+                ),
+            }),
+        )
+        .max(50, "An item can hold at most 50 colours.")
+        .default([])
+        .refine(
+            (colors) =>
+                new Set(colors.map((color) => color.value.toLowerCase())).size ===
+                colors.length,
+            "Colours must be unique.",
+        ),
+    addOnIds: z.array(z.uuid("Select a valid add-on.")).default([]),
+    uomConversions: z
+        .array(
+            z.object({
+                unitId: z.uuid("Select a valid unit."),
+                /** The option's id, once it has one. */
+                variantId: z.uuid("Select a valid option.").optional(),
+                /**
+                 * The option's name — how a conversion names an option typed
+                 * on the same screen, which has no id until the item is saved.
+                 * Required on an item sold in options.
+                 */
+                variantName: z.string().optional(),
+                factor: z
+                    .number()
+                    .positive("A conversion must be greater than zero."),
+                /** Set in Sale Management; absent means not sold by this unit. */
+                price: z
+                    .number()
+                    .min(0, "A price cannot be negative.")
+                    .optional(),
+            }),
+        )
+        .default([]),
     lowStockDefault: z
         .number()
         .int("Low-stock threshold must be a whole number.")
@@ -652,9 +969,50 @@ export const itemPricingSchema = z.object({
         .min(0, "Compare-at price cannot be negative.")
         .optional(),
     variants: itemVariantsSchema.optional(),
+    /**
+     * What each larger unit sells for. Sent whole, like variants: the update
+     * replaces the list, so a conversion left out would lose its factor.
+     */
+    uomConversions: z
+        .array(
+            z.object({
+                unitId: z.uuid("Select a valid unit."),
+                variantId: z.uuid("Select a valid option.").optional(),
+                variantName: z.string().optional(),
+                factor: z
+                    .number()
+                    .positive("A conversion must be greater than zero."),
+                price: z
+                    .number()
+                    .min(0, "A price cannot be negative.")
+                    .optional(),
+            }),
+        )
+        .optional(),
 });
 
 export type ItemPricingInput = z.infer<typeof itemPricingSchema>;
+
+/**
+ * Which add-ons an item offers — the whole list, every time.
+ *
+ * A toggle sends what the item should end up offering rather than "add this
+ * one", so two people toggling at once cannot leave it half-applied.
+ */
+export const itemAddOnsSchema = z.object({
+    addOnIds: z.array(z.uuid("Select a valid add-on.")),
+});
+
+export type ItemAddOnsInput = z.infer<typeof itemAddOnsSchema>;
+
+/** Whether an item currently sells one of the add-ons it offers. */
+export const itemAddOnAvailabilitySchema = z.object({
+    available: z.boolean(),
+});
+
+export type ItemAddOnAvailabilityInput = z.infer<
+    typeof itemAddOnAvailabilitySchema
+>;
 
 export const itemGroupSchema = z.object({
     name: z
@@ -668,14 +1026,188 @@ export const itemGroupSchema = z.object({
 
 export type ItemGroupInput = z.infer<typeof itemGroupSchema>;
 
-export const stockEntrySchema = z.object({
-    itemId: z.uuid("Select an item."),
+export const unitSchema = z.object({
+    name: z
+        .string()
+        .trim()
+        .min(1, "Unit name is required.")
+        .max(50, "Unit name must be 50 characters or fewer."),
+    symbol: z
+        .string()
+        .trim()
+        .min(1, "Symbol is required.")
+        .max(20, "Symbol must be 20 characters or fewer."),
+    category: z.enum(unitCategories),
+    note: optionalText(255, "Note must be 255 characters or fewer."),
+});
+
+export type UnitInput = z.infer<typeof unitSchema>;
+
+export function toUnitRequest(input: UnitInput) {
+    return {
+        name: input.name,
+        symbol: input.symbol,
+        category: input.category,
+        note: input.note,
+    };
+}
+
+export const optionPresetSchema = z.object({
+    name: z
+        .string()
+        .trim()
+        .min(1, "Preset name is required.")
+        .max(150, "Preset name must be 150 characters or fewer."),
+    type: z.enum(["SELECTION", "COLOR"]),
+    required: z.boolean(),
+    values: z
+        .array(
+            z.object({
+                value: z
+                    .string()
+                    .trim()
+                    .min(1, "A value cannot be blank.")
+                    .max(150, "A value must be 150 characters or fewer."),
+                colorHex: optionalText(
+                    20,
+                    "A colour must be 20 characters or fewer.",
+                ),
+                imageUrl: optionalText(
+                    255,
+                    "An image URL must be 255 characters or fewer.",
+                ),
+            }),
+        )
+        .min(1, "Add at least one value.")
+        .max(50, "A preset can hold at most 50 values.")
+        .refine(
+            (values) =>
+                new Set(values.map((entry) => entry.value.toLowerCase()))
+                    .size === values.length,
+            "Values must be unique.",
+        ),
+});
+
+export type OptionPresetInput = z.infer<typeof optionPresetSchema>;
+
+export function toOptionPresetRequest(input: OptionPresetInput) {
+    return {
+        name: input.name,
+        type: input.type,
+        required: input.required,
+        values: input.values.map((entry) => ({
+            value: entry.value,
+            ...(entry.colorHex ? { colorHex: entry.colorHex } : {}),
+            ...(entry.imageUrl ? { imageUrl: entry.imageUrl } : {}),
+        })),
+    };
+}
+
+export const uomConversionSchema = z.object({
+    unitId: z.uuid("Select a valid unit."),
+    factor: z.number().positive("A conversion must be greater than zero."),
+});
+
+export const addOnSchema = z.object({
+    name: z
+        .string()
+        .trim()
+        .min(1, "Add-on name is required.")
+        .max(150, "Add-on name must be 150 characters or fewer."),
+    baseUnitId: optionalUuidSchema,
+    usePerOrder: z
+        .number()
+        .positive("One order must use more than zero."),
+    /** What one selection costs. Set in Sale Management, not here. */
+    price: z.number().min(0, "A price cannot be negative.").optional(),
+    uomConversions: z.array(uomConversionSchema).default([]),
+    note: optionalText(255, "Note must be 255 characters or fewer."),
+});
+
+export type AddOnInput = z.infer<typeof addOnSchema>;
+
+export function toAddOnRequest(input: AddOnInput) {
+    return {
+        name: input.name,
+        usePerOrder: input.usePerOrder,
+        ...(input.price === undefined ? {} : { price: input.price }),
+        uomConversions: input.uomConversions,
+        note: input.note,
+        ...(input.baseUnitId ? { baseUnitId: input.baseUnitId } : {}),
+    };
+}
+
+export const addOnSetSchema = z
+    .object({
+        name: z
+            .string()
+            .trim()
+            .min(1, "Set name is required.")
+            .max(150, "Set name must be 150 characters or fewer."),
+        rule: z.enum(addOnSelectionRules),
+        maxChoices: z
+            .number()
+            .int("A limit must be a whole number.")
+            .min(1, "A limit must be at least 1.")
+            .optional(),
+        required: z.boolean(),
+        addOnIds: z
+            .array(z.uuid("Select a valid add-on."))
+            .min(1, "Add at least one add-on."),
+    })
+    .refine(
+        (set) => set.rule !== "UP_TO" || set.maxChoices !== undefined,
+        { message: "Set how many may be picked.", path: ["maxChoices"] },
+    )
+    .refine(
+        (set) =>
+            set.rule !== "UP_TO" ||
+            (set.maxChoices ?? 0) <= set.addOnIds.length,
+        {
+            message: "The limit cannot exceed how many add-ons are in the set.",
+            path: ["maxChoices"],
+        },
+    );
+
+export type AddOnSetInput = z.infer<typeof addOnSetSchema>;
+
+export function toAddOnSetRequest(input: AddOnSetInput) {
+    return {
+        name: input.name,
+        rule: input.rule,
+        required: input.required,
+        addOnIds: input.addOnIds,
+        // A ceiling only means something when there is one to hit.
+        ...(input.rule === "UP_TO" && input.maxChoices !== undefined
+            ? { maxChoices: input.maxChoices }
+            : {}),
+    };
+}
+
+export const stockEntrySchema = z
+    .object({
+    // An add-on is counted like an item but never sold on its own, so a
+    // movement targets exactly one of the two.
+    itemId: z.uuid("Select an item.").optional(),
+    addOnId: z.uuid("Select an add-on.").optional(),
+    /** Which option of the item moved. Only ever set beside an itemId. */
+    variantId: z.uuid("Select an option.").optional(),
     entryType: z.enum(stockEntryTypes),
     quantityChange: z.number(),
+    // Cost belongs to stock arriving and sale price to stock leaving. The API
+    // rejects either on the wrong side rather than quietly storing it.
     unitCost: z
         .number()
         .min(0, "Unit cost cannot be negative.")
         .optional(),
+    unitSalePrice: z
+        .number()
+        .min(0, "Sale price cannot be negative.")
+        .optional(),
+    /** What the operator typed, before conversion into base units. */
+    enteredQuantity: z.number().positive().optional(),
+    /** The unit they typed it in: the item's base unit or a conversion. */
+    unitId: optionalUuidSchema.optional(),
     batchData: z.record(z.string(), z.unknown()),
     referenceType: optionalText(
         40,
@@ -687,7 +1219,16 @@ export const stockEntrySchema = z.object({
         "Reference number must be 80 characters or fewer.",
     ),
     reason: optionalText(255, "Reason must be 255 characters or fewer."),
-});
+    })
+    .refine(
+        (entry) => Boolean(entry.itemId) !== Boolean(entry.addOnId),
+        "Choose either an item or an add-on to move.",
+    )
+    // An add-on has no options of its own to count separately.
+    .refine(
+        (entry) => !entry.variantId || Boolean(entry.itemId),
+        "An option belongs to an item.",
+    );
 
 export type StockEntryInput = z.infer<typeof stockEntrySchema>;
 
@@ -701,6 +1242,8 @@ function toAttributeRequest(attribute: ItemAttributeInput) {
             value: value.value,
             available: value.available,
             ...(value.label ? { label: value.label } : {}),
+            // Only ever present on an attribute saved before colour was
+            // retired; sent back exactly as it arrived.
             ...(value.colorHex ? { colorHex: value.colorHex } : {}),
         })),
     };
@@ -748,16 +1291,17 @@ export function toItemRequest(input: InventoryItemInput) {
         attributes: input.attributes.map(toAttributeRequest),
         descriptionBlocks: input.descriptionBlocks.map(toBlockRequest),
         variants: input.variants,
+        colors: input.colors,
+        addOnIds: input.addOnIds,
+        uomConversions: input.uomConversions,
         lowStockDefault: input.lowStockDefault,
         status: input.status,
         ...(input.price === undefined ? {} : { price: input.price }),
         ...(input.compareAtPrice === undefined
             ? {}
             : { compareAtPrice: input.compareAtPrice }),
-        ...(input.itemGroupId
-            ? { itemGroupId: input.itemGroupId }
-            : {}),
-        ...(input.unitId ? { unitId: input.unitId } : {}),
+        itemGroupId: input.itemGroupId,
+        unitId: input.unitId,
     };
 }
 
@@ -778,6 +1322,14 @@ export type UploadedAsset = {
     key?: string;
     url?: string;
 };
+
+/** An Option's or a preset value's picture: same ceiling as the gallery. */
+export const choiceImageRules = imageUploadRules({
+    accept: "image/*",
+    maxBytes: 10 * 1024 * 1024,
+    subject: "a choice image",
+    formats: "PNG, JPG or WebP",
+});
 
 /** Description-block pictures go through the same ceiling as the gallery. */
 export const blockImageRules = imageUploadRules({
@@ -915,6 +1467,14 @@ export function toItemPricingMultipart(
         parts.push(JSON.stringify(input.variants), multipartLineBreak);
     }
 
+    if (input.uomConversions) {
+        openPart([
+            'Content-Disposition: form-data; name="uomConversions"',
+            "Content-Type: application/json",
+        ]);
+        parts.push(JSON.stringify(input.uomConversions), multipartLineBreak);
+    }
+
     parts.push(`--${boundary}--${multipartLineBreak}`);
 
     return {
@@ -933,7 +1493,9 @@ export function toItemGroupRequest(input: ItemGroupInput) {
 
 export function toStockEntryRequest(input: StockEntryInput) {
     return {
-        itemId: input.itemId,
+        ...(input.itemId ? { itemId: input.itemId } : {}),
+        ...(input.addOnId ? { addOnId: input.addOnId } : {}),
+        ...(input.variantId ? { variantId: input.variantId } : {}),
         entryType: input.entryType,
         quantityChange: input.quantityChange,
         batchData: input.batchData,
@@ -943,6 +1505,16 @@ export function toStockEntryRequest(input: StockEntryInput) {
         ...(input.unitCost === undefined
             ? {}
             : { unitCost: input.unitCost }),
+        ...(input.unitSalePrice === undefined
+            ? {}
+            : { unitSalePrice: input.unitSalePrice }),
+        // The pair travels together or not at all; the API rejects a half of it.
+        ...(input.enteredQuantity !== undefined && input.unitId
+            ? {
+                  enteredQuantity: input.enteredQuantity,
+                  unitId: input.unitId,
+              }
+            : {}),
         ...(input.referenceId
             ? { referenceId: input.referenceId }
             : {}),

@@ -16,6 +16,7 @@ import {
     Dices,
     Download,
     Eye,
+    ImagePlus,
     LoaderCircle,
     Pencil,
     Plus,
@@ -28,7 +29,10 @@ import {
     itemAttributeTypeLabels,
 } from "@/lib/api/inventory";
 
+import { cn } from "@/lib/utils";
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
+import { ChoiceImageField } from "@/components/inventory/ChoiceImageField";
+import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
 import {
     createBlockId,
     DescriptionBlockEditor,
@@ -68,7 +72,9 @@ import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
@@ -82,27 +88,28 @@ import {
     itemStatuses,
     itemTypes,
     maxItemImages,
+    type AddOn,
     type DescriptionBlock,
+    type OptionPreset,
     type InventoryItem,
     type ItemAttribute,
     type ItemAttributePlacement,
 } from "@/lib/api/inventory";
-import {
-    sampleAddOns,
-    sampleUnits,
-} from "@/lib/inventory-config/sample-data";
-import type { AddOn, OptionPreset } from "@/lib/inventory-config/types";
 import { formatAmount } from "@/lib/inventory-config/units";
 import {
+    useCreateAddOnMutation,
     useCreateInventoryItemMutation,
     useDeleteItemImageMutation,
     useGenerateInventoryBarcodeMutation,
+    useGetAddOnsQuery,
     useGetInventoryItemQuery,
+    useGetOptionPresetsQuery,
     useGetInventoryUnitsQuery,
     useGetItemGroupsQuery,
     useReorderItemImagesMutation,
     useUpdateInventoryItemMutation,
 } from "@/services/inventoryApi";
+import { useUploadAssetMutation } from "@/services/assetApi";
 
 /** A file waiting to be uploaded, with the blob URL previewing it. */
 type PickedImage = {
@@ -238,6 +245,9 @@ function toAttributeDrafts(
         values: (attribute.values || []).map((value) => ({
             value: value.value || "",
             label: value.label || "",
+            // Retired, and passed straight through: nothing on the form edits
+            // a hex any more, and a value saved under the old colour attribute
+            // has nowhere else that remembers one.
             colorHex: value.colorHex || "",
             available: value.available !== false,
         })),
@@ -336,18 +346,84 @@ function preservedCommerceFields(initialItem: InventoryItem | undefined) {
  * "check the highlighted information" is a dead end if the field that failed is
  * one the form never renders an error beside.
  */
+/** A colour on the item, held while the form is open. */
+type ItemColorDraft = {
+    /** Row key while editing; never sent. */
+    id: string;
+    value: string;
+    colorHex: string;
+    imageUrl: string;
+};
+
+/**
+ * Turns the sizes on screen into the rows that actually carry stock.
+ *
+ * A size that comes in three colours is three countable things — Large/Red,
+ * Large/Navy, Large/Black — because that is the level a shop counts at: Large
+ * being "in stock" says nothing about which colours are left. A size with no
+ * colours ticked stays one row, which is how every item without colours works
+ * and keeps working.
+ *
+ * Price rides down from the size, so every colour of a Large costs what a
+ * Large costs. SKU and barcode do not: they identify one countable thing, and
+ * copying a size's SKU onto three shelves would make three things claim to be
+ * the same one.
+ */
+function toVariantRows(rows: OptionRow[]) {
+    return rows.flatMap((row) => {
+        const size = row.name.trim();
+
+        if (!row.colorValues.length) {
+            return [
+                {
+                    name: size,
+                    sku: row.sku.trim(),
+                    barcode: row.barcode.trim(),
+                    imageUrl: row.imageUrl,
+                    optionName: size,
+                    colorValue: "",
+                    available: row.available,
+                    ...(row.price === undefined ? {} : { price: row.price }),
+                },
+            ];
+        }
+
+        return row.colorValues.map((colour, index) => ({
+            name: `${size} / ${colour}`,
+            // The first pair keeps the size's SKU so an item that only later
+            // gained colours does not lose the code already printed on it.
+            sku: index === 0 ? row.sku.trim() : "",
+            barcode: index === 0 ? row.barcode.trim() : "",
+            imageUrl: row.imageUrl,
+            optionName: size,
+            colorValue: colour,
+            available: row.available,
+            ...(row.price === undefined ? {} : { price: row.price }),
+        }));
+    });
+}
+
 function emptyOption(): OptionRow {
     return {
         id: createRowId(),
         name: "",
         sku: "",
         barcode: "",
+        imageUrl: "",
+        colorValues: [],
         available: true,
     };
 }
 
 type OptionRow = {
+    /**
+     * How this row is referred to while the form is open — including by a
+     * conversion declared for it, which is why it has to outlive a rename and
+     * exist before the option is ever saved.
+     */
     id: string;
+    /** The saved option's own id, once the server has given it one. */
+    variantId?: string;
     name: string;
     /**
      * Each variation is scanned and counted on its own, so it needs its own
@@ -359,10 +435,149 @@ type OptionRow = {
      */
     sku: string;
     barcode: string;
+    /**
+     * The stored URL of this option's own picture — what the store swaps to
+     * when a shopper picks the option. Empty on an item whose options all look
+     * alike, and on a picture picked here but not saved yet.
+     */
+    imageUrl: string;
+    /**
+     * The swatch this option shows on the store — the circle a shopper clicks.
+     *
+     * Empty on an option that is not a colour: a size has nothing to show. It
+     * belongs to the option because the option is what carries the price and
+     * the shelf, and a colour a shop cannot count is not one it can sell.
+     */
+    /**
+     * Which of the item's colours this size comes in.
+     *
+     * Empty means it is not sold by colour and the size alone is the whole
+     * option. Each ticked colour becomes its own countable row on save, which
+     * is what lets Large be out in Navy while Large in Red is stacked up.
+     */
+    colorValues: string[];
+    /**
+     * A picture picked for this option and not uploaded yet.
+     *
+     * Nothing leaves the browser until the form is submitted: an item that is
+     * never created should not litter storage with pictures of options that do
+     * not exist. `previewUrl` is the blob standing in for it on screen.
+     */
+    file?: File;
+    previewUrl?: string;
     available: boolean;
     /** Whatever Sale Management has set. Shown here, never edited here. */
     price?: number;
 };
+
+/**
+ * The picture of one option.
+ *
+ * A pick is held here as a file and shown as a blob; it is uploaded by the save
+ * along with the rest of the item, so nothing reaches storage until the form is
+ * submitted and abandoning the form leaves nothing behind.
+ */
+function OptionImageField({
+    option,
+    index,
+    disabled,
+    onChange,
+}: {
+    option: OptionRow;
+    index: number;
+    disabled: boolean;
+    onChange: (patch: Partial<OptionRow>) => void;
+}) {
+    const { create, release } = useObjectUrls();
+    const { toast } = useToast();
+    const preview = option.previewUrl || option.imageUrl;
+    const label = option.name || `Option ${index + 1}`;
+
+    function handlePick(file: File) {
+        const message = itemImageRules.validate(file);
+
+        if (message) {
+            toast({
+                tone: "error",
+                title: "Option image not selected",
+                description: message,
+            });
+            return;
+        }
+
+        release(option.previewUrl);
+        // The stored URL goes with it: what is on screen is what will be
+        // saved, and a replaced picture is no longer this option's.
+        onChange({ file, previewUrl: create(file), imageUrl: "" });
+    }
+
+    function handleRemove() {
+        release(option.previewUrl);
+        onChange({ file: undefined, previewUrl: undefined, imageUrl: "" });
+    }
+
+    return (
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <Label className="self-start text-xs font-medium text-muted-foreground">
+                Image
+            </Label>
+            <label
+                className="group relative grid size-21.5 cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30 text-muted-foreground transition-colors hover:border-primary/50 focus-within:border-primary"
+                title={
+                    preview
+                        ? `Replace the image for ${label}`
+                        : `Add an image for ${label}`
+                }
+            >
+                <input
+                    type="file"
+                    accept={itemImageRules.accept}
+                    disabled={disabled}
+                    aria-label={`Image for ${label}`}
+                    className="sr-only"
+                    onChange={(event) => {
+                        const [file] = Array.from(event.target.files || []);
+                        // Let the same file be picked again after a remove.
+                        event.target.value = "";
+                        if (file) handlePick(file);
+                    }}
+                />
+                {preview ? (
+                    // A saved picture is a URL the API serves; a fresh pick is
+                    // a blob until the save uploads it.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={preview}
+                        alt=""
+                        className="size-full object-cover"
+                    />
+                ) : (
+                    <ImagePlus className="size-5" aria-hidden="true" />
+                )}
+            </label>
+            {preview ? (
+                <Button
+                    type="button"
+                    variant="link"
+                    size="xs"
+                    onClick={handleRemove}
+                    className="px-0 text-[11px] text-muted-foreground no-underline hover:text-danger hover:underline"
+                >
+                    Remove
+                </Button>
+            ) : (
+                <span className="text-[11px] text-muted-foreground">
+                    Optional
+                </span>
+            )}
+            {option.file ? (
+                <span className="text-[11px] text-muted-foreground">
+                    Not saved yet
+                </span>
+            ) : null}
+        </div>
+    );
+}
 
 const fieldLabels: Record<string, string> = {
     itemGroupId: "Category",
@@ -417,8 +632,12 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     // picks, or a fact about the item.
     const [newPlacement, setNewPlacement] =
         useState<ItemAttributePlacement>("OPTION");
-    const [attachedAddOnIds, setAttachedAddOnIds] = useState<string[]>([]);
+    const [attachedAddOnIds, setAttachedAddOnIds] = useState<string[]>(() =>
+        (initialItem?.addOns || []).map((addOn) => addOn.id),
+    );
     const [addOnPickerOpen, setAddOnPickerOpen] = useState(false);
+    const [presetPickerOpen, setPresetPickerOpen] = useState(false);
+    const { data: optionPresets } = useGetOptionPresetsQuery();
     const [newAddOnOpen, setNewAddOnOpen] = useState(false);
     /**
      * The item's options: same item, different size or pack, each sold on its
@@ -431,28 +650,172 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
         );
 
-    const [options, setOptions] = useState<OptionRow[]>(() =>
-        (initialItem?.variants || []).map((variant) => ({
+    /**
+     * The saved pairs, folded back into one row per size.
+     *
+     * Storage keeps Large/Red and Large/Navy apart because each has its own
+     * shelf, but the seller typed one Large. Folding on the way in is what
+     * makes the form read the way it was filled in.
+     */
+    const [options, setOptions] = useState<OptionRow[]>(() => {
+        const rows: OptionRow[] = [];
+        const bySize = new Map<string, OptionRow>();
+
+        for (const variant of initialItem?.variants || []) {
+            const size = (variant.optionName || variant.name || "").trim();
+            const colour = (variant.colorValue || "").trim();
+            const key = size.toLowerCase();
+            const held = bySize.get(key);
+
+            if (held) {
+                if (colour && !held.colorValues.includes(colour)) {
+                    held.colorValues.push(colour);
+                }
+                continue;
+            }
+
+            const row: OptionRow = {
+                // A saved option keeps its own id as the row key, so the
+                // conversions loaded below already point at the right row.
+                id: variant.id || createRowId(),
+                ...(variant.id ? { variantId: variant.id } : {}),
+                name: size,
+                sku: variant.sku || "",
+                barcode: variant.barcode || "",
+                imageUrl: variant.imageUrl || "",
+                colorValues: colour ? [colour] : [],
+                available: variant.available !== false,
+                price: variant.price ?? undefined,
+            };
+
+            bySize.set(key, row);
+            rows.push(row);
+        }
+
+        return rows;
+    });
+
+    /** The colours this item comes in, declared once and shared by every size. */
+    const [colors, setColors] = useState<ItemColorDraft[]>(() =>
+        (initialItem?.colors || []).map((color) => ({
             id: createRowId(),
-            name: variant.name || "",
-            sku: "",
-            barcode: "",
-            available: variant.available !== false,
-            price: variant.price ?? undefined,
+            value: color.value || "",
+            colorHex: color.colorHex || "",
+            imageUrl: color.imageUrl || "",
         })),
     );
     /**
-     * The shared add-on library, plus anything created from this form.
+     * The shared add-on library.
      *
-     * A new add-on belongs to the library, not to this item — it is attached
-     * here as a convenience so the flow does not break off to Inventory config
-     * mid-item. Nothing is saved anywhere yet; see the config plan.
+     * A new add-on belongs to the library, not to this item — creating one here
+     * is a convenience so the flow does not break off to Inventory config
+     * mid-item, and it lands in the library for every other item to attach.
      */
-    const [addOnLibrary, setAddOnLibrary] = useState<AddOn[]>(sampleAddOns);
+    const { data: addOnLibrary } = useGetAddOnsQuery();
+    const [createAddOnRecord, createAddOnState] = useCreateAddOnMutation();
     const [uomDraft, setUomDraft] = useState<ItemUomDraft>(() => ({
         ...emptyUomDraft,
         baseUnitId: initialItem?.unit?.id || "",
+        /*
+         * One row per pack per size, not per pack per pair.
+         *
+         * A pack is stored against each countable row, so a six-pack of Small
+         * that comes in three colours is three saved conversions. The seller
+         * declared one, so they are folded back the way the sizes above them
+         * are — and re-pointed at the size's row rather than at whichever pair
+         * happened to be first.
+         */
+        conversions: (() => {
+            const sizeOfVariant = new Map<string, string>();
+            for (const variant of initialItem?.variants || []) {
+                if (variant.id) {
+                    sizeOfVariant.set(
+                        variant.id,
+                        (variant.optionName || variant.name || "").trim().toLowerCase(),
+                    );
+                }
+            }
+
+            const rowOfSize = new Map<string, string>();
+            for (const row of options) {
+                rowOfSize.set(row.name.trim().toLowerCase(), row.id);
+            }
+
+            const seen = new Set<string>();
+
+            return (initialItem?.uomConversions || [])
+                .filter((conversion) => conversion.unit?.id)
+                .flatMap((conversion) => {
+                    const size = conversion.variantId
+                        ? sizeOfVariant.get(conversion.variantId) ?? ""
+                        : "";
+                    const rowId = size ? rowOfSize.get(size) : undefined;
+
+                    // Same pack, same size — the colours of it are one entry.
+                    const key = `${conversion.unit?.id}|${size}`;
+                    if (seen.has(key)) return [];
+                    seen.add(key);
+
+                    return [
+                        {
+                            id: conversion.id || createRowId(),
+                            unitId: conversion.unit?.id || "",
+                            factor: conversion.factor ?? 1,
+                            ...(rowId ? { variantId: rowId } : {}),
+                        },
+                    ];
+                });
+        })(),
     }));
+    /**
+     * The options a conversion can be declared for.
+     *
+     * A name is all it takes: an option typed on this screen is saved in the
+     * same request as the conversion that names it, so it need not exist on the
+     * server first. Unnamed rows are left out — the save drops them, and a case
+     * of nothing is not a thing.
+     */
+    /** Only colours worth offering: a blank row is one still being typed. */
+    const namedColors = useMemo(
+        () => colors.filter((color) => color.value.trim()),
+        [colors],
+    );
+
+    const namedOptions = useMemo(
+        () =>
+            options
+                .filter((option) => option.name.trim())
+                .map((option) => ({ id: option.id, name: option.name.trim() })),
+        [options],
+    );
+
+    /**
+     * Removes an option, and with it any larger unit declared for it.
+     *
+     * A case of Large means nothing once Large is gone, and leaving it behind
+     * would fail the save with a message about an option no longer on screen.
+     */
+    function removeOption(rowId: string) {
+        const orphaned = uomDraft.conversions.filter(
+            (conversion) => conversion.variantId === rowId,
+        );
+        setOptions((current) => current.filter((row) => row.id !== rowId));
+
+        if (orphaned.length) {
+            setUomDraft((current) => ({
+                ...current,
+                conversions: current.conversions.filter(
+                    (conversion) => conversion.variantId !== rowId,
+                ),
+            }));
+            toast({
+                tone: "info",
+                title: `${orphaned.length === 1 ? "A conversion was" : `${orphaned.length} conversions were`} removed too`,
+                description:
+                    "They were declared for that option, so they went with it.",
+            });
+        }
+    }
     const [barcodePreview, setBarcodePreview] = useState(
         initialItem?.barcode || "",
     );
@@ -477,6 +840,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [deleteImage, deleteImageState] = useDeleteItemImageMutation();
+    const [uploadAsset] = useUploadAssetMutation();
     const [reorderImages, reorderImagesState] = useReorderItemImagesMutation();
     const isEditing = Boolean(initialItem);
     const isSaving = createState.isLoading || updateState.isLoading;
@@ -606,16 +970,34 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         }
     }
 
+    /**
+     * Only a sub-category can be picked: a parent is a heading, not a shelf.
+     * Filing an item on the parent would leave it in a bucket that is really
+     * the sum of its children, and reports would count it twice.
+     */
+    const categoryGroups = useMemo(
+        () =>
+            (groups || []).map((group) => ({
+                id: group.id,
+                label: group.name || "Unnamed category",
+                subGroups: (group.subGroups || []).map((subGroup) => ({
+                    id: subGroup.id,
+                    label: subGroup.name || "Unnamed",
+                })),
+            })),
+        [groups],
+    );
+
+    /** Flat, for the trigger's own label and for the preview. */
     const categoryOptions = useMemo(
         () =>
-            (groups || []).flatMap((group) => [
-                { id: group.id, label: group.name || "Unnamed category" },
-                ...(group.subGroups || []).map((subGroup) => ({
+            categoryGroups.flatMap((group) =>
+                group.subGroups.map((subGroup) => ({
                     id: subGroup.id,
-                    label: `${group.name || "Category"} / ${subGroup.name || "Unnamed"}`,
+                    label: `${group.label} / ${subGroup.label}`,
                 })),
-            ]),
-        [groups],
+            ),
+        [categoryGroups],
     );
 
     const editingAttribute = attributes.find(
@@ -651,46 +1033,149 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         );
     }
 
-    /** Copies a preset's choices in. Never a live link — see the config plan. */
+    /**
+     * Copies a preset's choices in.
+     *
+     * A copy, never a live link: not every drink comes in Large, so the values
+     * are the item's own the moment they land and editing the preset later
+     * leaves this item alone.
+     */
+    /**
+     * Copies a preset's choices in as Options.
+     *
+     * A copy, never a live link: not every drink comes in Large, so the values
+     * are the item's own the moment they land and editing the preset later
+     * leaves this item alone.
+     */
     function applyPreset(preset: OptionPreset) {
-        setAttributes((current) => [
-            ...current,
-            {
-                id: createRowId(),
-                name: preset.name,
-                type: preset.type,
-                placement: "OPTION" as const,
-                icon: "",
-                values: preset.values.map((value) => ({
-                    value: value.value,
-                    label: "",
+        // Blank starter rows would otherwise sit above the preset's choices
+        // and save as nothing.
+        const existing = options.filter((row) => row.name.trim());
+        const taken = new Set(
+            existing.map((row) => row.name.trim().toLowerCase()),
+        );
+
+        // A preset of colours describes the item's palette, not its sizes.
+        if (preset.type === "COLOR") {
+            const held = new Set(
+                colors.map((color) => color.value.trim().toLowerCase()),
+            );
+            const fresh = (preset.values || [])
+                .filter((value) => {
+                    const name = (value.value || "").trim();
+                    return name && !held.has(name.toLowerCase());
+                })
+                .map((value) => ({
+                    id: createRowId(),
+                    value: (value.value || "").trim(),
                     colorHex: value.colorHex || "",
-                    available: true,
-                })),
-            },
-        ]);
+                    imageUrl: value.imageUrl || "",
+                }));
+
+            if (!fresh.length) {
+                toast({
+                    tone: "error",
+                    title: `${preset.name} not added`,
+                    description: "This item already has every one of those colours.",
+                });
+                return;
+            }
+
+            setColors((current) => [...current, ...fresh]);
+            toast({
+                tone: "success",
+                title: `${preset.name} added`,
+                description: "Tick the sizes that come in them.",
+            });
+            return;
+        }
+
+        const added: OptionRow[] = (preset.values || [])
+            .filter((value) => {
+                const name = (value.value || "").trim();
+                return name && !taken.has(name.toLowerCase());
+            })
+            .map((value) => ({
+                ...emptyOption(),
+                name: (value.value || "").trim(),
+                // Price stays unset: it is per sales channel, in Sale
+                // Management, exactly as a hand-added option would be.
+            }));
+
+        if (!added.length) {
+            toast({
+                tone: "error",
+                title: `${preset.name} not added`,
+                description: "This item already has every one of those options.",
+            });
+            return;
+        }
+
+        setOptions([...existing, ...added]);
         toast({
             tone: "success",
             title: `${preset.name} added`,
-            description: "Adjust the choices for this item as needed.",
+            description: `${added.length} ${added.length === 1 ? "option" : "options"} added — adjust them for this item as needed.`,
         });
     }
 
     const attachedAddOns = attachedAddOnIds
-        .map((id) => addOnLibrary.find((addOn) => addOn.id === id))
+        .map((id) => (addOnLibrary || []).find((addOn) => addOn.id === id))
         .filter((addOn) => addOn !== undefined);
 
-    const addOnUnitSymbol = (unitId: string) =>
-        sampleUnits.find((unit) => unit.id === unitId)?.symbol ?? "";
+    const describeAddOnUse = (addOn: AddOn) =>
+        `Uses ${formatAmount(addOn.usePerOrder ?? 1)} ${
+            addOn.baseUnit?.name || "unit"
+        } per order`;
 
-    function createAddOn(addOn: AddOn) {
-        setAddOnLibrary((current) => [...current, addOn]);
-        attachAddOns([addOn.id]);
-        toast({
-            tone: "success",
-            title: `${addOn.name} created`,
-            description: "Attached to this item and added to the library.",
-        });
+    /** The add-on dialog is shared with Inventory config, which reads a unit
+     * by its symbol and category — both of which the API now carries. */
+    const configUnits = useMemo(
+        () =>
+            (units || []).map((unit) => ({
+                id: unit.id,
+                name: unit.name || "Unnamed unit",
+                symbol: unit.symbol || "",
+                category: unit.category || ("COUNT" as const),
+                system: unit.system !== false,
+            })),
+        [units],
+    );
+
+    async function createAddOn(draft: {
+        name: string;
+        baseUnitId: string;
+        usePerOrder: number;
+        conversions: { unitId: string; factor: number }[];
+    }) {
+        try {
+            const created = await createAddOnRecord({
+                name: draft.name,
+                baseUnitId: draft.baseUnitId,
+                usePerOrder: draft.usePerOrder,
+                uomConversions: draft.conversions.map((conversion) => ({
+                    unitId: conversion.unitId,
+                    factor: conversion.factor,
+                })),
+                note: "",
+            }).unwrap();
+
+            attachAddOns([created.id]);
+            toast({
+                tone: "success",
+                title: `${created.name || draft.name} created`,
+                description: "Attached to this item and added to the library.",
+            });
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Add-on not created",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to create that add-on.",
+                ),
+            });
+        }
     }
 
     function detachAddOn(id: string) {
@@ -746,7 +1231,55 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 values: attribute.values,
             })),
             descriptionBlocks: blocks.map(fromBlockDraft),
-            variants: preserved.variants,
+            // Straight off the rows on screen, not off what was last saved:
+            // the point of the preview is to show the options — and the image
+            // each one switches to — as they are being typed.
+            variants: options
+                .filter((option) => option.name.trim())
+                .map((option) => ({
+                    name: option.name.trim(),
+                    price: option.price,
+                    available: option.available,
+                    imageUrl: option.previewUrl || option.imageUrl,
+                    colorValues: option.colorValues,
+                })),
+            // Straight off the colour rows too, so the preview shows the
+            // swatches as they are being typed.
+            colors: colors
+                .filter((color) => color.value.trim())
+                .map((color) => ({
+                    value: color.value.trim(),
+                    colorHex: color.colorHex.trim() || undefined,
+                    imageUrl: color.imageUrl.trim() || undefined,
+                })),
+            // The conversions as they stand on screen. A pack's price is not
+            // edited here — it is set in Sale Management — so it is read back
+            // off the saved item, matched on the unit and the option it is
+            // for; a conversion added a moment ago simply has none yet.
+            packs: uomDraft.conversions
+                .map((conversion) => {
+                    const unit = (units || []).find(
+                        (row) => row.id === conversion.unitId,
+                    );
+                    const option = options.find(
+                        (row) => row.id === conversion.variantId,
+                    );
+                    const variantName = option?.name.trim() || "";
+                    const saved = (initialItem?.uomConversions || []).find(
+                        (row) =>
+                            row.unit?.id === conversion.unitId &&
+                            (row.variantName || "") === variantName,
+                    );
+
+                    return {
+                        unitName: unit?.name || "Pack",
+                        factor: conversion.factor,
+                        price: saved?.price ?? undefined,
+                        ...(variantName ? { variantName } : {}),
+                    };
+                })
+                // A conversion whose unit has gone is not something to show.
+                .filter((packRow) => packRow.factor > 0),
         });
     }
 
@@ -754,6 +1287,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         event.preventDefault();
 
         const formData = new FormData(event.currentTarget);
+        // The rows that will be saved, in the order they are sent, so a
+        // picture picked for one can be matched back to it afterwards.
+        const namedRows = options.filter((option) => option.name.trim());
         const attributeValues = attributes.map((attribute) => ({
             name: attribute.name,
             type: attribute.type,
@@ -761,15 +1297,41 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             icon: attribute.icon,
             values: attribute.values,
         }));
+        /*
+         * Every larger unit on an item sold in options has to say which option
+         * it is for. Catching it here rather than at the server means the form
+         * can name the unit that is missing one.
+         */
+        if (namedOptions.length) {
+            const stray = uomDraft.conversions.find(
+                (conversion) =>
+                    !namedOptions.some(
+                        (option) => option.id === conversion.variantId,
+                    ),
+            );
+
+            if (stray) {
+                const unit = (units || []).find(
+                    (row) => row.id === stray.unitId,
+                );
+
+                toast({
+                    tone: "error",
+                    title: `Item not ${isEditing ? "updated" : "created"}`,
+                    description: `This item is sold in options, so the ${
+                        unit?.name || "larger"
+                    } conversion has to say which one it is for. Pick an option on the highlighted row under Conversions, or remove it.`,
+                });
+                document
+                    .getElementById("conversion-option")
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                return;
+            }
+        }
+
         const result = inventoryItemSchema.safeParse({
-            itemGroupId:
-                String(formData.get("itemGroupId") || "") === "__none"
-                    ? ""
-                    : String(formData.get("itemGroupId") || ""),
-            unitId:
-                String(formData.get("unitId") || "") === "__none"
-                    ? ""
-                    : String(formData.get("unitId") || ""),
+            itemGroupId: String(formData.get("itemGroupId") || ""),
+            unitId: String(formData.get("unitId") || ""),
             name: String(formData.get("name") || ""),
             sku: String(formData.get("sku") || ""),
             // No input for this any more — SKU is the code people use. An
@@ -784,15 +1346,74 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             lowStockDefault: Number(formData.get("lowStockDefault") || 0),
             status: String(formData.get("status") || ""),
             ...preservedCommerceFields(initialItem),
-            variants: options
-                .filter((option) => option.name.trim())
-                .map((option) => ({
-                    name: option.name.trim(),
-                    available: option.available,
-                    ...(option.price === undefined
-                        ? {}
-                        : { price: option.price }),
+            // A picture picked but not uploaded yet has no URL to send; the
+            // save puts one here once it has carried the file up.
+            // One countable row per size-and-colour pair, which is the level
+            // stock is kept at.
+            variants: toVariantRows(namedRows),
+            colors: colors
+                .filter((color) => color.value.trim())
+                .map((color) => ({
+                    value: color.value.trim(),
+                    colorHex: color.colorHex.trim(),
+                    imageUrl: color.imageUrl.trim(),
                 })),
+            addOnIds: attachedAddOnIds,
+            // The base unit comes off the form's own `unitId` field; these are
+            // the larger units declared against it.
+            /*
+             * A pack belongs to a shelf, and the shelf is the pair.
+             *
+             * The seller declares a six-pack of Small once; Small coming in
+             * three colours makes that three packs, one per countable row,
+             * because a six-pack of Small/Navy draws down Navy and not Red.
+             * They travel by name — the pairs are written in this same request
+             * and a brand-new one has no id yet.
+             */
+            uomConversions: uomDraft.conversions.flatMap((conversion) => {
+                // The option it is for travels by name as well as by id: a
+                // brand-new option has no id yet, and a renamed one is a new
+                // option, so the name is what the server can match on.
+                const option = options.find(
+                    (row) => row.id === conversion.variantId,
+                );
+                // Saving replaces the whole list, and what a pack sells for
+                // is set in Sale Management rather than here — so the price
+                // it already carries has to travel back with it.
+                const saved = (initialItem?.uomConversions || []).find(
+                    (row) => row.id && row.id === conversion.id,
+                );
+
+                const base = {
+                    unitId: conversion.unitId,
+                    factor: conversion.factor,
+                    ...(saved?.price == null ? {} : { price: saved.price }),
+                };
+
+                const size = option?.name.trim();
+
+                if (!size) return [base];
+
+                if (!option?.colorValues.length) {
+                    return [
+                        {
+                            ...base,
+                            ...(option?.variantId
+                                ? { variantId: option.variantId }
+                                : {}),
+                            variantName: size,
+                        },
+                    ];
+                }
+
+                // Named per pair, and without an id: the pairs are being
+                // written in this same request, so the name is the only handle
+                // both halves of it share.
+                return option.colorValues.map((colour) => ({
+                    ...base,
+                    variantName: `${size} / ${colour}`,
+                }));
+            }),
         });
 
         if (!result.success) {
@@ -822,6 +1443,43 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
         setFieldErrors({});
 
+        /*
+         * Option pictures go up now, not when they were picked: an item that is
+         * never created leaves nothing in storage behind it. Each one comes
+         * back as a URL, which is what the option itself carries.
+         */
+        let variants = result.data.variants;
+
+        try {
+            variants = await Promise.all(
+                variants.map(async (variant, index) => {
+                    const file = namedRows[index]?.file;
+
+                    if (!file) return variant;
+
+                    const asset = await uploadAsset(file).unwrap();
+
+                    if (!asset.url) {
+                        throw new Error("The upload returned no URL.");
+                    }
+
+                    return { ...variant, imageUrl: asset.url };
+                }),
+            );
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Option image not uploaded",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to upload an option image, so nothing was saved. Try again.",
+                ),
+            });
+            return;
+        }
+
+        const body = { ...result.data, variants };
+
         try {
             // The newly picked pictures ride along with the save, so an item
             // and its gallery land in one request.
@@ -830,11 +1488,11 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             if (initialItem) {
                 await updateItem({
                     itemId: initialItem.id,
-                    body: result.data,
+                    body,
                     files,
                 }).unwrap();
             } else {
-                await createItem({ body: result.data, files }).unwrap();
+                await createItem({ body, files }).unwrap();
             }
             toast({
                 tone: "success",
@@ -860,40 +1518,53 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         );
     }
 
+    /*
+     * The form owns the height of the shell's main region and scrolls its
+     * middle only, so the title and the save bar stay put. The negative bottom
+     * margin cancels the region's own bottom padding — without it the form
+     * would be a padding taller than its box and the region would scroll too.
+     */
     return (
         <form
             ref={formRef}
             onSubmit={handleSubmit}
             noValidate
-            className="flex flex-col gap-6"
+            className="-mb-8 flex h-full min-h-0 flex-col"
         >
-            <InventoryPageHeader
-                title={isEditing ? "Edit item" : "Create item"}
-                description="Define the item before it can be sold or tracked."
-                action={
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={openPreview}
-                            className="h-10 gap-2"
-                        >
-                            <Eye />
-                            Preview
-                        </Button>
-                        <Button
-                            variant="outline"
-                            render={<Link href="/inventory" />}
-                            nativeButton={false}
-                            className="h-10 gap-2"
-                        >
-                            <ArrowLeft />
-                            Back to items
-                        </Button>
-                    </div>
-                }
-            />
+            <div className="shrink-0 pb-5">
+                <InventoryPageHeader
+                    title={isEditing ? "Edit item" : "Create item"}
+                    description="Define the item before it can be sold or tracked."
+                    action={
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={openPreview}
+                                className="h-10 gap-2"
+                            >
+                                <Eye />
+                                Preview
+                            </Button>
+                            <Button
+                                variant="outline"
+                                render={<Link href="/inventory" />}
+                                nativeButton={false}
+                                className="h-10 gap-2"
+                            >
+                                <ArrowLeft />
+                                Back to items
+                            </Button>
+                        </div>
+                    }
+                />
+            </div>
 
+            {/*
+             * The side padding is re-applied here so the scrollbar sits at the
+             * edge of the region and the card shadows are not clipped.
+             */}
+            <div className="-mx-5 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pt-1 pb-6 lg:-mx-8 lg:px-8">
             <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
                     title="Basics"
@@ -992,37 +1663,60 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     >
                         <Select
                             name="itemGroupId"
-                            defaultValue={initialItem?.itemGroup?.id || "__none"}
-                            items={{
-                                __none: "No category",
-                                ...Object.fromEntries(
-                                    categoryOptions.map((option) => [
-                                        option.id,
-                                        option.label,
-                                    ]),
-                                ),
-                            }}
+                            defaultValue={initialItem?.itemGroup?.id || ""}
+                            items={Object.fromEntries(
+                                categoryOptions.map((option) => [
+                                    option.id,
+                                    option.label,
+                                ]),
+                            )}
                         >
                             <SelectTrigger
                                 id="itemGroupId"
                                 className={`${inventoryControlClassName} w-full`}
                             >
-                                <SelectValue />
+                                <SelectValue placeholder="Choose a category" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="__none">
-                                    No category
-                                </SelectItem>
-                                {categoryOptions.map((option) => (
-                                    <SelectItem
-                                        key={option.id}
-                                        value={option.id}
-                                    >
-                                        {option.label}
-                                    </SelectItem>
+                                {categoryGroups.map((group) => (
+                                    <SelectGroup key={group.id}>
+                                        <SelectLabel>
+                                            {group.label}
+                                        </SelectLabel>
+                                        {group.subGroups.length ? (
+                                            group.subGroups.map((subGroup) => (
+                                                <SelectItem
+                                                    key={subGroup.id}
+                                                    value={subGroup.id}
+                                                >
+                                                    {subGroup.label}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem
+                                                value={`__empty-${group.id}`}
+                                                disabled
+                                            >
+                                                No sub-categories yet
+                                            </SelectItem>
+                                        )}
+                                    </SelectGroup>
                                 ))}
                             </SelectContent>
                         </Select>
+                        {categoryOptions.length ? null : (
+                            <p className="text-xs text-muted-foreground">
+                                An item is filed under a sub-category. Add one
+                                in{" "}
+                                <Link
+                                    href="/inventory/categories"
+                                    className="font-medium text-primary underline underline-offset-2"
+                                >
+                                    Categories
+                                </Link>{" "}
+                                first.
+                            </p>
+                        )}
                     </Field>
                     <Field
                         label="Item type *"
@@ -1132,16 +1826,159 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                 ? `Options · ${options.length}`
                                 : "Options"
                         }
-                        description="Variations of this item — Small, Large, 6-pack. Each is scanned and counted on its own, and priced per sales channel in Sale Management."
+                        description="Variations of this item — Small, Medium, Large. Each is scanned and counted on its own, can carry its own picture, and is priced per sales channel in Sale Management."
                     />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setOptions((current) => [...current, emptyOption()])}
-                    >
-                        <Plus />
-                        Add option
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {(optionPresets || []).length ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setPresetPickerOpen(true)}
+                            >
+                                From preset
+                            </Button>
+                        ) : null}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setOptions((current) => [...current, emptyOption()])}
+                        >
+                            <Plus />
+                            Add option
+                        </Button>
+                    </div>
+                </div>
+
+                {/*
+                 * The colours the item comes in, declared once.
+                 *
+                 * Once, not per size: the same red shirt photographed for
+                 * Small is the same photograph for Large. Each size below then
+                 * ticks which of these it comes in.
+                 */}
+                <div className="mt-5 rounded-xl border border-border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-foreground">
+                                Colours
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Named and photographed once. Every size ticks
+                                the ones it comes in, and stock is kept per
+                                colour.
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                setColors((current) => [
+                                    ...current,
+                                    {
+                                        id: createRowId(),
+                                        value: "",
+                                        colorHex: "",
+                                        imageUrl: "",
+                                    },
+                                ])
+                            }
+                        >
+                            <Plus />
+                            Add colour
+                        </Button>
+                    </div>
+
+                    {colors.length ? (
+                        <ul className="mt-3 flex flex-col gap-2">
+                            {colors.map((color) => (
+                                <li
+                                    key={color.id}
+                                    className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
+                                >
+                                    <Input
+                                        value={color.value}
+                                        onChange={(event) =>
+                                            setColors((current) =>
+                                                current.map((row) =>
+                                                    row.id === color.id
+                                                        ? { ...row, value: event.target.value }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                        placeholder="e.g. Red"
+                                        aria-label="Colour name"
+                                        className={`${inventoryControlClassName} h-10 min-w-32 flex-1`}
+                                    />
+
+                                    <ColorSwatchButton
+                                        value={color.colorHex}
+                                        colorName={color.value}
+                                        label={`${color.value || "Colour"} swatch`}
+                                        onChange={(patch) =>
+                                            setColors((current) =>
+                                                current.map((row) =>
+                                                    row.id === color.id
+                                                        ? {
+                                                              ...row,
+                                                              ...(patch.colorHex === undefined
+                                                                  ? {}
+                                                                  : { colorHex: patch.colorHex }),
+                                                              // The swatch dialog
+                                                              // names the colour,
+                                                              // which is this row.
+                                                              ...(patch.colorName === undefined
+                                                                  ? {}
+                                                                  : { value: patch.colorName }),
+                                                          }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+
+                                    <ChoiceImageField
+                                        value={color.imageUrl}
+                                        label={`${color.value || "Colour"} photo`}
+                                        onChange={(url) =>
+                                            setColors((current) =>
+                                                current.map((row) =>
+                                                    row.id === color.id
+                                                        ? { ...row, imageUrl: url }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Remove ${color.value || "colour"}`}
+                                        onClick={() => {
+                                            const dropped = color.value.trim();
+                                            setColors((current) =>
+                                                current.filter((row) => row.id !== color.id),
+                                            );
+                                            // A size cannot come in a colour the
+                                            // item no longer has.
+                                            setOptions((current) =>
+                                                current.map((row) => ({
+                                                    ...row,
+                                                    colorValues: row.colorValues.filter(
+                                                        (held) => held !== dropped,
+                                                    ),
+                                                })),
+                                            );
+                                        }}
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
                 </div>
 
                 {options.length ? (
@@ -1186,11 +2023,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                 size="icon-sm"
                                                 aria-label={`Remove option ${option.name || index + 1}`}
                                                 onClick={() =>
-                                                    setOptions((current) =>
-                                                        current.filter(
-                                                            (row) => row.id !== option.id,
-                                                        ),
-                                                    )
+                                                    removeOption(option.id)
                                                 }
                                             >
                                                 <Trash2 />
@@ -1198,88 +2031,167 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                         </div>
                                     </div>
 
-                                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                                        <div className="flex flex-col gap-1.5">
-                                            <Label className="text-xs font-medium text-muted-foreground">
-                                                Option name
-                                            </Label>
-                                            <Input
-                                                aria-label={`Option ${index + 1} name`}
-                                                value={option.name}
-                                                onChange={(event) =>
-                                                    updateOption(option.id, {
-                                                        name: event.target.value,
-                                                    })
-                                                }
-                                                placeholder="e.g. Large"
-                                                className={`${inventoryControlClassName} h-10`}
-                                            />
-                                        </div>
-
-                                        <div className="flex flex-col gap-1.5">
-                                            <Label className="text-xs font-medium text-muted-foreground">
-                                                SKU
-                                            </Label>
-                                            <Input
-                                                aria-label={`Option ${index + 1} SKU`}
-                                                value={option.sku}
-                                                onChange={(event) =>
-                                                    updateOption(option.id, {
-                                                        sku: event.target.value,
-                                                    })
-                                                }
-                                                placeholder="e.g. TEA-L"
-                                                className={`${inventoryControlClassName} h-10`}
-                                            />
-                                        </div>
-
-                                        <div className="flex flex-col gap-1.5">
-                                            <Label className="text-xs font-medium text-muted-foreground">
-                                                Barcode
-                                            </Label>
-                                            <div className="flex gap-2">
+                                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
+                                        <OptionImageField
+                                            option={option}
+                                            index={index}
+                                            disabled={isSaving}
+                                            onChange={(patch) =>
+                                                updateOption(option.id, patch)
+                                            }
+                                        />
+                                        <div className="grid flex-1 gap-3 sm:grid-cols-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-xs font-medium text-muted-foreground">
+                                                    Option name
+                                                </Label>
                                                 <Input
-                                                    aria-label={`Option ${index + 1} barcode`}
-                                                    value={option.barcode}
+                                                    aria-label={`Option ${index + 1} name`}
+                                                    value={option.name}
                                                     onChange={(event) =>
                                                         updateOption(option.id, {
-                                                            barcode: event.target.value,
+                                                            name: event.target.value,
                                                         })
                                                     }
-                                                    placeholder="Scan, type or generate"
-                                                    className={`${inventoryControlClassName} h-10 flex-1 font-mono`}
+                                                    placeholder="e.g. Large"
+                                                    className={`${inventoryControlClassName} h-10`}
                                                 />
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon-sm"
-                                                    disabled={
-                                                        generateBarcodeState.isLoading
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-xs font-medium text-muted-foreground">
+                                                    SKU
+                                                </Label>
+                                                <Input
+                                                    aria-label={`Option ${index + 1} SKU`}
+                                                    value={option.sku}
+                                                    onChange={(event) =>
+                                                        updateOption(option.id, {
+                                                            sku: event.target.value,
+                                                        })
                                                     }
-                                                    onClick={() =>
-                                                        generateOptionBarcode(option.id)
-                                                    }
-                                                    aria-label={`Generate a unique barcode for option ${index + 1}`}
-                                                    title="Generate unique barcode"
-                                                    className="shrink-0 self-center"
-                                                >
-                                                    {generateBarcodeState.isLoading ? (
-                                                        <LoaderCircle className="animate-spin" />
-                                                    ) : (
-                                                        <Dices />
-                                                    )}
-                                                </Button>
+                                                    placeholder="e.g. TEA-L"
+                                                    className={`${inventoryControlClassName} h-10`}
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-xs font-medium text-muted-foreground">
+                                                    Barcode
+                                                </Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        aria-label={`Option ${index + 1} barcode`}
+                                                        value={option.barcode}
+                                                        onChange={(event) =>
+                                                            updateOption(option.id, {
+                                                                barcode: event.target.value,
+                                                            })
+                                                        }
+                                                        placeholder="Scan, type or generate"
+                                                        className={`${inventoryControlClassName} h-10 flex-1 font-mono`}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        disabled={
+                                                            generateBarcodeState.isLoading
+                                                        }
+                                                        onClick={() =>
+                                                            generateOptionBarcode(option.id)
+                                                        }
+                                                        aria-label={`Generate a unique barcode for option ${index + 1}`}
+                                                        title="Generate unique barcode"
+                                                        className="shrink-0 self-center"
+                                                    >
+                                                        {generateBarcodeState.isLoading ? (
+                                                            <LoaderCircle className="animate-spin" />
+                                                        ) : (
+                                                            <Dices />
+                                                        )}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/*
+                                     * Which colours this size comes in. Each
+                                     * tick becomes its own countable row, so
+                                     * Large can be out in Navy while Large in
+                                     * Red is stacked up.
+                                     */}
+                                    {namedColors.length ? (
+                                        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                                Comes in
+                                            </Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {namedColors.map((color) => {
+                                                    const ticked =
+                                                        option.colorValues.includes(
+                                                            color.value.trim(),
+                                                        );
+
+                                                    return (
+                                                        <button
+                                                            key={color.id}
+                                                            type="button"
+                                                            aria-pressed={ticked}
+                                                            onClick={() =>
+                                                                updateOption(option.id, {
+                                                                    colorValues: ticked
+                                                                        ? option.colorValues.filter(
+                                                                              (held) =>
+                                                                                  held !==
+                                                                                  color.value.trim(),
+                                                                          )
+                                                                        : [
+                                                                              ...option.colorValues,
+                                                                              color.value.trim(),
+                                                                          ],
+                                                                })
+                                                            }
+                                                            className={cn(
+                                                                "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
+                                                                ticked
+                                                                    ? "border-primary bg-primary/10 font-medium text-primary"
+                                                                    : "border-border text-muted-foreground hover:border-primary/50",
+                                                            )}
+                                                        >
+                                                            <span
+                                                                className="size-3.5 rounded-full border border-border"
+                                                                style={{
+                                                                    background:
+                                                                        color.colorHex ||
+                                                                        "transparent",
+                                                                }}
+                                                            />
+                                                            {color.value}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {option.colorValues.length
+                                                    ? `${option.colorValues.length} countable ${option.colorValues.length === 1 ? "row" : "rows"} — stock is kept per colour.`
+                                                    : "Not sold by colour; stock is kept for the size as a whole."}
+                                            </p>
+                                        </div>
+                                    ) : null}
                                 </li>
                             ))}
                         </ul>
 
                         <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
-                            Option names and availability are saved. Per-option
-                            SKU and barcode are not — the API has no field for
-                            them yet, so they stay on this screen for now.
+                            Each option is saved with its own SKU, barcode and
+                            image. Give an option an image and the store swaps
+                            to it when a shopper picks that option — leave it
+                            empty and the item gallery stays put. Pictures are
+                            uploaded when this item is saved, not before.
+                            Prices are set per sales channel in Sale
+                            Management.
                         </p>
                     </>
                 ) : (
@@ -1308,6 +2220,10 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
             <ItemUomCard
                 apiUnits={units || []}
+                // Every named option, saved or not: options and conversions are
+                // set up on this screen and saved together, so a case can be
+                // declared for an option typed a moment ago.
+                options={namedOptions}
                 lowStockDefault={initialItem?.lowStockDefault ?? 0}
                 lowStockError={fieldErrors.lowStockDefault}
                 draft={uomDraft}
@@ -1403,16 +2319,18 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 <div className="flex items-start justify-between gap-4">
                     <SectionHeading
                         title="Attributes"
-                        description="Define typed attributes such as size, colour or status."
+                        description="Notes about the item — a spec, a perk, a fact. What a shopper picks between is an Option."
                     />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => openAttributeDialog(null)}
-                    >
-                        <Plus />
-                        Add attribute
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => openAttributeDialog(null)}
+                        >
+                            <Plus />
+                            Add attribute
+                        </Button>
+                    </div>
                 </div>
                 <div className="mt-5 flex flex-col gap-3">
                     {attributes.length ? (
@@ -1499,6 +2417,28 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     ) : null}
                 </div>
 
+                <ItemPickerDialog
+                    open={presetPickerOpen}
+                    onOpenChange={setPresetPickerOpen}
+                    title="Apply an option preset"
+                    description="Its choices are copied onto this item, and can be edited afterwards."
+                    emptyMessage="No presets saved yet."
+                    options={(optionPresets || []).map((preset) => ({
+                        id: preset.id,
+                        label: preset.name || "Unnamed preset",
+                        hint: (preset.values || [])
+                            .map((value) => value.value)
+                            .filter(Boolean)
+                            .join(", "),
+                    }))}
+                    onPick={(id) => {
+                        const preset = (optionPresets || []).find(
+                            (candidate) => candidate.id === id,
+                        );
+                        if (preset) applyPreset(preset);
+                    }}
+                />
+
                 <ItemAttributeDialog
                     open={attributeDialogOpen}
                     onOpenChange={setAttributeDialogOpen}
@@ -1530,6 +2470,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         <Button
                             type="button"
                             variant="outline"
+                            disabled={createAddOnState.isLoading}
                             onClick={() => setNewAddOnOpen(true)}
                         >
                             <Plus />
@@ -1550,9 +2491,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                         {addOn.name}
                                     </p>
                                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                        Uses {formatAmount(addOn.usePerOrder)}{" "}
-                                        {addOnUnitSymbol(addOn.baseUnitId)} per
-                                        order
+                                        {describeAddOnUse(addOn)}
                                     </p>
                                 </div>
                                 <Button
@@ -1580,14 +2519,14 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     title="Attach an add-on"
                     description="Pick one from the shared library."
                     emptyMessage="Every add-on is already attached."
-                    options={addOnLibrary
+                    options={(addOnLibrary || [])
                         .filter(
                             (addOn) => !attachedAddOnIds.includes(addOn.id),
                         )
                         .map((addOn) => ({
                             id: addOn.id,
-                            label: addOn.name,
-                            hint: `Uses ${formatAmount(addOn.usePerOrder)} ${addOnUnitSymbol(addOn.baseUnitId)} per order`,
+                            label: addOn.name || "Unnamed add-on",
+                            hint: describeAddOnUse(addOn),
                         }))}
                     onPick={(id) => attachAddOns([id])}
                 />
@@ -1595,7 +2534,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 <AddOnDialog
                     open={newAddOnOpen}
                     onOpenChange={setNewAddOnOpen}
-                    units={sampleUnits}
+                    units={configUnits}
                     onSave={createAddOn}
                 />
             </section>
@@ -1639,8 +2578,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     </ul>
                 </div>
             ) : null}
+            </div>
 
-            <div className="flex flex-row items-center justify-end gap-2.5 sm:gap-3">
+            <div className="-mx-5 flex shrink-0 flex-row items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-4 lg:-mx-8 lg:px-8 sm:gap-3">
                 <Button
                     variant="outline"
                     render={<Link href="/inventory" />}

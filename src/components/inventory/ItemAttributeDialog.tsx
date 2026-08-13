@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SelectField } from "@/components/ui/select-field";
+import { SelectField, type SelectOption } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
     attributeIcon,
@@ -28,21 +28,33 @@ import {
     itemAttributeTypes,
     type ItemAttributePlacement,
     type ItemAttributeType,
+    type StoredItemAttributePlacement,
+    type StoredItemAttributeType,
 } from "@/lib/api/inventory";
 import { cn } from "@/lib/utils";
 
 export type AttributeValueDraft = {
     value: string;
     label: string;
-    colorHex: string;
+    /**
+     * Retired, and carried rather than edited: no field on this dialog writes
+     * it, but a value saved under the old colour attribute has a hex here and
+     * dropping it would discard the shop's swatches on the next save.
+     */
+    colorHex?: string;
     available: boolean;
 };
 
+/**
+ * The stored types rather than the offered ones: the pickers below list only
+ * what a shop may choose now, but an attribute already saved under a retired
+ * type still has to open, show, and save.
+ */
 export type AttributeDraft = {
     id: string;
     name: string;
-    type: ItemAttributeType;
-    placement: ItemAttributePlacement;
+    type: StoredItemAttributeType;
+    placement: StoredItemAttributePlacement;
     icon: string;
     values: AttributeValueDraft[];
 };
@@ -57,8 +69,27 @@ const placementOptions = itemAttributePlacements.map((placement) => ({
     label: itemAttributePlacementLabels[placement].label,
 }));
 
+/**
+ * The offered choices, plus the retired one this attribute is already on.
+ *
+ * A retired choice is listed only by the attribute still using it, and only
+ * until the shop picks something else: the dropdown reads its trigger label
+ * out of the options it was given, so leaving it out entirely would open an
+ * old colour attribute showing a blank type. Listing it for everyone would
+ * un-retire it.
+ */
+function withCurrent<T extends string>(
+    options: SelectOption[],
+    current: T,
+    label: string,
+) {
+    return options.some((option) => option.value === current)
+        ? options
+        : [...options, { value: current, label }];
+}
+
 export function emptyValue(): AttributeValueDraft {
-    return { value: "", label: "", colorHex: "", available: true };
+    return { value: "", label: "", available: true };
 }
 
 function emptyDraft(): AttributeDraft {
@@ -73,13 +104,13 @@ function emptyDraft(): AttributeDraft {
 }
 
 /** Placements that show one value, so the editor collapses to a single row. */
-function isSingleValue(placement: ItemAttributePlacement) {
+function isSingleValue(placement: StoredItemAttributePlacement) {
     return placement === "HIGHLIGHT" || placement === "SPECIFICATION";
 }
 
 function valueCopy(
-    type: ItemAttributeType,
-    placement: ItemAttributePlacement,
+    type: StoredItemAttributeType,
+    placement: StoredItemAttributePlacement,
 ) {
     if (isSingleValue(placement)) {
         return {
@@ -89,10 +120,6 @@ function valueCopy(
                     ? "On orders over $50"
                     : '6.7" Super Retina XDR',
         };
-    }
-
-    if (type === "COLOR") {
-        return { label: "Colours", placeholder: "Charcoal Gray" };
     }
 
     if (type === "NUMBER") {
@@ -161,8 +188,10 @@ function AttributeForm({
     const draft = initialAttribute || emptyDraft();
     const isEditing = Boolean(initialAttribute);
     const [name, setName] = useState(draft.name);
-    const [type, setType] = useState<ItemAttributeType>(draft.type);
-    const [placement, setPlacement] = useState<ItemAttributePlacement>(
+    // Stored rather than offered: an attribute saved under a retired type
+    // opens showing that type, and only changes if the shop picks another.
+    const [type, setType] = useState<StoredItemAttributeType>(draft.type);
+    const [placement, setPlacement] = useState<StoredItemAttributePlacement>(
         draft.placement,
     );
     const [icon, setIcon] = useState(draft.icon);
@@ -231,7 +260,6 @@ function AttributeForm({
                   .map((value) => ({
                       value: value.value.trim(),
                       label: value.label.trim(),
-                      colorHex: value.colorHex.trim(),
                       available: value.available,
                   }))
                   .filter((value) => value.value)
@@ -239,15 +267,10 @@ function AttributeForm({
 
         if (
             placement === "OPTION" &&
-            (type === "SELECTION" || type === "COLOR") &&
+            type === "SELECTION" &&
             !cleaned.length
         ) {
             showError("Add at least one option for shoppers to choose from.");
-            return;
-        }
-
-        if (type === "COLOR" && cleaned.some((value) => !value.colorHex)) {
-            showError("Every colour needs a hex value such as #3a3a3c.");
             return;
         }
 
@@ -313,7 +336,11 @@ function AttributeForm({
                     </Label>
                     <SelectField
                         id="attribute-type"
-                        options={typeOptions}
+                        options={withCurrent(
+                            typeOptions,
+                            type,
+                            itemAttributeTypeLabels[type],
+                        )}
                         value={type}
                         onValueChange={(next) => {
                             setType(next as ItemAttributeType);
@@ -330,7 +357,11 @@ function AttributeForm({
                     </Label>
                     <SelectField
                         id="attribute-placement"
-                        options={placementOptions}
+                        options={withCurrent(
+                            placementOptions,
+                            placement,
+                            itemAttributePlacementLabels[placement].label,
+                        )}
                         value={placement}
                         onValueChange={(next) => {
                             setPlacement(next as ItemAttributePlacement);
@@ -386,20 +417,6 @@ function AttributeForm({
                         {visibleValues.map((value, index) => (
                             <div key={index} className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2">
-                                    {type === "COLOR" ? (
-                                        <input
-                                            type="color"
-                                            value={value.colorHex || "#00932a"}
-                                            onChange={(event) =>
-                                                updateValue(index, {
-                                                    colorHex:
-                                                        event.target.value,
-                                                })
-                                            }
-                                            aria-label={`Colour ${index + 1}`}
-                                            className="size-12 shrink-0 cursor-pointer rounded-xl border border-[#e8e8e8] bg-white p-1"
-                                        />
-                                    ) : null}
                                     <Input
                                         value={value.value}
                                         onChange={(event) =>

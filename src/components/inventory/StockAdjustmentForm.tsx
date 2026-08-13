@@ -21,7 +21,11 @@ import {
 import { cn } from "@/lib/utils";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
-import { SearchableItemSelect } from "@/components/inventory/SearchableItemSelect";
+import {
+    StockTargetSelect,
+    toStockTargets,
+    type StockTargetRef,
+} from "@/components/inventory/stock/StockTargetSelect";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -35,7 +39,6 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
-    latestUnitCosts,
     stockEntrySchema,
     stockEntryTypeLabels,
     type InventoryItem,
@@ -43,6 +46,7 @@ import {
 } from "@/lib/api/inventory";
 import {
     useCreateStockEntryMutation,
+    useGetAddOnsQuery,
     useGetCurrentStockQuery,
     useGetInventoryItemOptionsQuery,
     useGetStockEntriesQuery,
@@ -126,6 +130,8 @@ export function StockAdjustmentForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const paramItemId = searchParams?.get("itemId") || "";
+    /** Movements against an add-on arrive here the same way an item's do. */
+    const paramAddOnId = searchParams?.get("addOnId") || "";
     /** Set when the form was opened from a movement's Adjust button. */
     const paramEntryId = searchParams?.get("entryId") || "";
     const { toast } = useToast();
@@ -135,6 +141,7 @@ export function StockAdjustmentForm() {
     const entriesQuery = useGetStockEntriesQuery();
     const [createEntry, createState] =
         useCreateStockEntryMutation();
+    const addOnsQuery = useGetAddOnsQuery();
     const [adjustmentType, setAdjustmentType] = useState<"OVERSTATED" | "UNDERSTATED" | "MANUAL">("OVERSTATED");
     const [quantityInput, setQuantityInput] = useState("");
     const [unitCostInput, setUnitPriceInput] = useState("");
@@ -149,7 +156,16 @@ export function StockAdjustmentForm() {
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    const [selectedItemId, setSelectedItemId] = useState(paramItemId);
+    // Add-ons are counted like items, so a count can be corrected on either.
+    const [target, setTarget] = useState<StockTargetRef | null>(
+        paramItemId
+            ? { kind: "ITEM", id: paramItemId }
+            : paramAddOnId
+              ? { kind: "ADDON", id: paramAddOnId }
+              : null,
+    );
+    const selectedItemId = target?.kind === "ITEM" ? target.id : "";
+    const selectedAddOnId = target?.kind === "ADDON" ? target.id : "";
     /**
      * The stock in or stock out this correction is made against.
      *
@@ -160,14 +176,15 @@ export function StockAdjustmentForm() {
      */
     const [adjustedEntryId, setAdjustedEntryId] = useState(paramEntryId);
     /**
-     * Which variation this adjustment is about.
+     * Which option this adjustment is about.
      *
-     * Stock is held per item — a stock entry carries no variant — so choosing
-     * one cannot move a balance of its own. It is written into the reason
-     * instead, which is a real field, so the ledger at least records which
-     * variation was counted rather than losing it entirely.
+     * An option holds a balance of its own, so this moves that option's count
+     * rather than the item's. Left empty on an item that has options, the
+     * correction lands on whatever is still held against the item as a whole.
      */
-    const [optionName, setOptionName] = useState("");
+    const [optionId, setOptionId] = useState(
+        searchParams?.get("variantId") || "",
+    );
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
 
@@ -189,13 +206,40 @@ export function StockAdjustmentForm() {
 
     const items = itemsQuery.data || [];
     const selectedItem = items.find((item) => item.id === selectedItemId);
-    const unitLabel = selectedItem?.unit?.name || "";
+    const addOns = addOnsQuery.data || [];
+    const selectedAddOn = addOns.find((addOn) => addOn.id === selectedAddOnId);
+    const unitLabel =
+        selectedItem?.unit?.name || selectedAddOn?.baseUnit?.name || "";
+    /**
+     * What each item and add-on holds in total, for the picker.
+     *
+     * An item sold in options has one summary per option, so these are summed
+     * rather than keyed straight across — keying by item id alone would keep
+     * only the last option's figure and call it the item's.
+     */
+    const onHandByTargetId = (stockQuery.data || []).reduce<
+        Record<string, number>
+    >((totals, summary) => {
+        const id = summary.itemId || summary.addOnId || "";
+        totals[id] = (totals[id] ?? 0) + (summary.quantityOnHand ?? 0);
+
+        return totals;
+    }, {});
+    const targets = toStockTargets(items, addOns, onHandByTargetId);
+    /**
+     * What the target being corrected currently stands at.
+     *
+     * An option keeps its own balance, so a correction to Large is measured
+     * against Large — reading the item's total here would have the form
+     * proposing changes against a number that is the sum of every option.
+     */
     const onHand =
         (stockQuery.data || []).find(
-            (summary) => summary.itemId === selectedItemId,
+            (summary) =>
+                (summary.itemId || summary.addOnId) === (target?.id || "") &&
+                (summary.variantId || "") === optionId,
         )?.quantityOnHand ?? 0;
     const entries = entriesQuery.data || [];
-    const costsMap = latestUnitCosts(entries);
 
     /**
      * The records this item already has, newest first — what an adjustment can
@@ -205,7 +249,10 @@ export function StockAdjustmentForm() {
     const adjustableEntries = entries
         .filter(
             (entry) =>
-                entry.itemId === selectedItemId &&
+                (entry.itemId || entry.addOnId) === (target?.id || "") &&
+                // A correction acts on a movement of the same option; one
+                // against Small says nothing about what Large stands at.
+                (entry.variantId || "") === optionId &&
                 entry.entryType !== "ADJUSTMENT",
         )
         .sort(
@@ -218,9 +265,28 @@ export function StockAdjustmentForm() {
         (entry) => entry.id === adjustedEntryId,
     );
 
+    // Options belong to an item; an add-on has none to break down by.
     const itemOptions = (selectedItem?.variants || [])
-        .filter((variant) => variant.name?.trim())
-        .map((variant) => variant.name || "");
+        .filter((variant) => variant.id && variant.name?.trim())
+        .map((variant) => ({
+            id: variant.id || "",
+            name: variant.name || "",
+        }));
+    const selectedOption = itemOptions.find(
+        (option) => option.id === optionId,
+    );
+    /**
+     * Whether anything is still counted against the item rather than an option.
+     *
+     * Only stock recorded before the item gained options sits there. It has to
+     * stay correctable — otherwise the quantity is stranded, with no way to
+     * move it onto an option or write it off — but nothing new may be added to
+     * it, which is what the API enforces.
+     */
+    const unassignedOnHand =
+        (stockQuery.data || []).find(
+            (summary) => summary.itemId === selectedItemId && !summary.variantId,
+        )?.quantityOnHand ?? 0;
 
     function describeEntry(entry: StockEntry) {
         const change = entry.quantityChange || 0;
@@ -239,9 +305,20 @@ export function StockAdjustmentForm() {
             .join(" · ");
     }
 
-    /** Undefined when this item has never had a cost recorded against it. */
-    const existingUnitCost = selectedItemId
-        ? costsMap.get(selectedItemId)
+    /**
+     * What a unit costs right now: the oldest batch still holding stock, which
+     * is the one the next unit out is drawn from.
+     *
+     * The API works this out from the batches themselves. Reading the ledger's
+     * last `unitCost` instead — as this used to — quoted whatever a recent
+     * stock-out was costed at, not what the stock on the shelf is worth.
+     */
+    const existingUnitCost = target
+        ? (stockQuery.data || []).find(
+              (summary) =>
+                  (summary.itemId || summary.addOnId) === target.id &&
+                  (summary.variantId || "") === optionId,
+          )?.unitCost
         : undefined;
 
     const isManual = adjustmentType === "MANUAL";
@@ -278,9 +355,9 @@ export function StockAdjustmentForm() {
     const goesNegative = resulting !== undefined && resulting < 0;
 
     function handleScannedItem(item: InventoryItem) {
-        setSelectedItemId(item.id);
+        setTarget({ kind: "ITEM", id: item.id });
         setAdjustedEntryId("");
-        setOptionName("");
+        setOptionId("");
         setScannedItemName(item.name || "Unnamed item");
         setFieldErrors((current) => {
             if (!current.itemId) {
@@ -295,6 +372,20 @@ export function StockAdjustmentForm() {
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+
+        // An item sold in options is corrected through one of them. The only
+        // exception is stock still held against the item itself, and there is
+        // none of that here.
+        if (itemOptions.length && !optionId && unassignedOnHand <= 0) {
+            const message = "Choose which option this correction is for.";
+            setFieldErrors({ variantId: message });
+            toast({
+                tone: "error",
+                title: "Option not chosen",
+                description: message,
+            });
+            return;
+        }
 
         const formData = new FormData(event.currentTarget);
         const batchData: Record<string, string> = {};
@@ -357,7 +448,8 @@ export function StockAdjustmentForm() {
         /**
          * The cost carries forward unless it is being changed on purpose.
          *
-         * The item's cost is read off its newest entry, so an adjustment that
+         * The item's cost is
+         * read off its newest entry, so an adjustment that
          * sends none would leave the item looking as if it cost nothing, and
          * every valuation built on it would be wrong.
          */
@@ -368,21 +460,32 @@ export function StockAdjustmentForm() {
         const unitCost =
             typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
 
+        // An adjustment upward is stock appearing, so it opens a batch and a
+        // cost belongs on it. An adjustment downward consumes existing batches
+        // oldest first, and is costed from them — a typed cost there is refused
+        // by the API rather than quietly overriding what the stock was worth.
+        const isFound = calculatedChange > 0;
+
         const result = stockEntrySchema.safeParse({
-            itemId: selectedItemId,
+            ...(target?.kind === "ADDON"
+                ? { addOnId: target.id }
+                : {
+                      itemId: selectedItemId,
+                      // The option moves its own balance now, rather than
+                      // being noted in the reason where nothing could read it.
+                      ...(optionId ? { variantId: optionId } : {}),
+                  }),
             entryType: "ADJUSTMENT",
             quantityChange: calculatedChange,
             unitCost:
-                unitCost === undefined || !Number.isFinite(unitCost)
+                !isFound || unitCost === undefined || !Number.isFinite(unitCost)
                     ? undefined
                     : roundTo(unitCost, unitCostDecimals),
             batchData,
             referenceType: "ADJUSTMENT_FORM",
             referenceId: adjustedEntryId,
             referenceNumber: "",
-            reason: [optionName, String(formData.get("reason") || "").trim()]
-                .filter(Boolean)
-                .join(" — "),
+            reason: String(formData.get("reason") || "").trim(),
         });
 
         if (!result.success) {
@@ -473,13 +576,13 @@ export function StockAdjustmentForm() {
                             error={fieldErrors.itemId}
                         >
                             <div className="flex gap-2">
-                                <SearchableItemSelect
-                                    items={items}
-                                    selectedItemId={selectedItemId}
-                                    onSelect={(id) => {
-                                        setSelectedItemId(id);
+                                <StockTargetSelect
+                                    targets={targets}
+                                    selected={target}
+                                    onSelect={(picked) => {
+                                        setTarget(picked);
                                         setAdjustedEntryId("");
-                                        setOptionName("");
+                                        setOptionId("");
                                         setScannedItemName(null);
                                         setFieldErrors((current) => {
                                             const next = { ...current };
@@ -487,15 +590,7 @@ export function StockAdjustmentForm() {
                                             return next;
                                         });
                                     }}
-                                    stockSummaryMap={Object.fromEntries(
-                                        (stockQuery.data || []).map((s) => [
-                                            s.itemId,
-                                            s.quantityOnHand,
-                                        ]),
-                                    )}
-                                    placeholder="Search item by name, SKU, or barcode..."
                                     ariaInvalid={Boolean(fieldErrors.itemId)}
-                                    className="flex-1"
                                 />
                                 <Button
                                     type="button"
@@ -538,33 +633,45 @@ export function StockAdjustmentForm() {
                             />
                         </Field>
 
-                        {/* Which variation, when the item has any */}
+                        {/* Which option, when the item is sold in options */}
                         {itemOptions.length ? (
                             <div className="sm:col-span-2 md:col-span-2">
                                 <Field
                                     label="Option"
-                                    name="optionName"
-                                    hint="Stock is counted for the item as a whole, so this is recorded on the movement rather than moving a balance of its own."
+                                    name="variantId"
+                                    hint="Each option counts its own stock, so the correction moves that option's balance."
+                                    error={fieldErrors.variantId}
                                 >
                                     <SelectField
-                                        id="optionName"
-                                        name="optionName"
-                                        value={optionName || noOptionValue}
-                                        onValueChange={(value) =>
-                                            setOptionName(
+                                        id="variantId"
+                                        name="variantId"
+                                        value={optionId || noOptionValue}
+                                        onValueChange={(value) => {
+                                            setOptionId(
                                                 value === noOptionValue
                                                     ? ""
                                                     : value,
-                                            )
-                                        }
+                                            );
+                                            // Each option has its own history,
+                                            // so a record chosen under the last
+                                            // one no longer applies.
+                                            setAdjustedEntryId("");
+                                        }}
                                         options={[
-                                            {
-                                                value: noOptionValue,
-                                                label: "The item as a whole",
-                                            },
-                                            ...itemOptions.map((name) => ({
-                                                value: name,
-                                                label: name,
+                                            // Offered only where such stock
+                                            // exists: nothing new may be added
+                                            // to it, only corrected away.
+                                            ...(unassignedOnHand > 0
+                                                ? [
+                                                      {
+                                                          value: noOptionValue,
+                                                          label: `The item as a whole (${unassignedOnHand} ${unitLabel} unassigned)`,
+                                                      },
+                                                  ]
+                                                : []),
+                                            ...itemOptions.map((option) => ({
+                                                value: option.id,
+                                                label: option.name,
                                             })),
                                         ]}
                                         className={inventoryControlClassName}
@@ -750,11 +857,13 @@ export function StockAdjustmentForm() {
                                 className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
                             />
                             <p className="text-xs text-muted-foreground">
-                                {isManual && overrideUnitCost
-                                    ? "Enter new unit cost for this adjustment."
-                                    : existingUnitCost === undefined
-                                      ? "No cost recorded for this item yet, so this adjustment records none."
-                                      : `Carries forward the last cost recorded, ${formatMoney(existingUnitCost)}.`}
+                                {(resulting ?? onHand) < onHand
+                                    ? "Only used when stock is found. Stock going the other way is costed from the batches it came from."
+                                    : isManual && overrideUnitCost
+                                      ? "Enter new unit cost for this adjustment."
+                                      : existingUnitCost === undefined
+                                        ? "No cost recorded for this item yet, so this adjustment records none."
+                                        : `Carries forward the last cost recorded, ${formatMoney(existingUnitCost)}.`}
                             </p>
                         </div>
                         <div className="sm:col-span-2">
@@ -919,7 +1028,9 @@ export function StockAdjustmentForm() {
                         <div className="flex justify-between items-center text-muted-foreground">
                             <span>Selected Item</span>
                             <span className="font-medium text-foreground truncate max-w-[160px]">
-                                {selectedItem ? selectedItem.name : "None"}
+                                {selectedItem?.name ||
+                                    selectedAddOn?.name ||
+                                    "None"}
                             </span>
                         </div>
 
@@ -936,7 +1047,7 @@ export function StockAdjustmentForm() {
                             <div className="flex justify-between items-center text-muted-foreground">
                                 <span>Option</span>
                                 <span className="font-medium text-foreground">
-                                    {optionName || "Whole item"}
+                                    {selectedOption?.name || "The item as a whole"}
                                 </span>
                             </div>
                         ) : null}

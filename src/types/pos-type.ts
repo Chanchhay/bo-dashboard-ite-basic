@@ -11,6 +11,14 @@ export type Item = {
   image_url: string | null;
   price: string ; // schema doesn't mark this not-null — must allow null
   is_available: ItemStatus;
+  /**
+   * Why it cannot be sold, when it cannot.
+   *
+   * "Unavailable" and "Out of stock" are different problems with different
+   * fixes — one is a switch in Inventory, the other is a delivery — and a
+   * cashier who only sees a dimmed card has to go and find out which.
+   */
+  unavailableReason?: string;
 };
 
 export type AppliedDiscount = {
@@ -27,6 +35,15 @@ export type OrderItem = {
   variant_id: string | null;
   product_name: string;
   variant_name: string | null;
+  /**
+   * The unit sold and what one of them holds.
+   *
+   * Optional because most of this shape predates items being sold by the pack;
+   * a line without them is sold by the base unit, one at a time.
+   */
+  unit_name?: string | null;
+  unit_factor?: number | null;
+  add_ons?: { name: string }[];
   quantity: number;
   unit_price: string;
   unit_cost: string;

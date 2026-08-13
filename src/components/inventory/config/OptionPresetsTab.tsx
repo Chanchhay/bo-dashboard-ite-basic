@@ -6,8 +6,14 @@ import { ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
     ConfigEmpty,
     ConfigSection,
-    StaticPreviewNotice,
 } from "@/components/inventory/config/ConfigUi";
+import {
+    getApiErrorMessage,
+    InventoryError,
+    InventoryLoading,
+} from "@/components/inventory/InventoryUi";
+import { ChoiceImageField } from "@/components/inventory/ChoiceImageField";
+import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
@@ -22,25 +28,67 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
+import type { OptionPreset as ApiOptionPreset } from "@/lib/api/inventory";
 import {
-    sampleOptionPresetUsage,
-    sampleOptionPresets,
-} from "@/lib/inventory-config/sample-data";
-import type { OptionPreset } from "@/lib/inventory-config/types";
+    useCreateOptionPresetMutation,
+    useDeleteOptionPresetMutation,
+    useGetOptionPresetsQuery,
+    useUpdateOptionPresetMutation,
+} from "@/services/inventoryApi";
+
+/** The screen's own shape: values as typed lines, never partial. */
+type OptionPreset = {
+    id: string;
+    name: string;
+    type: "SELECTION" | "COLOR";
+    required: boolean;
+    values: { id: string; value: string; colorHex?: string; imageUrl?: string }[];
+};
+
+function toScreenPreset(preset: ApiOptionPreset): OptionPreset {
+    return {
+        id: preset.id,
+        name: preset.name || "Unnamed preset",
+        type: preset.type || "SELECTION",
+        required: preset.required !== false,
+        values: (preset.values || []).map((value, index) => ({
+            id: `${preset.id}-${index}`,
+            value: value.value || "",
+            ...(value.colorHex ? { colorHex: value.colorHex } : {}),
+            ...(value.imageUrl ? { imageUrl: value.imageUrl } : {}),
+        })),
+    };
+}
+
+type DraftValue = {
+    value: string;
+    colorHex: string;
+    /** The picture this choice puts on the storefront gallery. */
+    imageUrl: string;
+};
 
 type PresetDraft = {
     name: string;
     type: OptionPreset["type"];
     required: boolean;
-    /** One value per line while editing — the same shape the block editor uses. */
-    values: string;
+    /**
+     * One row per choice.
+     *
+     * This was a textarea where a colour had to be typed as `Black #161d16`.
+     * Nobody knows what `#161d16` looks like, the format was undiscoverable,
+     * and a typo silently dropped the swatch — the parser simply read the whole
+     * line as a name. A row with a swatch to click cannot go wrong that way.
+     */
+    values: DraftValue[];
 };
+
+const emptyValue: DraftValue = { value: "", colorHex: "", imageUrl: "" };
 
 const emptyDraft: PresetDraft = {
     name: "",
     type: "SELECTION",
     required: true,
-    values: "",
+    values: [{ ...emptyValue }, { ...emptyValue }],
 };
 
 const typeLabels: Record<OptionPreset["type"], string> = {
@@ -53,37 +101,32 @@ function toDraft(preset: OptionPreset): PresetDraft {
         name: preset.name,
         type: preset.type,
         required: preset.required,
-        values: preset.values
-            .map((value) =>
-                value.colorHex
-                    ? `${value.value} ${value.colorHex}`
-                    : value.value,
-            )
-            .join("\n"),
+        values: preset.values.map((value) => ({
+            value: value.value,
+            colorHex: value.colorHex || "",
+            imageUrl: value.imageUrl || "",
+        })),
     };
 }
 
-/** `Black #161d16` splits into a label and its swatch; the hex is optional. */
-function parseValues(raw: string, type: OptionPreset["type"]) {
-    return raw
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line, index) => {
-            const match = line.match(/^(.*?)\s*(#[0-9a-fA-F]{6})$/);
-
-            return {
-                id: `v-${index}-${line.toLowerCase().replace(/\W+/g, "-")}`,
-                value: (match ? match[1] : line).trim(),
-                ...(type === "COLOR" && match ? { colorHex: match[2] } : {}),
-            };
-        });
+/** Blank rows are how an empty editor looks, not a choice the shop meant. */
+function usedValues(rows: DraftValue[]) {
+    return rows
+        .map((row) => ({
+            value: row.value.trim(),
+            colorHex: row.colorHex.trim(),
+            imageUrl: row.imageUrl.trim(),
+        }))
+        .filter((row) => row.value);
 }
 
 export function OptionPresetsTab() {
     const { toast } = useToast();
-    const [presets, setPresets] =
-        useState<OptionPreset[]>(sampleOptionPresets);
+    const presetsQuery = useGetOptionPresetsQuery();
+    const [createPreset, createState] = useCreateOptionPresetMutation();
+    const [updatePreset, updateState] = useUpdateOptionPresetMutation();
+    const [deletePreset, deleteState] = useDeleteOptionPresetMutation();
+    const presets = (presetsQuery.data || []).map(toScreenPreset);
     const [draft, setDraft] = useState<PresetDraft>(emptyDraft);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -103,8 +146,43 @@ export function OptionPresetsTab() {
         });
     }
 
+    /** A patch, or a function of the row for a decision that depends on it. */
+    function updateValue(
+        index: number,
+        patch: Partial<DraftValue> | ((current: DraftValue) => Partial<DraftValue>),
+    ) {
+        setDraft((current) => ({
+            ...current,
+            values: current.values.map((row, position) =>
+                position === index
+                    ? { ...row, ...(typeof patch === "function" ? patch(row) : patch) }
+                    : row,
+            ),
+        }));
+        setErrors((current) => {
+            if (!current.values) return current;
+            const next = { ...current };
+            delete next.values;
+            return next;
+        });
+    }
+
+    function addValue() {
+        setDraft((current) => ({
+            ...current,
+            values: [...current.values, { ...emptyValue }],
+        }));
+    }
+
+    function removeValue(index: number) {
+        setDraft((current) => ({
+            ...current,
+            values: current.values.filter((_, position) => position !== index),
+        }));
+    }
+
     function resetForm() {
-        setDraft(emptyDraft);
+        setDraft({ ...emptyDraft, values: [{ ...emptyValue }, { ...emptyValue }] });
         setEditingId(null);
         setErrors({});
     }
@@ -115,12 +193,12 @@ export function OptionPresetsTab() {
         setErrors({});
     }
 
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const found: Record<string, string> = {};
         const name = draft.name.trim();
-        const values = parseValues(draft.values, draft.type);
+        const values = usedValues(draft.values);
 
         if (!name) {
             found.name = "Name is required.";
@@ -145,8 +223,7 @@ export function OptionPresetsTab() {
             draft.type === "COLOR" &&
             values.some((value) => !value.colorHex)
         ) {
-            found.values =
-                "Every colour needs a hex code, for example: Black #161d16";
+            found.values = "Pick a colour for every choice.";
         }
 
         if (Object.keys(found).length) {
@@ -159,44 +236,80 @@ export function OptionPresetsTab() {
             return;
         }
 
-        const saved: OptionPreset = {
-            id: editingId ?? `p-${crypto.randomUUID().slice(0, 8)}`,
+        const body = {
             name,
             type: draft.type,
             required: draft.required,
-            values,
+            values: values.map((value) => ({
+                value: value.value,
+                colorHex: value.colorHex,
+                imageUrl: value.imageUrl,
+            })),
         };
 
-        setPresets((current) =>
-            editingId
-                ? current.map((preset) =>
-                      preset.id === editingId ? saved : preset,
-                  )
-                : [...current, saved],
-        );
-        toast({
-            tone: "success",
-            title: `Preset ${isEditing ? "updated" : "created"}`,
-            description: `${saved.name} was saved.`,
-        });
-        resetForm();
+        try {
+            const saved = editingId
+                ? await updatePreset({ presetId: editingId, body }).unwrap()
+                : await createPreset(body).unwrap();
+
+            toast({
+                tone: "success",
+                title: `Preset ${isEditing ? "updated" : "created"}`,
+                description: `${saved.name || name} was saved.`,
+            });
+            resetForm();
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: `Preset not ${isEditing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to save that preset.",
+                ),
+            });
+        }
     }
 
-    function handleConfirmDelete() {
+    async function handleConfirmDelete() {
         if (!deleteTarget) return;
 
-        setPresets((current) =>
-            current.filter((preset) => preset.id !== deleteTarget.id),
+        try {
+            // Nothing depends on a preset once applied — its values were
+            // copied onto the item — so deleting one is always safe.
+            await deletePreset(deleteTarget.id).unwrap();
+            if (editingId === deleteTarget.id) resetForm();
+            toast({ tone: "success", title: `${deleteTarget.name} deleted` });
+            setDeleteTarget(null);
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Preset not deleted",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to delete that preset.",
+                ),
+            });
+        }
+    }
+
+    if (presetsQuery.isLoading) {
+        return <InventoryLoading label="Loading presets" />;
+    }
+
+    if (presetsQuery.error) {
+        return (
+            <InventoryError
+                message={getApiErrorMessage(
+                    presetsQuery.error,
+                    "Unable to load the presets.",
+                )}
+                retry={presetsQuery.refetch}
+            />
         );
-        if (editingId === deleteTarget.id) resetForm();
-        toast({ tone: "success", title: `${deleteTarget.name} deleted` });
-        setDeleteTarget(null);
     }
 
     return (
         <div className="flex flex-col gap-4">
-            <StaticPreviewNotice />
-
             <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
                 A preset is a starting point, not a live link. Applying one
                 copies its values onto the item — editing the preset afterwards
@@ -217,9 +330,6 @@ export function OptionPresetsTab() {
                     ) : (
                         <div className="divide-y divide-border">
                             {presets.map((preset) => {
-                                const usage =
-                                    sampleOptionPresetUsage[preset.id] ?? 0;
-
                                 return (
                                     <div
                                         key={preset.id}
@@ -263,9 +373,16 @@ export function OptionPresetsTab() {
                                                 ))}
                                             </div>
 
+                                            {/* A preset is copied onto an item,
+                                                not linked to it, so there is no
+                                                list of items to count. */}
                                             <p className="mt-2 text-xs text-muted-foreground">
-                                                Used by {usage}{" "}
-                                                {usage === 1 ? "item" : "items"}
+                                                {preset.values.length}{" "}
+                                                {preset.values.length === 1
+                                                    ? "value"
+                                                    : "values"}{" "}
+                                                · copied onto an item when
+                                                applied
                                             </p>
                                         </div>
 
@@ -380,22 +497,86 @@ export function OptionPresetsTab() {
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="preset-values">Choices *</Label>
-                            <textarea
-                                id="preset-values"
-                                value={draft.values}
-                                onChange={(event) =>
-                                    updateDraft({ values: event.target.value })
-                                }
-                                rows={5}
-                                placeholder={
-                                    draft.type === "COLOR"
-                                        ? "Black #161d16\nWhite #f5f5f5"
-                                        : "Small\nMedium\nLarge"
-                                }
-                                aria-invalid={Boolean(errors.values)}
-                                className="min-h-28 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary aria-invalid:border-danger"
-                            />
+                            <Label>Choices *</Label>
+
+                            <div className="flex flex-col gap-3">
+                                {draft.values.map((row, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col gap-3 rounded-xl border border-border px-3 py-3"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                value={row.value}
+                                                onChange={(event) =>
+                                                    updateValue(index, {
+                                                        value: event.target.value,
+                                                    })
+                                                }
+                                                placeholder={
+                                                    draft.type === "COLOR"
+                                                        ? "Red"
+                                                        : "Medium"
+                                                }
+                                                aria-label={`Choice ${index + 1}`}
+                                                className={inventoryControlClassName}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-lg"
+                                                aria-label={`Remove choice ${index + 1}`}
+                                                onClick={() => removeValue(index)}
+                                                disabled={draft.values.length <= 1}
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </Button>
+                                        </div>
+
+                                        {draft.type === "COLOR" ? (
+                                            <ColorSwatchButton
+                                                value={row.colorHex}
+                                                colorName={row.value}
+                                                label={`Choice ${index + 1} colour`}
+                                                onChange={(patch) =>
+                                                    updateValue(index, {
+                                                        ...(patch.colorHex === undefined
+                                                            ? {}
+                                                            : { colorHex: patch.colorHex }),
+                                                        // A preset value *is* the
+                                                        // colour's name, so naming
+                                                        // it here names the choice.
+                                                        ...(patch.colorName === undefined
+                                                            ? {}
+                                                            : { value: patch.colorName }),
+                                                    })
+                                                }
+                                            />
+                                        ) : null}
+
+                                        <ChoiceImageField
+                                            value={row.imageUrl}
+                                            label={`Choice ${index + 1} photo`}
+                                            onChange={(url) =>
+                                                updateValue(index, {
+                                                    imageUrl: url,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={addValue}
+                                className="self-start"
+                            >
+                                <Plus className="size-4" />
+                                Add choice
+                            </Button>
+
                             <p
                                 className={
                                     errors.values
@@ -406,8 +587,8 @@ export function OptionPresetsTab() {
                             >
                                 {errors.values ||
                                     (draft.type === "COLOR"
-                                        ? "One per line, each ending in a hex code."
-                                        : "One choice per line.")}
+                                        ? "Pick a colour for each choice. The photo is what the store shows once a shopper picks it."
+                                        : "At least two choices. The photo is what the store shows once a shopper picks it.")}
                             </p>
                         </div>
 
@@ -434,7 +615,12 @@ export function OptionPresetsTab() {
                         </div>
                     </div>
 
-                    <Button type="submit" size="lg" className="mt-5 w-full">
+                    <Button
+                        type="submit"
+                        size="lg"
+                        disabled={createState.isLoading || updateState.isLoading}
+                        className="mt-5 w-full"
+                    >
                         <Plus />
                         {isEditing ? "Save changes" : "Add preset"}
                     </Button>
@@ -467,7 +653,7 @@ export function OptionPresetsTab() {
                 }
                 confirmLabel="Delete"
                 cancelLabel="Cancel"
-                isPending={false}
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

@@ -4,10 +4,7 @@ import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
-import type {
-    DraftMovement,
-    StockTargetKind,
-} from "@/components/inventory/stock/stock-draft";
+import type { StockTargetKind } from "@/components/inventory/stock/StockTargetSelect";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -36,9 +33,32 @@ export type EntryUnit = {
     factor: number;
 };
 
+/** What the caller sends to the API once the dialog is done. */
+export type RecordedMovement = {
+    targetKind: StockTargetKind;
+    targetId: string;
+    /** Set when the movement is against one option of the item. */
+    targetVariantId?: string;
+    direction: "IN" | "OUT";
+    /** As typed, in the unit chosen. */
+    enteredQuantity: number;
+    enteredUnitId: string;
+    /** The same amount in base units — what the balance moves by. */
+    baseQuantity: number;
+    /** Cost on the way in, sale price on the way out. Never both. */
+    unitCost?: number;
+    unitSalePrice?: number;
+    reason: string;
+};
+
 export type MovementTarget = {
     kind: StockTargetKind;
     id: string;
+    /**
+     * The option being counted, when the item is sold in options. The item's
+     * own conversions still apply — an option is measured the same way.
+     */
+    variantId?: string;
     name: string;
     onHand: number;
     baseUnitLabel: string;
@@ -52,12 +72,14 @@ export function StockMovementDialog({
     target,
     direction,
     onRecord,
+    busy = false,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     target: MovementTarget | null;
     direction: "IN" | "OUT";
-    onRecord: (movement: DraftMovement) => void;
+    onRecord: (movement: RecordedMovement) => void;
+    busy?: boolean;
 }) {
     const [quantity, setQuantity] = useState("");
     const [unitId, setUnitId] = useState("");
@@ -109,28 +131,41 @@ export function StockMovementDialog({
             return;
         }
 
-        const cost = unitCost.trim() === "" ? undefined : Number(unitCost);
+        const money = unitCost.trim() === "" ? undefined : Number(unitCost);
 
-        if (cost !== undefined && (!Number.isFinite(cost) || cost < 0)) {
-            setError("Unit cost cannot be negative.");
+        // Stock arriving has to say what it cost: the shelf's value, every
+        // sale's cost and every selling price are set against it. Zero is a
+        // fine answer for free stock — saying nothing is not.
+        if (isIn && money === undefined) {
+            setError("Enter what one unit cost. Put 0 if this stock was free.");
+            return;
+        }
+
+        if (money !== undefined && (!Number.isFinite(money) || money < 0)) {
+            setError(
+                isIn
+                    ? "Unit cost cannot be negative."
+                    : "Sale price cannot be negative.",
+            );
             return;
         }
 
         onRecord({
-            id: `m-${crypto.randomUUID().slice(0, 8)}`,
             targetKind: target!.kind,
             targetId: target!.id,
-            targetName: target!.name,
+            ...(target!.variantId ? { targetVariantId: target!.variantId } : {}),
             direction,
             enteredQuantity: typed,
-            enteredUnitLabel: unit?.label ?? target!.baseUnitLabel,
+            enteredUnitId: unit?.id ?? "",
             baseQuantity,
-            baseUnitLabel: target!.baseUnitLabel,
-            ...(cost === undefined ? {} : { unitCost: cost }),
+            // Cost belongs to stock arriving, sale price to stock leaving.
+            ...(money === undefined
+                ? {}
+                : isIn
+                  ? { unitCost: money }
+                  : { unitSalePrice: money }),
             reason: reason.trim(),
-            at: new Date().toISOString(),
         });
-        onOpenChange(false);
     }
 
     return (
@@ -234,10 +269,13 @@ export function StockMovementDialog({
                         ) : null}
                     </div>
 
-                    {isIn ? (
-                        <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2">
                             <Label htmlFor="movement-cost">
-                                Cost per {target.baseUnitLabel || "unit"}
+                                {isIn ? "Cost" : "Sale price"} per{" "}
+                                {target.baseUnitLabel || "unit"}
+                                {isIn ? (
+                                    <span className="text-danger">*</span>
+                                ) : null}
                             </Label>
                             <Input
                                 id="movement-cost"
@@ -253,11 +291,11 @@ export function StockMovementDialog({
                                 className={inventoryControlClassName}
                             />
                             <p className="text-xs text-muted-foreground">
-                                Optional. This is what stock value is calculated
-                                from.
+                                {isIn
+                                    ? "Stock is valued from this, oldest batch first, and it is what a selling price is set against. Enter 0 if it was free."
+                                    : "Optional, and only if this was sold away from the till. What it cost comes from the batches it leaves."}
                             </p>
-                        </div>
-                    ) : null}
+                    </div>
 
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="movement-reason">Reason</Label>
@@ -308,7 +346,11 @@ export function StockMovementDialog({
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleRecord}>
+                    <Button
+                        type="button"
+                        onClick={handleRecord}
+                        disabled={busy}
+                    >
                         {isIn ? "Record stock in" : "Record stock out"}
                     </Button>
                 </DialogFooter>

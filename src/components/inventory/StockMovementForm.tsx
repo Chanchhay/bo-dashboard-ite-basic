@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
-import { SearchableItemSelect } from "@/components/inventory/SearchableItemSelect";
+import {
+    StockTargetSelect,
+    toStockTargets,
+    type StockTargetRef,
+} from "@/components/inventory/stock/StockTargetSelect";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -28,16 +32,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
     type InventoryItem,
 } from "@/lib/api/inventory";
 import {
     useCreateStockEntryMutation,
+    useGetAddOnsQuery,
     useGetCurrentStockQuery,
     useGetInventoryItemOptionsQuery,
 } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
+import {
+    conversionsForOption,
+    toEntryUnits,
+} from "@/lib/inventory-config/entry-units";
 
 type MovementMode = "in" | "out";
 
@@ -85,11 +95,24 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const { format: formatMoney } = useMoney();
 
     const itemsQuery = useGetInventoryItemOptionsQuery();
+    const addOnsQuery = useGetAddOnsQuery();
     const stockQuery = useGetCurrentStockQuery();
     const [createEntry, createState] = useCreateStockEntryMutation();
 
-    const [selectedItemId, setSelectedItemId] = useState(paramItemId);
+    // An add-on is counted exactly like an item, so both are recorded here.
+    const [target, setTarget] = useState<StockTargetRef | null>(
+        paramItemId ? { kind: "ITEM", id: paramItemId } : null,
+    );
+    /**
+     * Which option is being moved.
+     *
+     * An option counts its own stock, so an item sold in options is stocked
+     * through one of them — the API refuses a movement that names none.
+     */
+    const [optionId, setOptionId] = useState("");
     const [quantityInput, setQuantityInput] = useState("");
+    /** Empty means the item's base unit. */
+    const [entryUnitId, setEntryUnitId] = useState("");
     const [unitPriceInput, setUnitPriceInput] = useState("");
     const [reasonInput, setReasonInput] = useState("");
     const [batchLot, setBatchLot] = useState("");
@@ -118,26 +141,83 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     }
 
     const items = itemsQuery.data || [];
+    const addOns = addOnsQuery.data || [];
+    const selectedItemId = target?.kind === "ITEM" ? target.id : "";
+    const selectedAddOnId = target?.kind === "ADDON" ? target.id : "";
     const selectedItem = items.find((item) => item.id === selectedItemId);
-    const unitLabel = selectedItem?.unit?.name || "units";
-    const onHand =
-        (stockQuery.data || []).find(
-            (summary) => summary.itemId === selectedItemId,
-        )?.quantityOnHand ?? 0;
+    const selectedAddOn = addOns.find((addOn) => addOn.id === selectedAddOnId);
+    const unitLabel =
+        selectedItem?.unit?.name || selectedAddOn?.baseUnit?.name || "units";
+    /**
+     * What each item and add-on holds in total.
+     *
+     * An item sold in options has one summary per option, so they are summed:
+     * keying by item id alone would keep only the last one and read it as the
+     * item's whole stock.
+     */
+    const onHandByTargetId = (stockQuery.data || []).reduce<
+        Record<string, number>
+    >((totals, summary) => {
+        const id = summary.itemId || summary.addOnId || "";
+        totals[id] = (totals[id] ?? 0) + (summary.quantityOnHand ?? 0);
+
+        return totals;
+    }, {});
+    const targets = toStockTargets(items, addOns, onHandByTargetId);
+    /**
+     * Stock is counted in the item's base unit, but it rarely arrives in one:
+     * a delivery is two sacks, not fifty thousand grams. The item's own
+     * conversions are what make the larger units selectable here.
+     */
+    const unitOptions = selectedAddOn
+        ? toEntryUnits(selectedAddOn.baseUnit, selectedAddOn.uomConversions || [])
+        : toEntryUnits(
+              selectedItem?.unit,
+              // Narrowed to the option being moved: the same larger unit can
+              // be defined for several options and hold a different amount in
+              // each, so a list built from all of them offers it more than
+              // once and cannot say which one it means.
+              conversionsForOption(selectedItem?.uomConversions || [], optionId),
+          );
+    const selectedUnit =
+        unitOptions.find((option) => option.id === entryUnitId) ??
+        unitOptions[0];
+    const conversionFactor = selectedUnit?.factor || 1;
+
+    const itemOptions = (selectedItem?.variants || [])
+        .filter((variant) => variant.id && variant.name?.trim())
+        .map((variant) => ({
+            id: variant.id || "",
+            name: variant.name || "",
+        }));
+
+    /**
+     * What is on hand where this movement lands: the chosen option's balance,
+     * or the target's own when no option is in play.
+     */
+    const onHand = optionId
+        ? ((stockQuery.data || []).find(
+              (summary) =>
+                  summary.itemId === selectedItemId &&
+                  summary.variantId === optionId,
+          )?.quantityOnHand ?? 0)
+        : ((target ? onHandByTargetId[target.id] : 0) ?? 0);
 
     const qty = Number(quantityInput);
     const isValidQty = quantityInput.trim() !== "" && Number.isFinite(qty) && qty > 0;
+    // What actually moves on the shelf, once the chosen unit is unpacked.
+    const baseQty = isValidQty
+        ? Math.round(qty * conversionFactor * 1000) / 1000
+        : 0;
     const price = Number(unitPriceInput);
     const isValidPrice = unitPriceInput.trim() !== "" && Number.isFinite(price) && price >= 0;
 
-    const resultingStock = isStockIn
-        ? onHand + (isValidQty ? qty : 0)
-        : onHand - (isValidQty ? qty : 0);
+    const resultingStock = isStockIn ? onHand + baseQty : onHand - baseQty;
 
-    const totalValue = isValidQty && isValidPrice ? qty * price : 0;
+    const totalValue = isValidPrice ? baseQty * price : 0;
 
     function handleScannedItem(item: InventoryItem) {
-        setSelectedItemId(item.id);
+        setTarget({ kind: "ITEM", id: item.id });
         setScannedItemName(item.name || "Unnamed item");
         setFieldErrors((current) => {
             const next = { ...current };
@@ -150,8 +230,14 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         event.preventDefault();
         const errors: Record<string, string> = {};
 
-        if (!selectedItemId) {
-            errors.itemId = "Please select an item.";
+        if (!target) {
+            errors.itemId = "Please select an item or add-on.";
+        }
+
+        // An option counts its own stock, so the API refuses a movement on an
+        // item sold in options that does not say which one.
+        if (itemOptions.length && !optionId) {
+            errors.variantId = "Please choose which option this is for.";
         }
 
         if (!isValidQty) {
@@ -160,6 +246,14 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
         if (unitPriceInput.trim() !== "" && (!Number.isFinite(price) || price < 0)) {
             errors.unitPrice = "Unit price cannot be negative.";
+        }
+
+        // Stock arriving has to say what it cost: the shelf's value, every
+        // sale's cost and every selling price are all set against it. Zero is
+        // a fine answer for free stock — saying nothing is not.
+        if (isStockIn && unitPriceInput.trim() === "") {
+            errors.unitPrice =
+                "Enter what one unit cost. Put 0 if this stock was free.";
         }
 
         if (!reasonInput.trim()) {
@@ -178,7 +272,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
         setFieldErrors({});
 
-        const quantityChange = isStockIn ? qty : -qty;
+        const quantityChange = isStockIn ? baseQty : -baseQty;
         const batchData: Record<string, string> = {};
         if (batchLot.trim()) batchData.lot = batchLot.trim();
         if (batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
@@ -186,10 +280,23 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
         try {
             await createEntry({
-                itemId: selectedItemId,
+                ...(target?.kind === "ADDON"
+                    ? { addOnId: target.id }
+                    : {
+                          itemId: selectedItemId,
+                          ...(optionId ? { variantId: optionId } : {}),
+                      }),
                 entryType: isStockIn ? "STOCK_IN" : "STOCK_OUT",
                 quantityChange,
-                unitCost: isValidPrice ? price : undefined,
+                // Cost on the way in, sale price on the way out. The API
+                // refuses the wrong one, because a sale price stored as cost
+                // used to become the item's cost for everything after it.
+                unitCost: isStockIn && isValidPrice ? price : undefined,
+                unitSalePrice:
+                    !isStockIn && isValidPrice ? price : undefined,
+                // Kept so the ledger reads "2 sacks", not just the base amount.
+                enteredQuantity: selectedUnit ? qty : undefined,
+                unitId: selectedUnit?.id,
                 batchData,
                 referenceType: isStockIn ? "STOCK_IN_FORM" : "STOCK_OUT_FORM",
                 referenceId: "",
@@ -286,11 +393,13 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                         error={fieldErrors.itemId}
                                     >
                                         <div className="flex gap-2">
-                                            <SearchableItemSelect
-                                                items={items}
-                                                selectedItemId={selectedItemId}
-                                                onSelect={(id) => {
-                                                    setSelectedItemId(id);
+                                            <StockTargetSelect
+                                                targets={targets}
+                                                selected={target}
+                                                onSelect={(picked) => {
+                                                    setTarget(picked);
+                                                    setEntryUnitId("");
+                                                    setOptionId("");
                                                     setScannedItemName(null);
                                                     setFieldErrors((current) => {
                                                         const next = { ...current };
@@ -298,15 +407,9 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                                         return next;
                                                     });
                                                 }}
-                                                stockSummaryMap={Object.fromEntries(
-                                                    (stockQuery.data || []).map((s) => [
-                                                        s.itemId,
-                                                        s.quantityOnHand,
-                                                    ]),
+                                                ariaInvalid={Boolean(
+                                                    fieldErrors.itemId,
                                                 )}
-                                                placeholder="Search item by name, SKU, or barcode..."
-                                                ariaInvalid={Boolean(fieldErrors.itemId)}
-                                                className="flex-1"
                                             />
                                             <Button
                                                 type="button"
@@ -320,6 +423,42 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                         </div>
                                     </FormField>
                                 </div>
+
+                                {/* Which option, when the item has any. Each
+                                    counts its own stock, so one must be named. */}
+                                {itemOptions.length ? (
+                                    <div className="sm:col-span-2">
+                                        <FormField
+                                            label="Option"
+                                            name="variantId"
+                                            required
+                                            hint="Each option counts its own stock, so this movement lands on the one you choose."
+                                            error={fieldErrors.variantId}
+                                        >
+                                            <SelectField
+                                                id="variantId"
+                                                name="variantId"
+                                                value={optionId}
+                                                onValueChange={(value) => {
+                                                    setOptionId(value);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.variantId;
+                                                        return next;
+                                                    });
+                                                }}
+                                                placeholder="Choose an option"
+                                                options={itemOptions.map(
+                                                    (option) => ({
+                                                        value: option.id,
+                                                        label: option.name,
+                                                    }),
+                                                )}
+                                                className={inventoryControlClassName}
+                                            />
+                                        </FormField>
+                                    </div>
+                                ) : null}
 
                                 {/* Quantity Input */}
                                 <FormField
@@ -358,19 +497,54 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                             placeholder="e.g. 50"
                                             className={`${inventoryControlClassName} flex-1`}
                                         />
-                                        {selectedItemId ? (
+                                        {unitOptions.length > 1 ? (
+                                            <select
+                                                aria-label="Unit"
+                                                value={selectedUnit?.id || ""}
+                                                onChange={(event) =>
+                                                    setEntryUnitId(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-2 text-xs font-semibold text-foreground outline-none"
+                                            >
+                                                {unitOptions.map((option) => (
+                                                    <option
+                                                        key={option.id}
+                                                        value={option.id}
+                                                    >
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : selectedItemId ? (
                                             <span className="text-xs font-semibold text-muted-foreground shrink-0 bg-muted px-2.5 py-2 rounded-lg border border-border">
                                                 {unitLabel}
                                             </span>
                                         ) : null}
                                     </div>
+                                    {conversionFactor !== 1 && isValidQty ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            {qty} {selectedUnit?.label} ={" "}
+                                            {baseQty} {unitLabel}
+                                        </p>
+                                    ) : null}
                                 </FormField>
 
-                                {/* Unit Price Input */}
+                                {/* Cost on the way in, sale price on the way out. */}
                                 <FormField
-                                    label="Unit Price ($)"
+                                    label={
+                                        isStockIn
+                                            ? "Cost per unit"
+                                            : "Sale price per unit"
+                                    }
                                     name="unitPrice"
-                                    hint="Price or cost per single unit."
+                                    required={isStockIn}
+                                    hint={
+                                        isStockIn
+                                            ? `What one ${selectedItem?.unit?.name || "unit"} was bought for. Stock is valued from this, oldest batch first, and it is what a selling price is set against. Enter 0 if it was free.`
+                                            : `What one ${selectedItem?.unit?.name || "unit"} sold for, if this is a sale made away from the till. Leave empty for waste or damage — the cost is worked out from the batches it came from.`
+                                    }
                                     error={fieldErrors.unitPrice}
                                 >
                                     <Input
