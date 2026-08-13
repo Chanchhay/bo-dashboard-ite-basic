@@ -9,6 +9,7 @@ import type { ChannelItem } from "@/lib/api/sales-channels";
 
 import { useMoney } from "@/hooks/useMoney";
 import { PaidReceiptView } from "@/components/pos/order/pain-receipt-view";
+import { ItemChoiceModal } from "@/components/pos/item-choice-modal";
 import PosCard from "@/components/pos/pos-card";
 import { ReceiptDetailView } from "@/components/pos/order/receipt-detail-view";
 import { ReceiptsList } from "@/components/pos/order/receipt-list";
@@ -17,6 +18,7 @@ import PosButton, { type PosTab } from "@/components/pos/pos-button";
 import { OrderTable } from "@/components/pos/order/order-table";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { linesOf } from "@/components/sales/pricing/channel-lines";
 import { authClient } from "@/lib/auth/auth-client";
 import { useSessionSubject } from "@/lib/auth/session-context";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
@@ -61,6 +63,63 @@ export function PosScreen({
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [paidReceipt, setPaidReceipt] = useState<PaidReceiptState | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const { data: currentStockList = [] } = useGetCurrentStockQuery();
+
+  const stockByItemId = useMemo(() => {
+    const map = new Map<string, number>();
+    currentStockList.forEach((s) => {
+      // Add-on stock is counted too, but nothing on the till sells one alone.
+      if (!s.itemId) return;
+      // An option holds its own balance, so it is keyed on its own as well as
+      // counted into the item's total. Selling the last Large has to read as
+      // out of stock even while the item is full of Smalls.
+      if (s.variantId) {
+        map.set(`${s.itemId}:${s.variantId}`, s.quantityOnHand ?? 0);
+      }
+      map.set(s.itemId, (map.get(s.itemId) ?? 0) + (s.quantityOnHand ?? 0));
+    });
+    return map;
+  }, [currentStockList]);
+
+  /**
+   * On hand for an item, or one option of it, in base units.
+   *
+   * Undefined means the shop does not track this item at all, which reads
+   * differently from zero: nothing should be shown as sold out on the strength
+   * of a count nobody keeps.
+   */
+  const stockFor = useCallback(
+    (itemId: string, variantId?: string) =>
+      stockByItemId.get(variantId ? `${itemId}:${variantId}` : itemId),
+    [stockByItemId],
+  );
+
+  /**
+   * Whether there is nothing left to sell.
+   *
+   * Never stocked in counts as out, not as unknown: an item the shop has not
+   * received yet has no cost behind it and no unit to take off a shelf, and
+   * ringing one up books a sale against stock that was never there. Set Price
+   * already refuses to price such an item — the till refuses to sell it.
+   *
+   * A service or a download is exempt. There is no shelf behind a haircut, so
+   * a missing count says nothing about whether it can be sold, and refusing it
+   * for want of a number that will never exist would take the shop's whole
+   * service list off the till.
+   */
+  const outOfStock = useCallback(
+    (entry: ChannelItem) => {
+      const itemType = entry.item.itemType;
+
+      if (itemType === "SERVICE" || itemType === "DIGITAL") return false;
+
+      // An item sold in options is sellable while any one option has stock;
+      // the item's own total already sums them.
+      return (stockFor(entry.item.id) ?? 0) <= 0;
+    },
+    [stockFor],
+  );
+
   // The till sells only what is published to the POS channel. Filtering stays
   // on that API-backed set because the channel endpoint does not accept search
   // parameters yet.
@@ -94,17 +153,40 @@ export function PosScreen({
           .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
           .find((image) => image.url)?.url;
 
+        // What it actually sells for, not what the item row happens to hold.
+        //
+        // An item sold in options is never sold as itself, so `item.price` is
+        // a number nobody is ever charged — and it is the one price a channel
+        // has no exception against, so the card sat on the business price
+        // while the form beside it charged the channel's. The cheapest thing
+        // you can actually buy is the honest headline.
+        const prices = linesOf(entry.item)
+          .map((line) => line.base)
+          .filter((price): price is number => price !== undefined);
+
+        const lowest = prices.length
+          ? Math.min(...prices)
+          : (entry.item.price ?? 0);
+
         return {
           id: entry.item.id,
           business_owner_id: "",
           name: entry.item.name ?? "Unnamed",
           image_url: thumbnail ?? null,
-          price: String(entry.item.price ?? 0),
+          price: String(lowest),
           is_available:
-            entry.item.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+            entry.item.status === "INACTIVE" || outOfStock(entry)
+              ? "INACTIVE"
+              : "ACTIVE",
+          unavailableReason:
+            entry.item.status === "INACTIVE"
+              ? "Unavailable"
+              : outOfStock(entry)
+                ? "Out of stock"
+                : undefined,
         };
       });
-  }, [channelItems, searchQuery, selectedCategoryId]);
+  }, [channelItems, searchQuery, selectedCategoryId, outOfStock]);
 
   const filtersAreActive =
     searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
@@ -112,14 +194,33 @@ export function PosScreen({
   const [addOrderItem] = useAddOrderItemMutation();
   const { toast } = useToast();
 
-  const addItem = useCallback(
-    async (item: Item) => {
+  /** The full item behind each card: options, packs and the base unit. */
+  const channelItemsById = useMemo(() => {
+    const map = new Map<string, ChannelItem>();
+    channelItems.forEach((entry) => map.set(entry.item.id, entry));
+    return map;
+  }, [channelItems]);
+
+  const [choosingFor, setChoosingFor] = useState<ChannelItem | null>(null);
+
+  const sendItem = useCallback(
+    async (input: {
+      itemId: string;
+      variantId?: string;
+      unitId?: string;
+      addOnIds?: string[];
+      itemName: string;
+      unitPrice: number;
+    }) => {
       try {
         await addOrderItem({
-          itemId: item.id,
+          itemId: input.itemId,
+          ...(input.variantId ? { variantId: input.variantId } : {}),
+          ...(input.unitId ? { unitId: input.unitId } : {}),
+          ...(input.addOnIds?.length ? { addOnIds: input.addOnIds } : {}),
           quantity: 1,
-          itemName: item.name,
-          unitPrice: Number(item.price ?? 0),
+          itemName: input.itemName,
+          unitPrice: input.unitPrice,
         }).unwrap();
       } catch (error) {
         toast({
@@ -130,6 +231,52 @@ export function PosScreen({
       }
     },
     [addOrderItem, toast],
+  );
+
+  const addItem = useCallback(
+    async (item: Item) => {
+      const channelItem = channelItemsById.get(item.id);
+
+      // The card is disabled, but that is a look — this is the rule. Stock can
+      // also run out between the grid rendering and the tap landing, and the
+      // backend would book the sale either way.
+      if (channelItem && outOfStock(channelItem)) {
+        toast({
+          tone: "error",
+          title: `${item.name} is out of stock`,
+          description: "Receive stock for it before selling it.",
+        });
+        return;
+      }
+
+      const hasOptions = Boolean(channelItem?.item.variants?.length);
+      // Only a pack with a price is something that can be sold as one.
+      // Only a unit somebody priced can be sold as one.
+      const hasPacks = Boolean(
+        channelItem?.item.uomConversions?.some(
+          (conversion) => conversion.price != null,
+        ),
+      );
+      // Only extras this item actually sells count as something to choose.
+      const hasAddOns = Boolean(
+        channelItem?.item.addOns?.some(
+          (addOn) => addOn.available !== false && addOn.price != null,
+        ),
+      );
+
+      // One tap is enough only when there is nothing to choose between.
+      if (channelItem && (hasOptions || hasPacks || hasAddOns)) {
+        setChoosingFor(channelItem);
+        return;
+      }
+
+      await sendItem({
+        itemId: item.id,
+        itemName: item.name,
+        unitPrice: Number(item.price ?? 0),
+      });
+    },
+    [channelItemsById, sendItem, outOfStock, toast],
   );
   // The same cached order the cart panel renders, so the mobile bar can never
   // disagree with the panel behind it.
@@ -153,16 +300,6 @@ export function PosScreen({
   /* The backend matches receiverId against the Keycloak subject, not against
      Better Auth's local user.id. */
   const subject = useSessionSubject();
-
-  const { data: currentStockList = [] } = useGetCurrentStockQuery();
-
-  const stockByItemId = useMemo(() => {
-    const map = new Map<string, number>();
-    currentStockList.forEach((s) => {
-      map.set(s.itemId, s.quantityOnHand ?? 0);
-    });
-    return map;
-  }, [currentStockList]);
 
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
     setPaidReceipt({ order, sale });
@@ -205,7 +342,14 @@ export function PosScreen({
           // Skip if low stock threshold is disabled (0 or unset)
           if (lowThreshold <= 0) return;
 
-          const currentStock = stockByItemId.get(itemObj.id) ?? 0;
+          // Warn about what actually sold: the option if the line named one,
+          // since the item's total stays healthy while one option empties.
+          const currentStock =
+            (line.variantId
+              ? stockByItemId.get(`${itemObj.id}:${line.variantId}`)
+              : undefined) ??
+            stockByItemId.get(itemObj.id) ??
+            0;
           const remainingStock = Math.max(0, currentStock - line.quantity);
 
           // ONLY notify if remaining quantity drops to or below the low stock threshold
@@ -390,6 +534,30 @@ export function PosScreen({
           </div>
         </div>
       )}
+
+      <ItemChoiceModal
+        channelItem={choosingFor}
+        open={Boolean(choosingFor)}
+        onOpenChange={(next) => {
+          if (!next) setChoosingFor(null);
+        }}
+        stockFor={stockFor}
+        onConfirm={async (choice) => {
+          const chosen = choosingFor;
+          setChoosingFor(null);
+
+          if (!chosen) return;
+
+          await sendItem({
+            itemId: chosen.item.id,
+            ...(choice.variantId ? { variantId: choice.variantId } : {}),
+            ...(choice.unitId ? { unitId: choice.unitId } : {}),
+            ...(choice.addOnIds?.length ? { addOnIds: choice.addOnIds } : {}),
+            itemName: choice.label,
+            unitPrice: choice.unitPrice,
+          });
+        }}
+      />
     </div>
   );
 }

@@ -111,6 +111,16 @@ export function Payment({
           itemId: item.product_id,
           variantId: item.variant_id ?? null,
           itemName: item.product_name,
+          // Carried through so the customer screen can show what was picked,
+          // not just what it was called.
+          variantName: item.variant_name ?? null,
+          unitName: item.unit_name ?? null,
+          unitFactor: item.unit_factor ?? null,
+          addOns: (item.add_ons || []).map((addOn) => ({
+            addOnId: null,
+            name: addOn.name,
+            unitPrice: 0,
+          })),
           quantity: item.quantity,
           unitPrice,
           discountAmount,

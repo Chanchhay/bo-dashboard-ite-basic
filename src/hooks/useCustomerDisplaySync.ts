@@ -68,6 +68,10 @@ export function useCustomerDisplaySync({
       id: item.id,
       itemId: item.itemId,
       name: item.itemName,
+      variantName: item.variantName ?? null,
+      unitName: item.unitName ?? null,
+      unitFactor: item.unitFactor ?? null,
+      addOns: (item.addOns || []).map((addOn) => ({ name: addOn.name })),
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       discountAmount: item.discountAmount,
@@ -77,7 +81,13 @@ export function useCustomerDisplaySync({
     const computedStatus: CustomerDisplayStatus =
       statusOverride || (items.length > 0 ? "CART_UPDATED" : "IDLE");
 
-    const payloadKey = `${terminalId}:${computedStatus}:${order?.id || ""}:${sale?.id || ""}:${order?.total || 0}:${items.length}:${qrCodeUrl || ""}`;
+    // Signed by what is on the lines, not just how many: swapping a can for a
+    // six pack can leave the count and the total untouched while changing what
+    // the customer is looking at.
+    const linesKey = items
+      .map((item) => `${item.id}#${item.quantity}@${item.unitPrice}`)
+      .join(",");
+    const payloadKey = `${terminalId}:${computedStatus}:${order?.id || ""}:${sale?.id || ""}:${order?.total || 0}:${linesKey}:${qrCodeUrl || ""}`;
     if (lastPayloadKeyRef.current === payloadKey) {
       return;
     }

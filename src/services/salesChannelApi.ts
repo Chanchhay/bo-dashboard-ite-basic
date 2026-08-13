@@ -1,5 +1,9 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
+    ChannelListing,
+    SaveChannelListingInput,
+} from "@/lib/api/channel-pricing";
+import type {
     ChannelItem,
     CreateItemChannelInput,
     ItemChannel,
@@ -68,6 +72,34 @@ export const salesChannelApi = baseApi.injectEndpoints({
             invalidatesTags: ["ItemChannels"],
         }),
 
+        /**
+         * What one channel sells, charges instead, and when it is open.
+         *
+         * One read and one write for the whole channel: the screen is edited
+         * as a piece — a rule, some exceptions, some hours — and saving half
+         * of it would leave the shop looking at something it never chose.
+         */
+        getChannelListing: builder.query<ChannelListing, string>({
+            query: (channelId) => `/sales-channels/${channelId}/listing`,
+            providesTags: (_result, _error, channelId) => [
+                { type: "ItemChannels", id: `listing-${channelId}` },
+            ],
+        }),
+
+        saveChannelListing: builder.mutation<
+            ChannelListing,
+            { channelId: string; body: SaveChannelListingInput }
+        >({
+            query: ({ channelId, body }) => ({
+                url: `/sales-channels/${channelId}/listing`,
+                method: "PUT",
+                body,
+            }),
+            invalidatesTags: (_result, _error, { channelId }) => [
+                { type: "ItemChannels", id: `listing-${channelId}` },
+                "ItemChannels",
+            ],
+        }),
     }),
 });
 
@@ -79,4 +111,6 @@ export const {
     useLazyGetItemChannelsByItemQuery,
     useToggleItemChannelMutation,
     useDeleteItemChannelMutation,
+    useGetChannelListingQuery,
+    useSaveChannelListingMutation,
 } = salesChannelApi;

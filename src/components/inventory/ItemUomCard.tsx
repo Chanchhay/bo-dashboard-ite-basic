@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, Plus, Trash2 } from "lucide-react";
 
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
@@ -16,13 +16,25 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import type { Unit as ApiUnit } from "@/lib/api/inventory";
-import { sampleUnits } from "@/lib/inventory-config/sample-data";
 import {
     findUnit,
     formatAmount,
     validateConversion,
+    type Unit,
     type UomConversion,
 } from "@/lib/inventory-config/units";
+
+/** The card reads units by symbol; the API answers with one on every unit. */
+function toConfigUnit(unit: ApiUnit): Unit {
+    return {
+        id: unit.id,
+        name: unit.name || "Unnamed unit",
+        symbol: unit.symbol || "",
+        category: unit.category || "COUNT",
+        system: unit.system !== false,
+        ...(unit.note ? { note: unit.note } : {}),
+    };
+}
 
 export type ItemUomDraft = {
     /** Empty until picked. Stock and thresholds are all expressed in this. */
@@ -47,6 +59,7 @@ export const emptyUomDraft: ItemUomDraft = {
  */
 export function ItemUomCard({
     apiUnits,
+    options = [],
     lowStockDefault,
     lowStockError,
     draft,
@@ -54,16 +67,28 @@ export function ItemUomCard({
 }: {
     /** Units the live API knows about, used for the saved `unitId` field. */
     apiUnits: readonly ApiUnit[];
+    /**
+     * The options this item is sold in, saved or still being typed.
+     *
+     * A larger unit belongs to one of them: a shop that sells Large by the
+     * case need not sell Small that way, and the two need not hold the same
+     * number. Empty when the item is sold as itself.
+     *
+     * The `id` is whatever the form calls the option row, not necessarily a
+     * saved option's id — the two are set up together and saved in one go.
+     */
+    options?: readonly { id: string; name: string }[];
     lowStockDefault: number;
     lowStockError?: string;
     draft: ItemUomDraft;
     onDraftChange: (patch: Partial<ItemUomDraft>) => void;
 }) {
     const { toast } = useToast();
-    const units = sampleUnits;
+    const units = useMemo(() => apiUnits.map(toConfigUnit), [apiUnits]);
     const [conversionDraft, setConversionDraft] = useState({
         unitId: "",
         factor: "",
+        variantId: "",
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -84,6 +109,8 @@ export function ItemUomCard({
             conversionDraft,
             draft.baseUnitId,
             draft.conversions,
+            undefined,
+            options,
         );
 
         if (Object.keys(found).length) {
@@ -98,10 +125,13 @@ export function ItemUomCard({
                     id: `c-${crypto.randomUUID().slice(0, 8)}`,
                     unitId: conversionDraft.unitId,
                     factor: Number(conversionDraft.factor),
+                    ...(conversionDraft.variantId
+                        ? { variantId: conversionDraft.variantId }
+                        : {}),
                 },
             ],
         });
-        setConversionDraft({ unitId: "", factor: "" });
+        setConversionDraft({ unitId: "", factor: "", variantId: "" });
         setErrors({});
     }
 
@@ -146,33 +176,26 @@ export function ItemUomCard({
                     </Label>
                     <Select
                         name="unitId"
-                        value={draft.baseUnitId || "__none"}
+                        value={draft.baseUnitId}
                         onValueChange={(value) =>
                             onDraftChange({
-                                baseUnitId: value === "__none" ? "" : value || "",
+                                baseUnitId: value || "",
                                 // A different base makes every conversion below
                                 // meaningless, so they go with it.
                                 conversions: [],
                             })
                         }
-                        items={{
-                            __none: "No unit",
-                            ...Object.fromEntries(
-                                apiUnits.map((unit) => [
-                                    unit.id,
-                                    unit.name || "Unnamed unit",
-                                ]),
-                            ),
-                        }}
+                        items={Object.fromEntries(
+                            units.map((unit) => [unit.id, unit.name]),
+                        )}
                     >
                         <SelectTrigger
                             id="unitId"
                             className={`${inventoryControlClassName} w-full`}
                         >
-                            <SelectValue />
+                            <SelectValue placeholder="Choose a unit" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="__none">No unit</SelectItem>
                             {units.map((unit) => (
                                 <SelectItem key={unit.id} value={unit.id}>
                                     {unit.name} ({unit.symbol})
@@ -229,15 +252,15 @@ export function ItemUomCard({
                             <h3 className="text-sm font-semibold text-foreground">
                                 Conversions
                             </h3>
-                            <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-semibold text-warning">
-                                Preview — not saved yet
-                            </span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                             Bigger units this item can be received or sold in — a
                             six-pack, a case, a sack. Stock stays a single number
                             in the base unit; these just say what each one is
                             worth. Price them in Sale Management to sell them.
+                            {options.length
+                                ? " This item is sold in options, so each one says which option it is for."
+                                : ""}
                         </p>
                     </div>
                 </div>
@@ -246,11 +269,22 @@ export function ItemUomCard({
                     <ul className="mt-4 flex flex-col gap-2">
                         {draft.conversions.map((conversion) => {
                             const unit = findUnit(units, conversion.unitId);
+                            // Known to this item's options, not merely set: an
+                            // option that has since been removed or renamed
+                            // leaves the conversion pointing at nothing.
+                            const chosen = options.find(
+                                (option) => option.id === conversion.variantId,
+                            );
+                            const needsOption = options.length && !chosen;
 
                             return (
                                 <li
                                     key={conversion.id}
-                                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5"
+                                    className={`flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-2.5 ${
+                                        needsOption
+                                            ? "border-warning/50 bg-warning/5"
+                                            : "border-border"
+                                    }`}
                                 >
                                     <div className="min-w-0 flex-1">
                                         <p className="font-medium text-foreground">
@@ -266,6 +300,17 @@ export function ItemUomCard({
                                             {formatAmount(conversion.factor)}{" "}
                                             {baseSymbol}
                                         </p>
+                                        {chosen ? (
+                                            <p className="mt-0.5 text-xs font-medium text-primary">
+                                                For {chosen.name}
+                                            </p>
+                                        ) : null}
+                                        {needsOption ? (
+                                            <p className="mt-0.5 text-xs font-medium text-warning">
+                                                No option — remove it and add it
+                                                again for the right one.
+                                            </p>
+                                        ) : null}
                                     </div>
                                     <Button
                                         type="button"
@@ -291,7 +336,63 @@ export function ItemUomCard({
                     </ul>
                 ) : null}
 
-                <div className="mt-4 grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                <div
+                    className={`mt-4 grid items-end gap-3 ${
+                        options.length
+                            ? "sm:grid-cols-[1fr_1fr_1fr_auto]"
+                            : "sm:grid-cols-[1fr_1fr_auto]"
+                    }`}
+                >
+                    {/* Which option this unit is for. A case of Large is not a
+                        case of Small, so it is chosen where it is defined. */}
+                    {options.length ? (
+                        <div className="flex min-w-0 flex-col gap-2">
+                            <Label
+                                htmlFor="conversion-option"
+                                className="text-xs font-semibold text-muted-foreground"
+                            >
+                                For option
+                            </Label>
+                            <Select
+                                value={conversionDraft.variantId}
+                                onValueChange={(value) =>
+                                    setConversionDraft((current) => ({
+                                        ...current,
+                                        variantId: value || "",
+                                    }))
+                                }
+                                items={Object.fromEntries(
+                                    options.map((option) => [
+                                        option.id,
+                                        option.name,
+                                    ]),
+                                )}
+                            >
+                                <SelectTrigger
+                                    id="conversion-option"
+                                    aria-invalid={Boolean(errors.variantId)}
+                                    className={`${inventoryControlClassName} w-full`}
+                                >
+                                    <SelectValue placeholder="Which option" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {options.map((option) => (
+                                        <SelectItem
+                                            key={option.id}
+                                            value={option.id}
+                                        >
+                                            {option.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.variantId ? (
+                                <p className="text-xs text-danger" role="alert">
+                                    {errors.variantId}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
                     <div className="flex min-w-0 flex-col gap-2">
                         <Label
                             htmlFor="conversion-unit"

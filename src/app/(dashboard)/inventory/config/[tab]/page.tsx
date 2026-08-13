@@ -8,7 +8,7 @@ import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 
 const TAB_MAP = {
     units: {
-        title: "Item configuration — Units",
+        title: "Item configuration",
         description: "Configure measurement units and conversions for your inventory items.",
         component: UnitsTab,
     },

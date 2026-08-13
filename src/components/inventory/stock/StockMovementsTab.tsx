@@ -10,7 +10,6 @@ import {
     ChevronRight,
     Search,
     SlidersHorizontal,
-    Undo2,
 } from "lucide-react";
 
 import { InventoryEmpty } from "@/components/inventory/InventoryUi";
@@ -18,8 +17,6 @@ import {
     StockMovementDetailDialog,
     type MovementDetail,
 } from "@/components/inventory/stock/StockMovementDetailDialog";
-import type { DraftMovement } from "@/components/inventory/stock/stock-draft";
-import { signedChange } from "@/components/inventory/stock/stock-draft";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
@@ -45,15 +42,32 @@ type MovementKind = "ALL" | "IN" | "OUT" | "ADJUST";
 export type MovementTargetInfo = {
     name: string;
     unitLabel: string;
-    /** On hand after every *recorded* entry, before any draft is applied. */
+    /** On hand after every recorded entry. */
     onHand: number;
 };
 
 /** The table and the detail dialog read the same record. */
 type LedgerRow = MovementDetail;
 
-function targetKey(kind: "ITEM" | "ADDON", id: string) {
-    return `${kind}:${id}`;
+function targetKey(kind: "ITEM" | "ADDON", id: string, variantId?: string) {
+    return variantId ? `${kind}:${id}:${variantId}` : `${kind}:${id}`;
+}
+
+/**
+ * What an entry was written against.
+ *
+ * Exactly one of `itemId` / `addOnId` is set — an add-on holds stock of its
+ * own — so an entry that carries an add-on must be looked up under the add-on
+ * key. Reading every entry as an item is what left add-on movements nameless.
+ *
+ * An option narrows it further: each keeps its own running balance, so two
+ * entries on the same item belong to different chains when they name
+ * different options.
+ */
+function entryTargetKey(entry: StockEntry) {
+    return entry.addOnId
+        ? targetKey("ADDON", entry.addOnId)
+        : targetKey("ITEM", entry.itemId || "", entry.variantId);
 }
 
 /**
@@ -88,52 +102,64 @@ const kindLabels: Record<LedgerRow["kind"], string> = {
  * nothing about whether the count is now right.
  */
 export function StockMovementsTab({
-    drafts,
     entries,
     targets,
-    onUndo,
-    onClearDrafts,
 }: {
-    drafts: readonly DraftMovement[];
     entries: readonly StockEntry[];
     /** Keyed by `ITEM:<id>` / `ADDON:<id>` — see {@link targetKey}. */
     targets: Map<string, MovementTargetInfo>;
-    onUndo: (id: string) => void;
-    onClearDrafts: () => void;
 }) {
     // Entries carry only the id of whoever wrote them, so names are looked up.
     const staffQuery = useGetStaffQuery();
     const profileQuery = useGetUserProfileQuery();
 
+    /**
+     * Everything an entry might be signed with, pointing at a person's name.
+     *
+     * The backend signs an entry with the username on the token, not with an
+     * id, so ids alone never matched and every row read "Unknown user". Each
+     * account is filed under all three — id, username, email — so whichever
+     * one an entry carries finds its way to a name.
+     */
     const actorNames = useMemo(() => {
         const names = new Map<string, string>();
 
-        for (const member of staffQuery.data || []) {
-            names.set(member.id, staffFullName(member));
-        }
+        const remember = (
+            name: string | undefined,
+            ...keys: (string | undefined)[]
+        ) => {
+            if (!name) return;
 
-        const profile = profileQuery.data;
-        if (profile?.userId) {
-            names.set(
-                profile.userId,
-                [profile.firstName, profile.lastName]
-                    .filter(Boolean)
-                    .join(" ")
-                    .trim() ||
-                    profile.username ||
-                    profile.email ||
-                    "You",
+            for (const key of keys) {
+                const trimmed = key?.trim();
+                if (trimmed) names.set(trimmed.toLowerCase(), name);
+            }
+        };
+
+        for (const member of staffQuery.data || []) {
+            remember(
+                staffFullName(member),
+                member.id,
+                member.username,
+                member.email,
             );
         }
 
+        const profile = profileQuery.data;
+        remember(
+            [profile?.firstName, profile?.lastName]
+                .filter(Boolean)
+                .join(" ")
+                .trim() ||
+                profile?.username ||
+                profile?.email,
+            profile?.userId,
+            profile?.username,
+            profile?.email,
+        );
+
         return names;
     }, [staffQuery.data, profileQuery.data]);
-
-    /** Drafts are only ever recorded by whoever is looking at this screen. */
-    const currentActor =
-        (profileQuery.data?.userId &&
-            actorNames.get(profileQuery.data.userId)) ||
-        "You";
 
     const [kindFilter, setKindFilter] = useState<MovementKind>("ALL");
     const [searchQuery, setSearchQuery] = useState("");
@@ -178,78 +204,23 @@ export function StockMovementsTab({
     }
 
     /**
-     * Drafts stack on top of everything recorded, so their balances start at the
-     * target's current on-hand and run forward in the order they were entered.
-     */
-    const draftRows: LedgerRow[] = useMemo(() => {
-        const running = new Map<string, number>();
-
-        const forward = [...drafts]
-            .sort((left, right) => left.at.localeCompare(right.at))
-            .map((movement) => {
-                const key = targetKey(
-                    movement.targetKind,
-                    movement.targetId,
-                );
-                const unitLabel =
-                    movement.baseUnitLabel ||
-                    targets.get(key)?.unitLabel ||
-                    "";
-                const before =
-                    running.get(key) ?? targets.get(key)?.onHand ?? 0;
-                const after = before + signedChange(movement);
-
-                running.set(key, after);
-
-                return {
-                    id: movement.id,
-                    name: movement.targetName,
-                    typeLabel:
-                        movement.direction === "IN" ? "Stock in" : "Stock out",
-                    note: [
-                        movement.enteredUnitLabel !== movement.baseUnitLabel
-                            ? `Entered as ${formatAmount(movement.enteredQuantity)} ${movement.enteredUnitLabel}`
-                            : "",
-                        movement.unitCost !== undefined
-                            ? `${formatAmount(movement.unitCost)} / ${unitLabel || "unit"}`
-                            : "",
-                        movement.reason,
-                    ]
-                        .filter(Boolean)
-                        .join(" · "),
-                    kind: (movement.direction === "IN" ? "IN" : "OUT") as
-                        | "IN"
-                        | "OUT",
-                    change: signedChange(movement),
-                    unitLabel,
-                    before,
-                    after,
-                    actor: currentActor,
-                    at: movement.at,
-                    draft: movement,
-                };
-            });
-
-        return forward.reverse();
-    }, [drafts, targets, currentActor]);
-
-    /**
      * Recorded balances come from the entry itself when the backend sent them.
      * When it did not, they are reconstructed by walking each item's ledger
      * backwards from the quantity it holds today — the only anchor that is
      * certain — so the column is never a guess built forward from zero.
      */
     const recordedRows: LedgerRow[] = useMemo(() => {
-        const byItem = new Map<string, StockEntry[]>();
+        // Each target keeps its own running balance, add-ons included.
+        const byTarget = new Map<string, StockEntry[]>();
 
         for (const entry of entries) {
-            const itemId = entry.itemId || "";
-            const list = byItem.get(itemId);
+            const key = entryTargetKey(entry);
+            const list = byTarget.get(key);
 
             if (list) {
                 list.push(entry);
             } else {
-                byItem.set(itemId, [entry]);
+                byTarget.set(key, [entry]);
             }
         }
 
@@ -258,8 +229,8 @@ export function StockMovementsTab({
             { before?: number; after?: number }
         >();
 
-        for (const [itemId, list] of byItem) {
-            let running = targets.get(targetKey("ITEM", itemId))?.onHand;
+        for (const [key, list] of byTarget) {
+            let running = targets.get(key)?.onHand;
 
             const newestFirst = [...list].sort(
                 (left, right) =>
@@ -280,6 +251,23 @@ export function StockMovementsTab({
         }
 
         const byId = new Map(entries.map((entry) => [entry.id, entry]));
+
+        /**
+         * Who recorded the entry, and the account they signed it with.
+         *
+         * An account that matches nobody on staff — an owner, or someone since
+         * removed — is still shown by the name it signed with. It is a real
+         * account, and printing "Unknown user" over it hid the one clue the
+         * row had about where the movement came from.
+         */
+        function describeActor(entry: StockEntry) {
+            const signature = entry.createdBy?.trim();
+            if (!signature) return undefined;
+
+            const name = actorNames.get(signature.toLowerCase());
+
+            return { name: name || signature, account: signature };
+        }
 
         /**
          * What an adjustment was made against. An adjustment on its own says
@@ -334,15 +322,23 @@ export function StockMovementsTab({
                     kind = "OUT";
                 }
 
-                const target = targets.get(
-                    targetKey("ITEM", entry.itemId || ""),
-                );
+                const isAddOn = Boolean(entry.addOnId);
+                const target = targets.get(entryTargetKey(entry));
+                // The entry carries the option's name, so a movement still
+                // reads correctly after that option is renamed or removed.
+                const optionName = entry.variantName;
                 const unitLabel = target?.unitLabel || "";
                 const balance = balances.get(entry.id);
 
                 return {
                     id: entry.id,
-                    name: target?.name || "Unknown item",
+                    // Named after what it actually moved. Only a target that no
+                    // longer exists falls back, and it says which kind it was.
+                    name:
+                        target?.name ||
+                        (isAddOn ? "Deleted add-on" : "Deleted item"),
+                    isAddOn,
+                    ...(optionName ? { optionName } : {}),
                     typeLabel: entry.entryType
                         ? stockEntryTypeLabels[entry.entryType]
                         : "Stock entry",
@@ -360,9 +356,7 @@ export function StockMovementsTab({
                     unitLabel,
                     before: balance?.before,
                     after: balance?.after,
-                    actor: entry.createdBy
-                        ? actorNames.get(entry.createdBy) || "Unknown user"
-                        : undefined,
+                    actor: describeActor(entry),
                     linkedRecord: describeLinkedRecord(entry),
                     at: entry.createdDate,
                     entry,
@@ -371,8 +365,8 @@ export function StockMovementsTab({
     }, [entries, targets, actorNames]);
 
     const allRows = useMemo(
-        () => [...draftRows, ...recordedRows],
-        [draftRows, recordedRows],
+        () => recordedRows,
+        [recordedRows],
     );
 
     // Filtered rows based on selected movement kind, search text, and date range
@@ -385,9 +379,12 @@ export function StockMovementsTab({
                 const q = searchQuery.toLowerCase();
                 const haystack = [
                     row.name,
+                    row.optionName,
                     row.typeLabel,
                     row.note,
-                    row.actor,
+                    // Searchable by either, since the row shows both.
+                    row.actor?.name,
+                    row.actor?.account,
                     row.linkedRecord,
                 ];
                 if (
@@ -471,25 +468,6 @@ export function StockMovementsTab({
 
     return (
         <div className="flex flex-col">
-            {/* Unsaved draft warning */}
-            {draftRows.length ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-warning/10 px-5 py-3">
-                    <p className="text-xs font-semibold text-warning">
-                        {draftRows.length} unsaved movement
-                        {draftRows.length === 1 ? "" : "s"} — preview only,
-                        nothing has been sent.
-                    </p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={onClearDrafts}
-                    >
-                        Discard all
-                    </Button>
-                </div>
-            ) : null}
-
             {/* Filter Toolbar */}
             <div className="flex flex-col gap-4 p-4 sm:p-5 border-b border-border bg-card">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -688,13 +666,32 @@ export function StockMovementsTab({
                                         {/* Also the keyboard way into the
                                             details, since the row click is
                                             only reachable with a pointer. */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setOpenedRow(row)}
-                                            className="cursor-pointer text-left font-semibold hover:underline"
-                                        >
-                                            {row.name}
-                                        </button>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setOpenedRow(row)
+                                                }
+                                                className="cursor-pointer text-left font-semibold hover:underline"
+                                            >
+                                                {row.name}
+                                            </button>
+                                            {/* An add-on and an item can share
+                                                a name, so the row says which
+                                                one moved. */}
+                                            {row.isAddOn ? (
+                                                <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                                    Add-on
+                                                </span>
+                                            ) : null}
+                                            {/* Which option moved — its own
+                                                balance, not the item's. */}
+                                            {row.optionName ? (
+                                                <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                                    {row.optionName}
+                                                </span>
+                                            ) : null}
+                                        </div>
                                         {row.unitLabel ? (
                                             <p className="mt-0.5 text-xs text-muted-foreground">
                                                 in {row.unitLabel}
@@ -715,11 +712,6 @@ export function StockMovementsTab({
                                                 {row.typeLabel ||
                                                     kindLabels[row.kind]}
                                             </span>
-                                            {row.draft ? (
-                                                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                                                    Unsaved
-                                                </span>
-                                            ) : null}
                                         </div>
 
                                         {/* The record this movement acts on */}
@@ -789,9 +781,25 @@ export function StockMovementsTab({
                                     </td>
 
                                     <td className="px-5 py-4 whitespace-nowrap">
-                                        {row.actor || (
+                                        {row.actor ? (
+                                            <>
+                                                <p className="font-medium">
+                                                    {row.actor.name}
+                                                </p>
+                                                {/* The account behind the
+                                                    name, so two people who
+                                                    share one are still told
+                                                    apart. */}
+                                                {row.actor.account !==
+                                                row.actor.name ? (
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                                        {row.actor.account}
+                                                    </p>
+                                                ) : null}
+                                            </>
+                                        ) : (
                                             <span className="text-muted-foreground">
-                                                Unknown user
+                                                Not signed
                                             </span>
                                         )}
                                     </td>
@@ -803,7 +811,8 @@ export function StockMovementsTab({
                                                 event.stopPropagation()
                                             }
                                         >
-                                            {row.entry?.itemId &&
+                                            {(row.entry?.itemId ||
+                                                row.entry?.addOnId) &&
                                             row.kind !== "ADJUST" ? (
                                                 <Button
                                                     variant="outline"
@@ -811,26 +820,13 @@ export function StockMovementsTab({
                                                     nativeButton={false}
                                                     render={
                                                         <Link
-                                                            href={`/inventory/stock/adjust?itemId=${row.entry.itemId}&entryId=${row.id}`}
+                                                            href={`/inventory/stock/adjust?${row.entry.addOnId ? `addOnId=${row.entry.addOnId}` : `itemId=${row.entry.itemId}${row.entry.variantId ? `&variantId=${row.entry.variantId}` : ""}`}&entryId=${row.id}`}
                                                         />
                                                     }
                                                     aria-label={`Adjust ${row.name} against this movement`}
                                                 >
                                                     <SlidersHorizontal className="size-3.5" />
                                                     Adjust
-                                                </Button>
-                                            ) : null}
-                                            {row.draft ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    aria-label={`Undo ${row.name} movement`}
-                                                    onClick={() =>
-                                                        onUndo(row.id)
-                                                    }
-                                                >
-                                                    <Undo2 />
                                                 </Button>
                                             ) : null}
                                         </div>
@@ -911,7 +907,6 @@ export function StockMovementsTab({
                     if (!next) setOpenedRow(null);
                 }}
                 movement={openedRow}
-                onUndo={onUndo}
             />
         </div>
     );

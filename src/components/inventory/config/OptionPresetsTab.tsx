@@ -6,8 +6,12 @@ import { ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
     ConfigEmpty,
     ConfigSection,
-    StaticPreviewNotice,
 } from "@/components/inventory/config/ConfigUi";
+import {
+    getApiErrorMessage,
+    InventoryError,
+    InventoryLoading,
+} from "@/components/inventory/InventoryUi";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
@@ -22,11 +26,36 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
+import type { OptionPreset as ApiOptionPreset } from "@/lib/api/inventory";
 import {
-    sampleOptionPresetUsage,
-    sampleOptionPresets,
-} from "@/lib/inventory-config/sample-data";
-import type { OptionPreset } from "@/lib/inventory-config/types";
+    useCreateOptionPresetMutation,
+    useDeleteOptionPresetMutation,
+    useGetOptionPresetsQuery,
+    useUpdateOptionPresetMutation,
+} from "@/services/inventoryApi";
+
+/** The screen's own shape: values as typed lines, never partial. */
+type OptionPreset = {
+    id: string;
+    name: string;
+    type: "SELECTION" | "COLOR";
+    required: boolean;
+    values: { id: string; value: string; colorHex?: string }[];
+};
+
+function toScreenPreset(preset: ApiOptionPreset): OptionPreset {
+    return {
+        id: preset.id,
+        name: preset.name || "Unnamed preset",
+        type: preset.type || "SELECTION",
+        required: preset.required !== false,
+        values: (preset.values || []).map((value, index) => ({
+            id: `${preset.id}-${index}`,
+            value: value.value || "",
+            ...(value.colorHex ? { colorHex: value.colorHex } : {}),
+        })),
+    };
+}
 
 type PresetDraft = {
     name: string;
@@ -82,8 +111,11 @@ function parseValues(raw: string, type: OptionPreset["type"]) {
 
 export function OptionPresetsTab() {
     const { toast } = useToast();
-    const [presets, setPresets] =
-        useState<OptionPreset[]>(sampleOptionPresets);
+    const presetsQuery = useGetOptionPresetsQuery();
+    const [createPreset, createState] = useCreateOptionPresetMutation();
+    const [updatePreset, updateState] = useUpdateOptionPresetMutation();
+    const [deletePreset, deleteState] = useDeleteOptionPresetMutation();
+    const presets = (presetsQuery.data || []).map(toScreenPreset);
     const [draft, setDraft] = useState<PresetDraft>(emptyDraft);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -115,7 +147,7 @@ export function OptionPresetsTab() {
         setErrors({});
     }
 
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const found: Record<string, string> = {};
@@ -159,44 +191,79 @@ export function OptionPresetsTab() {
             return;
         }
 
-        const saved: OptionPreset = {
-            id: editingId ?? `p-${crypto.randomUUID().slice(0, 8)}`,
+        const body = {
             name,
             type: draft.type,
             required: draft.required,
-            values,
+            values: values.map((value) => ({
+                value: value.value,
+                colorHex: value.colorHex || "",
+            })),
         };
 
-        setPresets((current) =>
-            editingId
-                ? current.map((preset) =>
-                      preset.id === editingId ? saved : preset,
-                  )
-                : [...current, saved],
-        );
-        toast({
-            tone: "success",
-            title: `Preset ${isEditing ? "updated" : "created"}`,
-            description: `${saved.name} was saved.`,
-        });
-        resetForm();
+        try {
+            const saved = editingId
+                ? await updatePreset({ presetId: editingId, body }).unwrap()
+                : await createPreset(body).unwrap();
+
+            toast({
+                tone: "success",
+                title: `Preset ${isEditing ? "updated" : "created"}`,
+                description: `${saved.name || name} was saved.`,
+            });
+            resetForm();
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: `Preset not ${isEditing ? "updated" : "created"}`,
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to save that preset.",
+                ),
+            });
+        }
     }
 
-    function handleConfirmDelete() {
+    async function handleConfirmDelete() {
         if (!deleteTarget) return;
 
-        setPresets((current) =>
-            current.filter((preset) => preset.id !== deleteTarget.id),
+        try {
+            // Nothing depends on a preset once applied — its values were
+            // copied onto the item — so deleting one is always safe.
+            await deletePreset(deleteTarget.id).unwrap();
+            if (editingId === deleteTarget.id) resetForm();
+            toast({ tone: "success", title: `${deleteTarget.name} deleted` });
+            setDeleteTarget(null);
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Preset not deleted",
+                description: getApiErrorMessage(
+                    error,
+                    "Unable to delete that preset.",
+                ),
+            });
+        }
+    }
+
+    if (presetsQuery.isLoading) {
+        return <InventoryLoading label="Loading presets" />;
+    }
+
+    if (presetsQuery.error) {
+        return (
+            <InventoryError
+                message={getApiErrorMessage(
+                    presetsQuery.error,
+                    "Unable to load the presets.",
+                )}
+                retry={presetsQuery.refetch}
+            />
         );
-        if (editingId === deleteTarget.id) resetForm();
-        toast({ tone: "success", title: `${deleteTarget.name} deleted` });
-        setDeleteTarget(null);
     }
 
     return (
         <div className="flex flex-col gap-4">
-            <StaticPreviewNotice />
-
             <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
                 A preset is a starting point, not a live link. Applying one
                 copies its values onto the item — editing the preset afterwards
@@ -217,9 +284,6 @@ export function OptionPresetsTab() {
                     ) : (
                         <div className="divide-y divide-border">
                             {presets.map((preset) => {
-                                const usage =
-                                    sampleOptionPresetUsage[preset.id] ?? 0;
-
                                 return (
                                     <div
                                         key={preset.id}
@@ -263,9 +327,16 @@ export function OptionPresetsTab() {
                                                 ))}
                                             </div>
 
+                                            {/* A preset is copied onto an item,
+                                                not linked to it, so there is no
+                                                list of items to count. */}
                                             <p className="mt-2 text-xs text-muted-foreground">
-                                                Used by {usage}{" "}
-                                                {usage === 1 ? "item" : "items"}
+                                                {preset.values.length}{" "}
+                                                {preset.values.length === 1
+                                                    ? "value"
+                                                    : "values"}{" "}
+                                                · copied onto an item when
+                                                applied
                                             </p>
                                         </div>
 
@@ -434,7 +505,12 @@ export function OptionPresetsTab() {
                         </div>
                     </div>
 
-                    <Button type="submit" size="lg" className="mt-5 w-full">
+                    <Button
+                        type="submit"
+                        size="lg"
+                        disabled={createState.isLoading || updateState.isLoading}
+                        className="mt-5 w-full"
+                    >
                         <Plus />
                         {isEditing ? "Save changes" : "Add preset"}
                     </Button>
@@ -467,7 +543,7 @@ export function OptionPresetsTab() {
                 }
                 confirmLabel="Delete"
                 cancelLabel="Cancel"
-                isPending={false}
+                isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
             />
         </div>

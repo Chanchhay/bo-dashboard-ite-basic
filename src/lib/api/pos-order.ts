@@ -5,6 +5,14 @@ export type PosOrderItem = {
     id: string;
     itemId: string;
     variantId: string | null;
+    /** The option chosen, so a line can say which one it is. */
+    variantName?: string | null;
+    /** The unit sold, and how many base units one of them holds. */
+    unitId?: string | null;
+    unitName?: string | null;
+    unitFactor?: number | null;
+    /** Extras on this line, priced as they were when it was rung up. */
+    addOns?: { addOnId: string | null; name: string; unitPrice: number }[];
     itemName: string;
     quantity: number;
     unitPrice: number;
@@ -125,6 +133,13 @@ export const POS_ORDER_COOKIE = "pos_order_id";
 export const addOrderItemSchema = z.object({
     itemId: z.uuid("Select a valid item."),
     variantId: z.uuid().optional(),
+    /**
+     * The unit being sold — a case, a six-pack. Left out, the line is sold in
+     * the item's base unit, priced at the item's own price.
+     */
+    unitId: z.uuid().optional(),
+    /** Extras chosen on this line. Each must be on sale for the item. */
+    addOnIds: z.array(z.uuid()).optional(),
     quantity: z.coerce
         .number()
         .int("Quantity must be a whole number.")

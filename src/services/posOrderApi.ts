@@ -160,10 +160,10 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         addOrderItem: builder.mutation<PosOrder, AddOrderItemInput>({
-            query: ({ itemId, variantId, quantity }) => ({
+            query: ({ itemId, variantId, unitId, addOnIds, quantity }) => ({
                 url: "/orders/current/items",
                 method: "POST",
-                body: { itemId, variantId, quantity },
+                body: { itemId, variantId, unitId, addOnIds, quantity },
             }),
             async onQueryStarted(arg, { dispatch, queryFulfilled }) {
                 inFlightCount++;
@@ -177,7 +177,20 @@ export const posOrderApi = baseApi.injectEndpoints({
                             const existingIndex = draft.items.findIndex(
                                 (item) =>
                                     item.itemId === arg.itemId &&
-                                    (!arg.variantId || item.variantId === arg.variantId),
+                                    (!arg.variantId ||
+                                        item.variantId === arg.variantId) &&
+                                    // A case and a can are different lines:
+                                    // different prices, different stock.
+                                    (item.unitId ?? undefined) ===
+                                        arg.unitId &&
+                                    // Different extras, different line.
+                                    (item.addOns || [])
+                                        .map((addOn) => addOn.addOnId)
+                                        .sort()
+                                        .join() ===
+                                        [...(arg.addOnIds || [])]
+                                            .sort()
+                                            .join(),
                             );
 
                             if (existingIndex !== -1) {
@@ -193,6 +206,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                                     id: `temp-${Date.now()}-${Math.random()}`,
                                     itemId: arg.itemId,
                                     variantId: arg.variantId ?? null,
+                                    unitId: arg.unitId ?? null,
                                     itemName: arg.itemName ?? "Item",
                                     quantity: addQty,
                                     unitPrice,

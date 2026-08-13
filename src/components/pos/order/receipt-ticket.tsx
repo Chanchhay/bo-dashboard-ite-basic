@@ -13,6 +13,7 @@ import {
   getRecordedSecondaryAmount,
   getSecondaryAmount,
 } from "@/lib/money";
+import { soldAsLabel } from "@/lib/pos/sold-as-label";
 import { cn } from "@/lib/utils";
 
 interface ReceiptTicketProps {
@@ -188,6 +189,20 @@ export function ReceiptTicket({
                 <p className="truncate text-sm font-medium leading-[1.45] text-[#0e140e]">
                   {item.itemName}
                 </p>
+                {/* Exactly what was sold. A receipt is the record a refund is
+                    argued from, and "Coke" alone cannot tell a single can from
+                    a six pack — the two are different money and different
+                    stock. */}
+                {soldAsLabel(item) ? (
+                  <p className="text-[11px] leading-[1.45] text-[#3d4a3c]">
+                    {soldAsLabel(item)}
+                  </p>
+                ) : null}
+                {item.addOns?.length ? (
+                  <p className="text-[11px] leading-[1.45] text-[#6d7a77]">
+                    {item.addOns.map((addOn) => `+ ${addOn.name}`).join(", ")}
+                  </p>
+                ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
                 </p>

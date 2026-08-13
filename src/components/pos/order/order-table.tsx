@@ -76,7 +76,13 @@ function legacyOrderShape(order: PosOrder): Order {
       product_id: line.itemId,
       variant_id: line.variantId,
       product_name: line.itemName,
-      variant_name: null,
+      // The option and the unit are two different things. This used to put the
+      // unit in the variant's field, which left nowhere to say which size it
+      // was and made "6 Pack" read as an option.
+      variant_name: line.variantName ?? null,
+      unit_name: line.unitName ?? null,
+      unit_factor: line.unitFactor ?? null,
+      add_ons: (line.addOns || []).map((addOn) => ({ name: addOn.name })),
       quantity: line.quantity,
       unit_price: String(line.unitPrice),
       unit_cost: "0",
@@ -113,6 +119,26 @@ const ItemRow = memo(function ItemRow({
     <tr className="align-middle">
       <td className="break-words px-2 py-2.5 text-xs text-gray-800 sm:px-4 sm:text-sm">
         {item.itemName}
+        {/* Which option was picked. Two sizes at two prices are otherwise the
+            same line twice, and the cashier cannot tell which is which. */}
+        {item.variantName ? (
+          <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
+            {item.variantName}
+          </span>
+        ) : null}
+        {/* Sold by the pack: what one of them holds, so a case of twenty-four
+            never reads as a single can. */}
+        {item.unitName && (item.unitFactor ?? 1) > 1 ? (
+          <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
+            {item.unitName} · {item.unitFactor} per pack
+          </span>
+        ) : null}
+        {/* The extras ride along with the line and are charged per unit. */}
+        {item.addOns?.length ? (
+          <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
+            {item.addOns.map((addOn) => `+ ${addOn.name}`).join(", ")}
+          </span>
+        ) : null}
       </td>
 
       <td className="px-1 py-2.5 sm:px-4">
