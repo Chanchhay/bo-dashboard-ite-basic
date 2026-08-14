@@ -368,26 +368,23 @@ export function SellingProductsTab() {
                             type="button"
                             onClick={() => setChannelId(entry.id)}
                             aria-pressed={active}
-                            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                                active
+                            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${active
                                     ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/30"
                                     : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
+                                }`}
                         >
                             <span
-                                className={`grid size-7 place-items-center rounded-lg ${
-                                    active
+                                className={`grid size-7 place-items-center rounded-lg ${active
                                         ? "bg-primary text-primary-foreground"
                                         : "bg-muted text-muted-foreground"
-                                }`}
+                                    }`}
                             >
                                 <Icon className="size-4 shrink-0" />
                             </span>
                             {entry.name}
                             <span
-                                className={`size-2 shrink-0 rounded-full ${
-                                    open ? "bg-success" : "bg-muted-foreground/40"
-                                }`}
+                                className={`size-2 shrink-0 rounded-full ${open ? "bg-success" : "bg-muted-foreground/40"
+                                    }`}
                                 title={open ? "Open now" : "Closed now"}
                             />
                         </button>
@@ -526,7 +523,7 @@ export function SellingProductsTab() {
                     </span>
                 </div>
 
-                    {/* Advanced Filter Toolbar matching provided UI designs */}
+                {/* Advanced Filter Toolbar matching provided UI designs */}
                 <div className="p-3 sm:p-4 border-b border-border bg-muted/15 flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                         {/* Live Search Input */}
@@ -800,283 +797,283 @@ export function SellingProductsTab() {
                         </div>
                     ) : (
                         filteredItems.map((item) => {
-                        const listed = listing?.itemIds.includes(item.id);
-                        const sellable = item.available;
+                            const listed = listing?.itemIds.includes(item.id);
+                            const sellable = item.available;
 
-                        return (
-                            <div key={item.id} className="p-4 sm:p-5">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="font-semibold text-foreground">
-                                                {item.name}
+                            return (
+                                <div key={item.id} className="p-4 sm:p-5">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="font-semibold text-foreground">
+                                                    {item.name}
+                                                </p>
+                                                {sellable ? null : (
+                                                    <span
+                                                        className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground"
+                                                        title="Unavailable in Inventory"
+                                                    >
+                                                        Unavailable in Inventory
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                                {item.sku}
                                             </p>
-                                            {sellable ? null : (
-                                                <span
-                                                    className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground"
-                                                    title="Unavailable in Inventory"
-                                                >
-                                                    Unavailable in Inventory
-                                                </span>
-                                            )}
                                         </div>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {item.sku}
-                                        </p>
+
+                                        <label className="flex shrink-0 items-center gap-2.5 text-sm">
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                {listed ? "Selling" : "Not selling"}
+                                            </span>
+                                            <Switch
+                                                checked={Boolean(listed)}
+                                                disabled={!sellable}
+                                                onCheckedChange={(checked) =>
+                                                    toggleItem(
+                                                        item.id,
+                                                        Boolean(checked),
+                                                    )
+                                                }
+                                                aria-label={`Sell ${item.name} on ${channel?.name}`}
+                                            />
+                                        </label>
                                     </div>
 
-                                    <label className="flex shrink-0 items-center gap-2.5 text-sm">
-                                        <span className="text-xs font-medium text-muted-foreground">
-                                            {listed ? "Selling" : "Not selling"}
-                                        </span>
-                                        <Switch
-                                            checked={Boolean(listed)}
-                                            disabled={!sellable}
-                                            onCheckedChange={(checked) =>
-                                                toggleItem(
-                                                    item.id,
-                                                    Boolean(checked),
-                                                )
-                                            }
-                                            aria-label={`Sell ${item.name} on ${channel?.name}`}
-                                        />
-                                    </label>
-                                </div>
-
-                                {listed ? (
-                                    <div className="mt-4 overflow-x-auto">
-                                        <table className="w-full min-w-[620px] text-left text-sm">
-                                            <thead className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                                <tr>
-                                                    <th className="pb-2 pr-4">
-                                                        Sold as
-                                                    </th>
-                                                    <th className="pb-2 pr-4">
-                                                        Base Sell Price
-                                                    </th>
-                                                    <th className="pb-2 pr-4">
-                                                        Sells for
-                                                    </th>
-                                                    <th className="pb-2 text-right">
-                                                        Pricing Rule &amp; Action
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-border">
-                                                {item.units.map((unit) => {
-                                                    const base =
-                                                        item.basePrices[unit.id];
-                                                    const key = listingKey(
-                                                        item.id,
-                                                        unit.id,
-                                                    );
-                                                    const override =
-                                                        listing?.overrides[key];
-                                                    const itemHasOverride =
-                                                        isOverridden(override);
-                                                    const isEditing =
-                                                        editingOverrideKeys.has(
-                                                            key,
-                                                        ) || itemHasOverride;
-
-                                                    const effective =
-                                                        effectivePrice(
-                                                            base,
-                                                            override,
-                                                            globalRule,
+                                    {listed ? (
+                                        <div className="mt-4 overflow-x-auto">
+                                            <table className="w-full min-w-[620px] text-left text-sm">
+                                                <thead className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                    <tr>
+                                                        <th className="pb-2 pr-4">
+                                                            Sold as
+                                                        </th>
+                                                        <th className="pb-2 pr-4">
+                                                            Base Sell Price
+                                                        </th>
+                                                        <th className="pb-2 pr-4">
+                                                            Sells for
+                                                        </th>
+                                                        <th className="pb-2 text-right">
+                                                            Pricing Rule &amp; Action
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border">
+                                                    {item.units.map((unit) => {
+                                                        const base =
+                                                            item.basePrices[unit.id];
+                                                        const key = listingKey(
+                                                            item.id,
+                                                            unit.id,
                                                         );
+                                                        const override =
+                                                            listing?.overrides[key];
+                                                        const itemHasOverride =
+                                                            isOverridden(override);
+                                                        const isEditing =
+                                                            editingOverrideKeys.has(
+                                                                key,
+                                                            ) || itemHasOverride;
 
-                                                    if (
-                                                        base === undefined &&
-                                                        !itemHasOverride
-                                                    ) {
+                                                        const effective =
+                                                            effectivePrice(
+                                                                base,
+                                                                override,
+                                                                globalRule,
+                                                            );
+
+                                                        if (
+                                                            base === undefined &&
+                                                            !itemHasOverride
+                                                        ) {
+                                                            return (
+                                                                <tr key={unit.id}>
+                                                                    <td className="py-2.5 pr-4 font-medium text-muted-foreground">
+                                                                        {unit.label}
+                                                                    </td>
+                                                                    <td
+                                                                        colSpan={3}
+                                                                        className="py-2.5 text-xs text-muted-foreground"
+                                                                    >
+                                                                        No base price
+                                                                        — not sold
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        }
+
+                                                        const kind =
+                                                            override?.kind ??
+                                                            "INHERIT";
+
                                                         return (
                                                             <tr key={unit.id}>
-                                                                <td className="py-2.5 pr-4 font-medium text-muted-foreground">
+                                                                <td className="py-2.5 pr-4 font-medium text-foreground">
                                                                     {unit.label}
                                                                 </td>
-                                                                <td
-                                                                    colSpan={3}
-                                                                    className="py-2.5 text-xs text-muted-foreground"
-                                                                >
-                                                                    No base price
-                                                                    — not sold
+                                                                <td className="py-2.5 pr-4 text-muted-foreground">
+                                                                    {base ===
+                                                                        undefined
+                                                                        ? "—"
+                                                                        : format(
+                                                                            base,
+                                                                        )}
+                                                                </td>
+                                                                <td className="py-2.5 pr-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="font-bold text-foreground text-sm">
+                                                                            {effective ===
+                                                                                undefined
+                                                                                ? "—"
+                                                                                : format(
+                                                                                    effective,
+                                                                                )}
+                                                                        </span>
+                                                                        {itemHasOverride ? (
+                                                                            <span className="rounded-full bg-warning/15 px-2.5 py-1 text-xs font-semibold text-warning">
+                                                                                Item override ({describeOverride(override)})
+                                                                            </span>
+                                                                        ) : globalRule &&
+                                                                            globalRule.kind !==
+                                                                            "INHERIT" ? (
+                                                                            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                                                                                Global ({describeOverride(globalRule)})
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                                                                                Same as base
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-2.5 text-right">
+                                                                    {isEditing ? (
+                                                                        <div className="flex items-center justify-end gap-2.5">
+                                                                            <Select
+                                                                                value={
+                                                                                    kind
+                                                                                }
+                                                                                onValueChange={(
+                                                                                    val,
+                                                                                ) =>
+                                                                                    setOverride(
+                                                                                        item.id,
+                                                                                        unit.id,
+                                                                                        (val ||
+                                                                                            "INHERIT") as OverrideKind,
+                                                                                        overrideValue(
+                                                                                            override,
+                                                                                        ),
+                                                                                    )
+                                                                                }
+                                                                                items={
+                                                                                    overrideKindLabels
+                                                                                }
+                                                                            >
+                                                                                <SelectTrigger
+                                                                                    size="sm"
+                                                                                    aria-label={`${unit.label} price rule`}
+                                                                                    className={`${controlClassName} !h-10 w-44 bg-card px-3.5 text-sm font-semibold rounded-xl border border-border shadow-2xs hover:border-primary/40`}
+                                                                                >
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {overrideKinds.map(
+                                                                                        (
+                                                                                            opt,
+                                                                                        ) => (
+                                                                                            <SelectItem
+                                                                                                key={
+                                                                                                    opt
+                                                                                                }
+                                                                                                value={
+                                                                                                    opt
+                                                                                                }
+                                                                                            >
+                                                                                                {
+                                                                                                    overrideKindLabels[
+                                                                                                    opt
+                                                                                                    ]
+                                                                                                }
+                                                                                            </SelectItem>
+                                                                                        ),
+                                                                                    )}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                            {kind !==
+                                                                                "INHERIT" && (
+                                                                                    <div className="relative flex items-center">
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            step="0.01"
+                                                                                            value={overrideValue(
+                                                                                                override,
+                                                                                            )}
+                                                                                            placeholder="0"
+                                                                                            onChange={(
+                                                                                                e,
+                                                                                            ) =>
+                                                                                                setOverride(
+                                                                                                    item.id,
+                                                                                                    unit.id,
+                                                                                                    kind,
+                                                                                                    e
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                                )
+                                                                                            }
+                                                                                            className={`${controlClassName} !h-10 w-28 bg-card pl-3.5 pr-7 text-sm font-semibold rounded-xl shadow-2xs`}
+                                                                                        />
+                                                                                        <span className="absolute right-2.5 text-xs font-bold text-muted-foreground pointer-events-none">
+                                                                                            {kind === "MARKUP_PERCENT" ? "%" : "$"}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                )}
+
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                title="Reset to channel default"
+                                                                                onClick={() =>
+                                                                                    setOverride(
+                                                                                        item.id,
+                                                                                        unit.id,
+                                                                                        "INHERIT",
+                                                                                        "",
+                                                                                    )
+                                                                                }
+                                                                                className="!size-10 rounded-xl p-0"
+                                                                            >
+                                                                                <RotateCcw className="size-4 text-muted-foreground hover:text-destructive" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            onClick={() =>
+                                                                                toggleEditingOverride(
+                                                                                    key,
+                                                                                )
+                                                                            }
+                                                                            className="!h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground transition-all gap-1.5"
+                                                                        >
+                                                                            <Plus className="size-4" />
+                                                                            Add Override
+                                                                        </Button>
+                                                                    )}
                                                                 </td>
                                                             </tr>
                                                         );
-                                                    }
-
-                                                    const kind =
-                                                        override?.kind ??
-                                                        "INHERIT";
-
-                                                    return (
-                                                        <tr key={unit.id}>
-                                                            <td className="py-2.5 pr-4 font-medium text-foreground">
-                                                                {unit.label}
-                                                            </td>
-                                                            <td className="py-2.5 pr-4 text-muted-foreground">
-                                                                {base ===
-                                                                undefined
-                                                                    ? "—"
-                                                                    : format(
-                                                                          base,
-                                                                      )}
-                                                            </td>
-                                                            <td className="py-2.5 pr-4">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-bold text-foreground text-sm">
-                                                                        {effective ===
-                                                                        undefined
-                                                                            ? "—"
-                                                                            : format(
-                                                                                  effective,
-                                                                              )}
-                                                                    </span>
-                                                                    {itemHasOverride ? (
-                                                                        <span className="rounded-full bg-warning/15 px-2.5 py-1 text-xs font-semibold text-warning">
-                                                                            Item override ({describeOverride(override)})
-                                                                        </span>
-                                                                    ) : globalRule &&
-                                                                      globalRule.kind !==
-                                                                          "INHERIT" ? (
-                                                                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                                                                            Global ({describeOverride(globalRule)})
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                                                                            Same as base
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-2.5 text-right">
-                                                                {isEditing ? (
-                                                                    <div className="flex items-center justify-end gap-2.5">
-                                                                        <Select
-                                                                            value={
-                                                                                kind
-                                                                            }
-                                                                            onValueChange={(
-                                                                                val,
-                                                                            ) =>
-                                                                                setOverride(
-                                                                                    item.id,
-                                                                                    unit.id,
-                                                                                    (val ||
-                                                                                        "INHERIT") as OverrideKind,
-                                                                                    overrideValue(
-                                                                                        override,
-                                                                                    ),
-                                                                                )
-                                                                            }
-                                                                            items={
-                                                                                overrideKindLabels
-                                                                            }
-                                                                        >
-                                                                            <SelectTrigger
-                                                                                size="sm"
-                                                                                aria-label={`${unit.label} price rule`}
-                                                                                className={`${controlClassName} !h-10 w-44 bg-card px-3.5 text-sm font-semibold rounded-xl border border-border shadow-2xs hover:border-primary/40`}
-                                                                            >
-                                                                                <SelectValue />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                {overrideKinds.map(
-                                                                                    (
-                                                                                        opt,
-                                                                                    ) => (
-                                                                                        <SelectItem
-                                                                                            key={
-                                                                                                opt
-                                                                                            }
-                                                                                            value={
-                                                                                                opt
-                                                                                            }
-                                                                                        >
-                                                                                            {
-                                                                                                overrideKindLabels[
-                                                                                                    opt
-                                                                                                ]
-                                                                                            }
-                                                                                        </SelectItem>
-                                                                                    ),
-                                                                                )}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                        {kind !==
-                                                                            "INHERIT" && (
-                                                                            <div className="relative flex items-center">
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    step="0.01"
-                                                                                    value={overrideValue(
-                                                                                        override,
-                                                                                    )}
-                                                                                    placeholder="0"
-                                                                                    onChange={(
-                                                                                        e,
-                                                                                    ) =>
-                                                                                        setOverride(
-                                                                                            item.id,
-                                                                                            unit.id,
-                                                                                            kind,
-                                                                                            e
-                                                                                                .target
-                                                                                                .value,
-                                                                                        )
-                                                                                    }
-                                                                                    className={`${controlClassName} !h-10 w-28 bg-card pl-3.5 pr-7 text-sm font-semibold rounded-xl shadow-2xs`}
-                                                                                />
-                                                                                <span className="absolute right-2.5 text-xs font-bold text-muted-foreground pointer-events-none">
-                                                                                    {kind === "MARKUP_PERCENT" ? "%" : "$"}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="ghost"
-                                                                            title="Reset to channel default"
-                                                                            onClick={() =>
-                                                                                setOverride(
-                                                                                    item.id,
-                                                                                    unit.id,
-                                                                                    "INHERIT",
-                                                                                    "",
-                                                                                )
-                                                                            }
-                                                                            className="!size-10 rounded-xl p-0"
-                                                                        >
-                                                                            <RotateCcw className="size-4 text-muted-foreground hover:text-destructive" />
-                                                                        </Button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        onClick={() =>
-                                                                            toggleEditingOverride(
-                                                                                key,
-                                                                            )
-                                                                        }
-                                                                        className="!h-10 px-3.5 text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground transition-all gap-1.5"
-                                                                    >
-                                                                        <Plus className="size-4" />
-                                                                        Add Override
-                                                                    </Button>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : null}
-                            </div>
-                        );
-                    }))}
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            );
+                        }))}
                 </div>
             </section>
 

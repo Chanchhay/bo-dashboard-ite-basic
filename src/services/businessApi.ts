@@ -54,7 +54,7 @@ export const businessApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["Business"],
         }),
-   
+
         getStorefrontStatus: builder.query<StorefrontStatus, void>({
             query: () => "/business-profile/storefront",
             providesTags: ["Storefront"],

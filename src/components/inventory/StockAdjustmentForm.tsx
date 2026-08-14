@@ -148,7 +148,7 @@ export function StockAdjustmentForm() {
     const entriesQuery = useGetStockEntriesQuery();
     const entries = entriesQuery.data || [];
     const costsMap = latestUnitCosts(entries);
-    const existingUnitCost = selectedItemId ? costsMap.get(selectedItemId)?.cost ?? 0 : 0;
+    const existingUnitCost = selectedItemId ? (costsMap.get(selectedItemId) ?? 0) : 0;
 
     const isManual = adjustmentType === "MANUAL";
     const rawNum = Number(quantityInput);
