@@ -2,7 +2,35 @@ import { z } from "zod";
 
 import { imageUploadRules } from "@/lib/api/image-upload";
 
-export const itemTypes = ["DIGITAL", "SERVICE", "PHYSICAL"] as const;
+export const itemTypes = ["DIGITAL", "PHYSICAL"] as const;
+
+/**
+ * Item types no longer offered, kept so an item saved under one still loads and
+ * still saves. Nothing here appears in a picker.
+ */
+export const retiredItemTypes = ["SERVICE"] as const;
+
+/**
+ * Every item type that may arrive from the API, offered or not. Validation
+ * reads this rather than the picker's list, so an item saved as a service stays
+ * editable after the type stopped being offered.
+ */
+export const storedItemTypes = [...itemTypes, ...retiredItemTypes] as const;
+
+export type ItemType = (typeof itemTypes)[number];
+
+export type StoredItemType = (typeof storedItemTypes)[number];
+
+/** The kinds an item can be, spelled the way a shopkeeper would say them. */
+export const itemTypeLabels: Record<StoredItemType, string> = {
+    PHYSICAL: "Physical",
+    DIGITAL: "Digital",
+    // Retired, and still labelled: an item saved as a service is listed and
+    // edited like any other, and a blank type beside its name would read as a
+    // bug.
+    SERVICE: "Service",
+};
+
 export const itemStatuses = ["ACTIVE", "INACTIVE"] as const;
 /**
  * What an attribute can be.
@@ -350,7 +378,7 @@ export type InventoryItem = {
     barcode?: string;
     price?: number | null;
     compareAtPrice?: number | null;
-    itemType?: (typeof itemTypes)[number];
+    itemType?: StoredItemType;
     attributes?: ItemAttribute[];
     /** The colours this item comes in, shared by every size. */
     colors?: ItemColor[];
@@ -361,6 +389,39 @@ export type InventoryItem = {
     lowStockDefault?: number;
     status?: (typeof itemStatuses)[number];
 };
+
+/**
+ * Every picture the item can show, best first.
+ *
+ * The item's own gallery leads, in the order the seller arranged it. What
+ * follows is the pictures hanging off its choices — a colour swatch, an
+ * option's own shot — because an item photographed only through its colours
+ * still has a face to show. A seller who uploaded nothing at item level did
+ * not mean "no picture"; they meant the picture lives on the option.
+ */
+export function itemImageUrls(
+    item: Pick<InventoryItem, "images" | "colors" | "variants">,
+): string[] {
+    const gallery: string[] = [];
+    const push = (url?: string | null) => {
+        if (url && !gallery.includes(url)) gallery.push(url);
+    };
+
+    [...(item.images || [])]
+        .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
+        .forEach((image) => push(image.url));
+    (item.colors || []).forEach((color) => push(color.imageUrl));
+    (item.variants || []).forEach((variant) => push(variant.imageUrl));
+
+    return gallery;
+}
+
+/** The one picture a card shows — the thumbnail, or the first option's. */
+export function itemThumbnail(
+    item: Pick<InventoryItem, "images" | "colors" | "variants">,
+): string | undefined {
+    return itemImageUrls(item)[0];
+}
 
 export type InventoryPageMetadata = {
     size?: number;
@@ -424,7 +485,7 @@ export const inventoryItemQuerySchema = z
         unitId: optionalQueryUuid,
         itemType: z.preprocess(
             emptyQueryValueToUndefined,
-            z.enum(itemTypes).optional(),
+            z.enum(storedItemTypes).optional(),
         ),
         minPrice: optionalQueryNumber,
         maxPrice: optionalQueryNumber,
@@ -874,7 +935,7 @@ export const inventoryItemSchema = z.object({
     ),
     price: optionalMoney("Price cannot be negative."),
     compareAtPrice: optionalMoney("Compare-at price cannot be negative."),
-    itemType: z.enum(itemTypes),
+    itemType: z.enum(storedItemTypes),
     attributes: z
         .array(itemAttributeSchema)
         .refine(

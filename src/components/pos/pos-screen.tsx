@@ -6,6 +6,7 @@ import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 import type { Item } from "@/types/pos-type";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
 import type { ChannelItem } from "@/lib/api/sales-channels";
+import { itemThumbnail } from "@/lib/api/inventory";
 
 import { useMoney } from "@/hooks/useMoney";
 import { PaidReceiptView } from "@/components/pos/order/pain-receipt-view";
@@ -196,9 +197,9 @@ export function PosScreen({
         );
       })
       .map((entry) => {
-        const thumbnail = [...(entry.item.images ?? [])]
-          .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
-          .find((image) => image.url)?.url;
+        // An item photographed only through its options — a colour swatch, a
+        // size's own shot — still has a face for the grid to show.
+        const thumbnail = itemThumbnail(entry.item);
 
         // What it actually sells for, not what the item row happens to hold.
         //

@@ -98,8 +98,14 @@ export const salesChannelApi = baseApi.injectEndpoints({
          */
         getChannelListing: builder.query<ChannelListing, string>({
             query: (channelId) => `/sales-channels/${channelId}/listing`,
+            // The generic tag as well as its own: publishing or unpublishing an
+            // item is a change to what a channel lists, but those endpoints are
+            // reached by link id and cannot name the channel they touched. A
+            // listing that only answered to its own id would keep showing an
+            // item that is no longer sold there until the page was reloaded.
             providesTags: (_result, _error, channelId) => [
                 { type: "ItemChannels", id: `listing-${channelId}` },
+                "ItemChannels",
             ],
         }),
 

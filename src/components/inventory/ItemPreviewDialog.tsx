@@ -19,8 +19,8 @@ import {
     type InventoryItem,
     type StoredItemAttributePlacement,
     type StoredItemAttributeType,
+    type StoredItemType,
     type itemStatuses,
-    type itemTypes,
 } from "@/lib/api/inventory";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
@@ -68,7 +68,9 @@ export type PreviewItem = {
     sku: string;
     categoryName: string;
     unitName: string;
-    itemType: (typeof itemTypes)[number];
+    // Stored rather than offered: the preview shows an item as it is saved, and
+    // an item saved before the service type was retired still has one.
+    itemType: StoredItemType;
     status: (typeof itemStatuses)[number];
     attributes: PreviewAttribute[];
     /** The colours the item comes in, declared once for every size. */

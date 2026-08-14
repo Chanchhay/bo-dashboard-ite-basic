@@ -53,6 +53,7 @@ import {
     type InventoryItem,
     type InventoryItemQuery,
     type InventoryItemSort,
+    type StoredItemType,
 } from "@/lib/api/inventory";
 import { cn } from "@/lib/utils";
 import {
@@ -491,10 +492,7 @@ export function InventoryProductList() {
         ...(productFilters.itemType === "ALL"
             ? {}
             : {
-                  itemType: productFilters.itemType as
-                      | "DIGITAL"
-                      | "SERVICE"
-                      | "PHYSICAL",
+                  itemType: productFilters.itemType as StoredItemType,
               }),
         ...(productFilters.minPrice
             ? { minPrice: Number(productFilters.minPrice) }

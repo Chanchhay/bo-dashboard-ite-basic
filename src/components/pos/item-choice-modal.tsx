@@ -12,6 +12,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
+import { itemThumbnail } from "@/lib/api/inventory";
 import type { ChannelItem } from "@/lib/api/sales-channels";
 import { cn } from "@/lib/utils";
 
@@ -228,11 +229,7 @@ export function ItemChoiceModal({
      * happens to lead with. Otherwise the item's thumbnail, which is what the
      * card on the grid showed a moment ago.
      */
-    const lineImage =
-        chosenOption?.imageUrl ||
-        [...(item.images || [])]
-            .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
-            .find((image) => image.url)?.url;
+    const lineImage = chosenOption?.imageUrl || itemThumbnail(item);
 
     const label = [
         item.name || "Item",

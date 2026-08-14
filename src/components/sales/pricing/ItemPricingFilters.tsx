@@ -14,7 +14,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { itemTypes, type InventoryItem } from "@/lib/api/inventory";
+import {
+    itemTypeLabels,
+    itemTypes,
+    type InventoryItem,
+} from "@/lib/api/inventory";
 import { linesOf } from "@/components/sales/pricing/channel-lines";
 
 /**
@@ -25,13 +29,6 @@ import { linesOf } from "@/components/sales/pricing/channel-lines";
  * fixed without fixing both. The combined tab asks the catalogue the same
  * questions whichever scope it is showing, so the asking lives here.
  */
-
-/** The kinds an item can be, spelled the way a shopkeeper would say them. */
-const itemTypeLabels: Record<(typeof itemTypes)[number], string> = {
-    PHYSICAL: "Physical",
-    SERVICE: "Service",
-    DIGITAL: "Digital",
-};
 
 export interface AdvancedFilterState {
     category: string;

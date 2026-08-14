@@ -11,6 +11,7 @@ import {
   toPreviewItem,
   type PreviewItem,
 } from "@/components/inventory/ItemPreviewDialog";
+import { itemThumbnail } from "@/lib/api/inventory";
 
 export type MenuItemEntry = {
   id: string;
@@ -35,10 +36,9 @@ export default function PublicMenuClient({
   // Map store items strictly
   const items = useMemo<MenuItemEntry[]>(() => {
     return storeItems.map((raw) => {
-      const sortedImages = [...(raw.images ?? [])].sort(
-        (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
-      );
-      const thumbnail = sortedImages.find((img: any) => img.url)?.url;
+      // Falls back to an option's picture, so an item photographed only
+      // through its colours still shows itself rather than a stock photo.
+      const thumbnail = itemThumbnail(raw);
 
       return {
         id: raw.id,

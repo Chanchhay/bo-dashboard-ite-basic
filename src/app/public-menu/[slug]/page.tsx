@@ -15,7 +15,11 @@ export default async function PublicMenu({
   // Fetch store details
   const storeUrl = `${baseUrl}/api/v1/public/stores/${slug}`;
   const storeRes = await fetch(storeUrl, {
-    next: { revalidate: 60 }, // Cache for 60 seconds
+    // Read fresh. The shop changes a price or closes a channel in the back
+    // office and then looks at its own storefront to check — a cached copy
+    // makes that look broken, and there is no way to tell a shopper the page
+    // they are reading is a minute behind the till.
+    cache: "no-store",
   });
 
   if (!storeRes.ok) {
@@ -45,7 +49,7 @@ export default async function PublicMenu({
   // Fetch store items — the backend now returns whatever is published to
   // the "POS" channel, the same set the till sells.
   const itemsRes = await fetch(`${baseUrl}/api/v1/public/stores/${slug}/items`, {
-    next: { revalidate: 60 },
+    cache: "no-store",
   });
 
   const storeItems = itemsRes.ok ? await itemsRes.json() : [];

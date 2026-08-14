@@ -8,7 +8,7 @@ import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
 import { MenuCardSkeleton, CategoryFilterSkeleton } from "@/components/ui/skeleton";
 import { useGetChannelItemsQuery } from "@/services/salesChannelApi";
-import type { InventoryItem } from "@/lib/api/inventory";
+import { itemThumbnail, type InventoryItem } from "@/lib/api/inventory";
 import { ShoppingBag } from "lucide-react";
 
 export type MenuItemEntry = {
@@ -32,9 +32,9 @@ function StaticMenuContent() {
   const items = useMemo<MenuItemEntry[]>(() => {
     return channelItems.map((entry) => {
       const raw = entry.item as unknown as InventoryItem;
-      const thumbnail = [...(raw.images ?? [])]
-        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-        .find((img) => img.url)?.url;
+      // Falls back to an option's picture, so an item photographed only
+      // through its colours still shows itself rather than a stock photo.
+      const thumbnail = itemThumbnail(raw);
 
       return {
         id: raw.id,
