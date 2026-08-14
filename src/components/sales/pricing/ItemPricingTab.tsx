@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { stockTargetKey } from "@/components/inventory/stock/useStockLevels";
-import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -1102,7 +1102,7 @@ export function ItemPricingTab() {
                 salesChannels={channels}
             />
 
-            <BarcodeScannerDialog
+            <BarcodeScannerOverlay
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
                 onItemFound={(item) => {

@@ -24,7 +24,20 @@ import { authClient } from "@/lib/auth/auth-client";
 import { useSessionSubject } from "@/lib/auth/session-context";
 import { useCreateNotificationMutation } from "@/services/notificationApi";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
-import { useGetCurrentStockQuery } from "@/services/inventoryApi";
+import {
+  useBarcodeKeyboard,
+  type ScanSource,
+} from "@/hooks/useBarcodeKeyboard";
+import {
+  buildScanIndex,
+  matchScan,
+  variantOf,
+} from "@/lib/pos/barcode-match";
+import { playScanAccepted, playScanRejected } from "@/lib/pos/scan-sound";
+import {
+  useGetCurrentStockQuery,
+  useLazyFindInventoryItemByBarcodeQuery,
+} from "@/services/inventoryApi";
 import { useGetChannelStockAvailabilityQuery } from "@/services/salesChannelApi";
 import { channelAvailabilityMap } from "@/lib/api/channel-stock";
 import {
@@ -33,6 +46,30 @@ import {
 } from "@/services/posOrderApi";
 
 const TABS_WITH_CART: PosTab[] = ["Point of Sale", "Order"];
+
+/**
+ * Whether ringing this up is a question rather than an answer.
+ *
+ * An item sold in options, in packs, or with extras is never sold as itself,
+ * so both ways in — a tap on the card and a scan of the item's own barcode —
+ * have to stop and ask. Only a variant's own barcode skips this, because that
+ * label has already answered it.
+ */
+function needsChoice(entry: ChannelItem) {
+  const hasOptions = Boolean(entry.item.variants?.length);
+  // Only a pack with a price is something that can be sold as one.
+  const hasPacks = Boolean(
+    entry.item.uomConversions?.some((conversion) => conversion.price != null),
+  );
+  // Only extras this item actually sells count as something to choose.
+  const hasAddOns = Boolean(
+    entry.item.addOns?.some(
+      (addOn) => addOn.available !== false && addOn.price != null,
+    ),
+  );
+
+  return hasOptions || hasPacks || hasAddOns;
+}
 
 type PaidReceiptState = {
   /** The lines that were sold — the sale itself carries only totals. */
@@ -46,6 +83,8 @@ export interface PosScreenProps {
   searchQuery: string;
   selectedCategoryId: string;
   onClearFilters: () => void;
+  /** Lets a scan that landed in the search box wipe itself back out. */
+  onSearchQueryChange?: (value: string) => void;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
   registerCurrency?: string;
@@ -57,6 +96,7 @@ export function PosScreen({
   searchQuery,
   selectedCategoryId,
   onClearFilters,
+  onSearchQueryChange,
   currentRegisterUser,
   registerCashSales,
   registerCurrency,
@@ -260,8 +300,10 @@ export function PosScreen({
       itemName: string;
       unitPrice: number;
     }) => {
+      // The order it comes back as, so a caller can say what the line now
+      // holds — a scanner ringing the same code four times has to report four.
       try {
-        await addOrderItem({
+        return await addOrderItem({
           itemId: input.itemId,
           ...(input.variantId ? { variantId: input.variantId } : {}),
           ...(input.unitId ? { unitId: input.unitId } : {}),
@@ -276,6 +318,7 @@ export function PosScreen({
           title: "Could not add that item",
           description: getApiErrorMessage(error, "Please try again."),
         });
+        return undefined;
       }
     },
     [addOrderItem, toast],
@@ -297,23 +340,8 @@ export function PosScreen({
         return;
       }
 
-      const hasOptions = Boolean(channelItem?.item.variants?.length);
-      // Only a pack with a price is something that can be sold as one.
-      // Only a unit somebody priced can be sold as one.
-      const hasPacks = Boolean(
-        channelItem?.item.uomConversions?.some(
-          (conversion) => conversion.price != null,
-        ),
-      );
-      // Only extras this item actually sells count as something to choose.
-      const hasAddOns = Boolean(
-        channelItem?.item.addOns?.some(
-          (addOn) => addOn.available !== false && addOn.price != null,
-        ),
-      );
-
       // One tap is enough only when there is nothing to choose between.
-      if (channelItem && (hasOptions || hasPacks || hasAddOns)) {
+      if (channelItem && needsChoice(channelItem)) {
         setChoosingFor(channelItem);
         return;
       }
@@ -326,6 +354,203 @@ export function PosScreen({
     },
     [channelItemsById, sendItem, outOfStock, toast],
   );
+
+  /*
+   * Scanning.
+   *
+   * The till is armed the whole time it is showing the grid — there is no scan
+   * button, because at a counter the scanner *is* the button. A burst of keys
+   * arriving faster than fingers move is a scan; anything slower belongs to
+   * whoever is typing, which is why the cashier can still use search, and why
+   * this stands down entirely while a modal is up.
+   */
+  const scanIndex = useMemo(() => buildScanIndex(channelItems), [channelItems]);
+  const [findItemByBarcode] = useLazyFindInventoryItemByBarcodeQuery();
+
+  const rejectScan = useCallback(
+    (title: string, description: string) => {
+      playScanRejected();
+      toast({ tone: "error", title, description });
+    },
+    [toast],
+  );
+
+  const acceptScan = useCallback(
+    (order: PosOrder | undefined, name: string, line: {
+      itemId: string;
+      variantId?: string;
+    }) => {
+      // `sendItem` has already said why it failed; this only has to not claim
+      // the opposite.
+      if (!order) {
+        playScanRejected();
+        return;
+      }
+
+      playScanAccepted();
+
+      const quantity = order.items.find(
+        (entry) =>
+          entry.itemId === line.itemId &&
+          (line.variantId
+            ? entry.variantId === line.variantId
+            : !entry.variantId),
+      )?.quantity;
+
+      toast({
+        tone: "success",
+        title: `${name} added`,
+        description:
+          quantity && quantity > 1
+            ? `Qty ${quantity} on the order.`
+            : "Qty 1 on the order.",
+      });
+    },
+    [toast],
+  );
+
+  const handleScan = useCallback(
+    async (code: string, { intoField }: ScanSource) => {
+      // A burst that landed in the search box has already filtered the grid
+      // behind us. Clear it, or the cashier's next tap is fighting a filter
+      // they never typed.
+      if (intoField) {
+        onSearchQueryChange?.("");
+      }
+
+      const match = matchScan(scanIndex, code);
+
+      if (!match) {
+        // Worth one round trip, purely to tell the two misses apart: a code
+        // nobody has ever seen, and an item the shop simply has not put on the
+        // till. The second is a two-minute fix and the cashier should hear so.
+        try {
+          const item = await findItemByBarcode(code, true).unwrap();
+          rejectScan(
+            `${item.name || "That item"} is not on the till`,
+            "Publish it to the Point of Sale channel before selling it here.",
+          );
+        } catch {
+          rejectScan("Unknown barcode", `Nothing on the till matches ${code}.`);
+        }
+
+        return;
+      }
+
+      const { entry } = match;
+      const { item } = entry;
+      const name = item.name || "Item";
+
+      if (item.status === "INACTIVE") {
+        rejectScan(`${name} is not for sale`, "It is switched off in Items.");
+        return;
+      }
+
+      const variant = variantOf(match);
+
+      // The option's own label was scanned, so there is nothing left to ask:
+      // this is the one line the code names.
+      if (variant?.id) {
+        const optionName = [name, variant.name].filter(Boolean).join(" · ");
+
+        if ((stockFor(item.id, variant.id) ?? 0) <= 0) {
+          rejectScan(
+            `${optionName} is out of stock`,
+            "Receive stock for it before selling it.",
+          );
+          return;
+        }
+
+        const line = linesOf(item).find(
+          (candidate) => candidate.variantId === variant.id && !candidate.unitId,
+        );
+
+        if (line?.base == null) {
+          rejectScan(
+            `${optionName} has no price`,
+            "Set one in Sale Management before selling it.",
+          );
+          return;
+        }
+
+        const order = await sendItem({
+          itemId: item.id,
+          variantId: variant.id,
+          itemName: optionName,
+          unitPrice: line.base,
+        });
+
+        acceptScan(order, optionName, { itemId: item.id, variantId: variant.id });
+        return;
+      }
+
+      if (outOfStock(entry)) {
+        rejectScan(
+          `${name} is out of stock`,
+          "Receive stock for it before selling it.",
+        );
+        return;
+      }
+
+      // Scanned the item, not one of the things it is sold as. The scan has
+      // found it — the cashier still says which one.
+      if (needsChoice(entry)) {
+        playScanAccepted();
+        setChoosingFor(entry);
+        return;
+      }
+
+      if (item.price == null) {
+        rejectScan(
+          `${name} has no price`,
+          "Set one in Sale Management before selling it.",
+        );
+        return;
+      }
+
+      const order = await sendItem({
+        itemId: item.id,
+        itemName: name,
+        unitPrice: item.price,
+      });
+
+      acceptScan(order, name, { itemId: item.id });
+    },
+    [
+      acceptScan,
+      findItemByBarcode,
+      onSearchQueryChange,
+      outOfStock,
+      rejectScan,
+      scanIndex,
+      sendItem,
+      stockFor,
+    ],
+  );
+
+  // A modal is the DOM's answer sooner than it is React's — the choice modal,
+  // payment, customer select and the rest all portal a dialog in, and none of
+  // them should be taking scans behind their own screen.
+  const scanningPaused = useCallback(
+    () =>
+      typeof document === "undefined" ||
+      Boolean(document.querySelector('[data-slot="dialog-content"]')),
+    [],
+  );
+
+  useBarcodeKeyboard({
+    // Only over the grid: a receipt on screen or the mobile cart pulled up is
+    // not a moment when the next scan should be joining the order.
+    enabled:
+      activeTab === "Point of Sale" &&
+      !paidReceipt &&
+      !mobileCartOpen &&
+      !choosingFor,
+    mode: "passive",
+    onScan: handleScan,
+    isPaused: scanningPaused,
+  });
+
   // The same cached order the cart panel renders, so the mobile bar can never
   // disagree with the panel behind it.
   const { data: currentOrder } = useGetCurrentOrderQuery();

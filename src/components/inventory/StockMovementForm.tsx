@@ -16,7 +16,7 @@ import {
     SlidersHorizontal,
 } from "lucide-react";
 
-import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
 import {
     StockTargetSelect,
     toStockTargets,
@@ -773,7 +773,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 </div>
             </form>
 
-            <BarcodeScannerDialog
+            <BarcodeScannerOverlay
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
                 onItemFound={handleScannedItem}
