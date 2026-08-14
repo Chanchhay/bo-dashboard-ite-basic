@@ -40,6 +40,17 @@ function toItemBody(body: InventoryItemInput, files?: readonly File[]) {
     return formData;
 }
 
+/**
+ * What a change to an item invalidates beyond the item lists.
+ *
+ * A channel does not hold its own copy of an item — `GET /sales-channels/{code}
+ * /items` answers with the items themselves, prices and all, and that read is
+ * what the till and the menu are built from. So an item edited here changes
+ * what those screens should be showing, even though nothing about the channel
+ * was touched.
+ */
+const itemReadTags = ["InventoryItems", "ItemChannels"] as const;
+
 export const inventoryApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getInventoryItems: builder.query<
@@ -101,7 +112,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "POST",
                 body: toItemBody(body, files),
             }),
-            invalidatesTags: ["InventoryItems"],
+            invalidatesTags: [...itemReadTags],
         }),
         updateInventoryItem: builder.mutation<
             InventoryItem,
@@ -117,7 +128,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 body: toItemBody(body, files),
             }),
             invalidatesTags: (_result, _error, { itemId }) => [
-                "InventoryItems",
+                ...itemReadTags,
                 "InventoryStock",
                 { type: "InventoryItems", id: itemId },
             ],
@@ -140,7 +151,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 };
             },
             invalidatesTags: (_result, _error, { itemId }) => [
-                "InventoryItems",
+                ...itemReadTags,
                 { type: "InventoryItems", id: itemId },
             ],
         }),
@@ -154,7 +165,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 body: { imageIds },
             }),
             invalidatesTags: (_result, _error, { itemId }) => [
-                "InventoryItems",
+                ...itemReadTags,
                 { type: "InventoryItems", id: itemId },
             ],
         }),
@@ -169,7 +180,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "DELETE",
             }),
             invalidatesTags: (_result, _error, { itemId }) => [
-                "InventoryItems",
+                ...itemReadTags,
                 { type: "InventoryItems", id: itemId },
             ],
         }),
@@ -178,7 +189,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 url: `/inventory/items/${encodeURIComponent(itemId)}`,
                 method: "DELETE",
             }),
-            invalidatesTags: ["InventoryItems", "InventoryStock"],
+            invalidatesTags: [...itemReadTags, "InventoryStock"],
         }),
         getItemGroups: builder.query<ItemGroup[], void>({
             query: () => "/inventory/item-groups",
@@ -201,14 +212,20 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body,
             }),
-            invalidatesTags: ["InventoryItemGroups", "InventoryItems"],
+            invalidatesTags: [
+                "InventoryItemGroups",
+                ...itemReadTags,
+            ],
         }),
         deleteItemGroup: builder.mutation<void, string>({
             query: (itemGroupId) => ({
                 url: `/inventory/item-groups/${encodeURIComponent(itemGroupId)}`,
                 method: "DELETE",
             }),
-            invalidatesTags: ["InventoryItemGroups", "InventoryItems"],
+            invalidatesTags: [
+                "InventoryItemGroups",
+                ...itemReadTags,
+            ],
         }),
         getOptionPresets: builder.query<OptionPreset[], void>({
             query: () => "/inventory/option-presets",
@@ -265,14 +282,14 @@ export const inventoryApi = baseApi.injectEndpoints({
             }),
             // An add-on is shared, so a change to it changes every item that
             // offers it.
-            invalidatesTags: ["InventoryAddOns", "InventoryItems"],
+            invalidatesTags: ["InventoryAddOns", ...itemReadTags],
         }),
         deleteAddOn: builder.mutation<void, string>({
             query: (addOnId) => ({
                 url: `/inventory/add-ons/${encodeURIComponent(addOnId)}`,
                 method: "DELETE",
             }),
-            invalidatesTags: ["InventoryAddOns", "InventoryItems"],
+            invalidatesTags: ["InventoryAddOns", ...itemReadTags],
         }),
         getAddOnSets: builder.query<AddOnSet[], void>({
             query: () => "/inventory/add-on-sets",
@@ -328,7 +345,11 @@ export const inventoryApi = baseApi.injectEndpoints({
             }),
             // Items and add-ons show the unit's symbol, so renaming it
             // changes what they read.
-            invalidatesTags: ["InventoryUnits", "InventoryItems", "InventoryAddOns"],
+            invalidatesTags: [
+                "InventoryUnits",
+                "InventoryAddOns",
+                ...itemReadTags,
+            ],
         }),
         deleteUnit: builder.mutation<void, string>({
             query: (unitId) => ({
@@ -391,7 +412,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body: { addOnIds },
             }),
-            invalidatesTags: ["InventoryItems"],
+            invalidatesTags: [...itemReadTags],
         }),
         updateItemAddOnAvailability: builder.mutation<
             InventoryItem,
@@ -402,7 +423,7 @@ export const inventoryApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body: { available },
             }),
-            invalidatesTags: ["InventoryItems"],
+            invalidatesTags: [...itemReadTags],
         }),
         updateItemPricing: builder.mutation<
             InventoryItem,
@@ -417,7 +438,7 @@ export const inventoryApi = baseApi.injectEndpoints({
             // saving it writes the whole item back, so a stale copy would
             // push the old prices over the ones just set.
             invalidatesTags: (_result, _error, { itemId }) => [
-                "InventoryItems",
+                ...itemReadTags,
                 { type: "InventoryItems", id: itemId },
             ],
         }),
@@ -433,6 +454,9 @@ export const inventoryApi = baseApi.injectEndpoints({
             invalidatesTags: [
                 "InventoryStock",
                 "InventoryStockEntries",
+                // A delivery is a batch, so the per-item batch lists gained a
+                // row rather than only a changed total.
+                "InventoryStockBatches",
             ],
         }),
     }),

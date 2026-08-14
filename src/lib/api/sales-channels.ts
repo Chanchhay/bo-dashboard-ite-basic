@@ -5,7 +5,7 @@ import type {
     ItemVariant,
     Unit,
 } from "@/lib/api/inventory";
-import type { itemTypes } from "@/lib/api/inventory";
+import type { StoredItemType } from "@/lib/api/inventory";
 
 export type SalesChannelCode = "POS" | "TELEGRAM" | "MESSENGER" | "WEB" | string;
 
@@ -50,7 +50,7 @@ export type ChannelItem = {
          * A haircut and a download have no shelf, so the till must not refuse
          * to sell them for want of a stock figure that will never exist.
          */
-        itemType?: (typeof itemTypes)[number];
+        itemType?: StoredItemType;
         itemGroup?: ItemSubGroup;
         images?: Array<{
             id?: string;

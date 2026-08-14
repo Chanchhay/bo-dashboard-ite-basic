@@ -86,6 +86,7 @@ import {
     inventoryItemSchema,
     itemImageRules,
     itemStatuses,
+    itemTypeLabels,
     itemTypes,
     maxItemImages,
     type AddOn,
@@ -94,6 +95,7 @@ import {
     type InventoryItem,
     type ItemAttribute,
     type ItemAttributePlacement,
+    type StoredItemType,
 } from "@/lib/api/inventory";
 import { formatAmount } from "@/lib/inventory-config/units";
 import {
@@ -1219,8 +1221,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     ?.label || "",
             unitName:
                 (units || []).find((unit) => unit.id === unitId)?.name || "",
-            itemType: (read("itemType") ||
-                "PHYSICAL") as (typeof itemTypes)[number],
+            itemType: (read("itemType") || "PHYSICAL") as StoredItemType,
             status: (read("status") ||
                 "ACTIVE") as (typeof itemStatuses)[number],
             attributes: attributes.map((attribute) => ({
@@ -1726,11 +1727,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         <Select
                             name="itemType"
                             defaultValue={initialItem?.itemType || "PHYSICAL"}
-                            items={{
-                                PHYSICAL: "Physical",
-                                DIGITAL: "Digital",
-                                SERVICE: "Service",
-                            }}
+                            // Every stored type, so an item saved as a service
+                            // still names its type instead of showing a blank.
+                            items={itemTypeLabels}
                         >
                             <SelectTrigger
                                 id="itemType"
@@ -1741,11 +1740,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             <SelectContent>
                                 {itemTypes.map((type) => (
                                     <SelectItem key={type} value={type}>
-                                        {type
-                                            .toLowerCase()
-                                            .replace(/^\w/, (letter) =>
-                                                letter.toUpperCase(),
-                                            )}
+                                        {itemTypeLabels[type]}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
