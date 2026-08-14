@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
 import {
     StockTargetSelect,
     toStockTargets,
@@ -1141,7 +1141,7 @@ export function StockAdjustmentForm() {
             </div>
         </div>
             </form>
-            <BarcodeScannerDialog
+            <BarcodeScannerOverlay
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
                 onItemFound={handleScannedItem}
