@@ -1,9 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { SlidersHorizontal, Undo2 } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 
-import type { DraftMovement } from "@/components/inventory/stock/stock-draft";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -31,7 +30,12 @@ const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
  */
 export type MovementDetail = {
     id: string;
+    /** The item or add-on this movement was recorded against, by name. */
     name: string;
+    /** Set when the movement is against an add-on rather than an item. */
+    isAddOn?: boolean;
+    /** The option that moved, when the item is sold in options. */
+    optionName?: string;
     /** "Stock in", "Adjustment", … — the movement's own name. */
     typeLabel: string;
     /** Reason, cost, reference number: everything the operator typed. */
@@ -43,8 +47,11 @@ export type MovementDetail = {
     before?: number;
     /** Balance it left behind. */
     after?: number;
-    /** Who recorded it. */
-    actor?: string;
+    /**
+     * Who recorded it: the person's name, and the account the entry was
+     * signed with. Undefined only when the entry carries no signature at all.
+     */
+    actor?: { name: string; account: string };
     /**
      * The record this movement acts on — for an adjustment, the stock in or
      * stock out it corrects. Undefined when nothing was linked.
@@ -52,7 +59,6 @@ export type MovementDetail = {
     linkedRecord?: string;
     at?: string;
     /** Draft rows can still be taken back; recorded ones never can. */
-    draft?: DraftMovement;
     /** The entry as it came back from the backend, for the fields only it has. */
     entry?: StockEntry;
 };
@@ -91,19 +97,17 @@ export function StockMovementDetailDialog({
     open,
     onOpenChange,
     movement,
-    onUndo,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     movement: MovementDetail | null;
-    onUndo: (id: string) => void;
 }) {
     const { format: formatMoney } = useMoney();
 
     if (!movement) return null;
 
     const entry = movement.entry;
-    const unitCost = entry?.unitCost ?? movement.draft?.unitCost;
+    const unitCost = entry?.unitCost;
     // What this movement was worth: the cost of one unit times how many moved.
     const movementValue =
         unitCost === undefined
@@ -126,9 +130,14 @@ export function StockMovementDetailDialog({
                         >
                             {movement.typeLabel}
                         </span>
-                        {movement.draft ? (
-                            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                                Unsaved
+                        {movement.isAddOn ? (
+                            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                                Add-on
+                            </span>
+                        ) : null}
+                        {movement.optionName ? (
+                            <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                {movement.optionName}
                             </span>
                         ) : null}
                     </div>
@@ -200,7 +209,23 @@ export function StockMovementDetailDialog({
 
                     <dl className="mt-2 divide-y divide-border">
                         <Row label="Recorded by">
-                            {movement.actor || "Unknown user"}
+                            {movement.actor ? (
+                                <>
+                                    {movement.actor.name}
+                                    {/* The account it was signed with, when
+                                        that is not already the name shown. */}
+                                    {movement.actor.account !==
+                                    movement.actor.name ? (
+                                        <span className="ml-1.5 font-normal text-muted-foreground">
+                                            ({movement.actor.account})
+                                        </span>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <span className="text-muted-foreground">
+                                    Not signed
+                                </span>
+                            )}
                         </Row>
 
                         {movement.linkedRecord ? (
@@ -230,12 +255,24 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
 
-                        {movement.draft &&
-                        movement.draft.enteredUnitLabel !==
-                            movement.draft.baseUnitLabel ? (
+                        {/* What the operator counted, before conversion. */}
+                        {entry?.enteredQuantity !== undefined &&
+                        entry?.enteredUnit ? (
                             <Row label="Entered as">
-                                {formatAmount(movement.draft.enteredQuantity)}{" "}
-                                {movement.draft.enteredUnitLabel}
+                                {formatAmount(entry.enteredQuantity)}{" "}
+                                {entry.enteredUnit.name}
+                            </Row>
+                        ) : null}
+
+                        {entry?.costOfGoods !== undefined ? (
+                            <Row label="Cost of what left">
+                                {formatMoney(entry.costOfGoods)}
+                            </Row>
+                        ) : null}
+
+                        {entry?.unitSalePrice !== undefined ? (
+                            <Row label="Sold at">
+                                {formatMoney(entry.unitSalePrice)} per unit
                             </Row>
                         ) : null}
 
@@ -245,10 +282,10 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
 
-                        {(entry?.reason || movement.draft?.reason) ? (
+                        {entry?.reason ? (
                             <Row label="Reason">
                                 <span className="whitespace-pre-wrap">
-                                    {entry?.reason || movement.draft?.reason}
+                                    {entry.reason}
                                 </span>
                             </Row>
                         ) : null}
@@ -271,39 +308,18 @@ export function StockMovementDetailDialog({
                         ) : null}
                     </dl>
 
-                    {movement.draft ? (
-                        <p className="mt-4 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-xs text-warning">
-                            This movement is a preview. Nothing has been sent
-                            yet, so it can still be taken back.
-                        </p>
-                    ) : (
-                        <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
-                            <SlidersHorizontal className="mt-0.5 size-3.5 shrink-0" />
-                            <span>
-                                A recorded movement is never edited or deleted.
-                                Correct it with an adjustment so the history
-                                stays complete.
-                            </span>
-                        </p>
-                    )}
+                    <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
+                        <SlidersHorizontal className="mt-0.5 size-3.5 shrink-0" />
+                        <span>
+                            A recorded movement is never edited or deleted.
+                            Correct it with an adjustment so the history stays
+                            complete.
+                        </span>
+                    </p>
                 </div>
 
-                <DialogFooter className="mt-6" showCloseButton>
-                    {movement.draft ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="gap-2"
-                            onClick={() => {
-                                onUndo(movement.id);
-                                onOpenChange(false);
-                            }}
-                        >
-                            <Undo2 className="size-4" />
-                            Undo this movement
-                        </Button>
-                    ) : null}
-                </DialogFooter>
+                <DialogFooter className="mt-6" showCloseButton />
+
             </DialogContent>
         </Dialog>
     );

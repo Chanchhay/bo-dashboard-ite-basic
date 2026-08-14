@@ -7,7 +7,7 @@ import Link from "next/link";
 import StoreProvider from "@/app/StoreProvider";
 import { useGetChannelItemsQuery } from "@/services/salesChannelApi";
 import { attributeIcon } from "@/lib/api/attribute-icons";
-import type { InventoryItem } from "@/lib/api/inventory";
+import { itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
 import { ArrowLeft, Tag, ImageOff, Check } from "lucide-react";
 import { ProductDetailSkeleton } from "@/components/ui/skeleton";
 
@@ -46,10 +46,9 @@ function FullProductItemContent({ itemId }: { itemId: string }) {
   }
 
   const rawItem = matchedEntry.item as unknown as InventoryItem;
-  const gallery = [...(rawItem.images || [])]
-    .sort((a, b) => (a.position || 0) - (b.position || 0))
-    .map((img) => img.url)
-    .filter(Boolean) as string[];
+  // The item's own pictures first, then the ones hanging off its options —
+  // an item photographed only through its colours still has a gallery.
+  const gallery = itemImageUrls(rawItem);
 
   const activeImage =
     gallery[selectedImageIndex] ||

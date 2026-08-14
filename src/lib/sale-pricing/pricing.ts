@@ -100,6 +100,22 @@ export function listingKey(itemId: string, unitId: string) {
     return `${itemId}:${unitId}`;
 }
 
+/**
+ * One thing a channel can charge differently for.
+ *
+ * The same line Set Price prices: both ids absent is the item sold on its own,
+ * `variantId` names one of its options, `unitId` one of its larger units. A
+ * case of Large and a single Large are different sales and can be marked up
+ * differently, so neither id alone is enough to tell them apart.
+ */
+export function channelLineKey(
+    itemId: string,
+    variantId?: string,
+    unitId?: string,
+) {
+    return `${itemId}:${variantId || ""}:${unitId || ""}`;
+}
+
 /** Rounds to cents so a percentage markup never produces 3.4500000000000006. */
 function toMoney(value: number) {
     return Math.round(value * 100) / 100;

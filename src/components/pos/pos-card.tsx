@@ -31,7 +31,11 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
     <button
       type="button"
       disabled={isDisabled}
-      aria-label={`${item.name}, ${displayPrice}`}
+      aria-label={
+        isDisabled && item.unavailableReason
+          ? `${item.name}, ${displayPrice}, ${item.unavailableReason}`
+          : `${item.name}, ${displayPrice}`
+      }
       onClick={() => onSelect?.(item)}
       style={{ touchAction: "manipulation" }}
       className={`group flex w-full select-none flex-col text-left outline-none transition-transform duration-75 focus-visible:rounded-[25px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
@@ -40,7 +44,15 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
           : "cursor-pointer active:scale-[0.95]"
       }`}
     >
-      <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
+      <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
+        {/* Why it is dimmed. "Out of stock" needs a delivery and
+            "Unavailable" needs a switch flipped in Inventory — a cashier
+            cannot tell those apart from a faded card alone. */}
+        {isDisabled && item.unavailableReason ? (
+          <span className="absolute inset-x-0 bottom-0 z-10 bg-gray-900/75 px-2 py-1 text-center text-[11px] font-semibold text-white">
+            {item.unavailableReason}
+          </span>
+        ) : null}
         {item.image_url ? (
           /* Decorative — the button's aria-label already names the item. */
           // eslint-disable-next-line @next/next/no-img-element
@@ -72,6 +84,7 @@ export const PosCard = memo(
     prev.item.id === next.item.id &&
     prev.item.price === next.item.price &&
     prev.item.is_available === next.item.is_available &&
+    prev.item.unavailableReason === next.item.unavailableReason &&
     prev.formattedPrice === next.formattedPrice &&
     prev.onSelect === next.onSelect,
 );

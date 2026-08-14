@@ -154,6 +154,14 @@ export const NAVIGATION: NavSection[] = [
                         alsoActiveOn: [/^\/inventory\/stock\/overview$/],
                     },
                     {
+                        // Add-ons are stocked from the overview, under the item
+                        // that offers them. The ledger is its own page: it
+                        // answers what happened, not what is left.
+                        label: "Movements",
+                        href: "/inventory/stock/movements",
+                        permission: PERMISSIONS.INVENTORY_STOCK,
+                    },
+                    {
                         label: "Stock in",
                         href: "/inventory/stock/in",
                         permission: PERMISSIONS.INVENTORY_STOCK,
@@ -207,10 +215,21 @@ export const NAVIGATION: NavSection[] = [
         id: "dashboard",
         label: "Dashboard",
         icon: LayoutGrid,
-        // One destination for now. `/analytics` joins this as a child once it
-        // renders something.
         href: "/dashboard",
         exact: true,
+        children: [
+            {
+                label: "Overview",
+                href: "/dashboard",
+                exact: true,
+            },
+            {
+                // Revenue against what the stock cost, per channel. The one
+                // question the stat cards elsewhere cannot answer.
+                label: "Profit",
+                href: "/analytics",
+            },
+        ],
         app: {
             label: "Overview Dashboard",
             // hint: "Live figures & analytics",
@@ -237,25 +256,13 @@ export const NAVIGATION: NavSection[] = [
                 permission: PERMISSIONS.SALES_ORDERS,
             },
             {
-                // Base prices per item and package, then what each channel
-                // charges. Sits above Customers because it is the thing most
-                // owners open Sale Management to do.
-                label: "Items & pricing",
+                // Base prices, what each channel charges instead, and where
+                // each item sells — one screen, where it used to be three.
+                // Sits above Customers because it is the thing most owners
+                // open Sale Management to do.
+                label: "Item & Pricing",
+                href: "/sales/pricing",
                 permission: PERMISSIONS.SALES_MANAGE,
-                children: [
-                    {
-                        label: "Set Price",
-                        href: "/sales/pricing?tab=items",
-                        exact: true,
-                        permission: PERMISSIONS.SALES_MANAGE,
-                        alsoActiveOn: [/^\/sales\/pricing(\?.*tab=items)?$/],
-                    },
-                    {
-                        label: "Channel Pricing",
-                        href: "/sales/pricing?tab=selling",
-                        permission: PERMISSIONS.SALES_MANAGE,
-                    },
-                ],
             },
             {
                 label: "Customers",
@@ -271,11 +278,6 @@ export const NAVIGATION: NavSection[] = [
                 label: "Member Types",
                 href: "/sales/membership-types",
                 permission: PERMISSIONS.SALES_MANAGE,
-            },
-            {
-                label: "Sales Channels",
-                href: "/sales/channels",
-                permission: PERMISSIONS.SALES_POS,
             },
         ],
         // The terminal is its own fullscreen app, so it gets a launch button

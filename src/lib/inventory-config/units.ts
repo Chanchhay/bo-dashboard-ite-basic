@@ -60,6 +60,14 @@ export type UomConversion = {
     id: string;
     unitId: string;
     factor: number;
+    /**
+     * Which option this larger unit is for.
+     *
+     * A shop that sells Large by the case need not sell Small that way, and
+     * the two need not hold the same number — so the option is part of what a
+     * conversion is. Empty on an item with no options.
+     */
+    variantId?: string;
 };
 
 /** An item's full unit of measure setup. */
@@ -155,10 +163,12 @@ export function validateUnit(
  * already carries.
  */
 export function validateConversion(
-    draft: { unitId: string; factor: string },
+    draft: { unitId: string; factor: string; variantId?: string },
     baseUnitId: string,
     existing: readonly UomConversion[],
     editingId?: string,
+    /** Options the item is sold in. One must be named when it has any. */
+    options: readonly { id: string; name: string }[] = [],
 ) {
     const errors: Record<string, string> = {};
 
@@ -170,10 +180,18 @@ export function validateConversion(
         existing.some(
             (conversion) =>
                 conversion.id !== editingId &&
-                conversion.unitId === draft.unitId,
+                conversion.unitId === draft.unitId &&
+                (conversion.variantId || "") === (draft.variantId || ""),
         )
     ) {
-        errors.unitId = "This item already converts that unit.";
+        errors.unitId = options.length
+            ? "That option already has this unit."
+            : "This item already converts that unit.";
+    }
+
+    // A case of Large is not a case of Small, so which one has to be said.
+    if (options.length && !draft.variantId) {
+        errors.variantId = "Choose which option this unit is for.";
     }
 
     const factor = Number(draft.factor);
