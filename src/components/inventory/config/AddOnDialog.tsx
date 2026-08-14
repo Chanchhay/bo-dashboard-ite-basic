@@ -5,7 +5,6 @@ import {
     AlertTriangle,
     ArrowUpRight,
     Plus,
-    SlidersHorizontal,
     Trash2,
 } from "lucide-react";
 
@@ -42,7 +41,6 @@ type AddOnDraft = {
     name: string;
     baseUnitId: string;
     usePerOrder: string;
-    lowStockThreshold: string;
     conversions: UomConversion[];
 };
 
@@ -51,7 +49,6 @@ function toDraft(addOn: AddOn | undefined, fallbackUnitId: string): AddOnDraft {
         name: addOn?.name ?? "",
         baseUnitId: addOn?.baseUnitId ?? fallbackUnitId,
         usePerOrder: addOn ? String(addOn.usePerOrder) : "1",
-        lowStockThreshold: addOn ? String(addOn.lowStockThreshold) : "0",
         conversions: addOn?.conversions ?? [],
     };
 }
@@ -179,15 +176,6 @@ export function AddOnDialog({
             found.usePerOrder = "Must be greater than zero.";
         }
 
-        const threshold = Number(draft.lowStockThreshold);
-        if (!Number.isFinite(threshold) || threshold < 0) {
-            found.lowStockThreshold = "Cannot be negative.";
-        }
-
-        // Stock is never typed in — a new add-on starts empty and every change
-        // after that is a recorded movement, so the ledger has no silent gaps.
-        const onHand = addOn?.onHand ?? 0;
-
         if (Object.keys(found).length) {
             setErrors(found);
             toast({
@@ -202,9 +190,7 @@ export function AddOnDialog({
             id: addOn?.id ?? `a-${crypto.randomUUID().slice(0, 8)}`,
             name,
             baseUnitId: draft.baseUnitId,
-            onHand,
             usePerOrder,
-            lowStockThreshold: threshold,
             conversions: draft.conversions,
         });
         onOpenChange(false);
@@ -423,34 +409,7 @@ export function AddOnDialog({
                         </p>
                     </Section>
 
-                    <Section title="Stock">
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="addon-on-hand">On hand</Label>
-                            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
-                                <span className="font-semibold text-foreground">
-                                    {formatAmount(addOn?.onHand ?? 0)}{" "}
-                                    <span className="font-normal text-muted-foreground">
-                                        {symbol}
-                                    </span>
-                                </span>
-                                {isEditing ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                    >
-                                        <SlidersHorizontal />
-                                        Adjust
-                                    </Button>
-                                ) : null}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Stock only ever changes by recording a movement,
-                                so the history stays complete. A new add-on
-                                starts empty.
-                            </p>
-                        </div>
-
+                    <Section title="Usage">
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="addon-use">
@@ -487,37 +446,11 @@ export function AddOnDialog({
                                 ) : null}
                             </div>
 
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="addon-low">Low-stock at</Label>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        id="addon-low"
-                                        type="number"
-                                        min="0"
-                                        step="any"
-                                        value={draft.lowStockThreshold}
-                                        onChange={(event) =>
-                                            updateDraft({
-                                                lowStockThreshold:
-                                                    event.target.value,
-                                            })
-                                        }
-                                        aria-invalid={Boolean(
-                                            errors.lowStockThreshold,
-                                        )}
-                                        className={`${inventoryControlClassName} flex-1`}
-                                    />
-                                    <span className="shrink-0 font-mono text-sm text-muted-foreground">
-                                        {symbol || "—"}
-                                    </span>
-                                </div>
-                            </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            {errors.lowStockThreshold ||
-                                `How much comes off per selection. Leave at 1 for things counted one at a time${
-                                    symbol ? `, or set 30 ${symbol} for a scoop` : ""
-                                }.`}
+                            {`How much one selection uses. Leave at 1 for things counted one at a time${
+                                symbol ? `, or set 30 ${symbol} for a scoop` : ""
+                            }.`}
                         </p>
                     </Section>
 

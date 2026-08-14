@@ -1,6 +1,7 @@
 "use client";
 
 import { useMoney } from "@/hooks/useMoney";
+import { formatAmount } from "@/lib/inventory-config/units";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -10,8 +11,6 @@ import {
     ChevronRight,
     Edit3,
     Eye,
-    EyeOff,
-    FolderPlus,
     LoaderCircle,
     PackagePlus,
     ScanBarcode,
@@ -50,16 +49,20 @@ import { useToast } from "@/components/ui/toast";
 import {
     inventoryItemQuerySchema,
     itemTypes,
+    type AddOn,
     type InventoryItem,
     type InventoryItemQuery,
     type InventoryItemSort,
+    type StoredItemType,
 } from "@/lib/api/inventory";
 import { cn } from "@/lib/utils";
 import {
     useDeleteInventoryItemMutation,
+    useGetAddOnSetsQuery,
     useGetInventoryItemsQuery,
     useGetInventoryUnitsQuery,
     useGetItemGroupsQuery,
+    useUpdateItemAddOnAvailabilityMutation,
 } from "@/services/inventoryApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
@@ -119,20 +122,138 @@ function FilterChip({
 }
 
 /**
- * Nested Add-ons Tree view with category structure & toggle management.
- * Rendered directly under an item in the overview list when expanded.
+ * A heading over one branch of the tree, in the same shape Stock uses.
+ */
+function TreeHeading({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            {children}
+        </p>
+    );
+}
+
+/**
+ * The rail every branch of the tree hangs off, with a stub to each row.
+ */
+function TreeBranch({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="relative ml-3 space-y-1.5 border-l-2 border-primary/20 pl-4 dark:border-primary/30">
+            {children}
+        </div>
+    );
+}
+
+function TreeLeaf({
+    className,
+    children,
+}: {
+    className?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            className={cn(
+                "relative flex flex-wrap items-center justify-between gap-3 rounded-xl border border-transparent px-3.5 py-2.5 transition-colors hover:border-border/40 hover:bg-muted/40",
+                className,
+            )}
+        >
+            <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 -translate-y-1/2 bg-primary/30 dark:bg-primary/40" />
+            {children}
+        </div>
+    );
+}
+
+/**
+ * The item's options — the same item in another size or pack.
+ *
+ * Each is scanned, counted and priced on its own, which is the whole reason it
+ * exists as a row rather than a note on the item. Everything here is set where
+ * the item is edited or in Sale Management; this is the read of it.
+ */
+function ItemOptionsTree({ item }: { item: InventoryItem }) {
+    const { format: formatMoney } = useMoney();
+    const options = item.variants || [];
+
+    if (!options.length) return null;
+
+    return (
+        <div className="space-y-2 py-1">
+            <TreeHeading>Options · {options.length}</TreeHeading>
+
+            <TreeBranch>
+                {options.map((option, index) => {
+                    const onSale = option.available !== false;
+
+                    return (
+                        <TreeLeaf
+                            key={option.id || `${item.id}-option-${index}`}
+                            className={onSale ? undefined : "bg-muted/30 opacity-60"}
+                        >
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-foreground">
+                                    {option.name || "Unnamed option"}
+                                </p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {option.sku ||
+                                        option.barcode ||
+                                        "No SKU or barcode"}
+                                </p>
+                            </div>
+
+                            <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2 sm:ml-0">
+                                {/* Priced per sales channel in Sale Management,
+                                    so an option can sit here unpriced. */}
+                                {option.price == null ? (
+                                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                                        Not priced
+                                    </span>
+                                ) : (
+                                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                                        {formatMoney(option.price)}
+                                    </span>
+                                )}
+                                <span
+                                    className={cn(
+                                        "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                                        onSale
+                                            ? "bg-success/10 text-success"
+                                            : "bg-muted text-muted-foreground",
+                                    )}
+                                >
+                                    {onSale ? "On sale" : "Off sale"}
+                                </span>
+                            </div>
+                        </TreeLeaf>
+                    );
+                })}
+            </TreeBranch>
+        </div>
+    );
+}
+
+/**
+ * The add-ons this item offers, grouped by the sets they belong to.
+ *
+ * Everything here is the item's own: the add-ons attached to it, what each one
+ * costs, and how much of it one order uses. The sets are the shop's own
+ * groupings — an add-on in none of them is still offered, so it is listed
+ * rather than hidden.
+ *
+ * Only what this item offers is listed. An add-on belongs to the items that
+ * carry it, so a drink's row has no business showing toppings that belong to
+ * something else.
+ *
+ * The switch decides whether the item sells it. Off is not detached — the
+ * item still offers it and keeps its setup, it is simply off the menu today,
+ * which is what a shop that has run out of pearls actually wants. Attaching
+ * and detaching is done where the item is edited.
  */
 function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
-    const [addOnStates, setAddOnStates] = useState<
-        Record<string, { enabled: boolean; price: string; stock: string; usage: string }>
-    >({
-        "a-pearls": { enabled: true, price: "+$0.50", stock: "2,400 g in stock", usage: "30 g / order" },
-        "a-jelly": { enabled: true, price: "+$0.60", stock: "180 g in stock", usage: "30 g / order" },
-        "a-pudding": { enabled: false, price: "+$0.75", stock: "1,250 g in stock", usage: "40 g / order" },
-        "a-shot": { enabled: true, price: "+$1.00", stock: "840 shots in stock", usage: "1 shot / order" },
-        "a-syrup": { enabled: true, price: "+$0.50", stock: "1,800 ml in stock", usage: "15 ml / order" },
-    });
-
+    const setsQuery = useGetAddOnSetsQuery();
+    const { format: formatMoney } = useMoney();
+    const { toast } = useToast();
+    const [setAvailability, saveState] =
+        useUpdateItemAddOnAvailabilityMutation();
     const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
         new Set(),
     );
@@ -146,138 +267,164 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
         });
     };
 
-    const toggleAddOn = (addOnId: string, enabled: boolean) => {
-        setAddOnStates((prev) => ({
-            ...prev,
-            [addOnId]: { ...(prev[addOnId] || { enabled: true, price: "+$0.50", stock: "100 in stock", usage: "1 per order" }), enabled },
-        }));
-    };
+    const listed = item.addOns || [];
+
+    async function setOnSale(addOn: AddOn, available: boolean) {
+        try {
+            await setAvailability({
+                itemId: item.id,
+                addOnId: addOn.id,
+                available,
+            }).unwrap();
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Add-on not changed",
+                description: getApiErrorMessage(
+                    error,
+                    `Unable to take ${addOn.name || "that add-on"} ${available ? "back on" : "off"} sale.`,
+                ),
+            });
+        }
+    }
+
+    if (!listed.length) {
+        return (
+            <p className="py-1 text-xs text-muted-foreground">
+                No add-ons on this item. Attach them from the item&apos;s
+                Add-ons section when you edit it.
+            </p>
+        );
+    }
+
+    const sets = setsQuery.data || [];
+    const grouped = sets
+        .map((set) => ({
+            id: `${set.id}-${item.id}`,
+            name: set.name || "Unnamed set",
+            addOns: listed.filter((addOn) =>
+                (set.addOns || []).some((member) => member.id === addOn.id),
+            ),
+        }))
+        .filter((group) => group.addOns.length);
+
+    // An add-on in no set can still be offered, and still has to be seen.
+    const grouping = grouped.flatMap((group) => group.addOns.map((a) => a.id));
+    const ungrouped = listed.filter((addOn) => !grouping.includes(addOn.id));
 
     const categories = [
-        {
-            id: `toppings-${item.id}`,
-            name: "Toppings & Ingredients",
-            subtitle: "3 configured add-ons",
-            addOns: [
-                { id: "a-pearls", name: "Pearls (Tapioca)", code: "ADD-001" },
-                { id: "a-jelly", name: "Grass Jelly", code: "ADD-002" },
-                { id: "a-pudding", name: "Egg Pudding", code: "ADD-003" },
-            ],
-        },
-        {
-            id: `extras-${item.id}`,
-            name: "Flavors & Extra Shots",
-            subtitle: "2 configured add-ons",
-            addOns: [
-                { id: "a-shot", name: "Extra Espresso Shot", code: "ADD-004" },
-                { id: "a-syrup", name: "Vanilla Flavor Syrup", code: "ADD-005" },
-            ],
-        },
+        ...grouped,
+        ...(ungrouped.length
+            ? [
+                  {
+                      id: `ungrouped-${item.id}`,
+                      name: "Not in a set",
+                      addOns: ungrouped,
+                  },
+              ]
+            : []),
     ];
 
     return (
-        <div className="space-y-3 py-1">
+        <div className="space-y-2 py-1">
+            <TreeHeading>Add-ons · {listed.length}</TreeHeading>
+
             {categories.map((category) => {
                 const isCollapsed = collapsedCategories.has(category.id);
+                const onSaleCount = category.addOns.filter(
+                    (addOn) => addOn.available !== false,
+                ).length;
 
                 return (
-                    <div
-                        key={category.id}
-                        className="rounded-2xl border border-border/80 bg-card p-3 shadow-sm transition-all"
-                    >
-                        {/* Category Header Card matching exact screenshot */}
-                        <div
+                    <div key={category.id} className="space-y-1.5">
+                        {/* The shop's own grouping of its add-ons. Collapsible,
+                            because a long menu is mostly things you are not
+                            looking at. */}
+                        <button
+                            type="button"
                             onClick={() => toggleCategory(category.id)}
-                            className="flex cursor-pointer items-center justify-between gap-4 rounded-xl px-2 py-1 transition-colors hover:bg-muted/40"
+                            aria-expanded={!isCollapsed}
+                            className="flex w-full cursor-pointer flex-wrap items-baseline gap-2 rounded-lg px-1 py-1 text-left transition-colors hover:bg-muted/40"
                         >
-                            <div className="flex items-center gap-3.5 min-w-0">
-                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-                                    <FolderPlus className="size-5" />
-                                </span>
-                                <div className="min-w-0">
-                                    <h5 className="font-semibold text-foreground text-sm truncate">
-                                        {category.name}
-                                    </h5>
-                                    <p className="truncate text-xs text-muted-foreground mt-0.5">
-                                        {category.subtitle}
-                                    </p>
-                                </div>
-                            </div>
+                            <ChevronDown
+                                className={cn(
+                                    "size-4 self-center text-muted-foreground transition-transform duration-200",
+                                    isCollapsed ? "-rotate-90" : "rotate-0",
+                                )}
+                            />
+                            <span className="truncate text-xs font-semibold text-foreground">
+                                {category.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {onSaleCount} of {category.addOns.length} on
+                                sale
+                            </span>
+                        </button>
 
-                            <button
-                                type="button"
-                                aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${category.name}`}
-                                className="grid size-8 shrink-0 place-items-center rounded-full bg-muted/60 text-muted-foreground transition-all hover:bg-muted focus:outline-none"
-                            >
-                                <ChevronDown
-                                    className={cn(
-                                        "size-4 transition-transform duration-200",
-                                        isCollapsed ? "-rotate-90" : "rotate-0",
-                                    )}
-                                />
-                            </button>
-                        </div>
-
-                        {/* Subcategory Tree Branches matching exact screenshot */}
                         {!isCollapsed ? (
-                            <div className="relative ml-9 border-l-2 border-primary/20 dark:border-primary/30 my-2.5 pl-4 space-y-1.5 pr-2">
+                            <TreeBranch>
                                 {category.addOns.map((addOn) => {
-                                    const state = addOnStates[addOn.id] || {
-                                        enabled: true,
-                                        price: "+$0.50",
-                                        stock: "100 in stock",
-                                        usage: "1 per order",
-                                    };
+                                    const unitLabel =
+                                        addOn.baseUnit?.symbol ||
+                                        addOn.baseUnit?.name ||
+                                        "";
+
+                                    const onSale = addOn.available !== false;
 
                                     return (
-                                        <div
+                                        <TreeLeaf
                                             key={addOn.id}
-                                            className={cn(
-                                                "relative flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-muted/40 border border-transparent hover:border-border/40",
-                                                state.enabled
-                                                    ? "opacity-100"
-                                                    : "opacity-60 bg-muted/30",
-                                            )}
+                                            className={
+                                                onSale
+                                                    ? undefined
+                                                    : "bg-muted/30 opacity-60"
+                                            }
                                         >
-                                            {/* Horizontal branch line matching screenshot */}
-                                            <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
-
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-semibold text-foreground text-sm">
-                                                        {addOn.name}
-                                                    </p>
-                                                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
-                                                        {addOn.code}
-                                                    </span>
-                                                </div>
-
-                                                {/* Add-on Properties */}
-                                                <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                                                        {state.price}
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span>{state.stock}</span>
-                                                    <span>•</span>
-                                                    <span>{state.usage}</span>
-                                                </div>
+                                                <p className="truncate text-sm font-semibold text-foreground">
+                                                    {addOn.name}
+                                                </p>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                    {/* Priced once for the whole
+                                                        business, in Sale Management. */}
+                                                    {addOn.price == null
+                                                        ? "Not priced"
+                                                        : `+${formatMoney(addOn.price)}`}
+                                                    {" · "}
+                                                    {formatAmount(
+                                                        addOn.usePerOrder ?? 1,
+                                                    )}{" "}
+                                                    {unitLabel} per order
+                                                </p>
                                             </div>
 
-                                            {/* Toggle Management */}
-                                            <div className="shrink-0 ml-auto sm:ml-0">
+                                            <div className="ml-auto shrink-0 sm:ml-0">
                                                 <Switch
                                                     id={`switch-${item.id}-${addOn.id}`}
-                                                    checked={state.enabled}
-                                                    onCheckedChange={(checked) =>
-                                                        toggleAddOn(addOn.id, checked)
+                                                    checked={onSale}
+                                                    disabled={
+                                                        saveState.isLoading
+                                                    }
+                                                    onCheckedChange={(
+                                                        checked,
+                                                    ) =>
+                                                        setOnSale(
+                                                            addOn,
+                                                            checked,
+                                                        )
+                                                    }
+                                                    aria-label={`Sell ${addOn.name} on ${item.name}`}
+                                                    title={
+                                                        onSale
+                                                            ? "On sale with this item"
+                                                            : "Off the menu for this item — still attached"
                                                     }
                                                 />
                                             </div>
-                                        </div>
+                                        </TreeLeaf>
                                     );
                                 })}
-                            </div>
+                            </TreeBranch>
                         ) : null}
                     </div>
                 );
@@ -345,10 +492,7 @@ export function InventoryProductList() {
         ...(productFilters.itemType === "ALL"
             ? {}
             : {
-                  itemType: productFilters.itemType as
-                      | "DIGITAL"
-                      | "SERVICE"
-                      | "PHYSICAL",
+                  itemType: productFilters.itemType as StoredItemType,
               }),
         ...(productFilters.minPrice
             ? { minPrice: Number(productFilters.minPrice) }
@@ -1080,9 +1224,10 @@ export function InventoryProductList() {
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleAddOnTree(item.id)}
-                                                            aria-label={`Toggle add-ons tree for ${item.name || "item"}`}
-                                                            className="grid size-7 shrink-0 place-items-center rounded-full bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground transition-all focus:outline-none cursor-pointer"
-                                                            title="View add-ons tree"
+                                                            aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
+                                                            aria-expanded={isExpanded}
+                                                            className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
+                                                            title="View options and add-ons"
                                                         >
                                                             <ChevronDown
                                                                 className={cn(
@@ -1107,8 +1252,17 @@ export function InventoryProductList() {
                                                     ? titleCase(item.itemType)
                                                     : "—"}
                                             </td>
-                                            <td className="px-5 py-4 font-semibold">
-                                                {formatMoney(item.price)}
+                                            <td
+                                                className={
+                                                    item.price === undefined ||
+                                                    item.price === null
+                                                        ? "px-5 py-4 text-muted-foreground"
+                                                        : "px-5 py-4 font-semibold"
+                                                }
+                                            >
+                                                {formatMoney(item.price, undefined, {
+                                                    fallback: "Not set",
+                                                })}
                                             </td>
                                             <td className="px-5 py-4 text-muted-foreground">
                                                 {item.unit?.name || "—"}
@@ -1172,7 +1326,8 @@ export function InventoryProductList() {
 
                                     const treeRow = (
                                         <tr key={`${item.id}-addons-tree`} className="bg-muted/20">
-                                            <td colSpan={7} className="px-5 py-4 border-b border-border">
+                                            <td colSpan={7} className="border-b border-border px-5 py-4">
+                                                <ItemOptionsTree item={item} />
                                                 <ItemAddOnsTreeRow item={item} />
                                             </td>
                                         </tr>
@@ -1190,33 +1345,39 @@ export function InventoryProductList() {
                         aria-label="Item pages"
                         className="flex flex-col gap-3 border-t border-border px-5 py-4 md:flex-row md:items-center md:justify-between"
                     >
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                             <Label
                                 htmlFor="item-page-size"
-                                className="shrink-0 text-xs font-semibold text-muted-foreground"
+                                className="shrink-0 text-[11px] font-medium text-muted-foreground"
                             >
                                 Items per page
                             </Label>
-                            <select
-                                id="item-page-size"
-                                value={productPageSize}
-                                onChange={(e) =>
+                            <Select
+                                value={String(productPageSize)}
+                                onValueChange={(value) =>
                                     dispatch(
                                         setProductPageSize(
-                                            Number(e.target.value),
+                                            Number(value),
                                         ),
                                     )
                                 }
-                                className="h-9 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground outline-none focus:border-primary"
                             >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                            </select>
-                            <span>
-                                Showing {firstResult}–{lastResult} of{" "}
-                                {totalElements}
+                                <SelectTrigger
+                                    id="item-page-size"
+                                    aria-label="Items per page"
+                                    className="!h-7 px-2 text-[11px] font-medium rounded-lg border border-border bg-card text-foreground min-w-[58px] justify-between items-center"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="min-w-[58px] w-[58px] p-1 text-[11px]">
+                                    <SelectItem value="10" className="text-[11px] py-1 px-1.5">10</SelectItem>
+                                    <SelectItem value="20" className="text-[11px] py-1 px-1.5">20</SelectItem>
+                                    <SelectItem value="50" className="text-[11px] py-1 px-1.5">50</SelectItem>
+                                    <SelectItem value="100" className="text-[11px] py-1 px-1.5">100</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                                Showing {firstResult}–{lastResult} of {totalElements}
                             </span>
                         </div>
 

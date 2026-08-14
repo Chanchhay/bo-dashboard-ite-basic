@@ -24,13 +24,26 @@ export async function POST(request: Request) {
         const businessId = await getCurrentBusinessId();
         const order = await ensureCurrentOrder(businessId);
 
-        const { itemId, variantId, quantity } = result.data;
+        const { itemId, variantId, unitId, addOnIds, quantity } = result.data;
 
         const updated = await backendRequest<PosOrder>(
             ordersPath(businessId, `/${encodeURIComponent(order.id)}/items`),
             {
                 method: "POST",
-                body: JSON.stringify({ itemId, variantId, quantity }),
+                // The whole choice, not just the item. A pack and an extra are
+                // what the customer asked for and what the line costs — dropped
+                // here, the till quietly rings up a single with nothing on it.
+                //
+                // The price is not sent: what a line costs is the backend's to
+                // work out, channel rules and all. A till that could name its
+                // own price would be a hole rather than a feature.
+                body: JSON.stringify({
+                    itemId,
+                    variantId,
+                    unitId,
+                    addOnIds,
+                    quantity,
+                }),
             },
         );
 

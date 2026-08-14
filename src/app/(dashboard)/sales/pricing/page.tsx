@@ -1,60 +1,23 @@
-"use client";
-
-import { Suspense, useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
-import { ItemsPricingTab } from "@/components/sales/pricing/ItemsPricingTab";
-import { SellingProductsTab } from "@/components/sales/pricing/SellingProductsTab";
+import { ItemPricingTab } from "@/components/sales/pricing/ItemPricingTab";
 
-type TabId = "items" | "selling";
-
-function SalesPricingContent() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const pathname = usePathname();
-    const tabParam = searchParams.get("tab");
-
-    const [tab, setTab] = useState<TabId>(() => {
-        return tabParam === "selling" ? "selling" : "items";
-    });
-
-    useEffect(() => {
-        if (tabParam === "selling") {
-            setTab("selling");
-        } else if (tabParam === "items") {
-            setTab("items");
-        }
-    }, [tabParam]);
-
-    function handleTabChange(nextTab: TabId) {
-        setTab(nextTab);
-        router.push(`${pathname}?tab=${nextTab}`);
-    }
-
-    return (
-        <div className="flex flex-col gap-6 w-full">
-            <InventoryPageHeader
-                title={tab === "selling" ? "Channel Pricing" : "Set Price"}
-                description={
-                    tab === "selling"
-                        ? "Configure channel-specific pricing rules and overrides for POS, Telegram, and Online Store."
-                        : "Set master prices for your items across all sellable packages."
-                }
-            />
-
-
-            <div>
-                {tab === "selling" ? <SellingProductsTab /> : <ItemsPricingTab />}
-            </div>
-        </div>
-    );
-}
-
+/**
+ * Base prices and what each channel does to them, on one screen.
+ *
+ * This used to be three: Set Price, Channel Pricing, and a channel matrix,
+ * each rebuilding the same catalogue to answer a third of the same question.
+ * They differed only in whose price was being set, so that became a control
+ * on the screen rather than a screen of its own.
+ */
 export default function SalesPricingPage() {
     return (
-        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading pricing...</div>}>
-            <SalesPricingContent />
-        </Suspense>
+        <div className="flex w-full flex-col gap-6">
+            <InventoryPageHeader
+                title="Item & Pricing"
+                description="Set base prices, then what each channel sells and charges — one catalogue, one place."
+            />
+
+            <ItemPricingTab />
+        </div>
     );
 }

@@ -58,9 +58,14 @@ function compact(value: number) {
 export default async function DashboardPage() {
     const { items, stock, error } = await loadOverview();
 
-    const quantityByItem = new Map(
-        stock.map((entry) => [entry.itemId, entry.quantityOnHand ?? 0]),
-    );
+    // An item sold in options reports one balance per option, so what it holds
+    // is their sum rather than whichever row happens to come last.
+    const quantityByItem = stock.reduce((totals, entry) => {
+        const id = entry.itemId;
+        if (!id) return totals;
+
+        return totals.set(id, (totals.get(id) ?? 0) + (entry.quantityOnHand ?? 0));
+    }, new Map<string, number>());
 
     const activeItems = items.filter(
         (item) => item.status === "ACTIVE",

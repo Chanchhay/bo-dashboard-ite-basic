@@ -13,6 +13,7 @@ import { useCustomerDisplayListener } from "@/hooks/useCustomerDisplayListener";
 import { useMoney } from "@/hooks/useMoney";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { soldAsLabel } from "@/lib/pos/sold-as-label";
 import type { Business } from "@/lib/api/business";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
 import Image from "next/image";
@@ -81,6 +82,14 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           id: i.id,
           itemId: i.itemId,
           itemName: i.name,
+          variantName: i.variantName ?? null,
+          unitName: i.unitName ?? null,
+          unitFactor: i.unitFactor ?? null,
+          addOns: (i.addOns || []).map((addOn) => ({
+            addOnId: null,
+            name: addOn.name,
+            unitPrice: 0,
+          })),
           quantity: i.quantity,
           unitPrice: i.unitPrice,
           discountAmount: i.discountAmount,
@@ -381,6 +390,21 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     >
                       <td className="py-3.5 px-4 font-bold text-sm">
                         {item.name}
+                        {/* What was picked. This screen is here to be checked
+                            against, which it cannot be if it only ever says
+                            the item's name. */}
+                        {soldAsLabel(item) ? (
+                          <span className="mt-0.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {soldAsLabel(item)}
+                          </span>
+                        ) : null}
+                        {item.addOns?.length ? (
+                          <span className="mt-0.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {item.addOns
+                              .map((addOn) => `+ ${addOn.name}`)
+                              .join(", ")}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="py-3.5 px-3 text-center font-bold text-primary">
                         {item.quantity}

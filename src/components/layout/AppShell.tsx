@@ -49,7 +49,14 @@ export default function AppShell({
     }
 
     return (
-        <div className="min-h-dvh bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
+        /*
+         * The shell is taken out of flow so the document itself can never
+         * scroll: a page is exactly the viewport, and the only thing that
+         * moves is the main region below. Nothing here creates a containing
+         * block for `fixed`, so the mobile drawer still anchors to the
+         * viewport.
+         */
+        <div className="fixed inset-0 overflow-hidden bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
             <a
                 href="#main-content"
                 className="sr-only rounded-lg bg-white dark:bg-[#1e2330] px-4 py-2 text-[14px] text-[#16181c] dark:text-[#f8fafc] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"
@@ -65,7 +72,12 @@ export default function AppShell({
              * and rounded — below that the panel is full-bleed and the border
              * was landing as a hairline against the viewport edge.
              */}
-            <div className="flex min-h-dvh gap-0 bg-shell lg:min-h-[calc(100dvh-2rem)] lg:rounded-[28px] border border-transparent lg:dark:border-white/6 shadow-2xl dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)]">
+            {/*
+             * The panel owns the viewport height and only the main region
+             * scrolls, so the sidebar and the top bar stay put while a long
+             * page moves underneath them.
+             */}
+            <div className="flex h-full gap-0 overflow-hidden bg-shell lg:rounded-[28px] border border-transparent lg:dark:border-white/6 shadow-2xl dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)]">
                 <Sidebar
                     open={navOpen}
                     onClose={() => setNavOpen(false)}
@@ -80,7 +92,7 @@ export default function AppShell({
 
                     <main
                         id="main-content"
-                        className="flex-1 px-5 pb-8 lg:px-8"
+                        className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 lg:px-8"
                     >
                         {children}
                     </main>

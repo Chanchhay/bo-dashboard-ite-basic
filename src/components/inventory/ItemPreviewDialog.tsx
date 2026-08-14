@@ -17,24 +17,33 @@ import { attributeIcon } from "@/lib/api/attribute-icons";
 import {
     type DescriptionBlockType,
     type InventoryItem,
-    type ItemAttributePlacement,
-    type ItemAttributeType,
+    type StoredItemAttributePlacement,
+    type StoredItemAttributeType,
+    type StoredItemType,
     type itemStatuses,
-    type itemTypes,
 } from "@/lib/api/inventory";
+import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
+
+/** One colour the item comes in — named, swatched and photographed once. */
+export type PreviewColor = {
+    value: string;
+    colorHex?: string;
+    imageUrl?: string;
+};
 
 export type PreviewValue = {
     value: string;
     label?: string;
-    colorHex?: string;
     available?: boolean;
 };
 
 export type PreviewAttribute = {
     name: string;
-    type: ItemAttributeType;
-    placement: ItemAttributePlacement;
+    // Stored rather than offered: the preview shows an item as it is saved,
+    // and an item saved before colour was retired still has one.
+    type: StoredItemAttributeType;
+    placement: StoredItemAttributePlacement;
     icon?: string;
     values: PreviewValue[];
 };
@@ -53,17 +62,92 @@ export type PreviewItem = {
     description: string;
     images: string[];
     badge: string;
-    price: number;
+    /** Undefined until a price is set — the store shows that honestly. */
+    price?: number;
     compareAtPrice?: number;
     sku: string;
     categoryName: string;
     unitName: string;
-    itemType: (typeof itemTypes)[number];
+    // Stored rather than offered: the preview shows an item as it is saved, and
+    // an item saved before the service type was retired still has one.
+    itemType: StoredItemType;
     status: (typeof itemStatuses)[number];
     attributes: PreviewAttribute[];
+    /** The colours the item comes in, declared once for every size. */
+    colors: PreviewColor[];
     descriptionBlocks: PreviewBlock[];
-    variants: { name: string; price?: number; available?: boolean }[];
+    variants: {
+        name: string;
+        price?: number;
+        available?: boolean;
+        /** Shown instead of the first gallery image while this one is picked. */
+        imageUrl?: string;
+        /** Which of the item's colours this size comes in. */
+        colorValues?: string[];
+    }[];
+    /**
+     * The bigger units this item is sold in — a six-pack, a case.
+     *
+     * They are the item's UoM conversions seen from the shop floor: stock stays
+     * one number in the base unit, but a customer can buy a whole pack of it at
+     * a price of its own.
+     */
+    packs: PreviewPack[];
 };
+
+export type PreviewPack = {
+    /** "6 Pack", "Case". */
+    unitName: string;
+    /** How many base units it holds. */
+    factor: number;
+    /** Priced in its own right; undefined means it is not sold as a pack yet. */
+    price?: number;
+    /**
+     * Which option it is for — a case of Large is not a case of Small. Empty on
+     * an item sold as itself.
+     */
+    variantName?: string;
+};
+
+/**
+ * The saved pairs, folded back into one row per size.
+ *
+ * Storage keeps Large/Red and Large/Navy apart because each has its own shelf;
+ * the shopper picks one Large and then a colour, so the preview reassembles
+ * what the seller typed.
+ */
+function foldSizes(variants: NonNullable<InventoryItem["variants"]>) {
+    type Folded = NonNullable<InventoryItem["variants"]>[number] & {
+        colorValues: string[];
+    };
+
+    const rows: Folded[] = [];
+    const bySize = new Map<string, Folded>();
+
+    for (const variant of variants) {
+        const size = (variant.optionName || variant.name || "").trim();
+        const colour = (variant.colorValue || "").trim();
+        const held = bySize.get(size.toLowerCase());
+
+        if (held) {
+            if (colour && !held.colorValues.includes(colour)) {
+                held.colorValues.push(colour);
+            }
+            continue;
+        }
+
+        const row = {
+            ...variant,
+            name: size,
+            colorValues: colour ? [colour] : [],
+        };
+
+        bySize.set(size.toLowerCase(), row);
+        rows.push(row);
+    }
+
+    return rows;
+}
 
 /** Saved item to preview shape, for the items table. */
 export function toPreviewItem(item: InventoryItem): PreviewItem {
@@ -92,8 +176,8 @@ export function toPreviewItem(item: InventoryItem): PreviewItem {
         description: item.description || "",
         images: gallery.filter(Boolean),
         badge: item.badge || "",
-        price: item.price || 0,
-        compareAtPrice: item.compareAtPrice,
+        price: item.price ?? undefined,
+        compareAtPrice: item.compareAtPrice ?? undefined,
         sku: item.sku || "",
         categoryName: item.itemGroup?.name || "",
         unitName: item.unit?.name || "",
@@ -107,16 +191,30 @@ export function toPreviewItem(item: InventoryItem): PreviewItem {
             values: (attribute.values || []).map((value) => ({
                 value: value.value || "",
                 label: value.label,
-                colorHex: value.colorHex,
                 available: value.available,
             })),
         })),
         descriptionBlocks: toBlocks(item.descriptionBlocks || []),
-        variants: (item.variants || []).map((variant) => ({
-            name: variant.name || "",
-            price: variant.price,
-            available: variant.available,
+        colors: (item.colors || []).map((color) => ({
+            value: color.value || "",
+            colorHex: color.colorHex || undefined,
+            imageUrl: color.imageUrl || undefined,
         })),
+        variants: foldSizes(item.variants || []).map((variant) => ({
+            name: variant.name || "",
+            price: variant.price ?? undefined,
+            available: variant.available,
+            imageUrl: variant.imageUrl || undefined,
+            colorValues: variant.colorValues,
+        })),
+        packs: (item.uomConversions || [])
+            .filter((conversion) => conversion.unit?.name)
+            .map((conversion) => ({
+                unitName: conversion.unit?.name || "Pack",
+                factor: conversion.factor ?? 1,
+                price: conversion.price ?? undefined,
+                variantName: conversion.variantName || undefined,
+            })),
     };
 }
 
@@ -154,6 +252,21 @@ export function ItemPreviewDialog({
 
 function displayOf(value: PreviewValue) {
     return value.label || value.value;
+}
+
+/**
+ * The price under one "Sold as" chip. An unpriced pack says so rather than
+ * borrowing the single price: it is priced in its own right, in Sale
+ * Management, and until that is done it is not something a shopper can buy.
+ */
+function PackPrice({ price }: { price?: number }) {
+    const { format: formatMoney } = useMoney();
+
+    return (
+        <span className="mt-0.5 block text-xs text-[#7b857a] dark:text-[#94a3b8]">
+            {formatMoney(price, undefined, { fallback: "Price not set" })}
+        </span>
+    );
 }
 
 function Storefront({
@@ -201,15 +314,98 @@ function Storefront({
     const [variantIndex, setVariantIndex] = useState(() =>
         item.variants.findIndex((variant) => variant.available !== false),
     );
+    /** Which colour of the picked size is on show. */
+    const [colorValue, setColorValue] = useState<string | null>(null);
+    /** -1 is the item itself — one base unit, or one of the picked option. */
+    const [packIndex, setPackIndex] = useState(-1);
     const [quantity, setQuantity] = useState(1);
 
     const variant = item.variants[variantIndex];
-    const activePrice =
+
+    /**
+     * The colours the picked size comes in.
+     *
+     * Read off the size rather than off the item, because Large may come in
+     * three and Small in two — offering a colour the size does not come in is
+     * offering something the shop cannot sell.
+     */
+    const colorsOnOffer = (variant?.colorValues || [])
+        .map((value) => item.colors.find((color) => color.value === value))
+        .filter((color): color is PreviewColor => Boolean(color));
+
+    /**
+     * Held only while it is still on offer. Switching from a size that comes
+     * in Navy to one that does not must not leave Navy showing as picked.
+     */
+    const pickedColor =
+        colorsOnOffer.find((color) => color.value === colorValue) ??
+        colorsOnOffer[0];
+
+    /**
+     * The packs on offer for what is currently picked.
+     *
+     * A case of Large is not a case of Small, so an item sold in options shows
+     * only the packs declared for the one in hand. The option travels by name
+     * because that is what an item still being typed can be sure of.
+     */
+    const packs = item.packs.filter((pack) =>
+        variant?.name
+            ? pack.variantName?.trim().toLowerCase() ===
+              variant.name.trim().toLowerCase()
+            : !pack.variantName,
+    );
+    const pack = packs[packIndex];
+    /** "can", for reading inside "Holds 6 cans". */
+    const unitWord = item.unitName.trim().toLowerCase() || "unit";
+    /** What buying one rather than a pack of them is called. */
+    const singleLabel = variant?.name
+        ? `One ${variant.name}`
+        : `One ${unitWord}`;
+    /**
+     * The picked option's own picture leads the gallery, so choosing an option
+     * changes what is on show. An option without one leaves the gallery exactly
+     * as the item's images left it — nothing is invented to fill the slot.
+     */
+    const galleryImages = (() => {
+        const gallery: string[] = [];
+        const push = (url?: string) => {
+            if (url && !gallery.includes(url)) gallery.push(url);
+        };
+
+        item.images.forEach(push);
+        // Every picture the item has, whichever choice it hangs off: the rail
+        // is how a shopper browses them, not only how they see the one picked.
+        item.colors.forEach((color) => push(color.imageUrl));
+        item.variants.forEach((option) => push(option.imageUrl));
+
+        return gallery;
+    })();
+
+    /**
+     * Which picture the current choices point at.
+     *
+     * The colour wins, since that is the choice a photograph can actually
+     * show; the size's own picture is the fallback.
+     */
+    const chosenImage = pickedColor?.imageUrl ?? variant?.imageUrl;
+
+    const shownIndex = (() => {
+        if (!chosenImage) return imageIndex;
+        const position = galleryImages.indexOf(chosenImage);
+        return position >= 0 ? position : imageIndex;
+    })();
+    /**
+     * A pack is priced in its own right rather than as a multiple — a case is
+     * not twenty-four times a can, or nobody would buy the case — so picking
+     * one replaces the price rather than multiplying it.
+     */
+    const singlePrice =
         variant?.price === undefined ? item.price : variant.price;
+    const activePrice = pack ? pack.price : singlePrice;
     // A compare-at price above the live price is what makes it a discount.
     const compareAt = item.compareAtPrice;
     const discount =
-        compareAt && compareAt > activePrice
+        compareAt && activePrice !== undefined && compareAt > activePrice
             ? Math.round(((compareAt - activePrice) / compareAt) * 100)
             : 0;
 
@@ -226,9 +422,9 @@ function Storefront({
 
             <div className="grid gap-8 p-6 md:grid-cols-2">
                 <Gallery
-                    images={item.images}
+                    images={galleryImages}
                     name={item.name}
-                    index={imageIndex}
+                    index={shownIndex}
                     onSelect={setImageIndex}
                 />
 
@@ -248,8 +444,16 @@ function Storefront({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-2xl font-bold text-danger">
-                            {formatMoney(activePrice)}
+                        <span
+                            className={
+                                activePrice === undefined
+                                    ? "text-base font-semibold text-[#657064] dark:text-[#94a3b8]"
+                                    : "text-2xl font-bold text-danger"
+                            }
+                        >
+                            {formatMoney(activePrice, undefined, {
+                                fallback: "Price not set",
+                            })}
                         </span>
                         {discount ? (
                             <>
@@ -261,7 +465,11 @@ function Storefront({
                                 </span>
                             </>
                         ) : null}
-                        {item.unitName ? (
+                        {pack ? (
+                            <span className="text-sm text-[#657064] dark:text-[#94a3b8]">
+                                per {pack.unitName}
+                            </span>
+                        ) : item.unitName ? (
                             <span className="text-sm text-[#657064] dark:text-[#94a3b8]">
                                 per {item.unitName}
                             </span>
@@ -279,17 +487,30 @@ function Storefront({
                         </p>
                     )}
 
+                    {/*
+                     * Two rows, one choice.
+                     *
+                     * The colour belongs to the option — Large *is* the brown
+                     * one — so the swatch row is a second way into the same
+                     * list, not a second question. Picking Brown selects the
+                     * option that is brown, and the Option row follows; the
+                     * two can never disagree because there is only one thing
+                     * selected.
+                     */}
                     {item.variants.length ? (
-                        <OptionRow
-                            label="Option"
-                            value={variant?.name || "—"}
-                        >
+                        <OptionRow label="Option" value={variant?.name || "—"}>
                             {item.variants.map((option, index) => (
                                 <Chip
                                     key={`${option.name}-${index}`}
                                     active={index === variantIndex}
                                     disabled={option.available === false}
-                                    onClick={() => setVariantIndex(index)}
+                                    onClick={() => {
+                                        setVariantIndex(index);
+                                        // Packs belong to the option they were
+                                        // declared for, so the one picked is
+                                        // not on offer any more.
+                                        setPackIndex(-1);
+                                    }}
                                 >
                                     <span>{option.name}</span>
                                     {option.price === undefined ? null : (
@@ -297,6 +518,59 @@ function Storefront({
                                             {formatMoney(option.price)}
                                         </span>
                                     )}
+                                </Chip>
+                            ))}
+                        </OptionRow>
+                    ) : null}
+
+                    {colorsOnOffer.length ? (
+                        <OptionRow
+                            label="Color"
+                            value={pickedColor?.value || "—"}
+                        >
+                            {colorsOnOffer.map((color) => (
+                                <Swatch
+                                    key={color.value}
+                                    name={color.value}
+                                    colorHex={color.colorHex}
+                                    active={pickedColor?.value === color.value}
+                                    onClick={() => setColorValue(color.value)}
+                                />
+                            ))}
+                        </OptionRow>
+                    ) : null}
+
+                    {/*
+                     * The item's UoM conversions, as a shopper meets them:
+                     * one, or a whole pack of them. Stock stays a single number
+                     * in the base unit either way — the pack only says how many
+                     * come off the shelf.
+                     */}
+                    {packs.length ? (
+                        <OptionRow
+                            label="Sold as"
+                            value={pack ? pack.unitName : singleLabel}
+                        >
+                            <Chip
+                                active={!pack}
+                                onClick={() => setPackIndex(-1)}
+                            >
+                                <span>{singleLabel}</span>
+                                <PackPrice price={singlePrice} />
+                            </Chip>
+                            {packs.map((row, index) => (
+                                <Chip
+                                    key={`${row.unitName}-${index}`}
+                                    active={index === packIndex}
+                                    onClick={() => setPackIndex(index)}
+                                >
+                                    <span>{row.unitName}</span>
+                                    <span className="mt-0.5 block text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                        Holds {formatAmount(row.factor)}{" "}
+                                        {unitWord}
+                                        {row.factor === 1 ? "" : "s"}
+                                    </span>
+                                    <PackPrice price={row.price} />
                                 </Chip>
                             ))}
                         </OptionRow>
@@ -314,24 +588,7 @@ function Storefront({
                                 label={attribute.name}
                                 value={chosen ? displayOf(chosen) : "—"}
                             >
-                                {attribute.values.map((value) =>
-                                    attribute.type === "COLOR" ? (
-                                        <Swatch
-                                            key={value.value}
-                                            value={value}
-                                            active={
-                                                selected[attribute.name] ===
-                                                value.value
-                                            }
-                                            onClick={() =>
-                                                setSelected((current) => ({
-                                                    ...current,
-                                                    [attribute.name]:
-                                                        value.value,
-                                                }))
-                                            }
-                                        />
-                                    ) : (
+                                {attribute.values.map((value) => (
                                         <Chip
                                             key={value.value}
                                             active={
@@ -351,8 +608,7 @@ function Storefront({
                                         >
                                             {displayOf(value)}
                                         </Chip>
-                                    ),
-                                )}
+                                ))}
                             </OptionRow>
                         );
                     })}
@@ -733,16 +989,20 @@ function Chip({
     );
 }
 
+/** The circle a shopper clicks to pick a colour Option. */
 function Swatch({
-    value,
+    name,
+    colorHex,
     active,
+    disabled,
     onClick,
 }: {
-    value: PreviewValue;
+    name: string;
+    colorHex?: string;
     active: boolean;
+    disabled?: boolean;
     onClick: () => void;
 }) {
-    const disabled = value.available === false;
 
     return (
         <button
@@ -750,8 +1010,8 @@ function Swatch({
             onClick={onClick}
             disabled={disabled}
             aria-pressed={active}
-            aria-label={value.label || value.value}
-            title={value.label || value.value}
+            aria-label={name}
+            title={name}
             className={cn(
                 "grid size-9 place-items-center rounded-full border-2 transition-colors",
                 active ? "border-primary" : "border-transparent",
@@ -760,7 +1020,7 @@ function Swatch({
         >
             <span
                 className="size-7 rounded-full ring-1 ring-black/10"
-                style={{ backgroundColor: value.colorHex || "#d9d9d9" }}
+                style={{ backgroundColor: colorHex || "#d9d9d9" }}
             />
         </button>
     );

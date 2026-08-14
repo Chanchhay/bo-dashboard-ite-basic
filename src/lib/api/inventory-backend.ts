@@ -63,10 +63,10 @@ function matchesQuery(item: InventoryItem, query: InventoryItemQuery) {
 
     // An item with no price can't satisfy a price bound either way.
     if (query.minPrice !== undefined) {
-        if (item.price === undefined || item.price < query.minPrice) return false;
+        if (item.price == null || item.price < query.minPrice) return false;
     }
     if (query.maxPrice !== undefined) {
-        if (item.price === undefined || item.price > query.maxPrice) return false;
+        if (item.price == null || item.price > query.maxPrice) return false;
     }
 
     if (query.sku && item.sku?.trim() !== query.sku.trim()) return false;
