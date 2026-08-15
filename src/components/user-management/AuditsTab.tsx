@@ -110,7 +110,7 @@ export default function AuditsTab({
                             resetTo(() => setKeyword(event.target.value))
                         }
                         placeholder="Search by actor or target"
-                        className={`${fieldClassName} pl-9`}
+                        className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
                 </div>
 
