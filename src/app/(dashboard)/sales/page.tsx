@@ -170,7 +170,7 @@ export default function SalesOrdersPage() {
                             disabled={isEnabling || isDisabling}
                             onCheckedChange={handleMenuToggle}
                         />
-                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Enable Menu</Label>
+                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
                     </div>
 
                     <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">

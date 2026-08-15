@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { CurrencyFlag } from "@/components/ui/currency-flag";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
@@ -25,6 +26,7 @@ import {
     useGetBusinessCurrenciesQuery,
     useUpdateBusinessCurrenciesMutation,
 } from "@/services/currencyApi";
+import LiveExchangeRatesSection from "./LiveExchangeRatesSection";
 
 function getApiErrorMessage(error: unknown, fallback: string) {
     if (
@@ -141,8 +143,9 @@ function CurrencyAutocomplete({
                                 <Autocomplete.Item
                                     key={option.value}
                                     value={option}
-                                    className="flex cursor-default items-center rounded-lg px-3 py-2.5 text-base outline-none select-none data-highlighted:bg-primary/10 data-highlighted:text-primary"
+                                    className="flex cursor-default items-center gap-2 rounded-lg px-3 py-2.5 text-base outline-none select-none data-highlighted:bg-primary/10 data-highlighted:text-primary"
                                 >
+                                    <CurrencyFlag code={option.value} size="xs" />
                                     <span>{option.label}</span>
                                 </Autocomplete.Item>
                             )}
@@ -337,6 +340,46 @@ function CurrencyEditor({
         setNewCurrencyCode("");
     }
 
+    function handleApplyLiveRate(code: string, liveRate: number) {
+        updateCurrency(code, { exchangeRate: liveRate });
+    }
+
+    function handleSyncAllLiveRates(ratesMap: Record<string, number>) {
+        setCurrencies((current) =>
+            current.map((curr) => {
+                if (curr.code === baseCurrency) return curr;
+                const liveRate = ratesMap[curr.code];
+                if (liveRate && liveRate > 0) {
+                    return { ...curr, exchangeRate: liveRate };
+                }
+                return curr;
+            })
+        );
+    }
+
+    function handleAddAndConfigureCurrency(code: string, liveRate: number) {
+        const details = getCurrencyDetails(code);
+        const name = details?.name || code;
+        const symbol = details?.symbol || code;
+
+        if (!currencies.some((c) => c.code === code)) {
+            setCurrencies((current) => [
+                ...current,
+                {
+                    code,
+                    name,
+                    symbol,
+                    exchangeRate: liveRate,
+                    decimalPlaces: 2,
+                },
+            ]);
+            setSelectedTarget(code);
+        } else {
+            updateCurrency(code, { exchangeRate: liveRate });
+            setSelectedTarget(code);
+        }
+    }
+
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -410,7 +453,12 @@ function CurrencyEditor({
                             className="rounded-xl border-border bg-popover text-base shadow-none data-[size=default]:h-14"
                             options={currencies.map((currency) => ({
                                 value: currency.code,
-                                label: `${currency.name} (${currency.code})`,
+                                label: (
+                                    <span className="flex items-center gap-2">
+                                        <CurrencyFlag code={currency.code} size="xs" />
+                                        <span>{currency.name} ({currency.code})</span>
+                                    </span>
+                                ),
                             }))}
                         />
                     </div>
@@ -461,7 +509,12 @@ function CurrencyEditor({
                             className="rounded-xl border-border bg-popover text-base shadow-none data-[size=default]:h-14"
                             options={currencies.map((currency) => ({
                                 value: currency.code,
-                                label: `${currency.name} (${currency.code})`,
+                                label: (
+                                    <span className="flex items-center gap-2">
+                                        <CurrencyFlag code={currency.code} size="xs" />
+                                        <span>{currency.name} ({currency.code})</span>
+                                    </span>
+                                ),
                             }))}
                         />
                         <p className="mt-2 ml-1 text-sm text-muted-foreground">
@@ -504,9 +557,10 @@ function CurrencyEditor({
                                                 );
                                             }
                                         }}
-                                        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                        className="flex items-center gap-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                     >
-                                        {currency.code}
+                                        <CurrencyFlag code={currency.code} size="xs" />
+                                        <span>{currency.code}</span>
                                     </button>
                                     <button
                                         type="button"
@@ -660,14 +714,14 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-6">
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-6">
                 <Button
                     type="button"
                     variant="outline"
                     onClick={resetForm}
                     disabled={updateState.isLoading}
                     size="lg"
-                        className="min-w-[124px]"
+                    className="min-w-[124px]"
                 >
                     Cancel
                 </Button>
@@ -675,7 +729,7 @@ function CurrencyEditor({
                     type="submit"
                     disabled={updateState.isLoading}
                     size="lg"
-                        className="min-w-[124px]"
+                    className="min-w-[124px]"
                 >
                     {updateState.isLoading ? (
                         <>
@@ -687,6 +741,14 @@ function CurrencyEditor({
                     )}
                 </Button>
             </div>
+
+            <LiveExchangeRatesSection
+                baseCurrency={baseCurrency}
+                configuredCurrencies={currencies}
+                onApplyLiveRate={handleApplyLiveRate}
+                onSyncAllLiveRates={handleSyncAllLiveRates}
+                onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
+            />
         </form>
     );
 }
