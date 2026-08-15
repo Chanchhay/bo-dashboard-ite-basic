@@ -22,16 +22,6 @@ type NavItemBase = {
 };
 
 export type NavLink = NavItemBase & {
-<<<<<<< HEAD
-    href: string;
-    icon?: LucideIcon;
-    /** Match the pathname exactly instead of by prefix. */
-    exact?: boolean;
-    /** Extra routes that should keep this entry highlighted. */
-    alsoActiveOn?: RegExp[];
-    /** Optional count pill. Only ever set from real data. */
-    badge?: number;
-=======
   href: string;
   /** Match the pathname exactly instead of by prefix. */
   exact?: boolean;
@@ -39,7 +29,6 @@ export type NavLink = NavItemBase & {
   alsoActiveOn?: RegExp[];
   /** Optional count pill. Only ever set from real data. */
   badge?: number;
->>>>>>> 8d6ace14c638ceeb7c6e92b60b742db2bc34735e
 };
 
 export type NavGroup = NavItemBase & {
@@ -144,121 +133,6 @@ export const NAVIGATION: NavSection[] = [
     children: [
       {
         label: "Items",
-<<<<<<< HEAD
-        icon: Package,
-        permission: PERMISSIONS.INVENTORY_MANAGE,
-        app: {
-            label: "Inventory Management",
-            // hint: "Catalog, categories & stock",
-            fill: "linear-gradient(-42.95deg, #0e7e2e 5.06%, #42d00e 80.71%)",
-            ink: "#ffffff",
-        },
-        children: [
-            {
-                label: "Items",
-                href: "/inventory",
-                exact: true,
-                permission: PERMISSIONS.INVENTORY_ITEMS,
-                alsoActiveOn: [
-                    /^\/inventory\/new$/,
-                    /^\/inventory\/[^/]+\/edit$/,
-                ],
-            },
-            {
-                label: "Stock",
-                permission: PERMISSIONS.INVENTORY_STOCK,
-                children: [
-                    {
-                        label: "Overview",
-                        href: "/inventory/stock",
-                        exact: true,
-                        permission: PERMISSIONS.INVENTORY_STOCK,
-                        alsoActiveOn: [/^\/inventory\/stock\/overview$/],
-                    },
-                    {
-                        // Add-ons are stocked from the overview, under the item
-                        // that offers them. The ledger is its own page: it
-                        // answers what happened, not what is left.
-                        label: "Movements",
-                        href: "/inventory/stock/movements",
-                        permission: PERMISSIONS.INVENTORY_STOCK,
-                    },
-                    {
-                        label: "Stock in",
-                        href: "/inventory/stock/in",
-                        permission: PERMISSIONS.INVENTORY_STOCK,
-                    },
-                    {
-                        label: "Stock out",
-                        href: "/inventory/stock/out",
-                        permission: PERMISSIONS.INVENTORY_STOCK,
-                    },
-                    {
-                        label: "Adjust stock",
-                        href: "/inventory/stock/adjust",
-                        permission: PERMISSIONS.INVENTORY_STOCK,
-                    },
-                ],
-            },
-            {
-                // Units, conversions, item groups, add-ons and option presets —
-                // the building blocks items are assembled from. Categories used
-                // to live at `/inventory/categories`, which now redirects to groups.
-                label: "Item config",
-                permission: PERMISSIONS.INVENTORY_CATEGORIES,
-                children: [
-                    {
-                        label: "Units",
-                        href: "/inventory/config/units",
-                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
-                        alsoActiveOn: [/^\/inventory\/config$/],
-                    },
-                    {
-                        label: "Categories",
-                        href: "/inventory/config/groups",
-                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
-                        alsoActiveOn: [/^\/inventory\/categories$/],
-                    },
-                    {
-                        label: "Add-ons",
-                        href: "/inventory/config/add-ons",
-                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
-                    },
-                    {
-                        label: "Option presets",
-                        href: "/inventory/config/presets",
-                        permission: PERMISSIONS.INVENTORY_CATEGORIES,
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        id: "dashboard",
-        label: "Dashboard",
-        icon: LayoutGrid,
-        href: "/dashboard",
-        exact: true,
-        children: [
-            {
-                label: "Overview",
-                href: "/dashboard",
-                exact: true,
-            },
-            {
-                // Revenue against what the stock cost, per channel. The one
-                // question the stat cards elsewhere cannot answer.
-                label: "Profit",
-                href: "/analytics",
-            },
-        ],
-        app: {
-            label: "Overview Dashboard",
-            // hint: "Live figures & analytics",
-            fill: "linear-gradient(-42.73deg, #008000 14.44%, #36f928 91.63%)",
-            ink: "#ffffff",
-        },
-=======
         href: "/inventory",
         exact: true,
         permission: PERMISSIONS.INVENTORY_ITEMS,
@@ -285,7 +159,6 @@ export const NAVIGATION: NavSection[] = [
       label: "Notification Management",
       fill: "linear-gradient(155deg, #0e8a1e 0%, #46ca22 100%)",
       ink: "#ffffff",
->>>>>>> 8d6ace14c638ceeb7c6e92b60b742db2bc34735e
     },
   },
   {
@@ -326,54 +199,6 @@ export const NAVIGATION: NavSection[] = [
         label: "Customers",
         href: "/sales/customers",
         permission: PERMISSIONS.SALES_MANAGE,
-<<<<<<< HEAD
-        app: {
-            label: "Sale Management",
-            // hint: "Orders & point of sale",
-            fill: "#e8e8e8",
-            ink: "#00932a",
-        },
-        children: [
-            {
-                label: "Orders",
-                href: "/sales",
-                exact: true,
-                permission: PERMISSIONS.SALES_ORDERS,
-            },
-            {
-                // Base prices, what each channel charges instead, and where
-                // each item sells — one screen, where it used to be three.
-                // Sits above Customers because it is the thing most owners
-                // open Sale Management to do.
-                label: "Item & Pricing",
-                href: "/sales/pricing",
-                permission: PERMISSIONS.SALES_MANAGE,
-            },
-            {
-                label: "Customers",
-                href: "/sales/customers",
-                permission: PERMISSIONS.SALES_MANAGE,
-            },
-            {
-                label: "Discounts & Coupons",
-                href: "/sales/discounts",
-                permission: PERMISSIONS.SALES_MANAGE,
-            },
-            {
-                label: "Member Types",
-                href: "/sales/membership-types",
-                permission: PERMISSIONS.SALES_MANAGE,
-            },
-        ],
-        // The terminal is its own fullscreen app, so it gets a launch button
-        // rather than a nav row that pretends to stay inside the dashboard.
-        launch: {
-            label: "Open Point of Sale",
-            href: POS_ROUTES.openRegister,
-            icon: ScanLine,
-            permission: PERMISSIONS.SALES_POS,
-        },
-=======
       },
       {
         label: "Discounts & Coupons",
@@ -398,7 +223,6 @@ export const NAVIGATION: NavSection[] = [
       href: POS_ROUTES.openRegister,
       icon: ScanLine,
       permission: PERMISSIONS.SALES_POS,
->>>>>>> 8d6ace14c638ceeb7c6e92b60b742db2bc34735e
     },
   },
   {
@@ -431,46 +255,6 @@ export function visibleSections(permissions: readonly Permission[]) {
         ? { ...section, launch: undefined }
         : section,
     )
-<<<<<<< HEAD
-        .map((section) =>
-            section.launch && !can(permissions, section.launch.permission)
-                ? { ...section, launch: undefined }
-                : section,
-        )
-        .map((section) =>
-            section.children
-                ? {
-                    ...section,
-                    children: section.children
-                        .filter((leaf) =>
-                            can(permissions, leaf.permission),
-                        )
-                        .map((leaf) =>
-                            isNavGroup(leaf)
-                                ? {
-                                    ...leaf,
-                                    children: leaf.children.filter(
-                                        (child) =>
-                                            can(
-                                                permissions,
-                                                child.permission,
-                                            ),
-                                    ),
-                                }
-                                : leaf,
-                        )
-                        .filter(
-                            (leaf) =>
-                                !isNavGroup(leaf) ||
-                                leaf.children.length > 0,
-                        ),
-                }
-                : section,
-        )
-        .filter(
-            (section) => !section.children || section.children.length > 0,
-        );
-=======
     .map((section) =>
       section.children
         ? {
@@ -492,7 +276,6 @@ export function visibleSections(permissions: readonly Permission[]) {
         : section,
     )
     .filter((section) => !section.children || section.children.length > 0);
->>>>>>> 8d6ace14c638ceeb7c6e92b60b742db2bc34735e
 }
 
 /** The apps shown in the launcher, in navigation order. */
@@ -572,19 +355,6 @@ export function getPageTitle(pathname: string): PageTitle {
       );
       if (!leaf) continue;
 
-<<<<<<< HEAD
-            if (isNavGroup(leaf)) {
-                const child = leaf.children.find((item) =>
-                    isLeafActive(item, pathname),
-                );
-                return {
-                    app,
-                    page: child
-                        ? `${leaf.label} — ${child.label}`
-                        : leaf.label,
-                };
-            }
-=======
       if (isNavGroup(leaf)) {
         const child = leaf.children.find((item) =>
           isLeafActive(item, pathname),
@@ -596,7 +366,6 @@ export function getPageTitle(pathname: string): PageTitle {
             : leaf.label,
         };
       }
->>>>>>> 8d6ace14c638ceeb7c6e92b60b742db2bc34735e
 
       // An app's entry page is the app — no need to say it twice.
       return sectionEntryHref(section) === leaf.href
