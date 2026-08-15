@@ -1338,7 +1338,6 @@ export function InventoryProductList() {
                                                 <span
                                                     className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
                                                 >
-<<<<<<< HEAD
                                                     {item.status || "INACTIVE"}
                                                 </span>
                                             </td>
@@ -1403,43 +1402,6 @@ export function InventoryProductList() {
 
                                     return [mainRow, treeRow];
                                 })}
-=======
-                                                    <Eye />
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon-sm"
-                                                    render={
-                                                        <Link
-                                                            href={`/inventory/${item.id}/edit`}
-                                                            aria-label={`Edit ${item.name || "item"}`}
-                                                        />
-                                                    }
-                                                    nativeButton={false}
-                                                >
-                                                    <Edit3 />
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
-                                                    aria-label={`Delete ${item.name || "item"}`}
-                                                    disabled={deleteState.isLoading}
-                                                    onClick={() =>
-                                                        setDeleteTarget({
-                                                            id: item.id,
-                                                            name: item.name,
-                                                        })
-                                                    }
-                                                >
-                                                    <Trash2 className="size-4 text-brand-red" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
->>>>>>> 8d6ace14c638ceeb7c6e92b60b742db2bc34735e
                             </tbody>
                         </table>
                     </div>
