@@ -84,6 +84,7 @@ export default function PublicMenuClient({
   return (
     <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200 pb-20">
 
+
       {/* Header / Banner */}
       <div className="bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -142,6 +143,7 @@ export default function PublicMenuClient({
             />
           </div>
         </div>
+
 
         {/* Product Menu Grid */}
         <div>
