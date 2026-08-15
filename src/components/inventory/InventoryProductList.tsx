@@ -20,7 +20,7 @@ import {
     X,
 } from "lucide-react";
 
-import { BarcodeScannerDialog } from "@/components/inventory/BarcodeScannerDialog";
+import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
     ItemPreviewDialog,
@@ -1463,7 +1463,7 @@ export function InventoryProductList() {
                 }}
                 item={previewItem}
             />
-            <BarcodeScannerDialog
+            <BarcodeScannerOverlay
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
             />

@@ -74,6 +74,7 @@ export function PosTerminal({
           searchQuery={searchQuery}
           selectedCategoryId={activeCategoryId}
           onClearFilters={clearFilters}
+          onSearchQueryChange={setSearchQuery}
           currentRegisterUser={currentRegisterUser}
           registerCashSales={registerCashSales}
           registerCurrency={registerCurrency}
