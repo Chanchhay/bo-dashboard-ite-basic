@@ -5,6 +5,7 @@ import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
 import { ShoppingBag, MapPin, ImageOff } from "lucide-react";
 import SearchBar from "@/components/menu/search-bar";
+import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import Image from "next/image";
 import {
   ItemPreviewDialog,
@@ -81,36 +82,43 @@ export default function PublicMenuClient({
   }, [items, selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] dark:bg-gray-900 text-gray-900 flex flex-col font-sans pb-20">
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200 pb-20">
 
       {/* Header / Banner */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-          <div className="flex items-center gap-6">
-            {storeDetail.logo ? (
-              <img
-                src={storeDetail.logo}
-                alt={storeDetail.displayName || storeDetail.name}
-                className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md bg-white"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md">
-                <span className="text-3xl font-bold text-gray-400">
-                  {(storeDetail.displayName || storeDetail.name)?.charAt(0)}
-                </span>
-              </div>
-            )}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {storeDetail.displayName || storeDetail.name}
-              </h1>
-              <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm">
-                  {storeDetail.address || storeDetail.cityOrProvince || "No location provided"}
-                </span>
+      <div className="bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+              {storeDetail.logo ? (
+                <img
+                  src={storeDetail.logo}
+                  alt={storeDetail.displayName || storeDetail.name}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md bg-white shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md shrink-0">
+                  <span className="text-2xl sm:text-3xl font-bold text-gray-400">
+                    {(storeDetail.displayName || storeDetail.name)?.charAt(0)}
+                  </span>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 truncate">
+                  {storeDetail.displayName || storeDetail.name}
+                </h1>
+                <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
+                  <MapPin className="w-4 h-4 shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">
+                    {storeDetail.address || storeDetail.cityOrProvince || "No location provided"}
+                  </span>
+                </div>
               </div>
             </div>
+
+            <ThemeToggle
+              variant="icon"
+              className="size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+            />
           </div>
         </div>
       </div>
