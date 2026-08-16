@@ -178,7 +178,7 @@ export default function SalesOrdersPage() {
                             href={subdomainUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-colors"
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
                         >
                             <ExternalLink className="h-4 w-4" />
                             Live Menu

@@ -209,7 +209,7 @@ function ImageTile({
                     onClick={onRemove}
                     className="size-8"
                 >
-                    <Trash2 className="size-4 text-brand-red" />
+                    <Trash2 />
                 </Button>
             </div>
         </li>
@@ -2396,7 +2396,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                         )
                                     }
                                 >
-                                    <Trash2 className="size-4 text-brand-red" />
+                                    <Trash2 />
                                 </Button>
                             </div>
                         ))
@@ -2459,6 +2459,14 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             type="button"
                             variant="outline"
                             onClick={() => setAddOnPickerOpen(true)}
+                        >
+                            Attach existing
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={createAddOnState.isLoading}
+                            onClick={() => setNewAddOnOpen(true)}
                         >
                             <Plus />
                             Attach add-on

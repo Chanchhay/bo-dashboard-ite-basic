@@ -714,7 +714,15 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <div className="flex flex-wrap items-center justify-end gap-3 pt-6">
+            <LiveExchangeRatesSection
+                baseCurrency={baseCurrency}
+                configuredCurrencies={currencies}
+                onApplyLiveRate={handleApplyLiveRate}
+                onSyncAllLiveRates={handleSyncAllLiveRates}
+                onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
+            />
+
+            <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-6">
                 <Button
                     type="button"
                     variant="outline"
@@ -741,14 +749,6 @@ function CurrencyEditor({
                     )}
                 </Button>
             </div>
-
-            <LiveExchangeRatesSection
-                baseCurrency={baseCurrency}
-                configuredCurrencies={currencies}
-                onApplyLiveRate={handleApplyLiveRate}
-                onSyncAllLiveRates={handleSyncAllLiveRates}
-                onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
-            />
         </form>
     );
 }

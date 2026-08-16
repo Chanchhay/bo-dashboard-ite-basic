@@ -192,7 +192,7 @@ const ItemRow = memo(function ItemRow({
             aria-label={`Remove ${item.itemName}`}
             onClick={() => onRemove(item.id)}
             disabled={busy}
-            className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-40 cursor-pointer"
+            className="grid size-9 cursor-pointer place-items-center rounded-xl transition-colors hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:outline-none disabled:opacity-40 dark:hover:bg-red-950/40"
           >
             <Trash2 className="size-4 text-brand-red" />
           </button>
