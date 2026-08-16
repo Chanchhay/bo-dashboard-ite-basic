@@ -464,6 +464,7 @@ export const inventoryApi = baseApi.injectEndpoints({
 
 export const {
     useGetInventoryItemsQuery,
+    useLazyGetInventoryItemsQuery,
     useGetInventoryItemOptionsQuery,
     useGetInventoryItemQuery,
     useLazyFindInventoryItemByBarcodeQuery,
