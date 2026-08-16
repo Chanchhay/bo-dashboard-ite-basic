@@ -474,7 +474,7 @@ export default function StaffTab() {
                     }
                 />
 
-                <div className="relative mt-6 max-w-sm">
+                <div className="relative mt-6 sm:w-72">
                     <Search
                         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
@@ -488,7 +488,7 @@ export default function StaffTab() {
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Search by name, email or phone"
-                        className={`${fieldClassName} pl-9`}
+                        className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
                 </div>
 
@@ -625,14 +625,15 @@ export default function StaffTab() {
                                                         setDeleteTarget(member)
                                                     }
                                                     aria-label={`Remove ${staffFullName(member)}`}
-                                                    variant="destructive"
-                                                    size="icon-sm"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
                                                     disabled={
                                                         deleteState.isLoading
                                                     }
                                                 >
                                                     <Trash2
-                                                        className="size-4"
+                                                        className="size-4 text-brand-red"
                                                         aria-hidden="true"
                                                     />
                                                 </Button>

@@ -185,16 +185,18 @@ const ItemRow = memo(function ItemRow({
         {format(item.lineTotal, currency)}
       </td>
 
-      <td className="py-2.5 pl-1 pr-4 text-right">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onRemove(item.id)}
-          className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-brand-red focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:outline-none disabled:opacity-40"
-          title="Remove line"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      <td className="px-2 py-2.5 sm:px-4">
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            aria-label={`Remove ${item.itemName}`}
+            onClick={() => onRemove(item.id)}
+            disabled={busy}
+            className="grid size-9 cursor-pointer place-items-center rounded-xl transition-colors hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:outline-none disabled:opacity-40 dark:hover:bg-red-950/40"
+          >
+            <Trash2 className="size-4 text-brand-red" />
+          </button>
+        </div>
       </td>
     </tr>
   );

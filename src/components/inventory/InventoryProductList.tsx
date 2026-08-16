@@ -1371,8 +1371,9 @@ export function InventoryProductList() {
                                                     </Button>
                                                     <Button
                                                         type="button"
-                                                        variant="destructive"
+                                                        variant="ghost"
                                                         size="icon-sm"
+                                                        className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
                                                         aria-label={`Delete ${item.name || "item"}`}
                                                         disabled={deleteState.isLoading}
                                                         onClick={() =>
@@ -1382,7 +1383,7 @@ export function InventoryProductList() {
                                                             })
                                                         }
                                                     >
-                                                        <Trash2 />
+                                                        <Trash2 className="size-4 text-brand-red" />
                                                     </Button>
                                                 </div>
                                             </td>
