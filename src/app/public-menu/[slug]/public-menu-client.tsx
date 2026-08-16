@@ -128,31 +128,31 @@ export default function PublicMenuClient({
   }, [items, selectedMainCategory, selectedSubCategory, searchQuery]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
-      {/* 1. Public Menu Header / Banner (Kept strictly from Public Menu as requested) */}
+    <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
+      {/* 1. Public Menu Header / Banner */}
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+        <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-5 min-w-0">
               {storeDetail.logo ? (
                 <img
                   src={storeDetail.logo}
                   alt={storeDetail.displayName || storeDetail.name}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md bg-white shrink-0"
+                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white dark:border-gray-800 shadow-md bg-white shrink-0"
                 />
               ) : (
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md shrink-0">
-                  <span className="text-xl sm:text-2xl font-bold text-gray-400">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 sm:border-4 border-white dark:border-gray-800 shadow-md shrink-0">
+                  <span className="text-lg sm:text-2xl font-bold text-gray-400">
                     {(storeDetail.displayName || storeDetail.name)?.charAt(0)}
                   </span>
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-0.5 sm:mb-1 truncate">
+                <h1 className="text-base sm:text-2xl font-bold text-gray-900 dark:text-white mb-0.5 truncate">
                   {storeDetail.displayName || storeDetail.name}
                 </h1>
-                <div className="flex items-center text-gray-500 dark:text-gray-400 gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center text-gray-500 dark:text-gray-400 gap-1 sm:gap-1.5">
+                  <MapPin className="w-3 sm:w-3.5 h-3 sm:h-3.5 shrink-0" />
                   <span className="text-xs sm:text-sm truncate">
                     {storeDetail.address || storeDetail.cityOrProvince || "No location provided"}
                   </span>
@@ -162,14 +162,14 @@ export default function PublicMenuClient({
 
             <ThemeToggle
               variant="icon"
-              className="size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+              className="size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
             />
           </div>
         </div>
       </div>
 
       {/* 2. Main App Body Container matching /menu UI */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6 overflow-hidden flex gap-8 items-start">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-4 sm:py-6 md:overflow-hidden flex flex-col md:flex-row gap-6 md:gap-8 items-start">
         {/* Desktop Fixed Left Sidebar Checkbox Filter */}
         <div className="hidden md:block w-56 lg:w-64 shrink-0 h-full overflow-y-auto pr-1 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <CategoryFilter
@@ -219,20 +219,23 @@ export default function PublicMenuClient({
         </div>
 
         {/* Right Area: Title Header + Scrollable Product Card Grid */}
-        <div className="flex-1 h-full min-w-0 flex flex-col space-y-4">
+        <div className="flex-1 w-full md:h-full min-w-0 flex flex-col space-y-4">
           {/* Title Header */}
-          <div className="shrink-0 flex items-center justify-between border-b border-gray-200/80 dark:border-gray-800/80 pb-4">
-            <h2 className="text-xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+          <div className="shrink-0 flex items-center justify-between border-b border-gray-200/80 dark:border-gray-800/80 pb-3 sm:pb-4">
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
               {selectedMainCategory === "All"
                 ? "All Products"
                 : selectedSubCategory !== "All"
                 ? `${selectedMainCategory} › ${selectedSubCategory}`
                 : selectedMainCategory}
             </h2>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+            </span>
           </div>
 
-          {/* Scrollable Product Menu Grid ONLY */}
-          <div className="flex-1 overflow-y-auto pr-1 pb-16 scroll-smooth rounded-2xl [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
+          {/* Scrollable Product Menu Grid */}
+          <div className="flex-1 md:overflow-y-auto pr-0 sm:pr-1 pb-16 scroll-smooth rounded-2xl [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
             {filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 dark:border-gray-800 bg-white dark:bg-[#1a1e29] py-16 text-center shadow-2xs">
                 <ShoppingBag className="h-10 w-10 text-gray-400 dark:text-gray-500 mb-3" />
@@ -255,7 +258,7 @@ export default function PublicMenuClient({
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5 pt-1">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5 pt-1">
                 {filteredItems.map((item) => (
                   <MenuCard
                     key={item.id}
