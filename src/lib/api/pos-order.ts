@@ -36,6 +36,8 @@ export type PosOrder = {
     status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
     subtotal: number;
     discountAmount: number;
+    taxRate?: number | null;
+    taxAmount?: number | null;
     total: number;
     currency: string;
     /** The second currency this order was priced against, frozen at creation. */
@@ -222,6 +224,8 @@ export type Sale = {
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     subtotal: number;
     discountAmount: number;
+    taxRate?: number | null;
+    taxAmount?: number | null;
     totalAmount: number;
     paidAmount: number;
     /** What to hand back. Calculated by the backend, never re-derived here. */

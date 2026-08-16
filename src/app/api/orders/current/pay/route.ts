@@ -52,7 +52,10 @@ export async function POST(request: Request) {
         );
         const subtotal = Math.max(0, grossSubtotal - itemDiscount);
         const discountAmount = Math.max(0, order.discountAmount ?? 0);
-        const effectiveTotal = Math.max(0, parseFloat((subtotal - discountAmount).toFixed(2)));
+        const afterDiscount = Math.max(0, subtotal - discountAmount);
+        const taxRate = order.taxRate ?? 0;
+        const taxAmount = order.taxAmount ?? (taxRate > 0 ? parseFloat((afterDiscount * (taxRate / 100)).toFixed(2)) : 0);
+        const effectiveTotal = Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
 
         const userReceived = result.data.receivedAmount;
 
@@ -132,6 +135,8 @@ export async function POST(request: Request) {
             ...sale,
             subtotal,
             discountAmount,
+            taxRate,
+            taxAmount,
             totalAmount: effectiveTotal,
             paidAmount: paidVal,
             changeAmount: changeVal,

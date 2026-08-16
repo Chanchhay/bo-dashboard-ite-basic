@@ -6,6 +6,7 @@ import { Building2 } from "lucide-react";
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
 import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import {
   findCurrency,
@@ -55,7 +56,31 @@ export function ReceiptTicket({
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const subtotal = sale?.subtotal ?? order.subtotal;
   const discount = sale?.discountAmount ?? order.discountAmount;
-  const total = Math.max(0, subtotal - discount);
+
+  // Active Tax calculations
+  const taxRate = sale?.taxRate ?? order.taxRate ?? null;
+
+  const activeTaxConfig = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return getActiveDefaultTax();
+  }, []);
+
+  const effectiveTaxName = activeTaxConfig?.taxName ?? "VAT";
+  const effectiveTaxRate = (taxRate && taxRate > 0) ? taxRate : (activeTaxConfig?.taxRate ?? 10);
+  const effectiveShowTax = activeTaxConfig?.showTaxOnReceipt ?? true;
+
+  const calculatedTax = (subtotal - discount) * (effectiveTaxRate / 100);
+  const rawTaxAmount = (sale?.taxAmount && sale.taxAmount > 0)
+    ? sale.taxAmount
+    : (order.taxAmount && order.taxAmount > 0)
+      ? order.taxAmount
+      : calculatedTax;
+
+  const taxAmount = Math.max(0, rawTaxAmount);
+
+  const total = (sale?.totalAmount && sale.totalAmount > 0 && sale?.taxAmount && sale.taxAmount > 0)
+    ? sale.totalAmount
+    : Math.max(0, subtotal - discount + taxAmount);
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
   const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
 
@@ -251,6 +276,17 @@ export function ReceiptTicket({
             </dt>
             <dd className="font-mono font-bold">
               -{formatMoney(discount, currency)}
+            </dd>
+          </div>
+        )}
+        {effectiveShowTax && taxAmount > 0 && (
+          <div className="flex justify-between gap-4 font-medium text-[#006b26]">
+            <dt className="flex items-center gap-1">
+              {effectiveTaxName.includes("VAT") ? "VAT" : (effectiveTaxName.split("(")[0]?.trim() || effectiveTaxName)}
+              {effectiveTaxRate > 0 ? ` (${effectiveTaxRate}%)` : ""} / អាករ
+            </dt>
+            <dd className="font-mono font-bold">
+              +{formatMoney(taxAmount, currency)}
             </dd>
           </div>
         )}
