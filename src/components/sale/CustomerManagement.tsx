@@ -421,9 +421,9 @@ export default function CustomerManagement() {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => setDeletingCustomer(c)}
-                                                className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                                             >
-                                                <Trash2 className="size-4 text-brand-red" />
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>

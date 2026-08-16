@@ -258,7 +258,7 @@ export const NAVIGATION: NavSection[] = [
             label: "Sale Management",
             // hint: "Orders & point of sale",
             fill: "#e8e8e8",
-            ink: "#00932a",
+            ink: "var(--primary)",
         },
         children: [
             {
@@ -310,7 +310,7 @@ export const NAVIGATION: NavSection[] = [
             label: "Account",
             // hint: "Your preferences",
             fill: "#e8e8e8",
-            ink: "#00932a",
+            ink: "var(--primary)",
         },
     },
 ];
