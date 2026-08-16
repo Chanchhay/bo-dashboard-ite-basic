@@ -244,7 +244,7 @@ export const NAVIGATION: NavSection[] = [
         icon: Bell,
         href: "/notifications",
         app: {
-            label: "Notification Management",
+            label: "Notifications",
             fill: "linear-gradient(155deg, #0e8a1e 0%, #46ca22 100%)",
             ink: "#ffffff",
         },
