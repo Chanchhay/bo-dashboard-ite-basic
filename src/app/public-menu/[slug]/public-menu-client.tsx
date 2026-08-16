@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
-import { ShoppingBag, MapPin } from "lucide-react";
+import { ShoppingBag, MapPin, ExternalLink } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import {
   ItemPreviewDialog,
@@ -33,6 +33,21 @@ export default function PublicMenuClient({
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
   const [selectedSubCategory, setSelectedSubCategory] = useState("All");
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+
+  // Dynamically resolve store website / online ordering URL for ANY store or shop
+  const orderUrl = useMemo(() => {
+    if (storeDetail?.websiteUrl && storeDetail.websiteUrl.trim().length > 0) {
+      return storeDetail.websiteUrl;
+    }
+    const slug =
+      storeDetail?.slug ||
+      storeDetail?.username ||
+      storeDetail?.displayName?.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-") ||
+      storeDetail?.name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-") ||
+      "store";
+
+    return `https://fluxibiz.store/store/${slug}`;
+  }, [storeDetail]);
 
   // Fetch Item Groups from API if available
   const { data: itemGroups = [] } = useGetItemGroupsQuery();
@@ -160,10 +175,24 @@ export default function PublicMenuClient({
               </div>
             </div>
 
-            <ThemeToggle
-              variant="icon"
-              className="size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
-            />
+            <div className="flex items-center gap-2.5">
+              {/* Only One Order Now Button in Public Menu Banner */}
+              <a
+                href={orderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#00932a] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#00932a]/20 hover:bg-[#00932a]/90 active:scale-95 transition-all cursor-pointer shrink-0"
+              >
+                <ShoppingBag className="size-4" />
+                <span>Order Now</span>
+                <ExternalLink className="size-3.5 opacity-80" />
+              </a>
+
+              <ThemeToggle
+                variant="icon"
+                className="size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+              />
+            </div>
           </div>
         </div>
       </div>
