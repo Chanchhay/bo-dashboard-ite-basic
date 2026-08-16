@@ -447,7 +447,7 @@ function AttributeForm({
                                             onClick={() => removeValue(index)}
                                             className="shrink-0 text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                                         >
-                                            <Trash2 />
+                                            <Trash2 className="size-4 text-brand-red" />
                                         </Button>
                                     )}
                                 </div>

@@ -47,7 +47,7 @@ export default function AppLauncher({
     }, [opening, router]);
 
     return (
-        <div className="min-h-dvh bg-[#f5f5f5] dark:bg-[#0f1219]">
+        <div className="min-h-dvh flex flex-col bg-[#f5f5f5] dark:bg-[#0f1219]">
             <header className="flex h-16 sm:h-[88px] items-center justify-between border-0 px-4 sm:px-5 lg:px-8 bg-white dark:bg-[#1a1e29]">
                 <Link
                     href="/apps"
@@ -65,7 +65,7 @@ export default function AppLauncher({
             </header>
 
             <main className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
-                <header className="mb-10">
+                <header className="mb-8 sm:mb-10">
                     <h1 className="text-[32px] leading-tight text-[#161d16] dark:text-[#f8fafc]">
                         <span className="font-semibold">Hello,</span>{" "}
                         {managerName.split(" ")[0]}
@@ -76,7 +76,7 @@ export default function AppLauncher({
                 </header>
 
                 {apps.length > 0 ? (
-                    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-4">
                         {apps.map((section) => (
                             <li key={section.id}>
                                 <AppTile
@@ -131,17 +131,17 @@ function AppTile({
                     size: badge.width,
                 });
             }}
-            className="group flex h-full select-none flex-col items-center gap-5 rounded-[30px] border-0 bg-transparent px-7 pt-10 pb-9 text-center outline-none transition-transform duration-200 ease-out hover:scale-[1.05] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
+            className="group flex h-full select-none flex-col items-center gap-2.5 sm:gap-3.5 md:gap-4 lg:gap-5 rounded-[20px] sm:rounded-[26px] md:rounded-[30px] border-0 bg-transparent px-2 sm:px-4 md:px-6 pt-4 sm:pt-6 md:pt-7 lg:pt-8 pb-4 sm:pb-6 md:pb-7 lg:pb-8 text-center outline-none transition-transform duration-200 ease-out hover:scale-[1.05] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
         >
             <span
                 ref={badgeRef}
                 aria-hidden="true"
-                className="grid size-24 place-items-center rounded-[26px] transition-transform duration-200 ease-out group-hover:scale-110"
+                className="grid size-16 sm:size-18 md:size-20 lg:size-24 place-items-center rounded-[18px] sm:rounded-[22px] md:rounded-[24px] lg:rounded-[26px] transition-transform duration-200 ease-out group-hover:scale-110 shrink-0"
                 style={{ background: app.fill, color: app.ink }}
             >
-                <Icon className="size-11" strokeWidth={1.8} />
+                <Icon className="size-7 sm:size-8 md:size-9 lg:size-11" strokeWidth={1.8} />
             </span>
-            <span className="text-[21px] font-normal leading-[30px] text-[#161d16] dark:text-[#f8fafc]">
+            <span className="text-sm sm:text-base md:text-lg lg:text-[21px] font-normal leading-tight sm:leading-[24px] md:leading-[28px] lg:leading-[30px] text-[#161d16] dark:text-[#f8fafc]">
                 {app.label.split(" ").map((word) => (
                     <span key={word} className="block">
                         {word}
@@ -211,3 +211,5 @@ function AppOpen({ section, cx, cy, size }: Opening) {
         </div>
     );
 }
+
+

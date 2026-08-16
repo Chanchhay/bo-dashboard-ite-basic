@@ -1,4 +1,5 @@
 import {
+    Bell,
     Building2,
     Coins,
     FolderTree,
@@ -234,6 +235,17 @@ export const NAVIGATION: NavSection[] = [
             label: "Overview Dashboard",
             // hint: "Live figures & analytics",
             fill: "linear-gradient(-42.73deg, #008000 14.44%, #36f928 91.63%)",
+            ink: "#ffffff",
+        },
+    },
+    {
+        id: "notifications",
+        label: "Notifications",
+        icon: Bell,
+        href: "/notifications",
+        app: {
+            label: "Notification Management",
+            fill: "linear-gradient(155deg, #0e8a1e 0%, #46ca22 100%)",
             ink: "#ffffff",
         },
     },
