@@ -170,7 +170,7 @@ export default function SalesOrdersPage() {
                             disabled={isEnabling || isDisabling}
                             onCheckedChange={handleMenuToggle}
                         />
-                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Enable Menu</Label>
+                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
                     </div>
 
                     <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
@@ -178,7 +178,7 @@ export default function SalesOrdersPage() {
                             href={subdomainUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#008f45] transition-colors"
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
                         >
                             <ExternalLink className="h-4 w-4" />
                             Live Menu

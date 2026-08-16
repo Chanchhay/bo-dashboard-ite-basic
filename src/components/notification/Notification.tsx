@@ -97,6 +97,43 @@ function getNotificationIcon(type?: string | null) {
     }
 }
 
+function getNotificationLink(notification: Notification): string | null {
+    const type = notification.type?.toUpperCase();
+    const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
+
+    if (
+        type === "ORDER" ||
+        type === "PAYMENT" ||
+        type === "SUCCESS" ||
+        text.includes("sale") ||
+        text.includes("inv-") ||
+        text.includes("order")
+    ) {
+        return "/sales";
+    }
+
+    if (type === "INVENTORY" || type === "LOW_STOCK" || text.includes("stock")) {
+        return "/inventory/stock";
+    }
+
+    const link = notification.deepLink;
+    if (link && link !== "#") {
+        if (link.includes("/pos") || link.includes("/sales")) {
+            return "/sales";
+        }
+        if (link.includes("/inventory") || link.includes("/stock")) {
+            return "/inventory/stock";
+        }
+        if (link.startsWith("/dashboard/")) {
+            const clean = link.replace("/dashboard", "");
+            return clean || "/sales";
+        }
+        return link;
+    }
+
+    return "/sales";
+}
+
 export function NotificationMenu({ className }: { className?: string }) {
     const [filter, setFilter] = React.useState<"ALL" | "UNREAD">("ALL");
     const [pageSize, setPageSize] = React.useState<number>(20);
@@ -128,6 +165,16 @@ export function NotificationMenu({ className }: { className?: string }) {
     const [markAllAsRead, { isLoading: isMarkingAll }] = useMarkAllAsReadMutation();
     const [deleteNotification] = useDeleteNotificationMutation();
 
+    const handleScroll = () => {
+        if (!scrollContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+        if (scrollTop + clientHeight >= scrollHeight - 50) {
+            if (data?.page && pageSize < data.page.totalElements) {
+                setPageSize((prev) => prev + 10);
+            }
+        }
+    };
+
     const notifications = data?.content ?? [];
     const unreadNotifications = notifications.filter((n) => !n.read);
     const unreadCount = unreadNotifications.length;
@@ -150,8 +197,9 @@ export function NotificationMenu({ className }: { className?: string }) {
         if (!notification.read) {
             markAsRead(notification.id);
         }
-        if (notification.deepLink && notification.deepLink !== "#") {
-            router.push(notification.deepLink);
+        const target = getNotificationLink(notification);
+        if (target) {
+            router.push(target);
         }
     };
 
@@ -424,7 +472,7 @@ function NotificationItem({
                     title="Delete notification"
                     className="hidden group-hover:grid size-9 place-items-center rounded-xl text-[#8a8f89] dark:text-[#94a3b8] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors outline-none"
                 >
-                    <Trash2 className="size-5" />
+                    <Trash2 className="size-5 text-brand-red" />
                 </button>
             </div>
         </div>

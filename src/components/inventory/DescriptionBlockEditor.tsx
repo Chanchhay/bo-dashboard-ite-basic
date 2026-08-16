@@ -170,7 +170,7 @@ export function DescriptionBlockEditor({
                                     )
                                 }
                             >
-                                <Trash2 />
+                                <Trash2 className="size-4 text-brand-red" />
                             </Button>
                         </div>
                     </div>
@@ -257,7 +257,7 @@ function ColumnEditor({
                             }
                             className="text-[#657064] dark:text-[#94a3b8] hover:text-danger"
                         >
-                            <Trash2 />
+                            <Trash2 className="size-4 text-brand-red" />
                         </Button>
                     </div>
                     <div className="mt-2">

@@ -394,7 +394,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                     size="xs"
                                     disabled={isSaving || isRemovingPicture}
                                     onClick={handlePictureRemove}
-                                    className="h-auto px-0 text-xs text-[#6b7569]"
+                                    className="h-auto px-0 text-xs text-danger hover:text-danger/80 font-medium"
                                 >
                                     {isRemovingPicture
                                         ? "Removing…"

@@ -3,9 +3,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Facebook-grade Ultra-Clean Skeleton Base Primitive.
- * Uses uniform soft gray tone (#e4e6eb in light, #252833 in dark)
- * with a silky smooth horizontal shimmer wave animation.
+ * Ultra-Clean Skeleton Base Primitive.
+ * Soft tone with smooth horizontal shimmer animation.
  */
 export function Skeleton({
   className,
@@ -14,7 +13,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-md bg-[#f0f2f5] dark:bg-[#252a38]",
+        "relative overflow-hidden rounded-md bg-[#e4e6eb]/70 dark:bg-[#252a38]",
         "before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.8s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/80 dark:before:via-white/10 before:to-transparent",
         className
       )}
@@ -24,25 +23,26 @@ export function Skeleton({
 }
 
 /**
- * Product Card Skeleton: Clean, borderless, uniform soft shapes matching Facebook UI style.
+ * Product Card Skeleton: Matches real MenuCard UI 100% (Card frame, Aspect-square image, plus button, title & price).
  */
 export function MenuCardSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      {/* Square Image Container Skeleton */}
-      <Skeleton className="aspect-square w-full rounded-xl sm:rounded-2xl" />
+    <div className="flex flex-col justify-between rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white dark:bg-[#1a1e29] p-3 shadow-2xs space-y-3">
+      {/* Image Skeleton with Floating Button Placeholder */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
+        <Skeleton className="h-full w-full rounded-none" />
+        <Skeleton className="absolute bottom-2 right-2 size-8 rounded-full" />
+      </div>
 
       {/* Item Details Skeleton */}
-      <div className="flex flex-col gap-2 px-1">
-        {/* Category Line Skeleton */}
-        <Skeleton className="h-3.5 w-16 rounded-full" />
-        
-        {/* Product Title Skeleton */}
-        <Skeleton className="h-4.5 w-4/5 rounded-md" />
-        
-        {/* Price Skeleton */}
-        <div className="pt-0.5">
-          <Skeleton className="h-5 w-20 rounded-md" />
+      <div className="flex flex-col gap-2 pt-1 px-0.5">
+        {/* Category Tag */}
+        <Skeleton className="h-3 w-16 rounded-md" />
+        {/* Product Title */}
+        <Skeleton className="h-4.5 w-3/4 rounded-md" />
+        {/* Price Line */}
+        <div className="flex items-center justify-between pt-1">
+          <Skeleton className="h-5 w-16 rounded-md" />
         </div>
       </div>
     </div>
@@ -50,20 +50,44 @@ export function MenuCardSkeleton() {
 }
 
 /**
- * Category Filter Skeleton: Clean, solid capsule shapes matching Facebook top bar style.
+ * Category Filter Skeleton: Matches exact vertical Checkbox Sidebar Filter UI 100%.
  */
 export function CategoryFilterSkeleton() {
-  const pillWidths = ["w-28", "w-24", "w-32", "w-20", "w-26", "w-22", "w-30"];
-
   return (
-    <div className="category-scroll snap-x snap-mandatory flex w-full items-center justify-start gap-3 overflow-x-auto py-2.5 px-1 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-      {pillWidths.map((w, idx) => (
-        <Skeleton
-          key={idx}
-          className={cn("h-9 shrink-0 rounded-full", w)}
-        />
-      ))}
-    </div>
+    <aside className="w-56 lg:w-64 shrink-0 font-sans space-y-6">
+      <div className="rounded-3xl border border-gray-200/80 dark:border-gray-800 bg-white dark:bg-[#151923] p-5 shadow-2xs space-y-6">
+        {/* Header Title Skeleton */}
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-4">
+          <Skeleton className="h-7 w-20 rounded-lg" />
+        </div>
+
+        {/* Section 1: Categories Skeleton */}
+        <div className="border-b border-gray-200 dark:border-gray-800 pb-6 space-y-3">
+          <Skeleton className="h-3.5 w-24 rounded-sm" />
+          <div className="space-y-3 pt-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-4 rounded-md shrink-0" />
+                <Skeleton className={cn("h-4 rounded-md", i % 2 === 0 ? "w-28" : "w-36")} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 2: Subcategories Skeleton */}
+        <div className="space-y-3">
+          <Skeleton className="h-3.5 w-28 rounded-sm" />
+          <div className="space-y-3 pt-1">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-4 rounded-md shrink-0" />
+                <Skeleton className={cn("h-4 rounded-md", i % 2 === 0 ? "w-24" : "w-32")} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
