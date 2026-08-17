@@ -314,8 +314,9 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                 </Button>
                                                 <Button
                                                     type="button"
-                                                    variant="destructive"
-                                                    size="icon-sm"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
                                                     aria-label={`Delete ${group.name || "category"}`}
                                                     disabled={
                                                         deleteState.isLoading
@@ -327,7 +328,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                         })
                                                     }
                                                 >
-                                                    <Trash2 />
+                                                    <Trash2 className="size-4 text-brand-red" />
                                                 </Button>
                                             </div>
                                         </div>
@@ -369,8 +370,9 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                             </Button>
                                                             <Button
                                                                 type="button"
-                                                                variant="destructive"
-                                                                size="icon-sm"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
                                                                 aria-label={`Delete ${subGroup.name || "subcategory"}`}
                                                                 disabled={
                                                                     deleteState.isLoading
@@ -382,7 +384,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                                     })
                                                                 }
                                                             >
-                                                                <Trash2 />
+                                                                <Trash2 className="size-4 text-brand-red" />
                                                             </Button>
                                                         </div>
                                                     </div>

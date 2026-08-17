@@ -30,7 +30,7 @@ export default function ManagerControls({
                 aria-label={`Open ${managerName}'s profile`}
                 className="flex h-[42px] w-[164px] items-center gap-3 rounded-full border border-[#bccab8] py-[5px] pr-[17px] pl-[5px] text-left outline-none transition-colors hover:bg-[#f5f8f4] focus-visible:ring-2 focus-visible:ring-[#006b26] focus-visible:ring-offset-2"
             >
-                <span className="relative size-8 shrink-0 overflow-hidden rounded-full border border-[#006b26]">
+                <span className="relative size-8 shrink-0 overflow-hidden rounded-full">
                     <Image
                         src={asset("manager-avatar.png")}
                         alt=""

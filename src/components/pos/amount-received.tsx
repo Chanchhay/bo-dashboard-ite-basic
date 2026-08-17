@@ -1,135 +1,4 @@
-// "use client";
-
-// import { useState } from "react";
-// import { Banknote, X, Delete } from "lucide-react";
-// import { Dialog, DialogContent } from "@/components/ui/dialog";
-// import { formatCurrency } from "@/lib/money";
-
-// export interface AmountReceivedDialogProps {
-//   open: boolean;
-//   onOpenChange: (open: boolean) => void;
-//   amountDue: number;
-//   onValidate: (receivedAmount: number) => void;
-//   isProcessing?: boolean;
-// }
-
-// const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
-
-// export function AmountReceived({
-//   open,
-//   onOpenChange,
-//   amountDue,
-//   onValidate,
-//   isProcessing,
-// }: AmountReceivedDialogProps) {
-//   const [received, setReceived] = useState("");
-
-//   const receivedAmount = parseFloat(received || "0");
-//   const changeToGive = receivedAmount - amountDue;
-
-//   function handleKey(key: string) {
-//     if (key === "back") {
-//       setReceived((prev) => prev.slice(0, -1));
-//       return;
-//     }
-//     if (key === "." && received.includes(".")) return;
-//     if (received.replace(".", "").length >= 9) return;
-//     setReceived((prev) => prev + key);
-//   }
-
-//   return (
-//     <Dialog open={open} onOpenChange={onOpenChange}>
-//       <DialogContent
-//         className="sm:max-w-sm w-full bg-white max-h-[90vh] flex flex-col gap-0 p-0"
-//         showCloseButton={false}
-//       >
-//         {/* Header */}
-//         <div className="flex shrink-0 items-center justify-between px-6 pt-6">
-//           <div className="flex items-center gap-2">
-//             <Banknote className="h-5 w-5 text-primary" />
-//             <h2 className="text-base font-bold ">
-//               Amount received
-//             </h2>
-//           </div>
-//           <button
-//             type="button"
-//             onClick={() => onOpenChange(false)}
-//             className="text-gray-400 transition-colors hover:text-gray-600"
-//           >
-//             <X className="h-4 w-4" />
-//           </button>
-//         </div>
-
-//         {/* Scrollable middle content */}
-//         <div className="flex-1 overflow-y-auto scroll-smooth px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-//           {/* To pay */}
-//           <div className="mt-4 flex items-center justify-between text-sm">
-//             <span className="text-gray-500">To pay</span>
-//             <span className="font-semibold text-primary">
-//               {formatCurrency(amountDue)}
-//             </span>
-//           </div>
-
-//           {/* Amount entered */}
-//           <div className="mt-3 flex items-center justify-center rounded-xl bg-gray-50 border border-gray-200 py-4">
-//             <span
-//               className={`text-2xl font-bold tabular-nums ${
-//                 received ? "text-primary" : "text-gray-300"
-//               }`}
-//             >
-//               {formatCurrency(receivedAmount)}
-//             </span>
-//           </div>
-
-//           {/* Change to give */}
-//           <div className="mt-3 flex flex-col items-center gap-1 rounded-xl bg-green-50 py-3">
-//             <span className="text-xs text-gray-500">Change to give</span>
-//             <span
-//               className={`text-xl font-bold ${
-//                 changeToGive < 0 ? "text-accent" : "text-accent"
-//               }`}
-//             >
-//               {formatCurrency(Math.max(changeToGive, 0))}
-//             </span>
-//           </div>
-
-//           {/* Keypad */}
-//           <div className="mt-4 grid grid-cols-3 gap-2 pb-4">
-//             {KEYS.map((key) => (
-//               <button
-//                 key={key}
-//                 type="button"
-//                 onClick={() => handleKey(key)}
-//                 className="flex items-center justify-center rounded-xl border border-gray-200 py-3 text-lg font-semibold  transition-colors hover:bg-gray-50 active:scale-[0.98]"
-//               >
-//                 {key === "back" ? <Delete className="h-5 w-5" /> : key}
-//               </button>
-//             ))}
-//           </div>
-//         </div>
-
-//         {/* Actions */}
-//         <div className="flex shrink-0 gap-3 px-6 pb-6 pt-3">
-//           <button
-//             type="button"
-//             onClick={() => onOpenChange(false)}
-//             className="flex-1 rounded-xl border border-accent py-3 text-sm font-bold text-accent transition-colors hover:bg-red-50"
-//           >
-//             Cancel
-//           </button>
-//           <button
-//             type="button"
-//             onClick={() => onValidate(receivedAmount)}
-//             disabled={isProcessing || receivedAmount < amountDue}
-//             className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
-//           >
-//             {isProcessing ? "Processing..." : "Validate"}
-//           </button>
-//         </div>
-//       </DialogContent>
-//     </Dialog>
-//   );
-// }
+"use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Banknote, X, Delete } from "lucide-react";
@@ -181,31 +50,67 @@ export function AmountReceived({
   const { format, secondary } = useMoney();
   const [received, setReceived] = useState("");
   const receivedRef = useRef(received);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
 
   useEffect(() => {
     receivedRef.current = received;
   }, [received]);
 
-  // Reset input when dialog opens
+  // Reset while rendering rather than in an effect: the cleared field is what
+  // the freshly opened dialog should paint, not a second render after it.
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setReceived("");
+  }
+
+  // Put the caret in the field so the cashier can type straight away without
+  // reaching for the mouse.
   useEffect(() => {
-    if (open) {
-      setReceived("");
-      receivedRef.current = "";
-    }
+    if (!open) return;
+
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+    return () => clearTimeout(timer);
   }, [open]);
 
+  // Keypad presses insert at the caret rather than always appending, so a
+  // mistyped digit in the middle can be fixed without clearing the field.
   const handleKey = useCallback((key: string) => {
-    setReceived((prev) => {
-      if (key === "back") {
-        return prev.slice(0, -1);
+    const input = inputRef.current;
+    const value = receivedRef.current;
+    const start = input?.selectionStart ?? value.length;
+    const end = input?.selectionEnd ?? value.length;
+
+    const commit = (next: string, caret: number) => {
+      setReceived(next);
+      receivedRef.current = next;
+      setTimeout(() => {
+        input?.focus();
+        input?.setSelectionRange(caret, caret);
+      }, 0);
+    };
+
+    if (key === "back") {
+      if (start !== end) {
+        commit(value.slice(0, start) + value.slice(end), start);
+      } else if (start > 0) {
+        commit(value.slice(0, start - 1) + value.slice(start), start - 1);
       }
-      if (key === ".") {
-        if (prev.includes(".")) return prev;
-        return prev ? prev + "." : "0.";
-      }
-      if (prev.replace(".", "").length >= 9) return prev;
-      return prev + key;
-    });
+      return;
+    }
+
+    const selectionCoversDot =
+      value.includes(".") &&
+      start <= value.indexOf(".") &&
+      end > value.indexOf(".");
+    if (key === "." && value.includes(".") && !selectionCoversDot) return;
+
+    if (start === end && value.replace(".", "").length >= 9) return;
+
+    commit(value.slice(0, start) + key + value.slice(end), start + key.length);
   }, []);
 
   const receivedAmount = parseFloat(received || "0");
@@ -214,31 +119,21 @@ export function AmountReceived({
   // Change is handed over in cash, so the second currency matters most here.
   const changeSecondary = secondary(Math.max(changeToGive, 0), currency);
 
-  // Listen for physical keyboard events when modal is open (without tearing down on every keystroke)
+  // Digits, the separator and backspace are the input's own job now. Only the
+  // two keys that act on the dialog rather than the field are caught here.
   useEffect(() => {
     if (!open) return;
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.defaultPrevented) return;
 
-      const key = e.key;
-
-      if (/^[0-9]$/.test(key)) {
-        e.preventDefault();
-        handleKey(key);
-      } else if (key === "." || key === ",") {
-        e.preventDefault();
-        handleKey(".");
-      } else if (key === "Backspace" || key === "Delete") {
-        e.preventDefault();
-        handleKey("back");
-      } else if (key === "Enter") {
+      if (e.key === "Enter") {
         e.preventDefault();
         const currentVal = parseFloat(receivedRef.current || "0");
         if (!isProcessing && currentVal >= amountDue) {
           onValidate(currentVal);
         }
-      } else if (key === "Escape") {
+      } else if (e.key === "Escape") {
         e.preventDefault();
         onOpenChange(false);
       }
@@ -248,7 +143,7 @@ export function AmountReceived({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, handleKey, amountDue, isProcessing, onValidate, onOpenChange]);
+  }, [open, amountDue, isProcessing, onValidate, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -293,15 +188,22 @@ export function AmountReceived({
             </span>
           </div>
 
-          {/* Amount entered */}
+          {/* Amount entered — a real input, so the caret can be moved and the
+              value pasted, not just appended to. */}
           <div className="mt-3 flex min-h-16 items-center justify-center rounded-xl border border-[#bbcabf] bg-[#f2f4f6] px-5 py-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] min-[400px]:min-h-[82px] sm:min-h-[94px] sm:py-5">
-            <span
-              className={`text-3xl font-bold tabular-nums tracking-[-0.02em] sm:text-[40px] ${
-                received ? "text-primary" : "text-gray-300"
-              }`}
-            >
-              {format(receivedAmount, currency)}
-            </span>
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="decimal"
+              aria-label="Amount received"
+              value={received}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (/^[0-9]*\.?[0-9]*$/.test(next)) setReceived(next);
+              }}
+              placeholder="0.00"
+              className="w-full bg-transparent text-center text-3xl font-bold tabular-nums tracking-[-0.02em] text-primary outline-none placeholder:text-gray-300 sm:text-[40px]"
+            />
           </div>
 
           {/* Change to give */}

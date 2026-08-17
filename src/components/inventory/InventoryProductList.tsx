@@ -9,6 +9,7 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    Download,
     Edit3,
     Eye,
     LoaderCircle,
@@ -55,11 +56,13 @@ import {
     type InventoryItemSort,
     type StoredItemType,
 } from "@/lib/api/inventory";
+import { exportItemsToExcel } from "@/lib/exportToExcel";
 import { cn } from "@/lib/utils";
 import {
     useDeleteInventoryItemMutation,
     useGetAddOnSetsQuery,
     useGetInventoryItemsQuery,
+    useLazyGetInventoryItemsQuery,
     useGetInventoryUnitsQuery,
     useGetItemGroupsQuery,
     useUpdateItemAddOnAvailabilityMutation,
@@ -510,6 +513,8 @@ export function InventoryProductList() {
 
     const { data, error, isFetching, isLoading, refetch } =
         useGetInventoryItemsQuery(query);
+    const [triggerGetItems, { isFetching: isExporting }] =
+        useLazyGetInventoryItemsQuery();
     const groupsQuery = useGetItemGroupsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
     const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
@@ -647,20 +652,63 @@ export function InventoryProductList() {
         }
     }
 
+    async function handleExportExcel() {
+        try {
+            const fullData = await triggerGetItems({
+                ...query,
+                page: 0,
+                size: 1000,
+            }).unwrap();
+            const exportList =
+                fullData?.content && fullData.content.length
+                    ? fullData.content
+                    : items;
+            exportItemsToExcel(exportList, categoryName, unitName);
+            toast({
+                tone: "success",
+                title: "Dataset exported",
+                description: `Exported ${exportList.length} item(s) to Excel format (.csv).`,
+            });
+        } catch {
+            exportItemsToExcel(items, categoryName, unitName);
+            toast({
+                tone: "success",
+                title: "Dataset exported",
+                description: `Exported ${items.length} item(s) to Excel format (.csv).`,
+            });
+        }
+    }
+
     return (
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Items"
                 description="Manage the items and services available to your business."
                 action={
-                    <Button
-                        render={<Link href="/inventory/new" />}
-                        nativeButton={false}
-                        className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                    >
-                        <PackagePlus className="size-4 shrink-0" />
-                        <span>Create item</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleExportExcel}
+                            disabled={!items.length || isExporting}
+                            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                        >
+                            {isExporting ? (
+                                <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                            ) : (
+                                <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            )}
+                            <span>{isExporting ? "Exporting..." : "Export Excel"}</span>
+                        </Button>
+                        <Button
+                            render={<Link href="/inventory/new" />}
+                            nativeButton={false}
+                            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                        >
+                            <PackagePlus className="size-4 shrink-0" />
+                            <span>Create item</span>
+                        </Button>
+                    </div>
                 }
             />
 
@@ -747,6 +795,25 @@ export function InventoryProductList() {
                             >
                                 <ScanBarcode className="size-4 shrink-0" />
                                 <span className="hidden sm:inline">Scan barcode</span>
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                aria-label="Export to Excel"
+                                onClick={handleExportExcel}
+                                disabled={!items.length || isExporting}
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
+                            >
+                                {isExporting ? (
+                                    <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                                ) : (
+                                    <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                )}
+                                <span className="hidden sm:inline">
+                                    {isExporting ? "Exporting..." : "Export Excel"}
+                                </span>
                             </Button>
                         </div>
                     </div>
@@ -1304,8 +1371,9 @@ export function InventoryProductList() {
                                                     </Button>
                                                     <Button
                                                         type="button"
-                                                        variant="destructive"
+                                                        variant="ghost"
                                                         size="icon-sm"
+                                                        className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
                                                         aria-label={`Delete ${item.name || "item"}`}
                                                         disabled={deleteState.isLoading}
                                                         onClick={() =>
@@ -1315,7 +1383,7 @@ export function InventoryProductList() {
                                                             })
                                                         }
                                                     >
-                                                        <Trash2 />
+                                                        <Trash2 className="size-4 text-brand-red" />
                                                     </Button>
                                                 </div>
                                             </td>
