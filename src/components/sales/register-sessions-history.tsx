@@ -677,7 +677,7 @@ export function RegisterSessionsHistory() {
                               {format(diff, session.currency ?? undefined)}
                             </span>
                           ) : isSurplus ? (
-                            <span className="inline-flex items-center gap-0.5 text-xs font-bold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
+                            <span className="inline-flex items-center gap-0.5 text-sm font-bold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
                               <ArrowUpRight className="h-3.5 w-3.5" />
                               +{format(diff, session.currency ?? undefined)}
                             </span>
