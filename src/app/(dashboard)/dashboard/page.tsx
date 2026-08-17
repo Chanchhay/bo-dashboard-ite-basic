@@ -133,7 +133,7 @@ export default async function DashboardPage() {
                             value={compact(activeItems)}
                             note={
                                 items.length > 0
-                                    ? `of ${compact(items.length)} total`
+                                    ? `Of ${compact(items.length)} total`
                                     : "Published"
                             }
                         />

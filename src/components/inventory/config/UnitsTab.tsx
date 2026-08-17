@@ -399,7 +399,7 @@ export function UnitsTab() {
                                 onChange={(event) =>
                                     updateDraft({ symbol: event.target.value })
                                 }
-                                placeholder="sack"
+                                placeholder="Sack"
                                 aria-invalid={Boolean(errors.symbol)}
                                 className={`${inventoryControlClassName} font-mono`}
                             />

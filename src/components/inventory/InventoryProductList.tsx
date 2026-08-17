@@ -682,7 +682,7 @@ export function InventoryProductList() {
     return (
         <div className="flex flex-col gap-6">
             <InventoryPageHeader
-                title="Items"
+                title="Master Items"
                 description="Manage the items and services available to your business."
                 action={
                     <div className="flex items-center gap-2">
@@ -706,7 +706,7 @@ export function InventoryProductList() {
                             className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                         >
                             <PackagePlus className="size-4 shrink-0" />
-                            <span>Create item</span>
+                            <span>Create Master Item</span>
                         </Button>
                     </div>
                 }
@@ -777,7 +777,7 @@ export function InventoryProductList() {
                                 className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
                             >
                                 <SlidersHorizontal className="size-4 shrink-0" />
-                                <span className="hidden sm:inline">Advanced filters</span>
+                                <span className="hidden sm:inline">Advanced Filters</span>
                                 {advancedFilterCount ? (
                                     <span className="absolute -top-1 -right-1 sm:static grid size-4 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-[11px] font-semibold text-white">
                                         {advancedFilterCount}
@@ -794,7 +794,7 @@ export function InventoryProductList() {
                                 className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
                             >
                                 <ScanBarcode className="size-4 shrink-0" />
-                                <span className="hidden sm:inline">Scan barcode</span>
+                                <span className="hidden sm:inline">Scan Barcode</span>
                             </Button>
 
                             <Button
@@ -825,7 +825,7 @@ export function InventoryProductList() {
                         >
                             <div className="flex flex-col gap-1">
                                 <h2 className="font-semibold text-foreground">
-                                    Advanced filters
+                                    Advanced Filters
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
                                     Narrow the catalogue, then apply all fields
@@ -978,7 +978,7 @@ export function InventoryProductList() {
                                             dispatch(
                                                 setProductSort(
                                                     (value ||
-                                                        "name,asc") as InventoryItemSort,
+                                                        "name, asc") as InventoryItemSort,
                                                 ),
                                             )
                                         }
@@ -1112,7 +1112,7 @@ export function InventoryProductList() {
                                     onClick={handleApplyFilters}
                                     className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                                 >
-                                    Apply filters
+                                    Apply Filters
                                 </Button>
                                 <Button
                                     type="button"
@@ -1120,7 +1120,7 @@ export function InventoryProductList() {
                                     onClick={resetDraftFilters}
                                     className="h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm rounded-xl flex-1 sm:flex-initial"
                                 >
-                                    Reset fields
+                                    Reset Fields
                                 </Button>
                             </div>
                         </div>
