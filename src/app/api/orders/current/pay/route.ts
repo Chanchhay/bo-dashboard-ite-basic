@@ -6,6 +6,7 @@ import {
     getCurrentOrder,
     ordersPath,
 } from "@/lib/api/pos-order-backend";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 
 /**
  * Settles the sale.
@@ -53,9 +54,33 @@ export async function POST(request: Request) {
         const subtotal = Math.max(0, grossSubtotal - itemDiscount);
         const discountAmount = Math.max(0, order.discountAmount ?? 0);
         const afterDiscount = Math.max(0, subtotal - discountAmount);
-        const taxRate = order.taxRate ?? 0;
-        const taxAmount = order.taxAmount ?? (taxRate > 0 ? parseFloat((afterDiscount * (taxRate / 100)).toFixed(2)) : 0);
-        const effectiveTotal = Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
+
+        const activeTax = getActiveDefaultTax();
+        const isTaxActive = result.data.isTaxActive ?? activeTax?.isActive ?? false;
+        const isTaxInclusive = isTaxActive
+            ? (result.data.isTaxInclusive ?? activeTax?.isTaxInclusive ?? false)
+            : false;
+
+        const effectiveTaxRate = isTaxActive
+            ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
+            : 0;
+
+        const calculatedTaxAmount = isTaxActive
+            ? (isTaxInclusive
+                ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+                : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+            : 0;
+
+        const taxAmount = isTaxActive
+            ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTaxAmount)
+            : 0;
+
+        const effectiveTotal = Math.max(
+            0,
+            parseFloat(
+                (isTaxInclusive ? afterDiscount : (afterDiscount + taxAmount)).toFixed(2)
+            )
+        );
 
         const userReceived = result.data.receivedAmount;
 
@@ -135,7 +160,7 @@ export async function POST(request: Request) {
             ...sale,
             subtotal,
             discountAmount,
-            taxRate,
+            taxRate: effectiveTaxRate,
             taxAmount,
             totalAmount: effectiveTotal,
             paidAmount: paidVal,

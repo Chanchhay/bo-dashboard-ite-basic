@@ -307,9 +307,10 @@ export function ReceiptsList({
                   return (
                     <tr
                       key={order.id}
-                      className="h-[90px] border-b border-[#45464d]/10 last:border-b-0 hover:bg-[#fbfcfa]"
+                      onClick={() => onOpenReceipt(order.id)}
+                      className="h-[90px] border-b border-[#45464d]/10 last:border-b-0 hover:bg-[#f5fbf7] cursor-pointer transition-colors"
                     >
-                      <td className="px-4 font-bold text-[#191c1e] lg:px-6">
+                      <td className="px-4 font-bold text-primary lg:px-6 hover:underline">
                         {order.invoiceNumber || `#${order.id.slice(0, 8)}`}
                       </td>
                       <td className="px-4 text-[#45464d] lg:px-6">
@@ -354,7 +355,10 @@ export function ReceiptsList({
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
-                            onClick={() => startPrinting(order.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startPrinting(order.id);
+                            }}
                             disabled={isPrinting}
                             aria-label={`Print receipt ${order.invoiceNumber || order.id}`}
                             className="grid size-10 place-items-center rounded-lg text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-40"
@@ -363,9 +367,12 @@ export function ReceiptsList({
                           </button>
                           <button
                             type="button"
-                            onClick={() => onOpenReceipt(order.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenReceipt(order.id);
+                            }}
                             aria-label={`Open receipt ${order.invoiceNumber || order.id}`}
-                            className="grid size-10 place-items-center rounded-lg text-[#7c839b] outline-none transition-colors hover:bg-[#f5f5f5] hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/25"
+                            className="grid size-10 place-items-center rounded-lg text-[#7c839b] outline-none transition-colors hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/25"
                           >
                             <ExternalLink className="size-[18px]" aria-hidden="true" />
                           </button>

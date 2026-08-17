@@ -11,6 +11,7 @@ export interface TaxConfig {
   showTaxOnReceipt: boolean;
   isDefault: boolean;
   isActive: boolean;
+  isTaxInclusive?: boolean;
   createdDate?: string;
 }
 
@@ -32,6 +33,7 @@ export const taxSchema = z.object({
   showTaxOnReceipt: z.boolean().default(true),
   isDefault: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  isTaxInclusive: z.boolean().default(false),
 });
 
 export type TaxInput = z.infer<typeof taxSchema>;

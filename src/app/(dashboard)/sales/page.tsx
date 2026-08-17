@@ -9,10 +9,15 @@ import {
     RefreshCw,
     Search,
     ExternalLink,
+    Printer,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { printReceipt } from "@/lib/print-receipt";
 
 import {
     Table,
@@ -29,6 +34,7 @@ import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
 import {
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
+    useGetReceiptQuery,
 } from "@/services/posOrderApi";
 import {
     useGetBusinessProfileQuery,
@@ -36,6 +42,7 @@ import {
     useEnableStorefrontMutation,
     useDisableStorefrontMutation,
 } from "@/services/businessApi";
+import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 
 
 const STATUS_FILTERS = [
@@ -95,6 +102,13 @@ export default function SalesOrdersPage() {
     const [query, setQuery] = useState("");
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: selectedOrderId === null,
+    });
+    const businessQuery = useGetBusinessProfileQuery();
+    const currenciesQuery = useGetBusinessCurrenciesQuery();
 
     const from = useMemo(() => rangeStart(range), [range]);
 
@@ -288,6 +302,7 @@ export default function SalesOrdersPage() {
                                             <OrderRow
                                                 key={order.id}
                                                 order={order}
+                                                onClick={() => setSelectedOrderId(order.id)}
                                             />
                                         ))}
                                     </TableBody>
@@ -317,6 +332,39 @@ export default function SalesOrdersPage() {
                     </>
                 )}
             </section>
+
+            {/* Receipt Detail Modal Dialog */}
+            <Dialog
+                open={Boolean(selectedOrderId)}
+                onOpenChange={(open) => !open && setSelectedOrderId(null)}
+            >
+                <DialogContent className="max-w-[480px] p-6 max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="pb-3 border-b">
+                        <DialogTitle className="text-lg font-bold text-foreground">
+                            Receipt Details
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {receiptQuery.isLoading ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
+                            Loading receipt details...
+                        </div>
+                    ) : receiptQuery.data && businessQuery.data ? (
+                        <div className="py-2">
+                            <ReceiptTicket
+                                business={businessQuery.data}
+                                order={receiptQuery.data.order}
+                                receipt={receiptQuery.data.receipt}
+                                currencies={currenciesQuery.data}
+                            />
+                        </div>
+                    ) : (
+                        <div className="py-8 text-center text-sm text-destructive">
+                            Could not load receipt details.
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -423,7 +471,7 @@ function matchesSearch(order: PosOrder, search: string) {
     );
 }
 
-function OrderRow({ order }: { order: PosOrder }) {
+function OrderRow({ order, onClick }: { order: PosOrder; onClick: () => void }) {
     const { format } = useMoney();
     const itemCount = order.items.reduce(
         (sum, item) => sum + item.quantity,
@@ -431,8 +479,11 @@ function OrderRow({ order }: { order: PosOrder }) {
     );
 
     return (
-        <TableRow>
-            <TableCell className="font-medium text-foreground">
+        <TableRow
+            onClick={onClick}
+            className="cursor-pointer hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors"
+        >
+            <TableCell className="font-bold text-primary hover:underline">
                 {order.invoiceNumber ?? "—"}
             </TableCell>
             <TableCell className="text-muted-foreground">

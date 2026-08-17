@@ -98,13 +98,12 @@ export function useCustomerDisplaySync({
     const discountAmount = sale?.discountAmount ?? order?.discountAmount ?? 0;
 
     const activeTax = getActiveDefaultTax();
-    const taxRate = sale?.taxRate ?? order?.taxRate ?? activeTax?.taxRate ?? 0;
+    const isTaxActive = activeTax?.isActive ?? false;
+    const taxRate = isTaxActive ? (sale?.taxRate ?? order?.taxRate ?? activeTax?.taxRate ?? 0) : 0;
 
-    const computedTax = sale?.taxAmount ?? order?.taxAmount ?? (
-      activeTax && activeTax.isActive
-        ? (subtotal - discountAmount) * (taxRate / 100)
-        : 0
-    );
+    const computedTax = isTaxActive
+      ? (sale?.taxAmount ?? order?.taxAmount ?? (subtotal - discountAmount) * (taxRate / 100))
+      : 0;
 
     const payload: CustomerDisplayPayload = {
       terminalId,

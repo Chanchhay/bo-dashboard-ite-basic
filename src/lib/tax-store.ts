@@ -1,141 +1,63 @@
 import { TaxConfig, TaxInput } from "@/lib/api/tax";
 
-const TAX_STORAGE_KEY = "ipos_business_tax_configs";
+export const DEFAULT_TAX: TaxConfig = {
+  id: "tax_default",
+  taxName: "VAT",
+  taxType: "PERCENTAGE",
+  taxRate: 10,
+  taxAmount: 0,
+  showTaxOnReceipt: true,
+  isDefault: true,
+  isActive: true,
+  isTaxInclusive: false,
+  createdDate: new Date().toISOString(),
+};
 
-const DEFAULT_INITIAL_TAXES: TaxConfig[] = [
-  {
-    id: "tax_vat_10",
-    taxName: "VAT",
-    taxType: "PERCENTAGE",
-    taxRate: 10,
-    taxAmount: 0,
-    showTaxOnReceipt: true,
-    isDefault: true,
-    isActive: true,
-    createdDate: new Date().toISOString(),
-  },
-  {
-    id: "tax_sales_5",
-    taxName: "Sales Tax",
-    taxType: "PERCENTAGE",
-    taxRate: 5,
-    taxAmount: 0,
-    showTaxOnReceipt: true,
-    isDefault: false,
-    isActive: false,
-    createdDate: new Date().toISOString(),
-  },
-];
+const STORAGE_KEY = "ipos_default_tax_config";
+let currentTax: TaxConfig = { ...DEFAULT_TAX };
 
-export function getStoredTaxes(): TaxConfig[] {
-  if (typeof window === "undefined") return DEFAULT_INITIAL_TAXES;
-  try {
-    const raw = localStorage.getItem(TAX_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+export function getDefaultTax(): TaxConfig {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        currentTax = { ...DEFAULT_TAX, ...JSON.parse(raw) };
       }
-    }
-  } catch (err) {
-    console.error("Failed to parse stored tax configurations:", err);
+    } catch {}
   }
-  try {
-    localStorage.setItem(TAX_STORAGE_KEY, JSON.stringify(DEFAULT_INITIAL_TAXES));
-  } catch {}
-  return DEFAULT_INITIAL_TAXES;
+  return currentTax;
 }
 
-export function saveStoredTaxes(taxes: TaxConfig[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(TAX_STORAGE_KEY, JSON.stringify(taxes));
-  } catch (err) {
-    console.error("Failed to save tax configurations:", err);
-  }
-}
-
-export function getActiveDefaultTax(): TaxConfig {
-  const taxes = getStoredTaxes();
-  const defaultActive = taxes.find((t) => t.isDefault && t.isActive);
-  if (defaultActive) return defaultActive;
-  const anyActive = taxes.find((t) => t.isActive);
-  if (anyActive) return anyActive;
-  return DEFAULT_INITIAL_TAXES[0];
-}
-
-export function createTaxConfig(input: TaxInput): TaxConfig {
-  const taxes = getStoredTaxes();
-  const newTax: TaxConfig = {
-    id: `tax_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    taxName: input.taxName,
-    taxType: input.taxType,
-    taxRate: input.taxRate,
-    taxAmount: input.taxAmount,
-    showTaxOnReceipt: input.showTaxOnReceipt,
-    isDefault: input.isDefault,
-    isActive: input.isActive,
-    createdDate: new Date().toISOString(),
+export function updateDefaultTax(input: Partial<TaxInput>): TaxConfig {
+  currentTax = {
+    ...currentTax,
+    ...input,
+    taxName: input.taxName !== undefined ? input.taxName : currentTax.taxName,
+    taxType: input.taxType !== undefined ? input.taxType : currentTax.taxType,
+    taxRate: input.taxRate !== undefined ? input.taxRate : currentTax.taxRate,
+    taxAmount: input.taxAmount !== undefined ? input.taxAmount : currentTax.taxAmount,
+    showTaxOnReceipt: input.showTaxOnReceipt !== undefined ? input.showTaxOnReceipt : currentTax.showTaxOnReceipt,
+    isActive: input.isActive !== undefined ? input.isActive : currentTax.isActive,
+    isTaxInclusive: input.isTaxInclusive !== undefined ? input.isTaxInclusive : (currentTax.isTaxInclusive ?? false),
   };
-
-  let updated = [...taxes];
-  if (newTax.isDefault) {
-    updated = updated.map((t) => ({ ...t, isDefault: false }));
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentTax));
+    } catch {}
   }
-  updated.unshift(newTax);
-  saveStoredTaxes(updated);
-  return newTax;
+  return currentTax;
 }
 
-export function updateTaxConfig(id: string, input: TaxInput): TaxConfig {
-  const taxes = getStoredTaxes();
-  let updatedTax: TaxConfig | null = null;
-
-  const updated = taxes.map((t) => {
-    if (t.id === id) {
-      updatedTax = {
-        ...t,
-        taxName: input.taxName,
-        taxType: input.taxType,
-        taxRate: input.taxRate,
-        taxAmount: input.taxAmount,
-        showTaxOnReceipt: input.showTaxOnReceipt,
-        isDefault: input.isDefault,
-        isActive: input.isActive,
-      };
-      return updatedTax;
-    }
-    if (input.isDefault) {
-      return { ...t, isDefault: false };
-    }
-    return t;
-  });
-
-  saveStoredTaxes(updated);
-  if (!updatedTax) throw new Error("Tax configuration not found.");
-  return updatedTax;
+export function getActiveDefaultTax(): TaxConfig | null {
+  return currentTax.isActive ? currentTax : null;
 }
 
-export function deleteTaxConfig(id: string): void {
-  const taxes = getStoredTaxes();
-  const updated = taxes.filter((t) => t.id !== id);
-  saveStoredTaxes(updated);
+/** Backward compatibility helper for existing imports */
+export function getStoredTaxes(): TaxConfig[] {
+  return [currentTax];
 }
 
-export function setDefaultTaxConfig(id: string): TaxConfig[] {
-  const taxes = getStoredTaxes();
-  const updated = taxes.map((t) => ({
-    ...t,
-    isDefault: t.id === id,
-    isActive: t.id === id ? true : t.isActive,
-  }));
-  saveStoredTaxes(updated);
-  return updated;
-}
-
-export function toggleTaxConfigStatus(id: string): TaxConfig[] {
-  const taxes = getStoredTaxes();
-  const updated = taxes.map((t) => (t.id === id ? { ...t, isActive: !t.isActive } : t));
-  saveStoredTaxes(updated);
-  return updated;
+/** Backward compatibility helper for existing imports */
+export function saveStoredTaxes(_taxes: TaxConfig[]): void {
+  // No-op
 }

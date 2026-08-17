@@ -2,496 +2,512 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Plus,
   Receipt,
-  Search,
-  Edit2,
-  Trash2,
   Percent,
   DollarSign,
-  Eye,
-  EyeOff,
-  Star,
-  Loader2,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
-import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/toast";
 import { useMoney } from "@/hooks/useMoney";
-import type { TaxConfig, TaxInput, TaxType } from "@/lib/api/tax";
+import type { TaxConfig, TaxType } from "@/lib/api/tax";
 import { taxSchema } from "@/lib/api/tax";
-import {
-  createTaxConfig,
-  deleteTaxConfig,
-  getStoredTaxes,
-  setDefaultTaxConfig,
-  toggleTaxConfigStatus,
-  updateTaxConfig,
-} from "@/lib/tax-store";
+import { getDefaultTax, updateDefaultTax } from "@/lib/tax-store";
 import { cn } from "@/lib/utils";
+
+import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import type { PosOrder, PosReceipt } from "@/lib/api/pos-order";
+import type { Business } from "@/lib/api/business";
 
 export default function TaxesPage() {
   const { format } = useMoney();
-  const [taxes, setTaxes] = useState<TaxConfig[]>([]);
+  const { toast } = useToast();
+
+  const [savedConfig, setSavedConfig] = useState<TaxConfig | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Column Visibility State
-  const [taxCols, setTaxCols] = useState([
-    { id: "taxName", label: "Tax Name (tax_name)", visible: true },
-    { id: "taxType", label: "Tax Type (tax_type)", visible: true },
-    { id: "taxRate", label: "Rate (tax_rate)", visible: true },
-    { id: "taxAmount", label: "Fixed Amt (tax_amount)", visible: true },
-    { id: "showTaxOnReceipt", label: "Show on Receipt", visible: true },
-    { id: "status", label: "Default & Status", visible: true },
-  ]);
-
-  const isColVisible = (id: string) => taxCols.find((c) => c.id === id)?.visible ?? true;
-  const toggleCol = (id: string) => {
-    setTaxCols((prev) => prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c)));
-  };
-  const resetCols = () => {
-    setTaxCols((prev) => prev.map((c) => ({ ...c, visible: true })));
-  };
-
-  // Dialog State
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTax, setEditingTax] = useState<TaxConfig | null>(null);
-  const [deletingTax, setDeletingTax] = useState<TaxConfig | null>(null);
-  const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
 
-  // Form Fields
-  const [taxName, setTaxName] = useState("");
+  // Single Default Tax Form Fields
+  const [taxName, setTaxName] = useState("VAT");
   const [taxType, setTaxType] = useState<TaxType>("PERCENTAGE");
   const [taxRate, setTaxRate] = useState<number>(10);
   const [taxAmount, setTaxAmount] = useState<number>(0);
-  const [showTaxOnReceipt, setShowTaxOnReceipt] = useState<boolean>(true);
-  const [isDefault, setIsDefault] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [isTaxInclusive, setIsTaxInclusive] = useState<boolean>(false);
 
-  // Load taxes on client mount
+  // Load default tax settings on mount
   useEffect(() => {
-    setTaxes(getStoredTaxes());
+    const defaultTax = getDefaultTax();
+    setSavedConfig(defaultTax);
+    setTaxName(defaultTax.taxName || "VAT");
+    setTaxType(defaultTax.taxType || "PERCENTAGE");
+    setTaxRate(defaultTax.taxRate ?? 10);
+    setTaxAmount(defaultTax.taxAmount ?? 0);
+    setIsActive(defaultTax.isActive ?? true);
+    setIsTaxInclusive(defaultTax.isTaxInclusive ?? false);
     setIsLoaded(true);
   }, []);
 
-  const reloadTaxes = () => {
-    setTaxes(getStoredTaxes());
-  };
-
-  const filteredTaxes = useMemo(() => {
-    if (!searchQuery.trim()) return taxes;
-    const q = searchQuery.toLowerCase();
-    return taxes.filter(
-      (t) =>
-        t.taxName.toLowerCase().includes(q) ||
-        t.taxType.toLowerCase().includes(q) ||
-        t.taxRate.toString().includes(q)
+  const isDirty = useMemo(() => {
+    if (!savedConfig) return false;
+    return (
+      taxName.trim() !== (savedConfig.taxName || "") ||
+      taxType !== savedConfig.taxType ||
+      Number(taxRate) !== savedConfig.taxRate ||
+      Number(taxAmount) !== savedConfig.taxAmount ||
+      isActive !== savedConfig.isActive ||
+      isTaxInclusive !== (savedConfig.isTaxInclusive ?? false)
     );
-  }, [taxes, searchQuery]);
+  }, [savedConfig, taxName, taxType, taxRate, taxAmount, isActive, isTaxInclusive]);
 
-  const openCreateDialog = () => {
-    setEditingTax(null);
-    setTaxName("");
-    setTaxType("PERCENTAGE");
-    setTaxRate(10);
-    setTaxAmount(0);
-    setShowTaxOnReceipt(true);
-    setIsDefault(taxes.length === 0);
-    setIsActive(true);
-    setFormError("");
-    setIsDialogOpen(true);
-  };
-
-  const openEditDialog = (tax: TaxConfig) => {
-    setEditingTax(tax);
-    setTaxName(tax.taxName);
-    setTaxType(tax.taxType);
-    setTaxRate(tax.taxRate);
-    setTaxAmount(tax.taxAmount);
-    setShowTaxOnReceipt(tax.showTaxOnReceipt);
-    setIsDefault(tax.isDefault);
-    setIsActive(tax.isActive);
-    setFormError("");
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
-
-    const inputData: TaxInput = {
-      taxName,
-      taxType,
-      taxRate: Number(taxRate),
-      taxAmount: Number(taxAmount),
-      showTaxOnReceipt,
-      isDefault,
-      isActive,
-    };
-
-    const validation = taxSchema.safeParse(inputData);
-    if (!validation.success) {
-      const firstErr = validation.error.issues[0]?.message || "Invalid tax configuration";
-      setFormError(firstErr);
-      return;
-    }
-
     setIsSubmitting(true);
+
     try {
-      if (editingTax) {
-        updateTaxConfig(editingTax.id, validation.data);
-      } else {
-        createTaxConfig(validation.data);
+      const payload = {
+        taxName,
+        taxType,
+        taxRate: Number(taxRate),
+        taxAmount: Number(taxAmount),
+        showTaxOnReceipt: true,
+        isDefault: true,
+        isActive,
+        isTaxInclusive,
+      };
+
+      // Validate with schema
+      const parseResult = taxSchema.safeParse(payload);
+      if (!parseResult.success) {
+        const firstErr = parseResult.error.issues[0]?.message || "Invalid input";
+        setFormError(firstErr);
+        setIsSubmitting(false);
+        return;
       }
-      reloadTaxes();
-      setIsDialogOpen(false);
+
+      // Update default tax
+      const updated = updateDefaultTax(parseResult.data);
+      setSavedConfig(updated);
+
+      toast({
+        tone: "success",
+        title: "Tax Configuration Saved",
+        description: "Your default store tax settings have been updated.",
+      });
     } catch (err: any) {
-      setFormError(err?.message || "Failed to save tax configuration.");
+      setFormError(err?.message || "Failed to update tax configuration.");
+      toast({
+        tone: "error",
+        title: "Error Saving Tax Settings",
+        description: err?.message || "Something went wrong while saving.",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = () => {
-    if (!deletingTax) return;
-    deleteTaxConfig(deletingTax.id);
-    reloadTaxes();
-    setDeletingTax(null);
+  // Real receipt preview objects
+  const mockBusiness: Business = {
+    id: "biz_demo",
+    name: "IPOS Store & Coffee",
+    phoneNumber: "+855 23 999 888",
+    address: "#123 Samdach Preah Sihanouk",
+    cityOrProvince: "Phnom Penh",
   };
 
-  const handleSetDefault = (id: string) => {
-    const updated = setDefaultTaxConfig(id);
-    setTaxes(updated);
+  const previewTaxConfig: TaxConfig = {
+    id: "tax_default",
+    taxName: taxName.trim() || "VAT",
+    taxType,
+    taxRate: Number(taxRate) || 0,
+    taxAmount: Number(taxAmount) || 0,
+    showTaxOnReceipt: true,
+    isDefault: true,
+    isActive,
+    isTaxInclusive,
   };
 
-  const handleToggleStatus = (id: string) => {
-    const updated = toggleTaxConfigStatus(id);
-    setTaxes(updated);
+  const subtotal = 10.0;
+  const discountAmount = 1.0;
+  const afterDiscount = subtotal - discountAmount;
+  const rateNum = Number(taxRate) || 0;
+  const previewTaxAmount = isActive
+    ? isTaxInclusive
+      ? rateNum > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (rateNum / 100)))).toFixed(2)) : 0
+      : taxType === "PERCENTAGE"
+        ? parseFloat((afterDiscount * (rateNum / 100)).toFixed(2))
+        : Number(taxAmount) || 0
+    : 0;
+  const previewTotal = isActive && isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + previewTaxAmount);
+
+  const previewOrder: PosOrder = {
+    id: "ord_preview",
+    businessId: "biz_demo",
+    customerId: null,
+    invoiceNumber: "INV-2026-00849",
+    channel: "POS",
+    status: "PAID",
+    subtotal,
+    discountAmount,
+    taxRate: isActive ? (taxType === "PERCENTAGE" ? Number(taxRate) : 0) : 0,
+    taxAmount: previewTaxAmount,
+    total: previewTotal,
+    currency: "USD",
+    displayCurrency: "KHR",
+    displayExchangeRate: 4000,
+    note: "Sample Order",
+    items: [
+      {
+        id: "item_1",
+        itemId: "i1",
+        variantId: null,
+        itemName: "Iced Cappuccino (L)",
+        quantity: 1,
+        unitPrice: 4.5,
+        discountAmount: 0,
+        lineTotal: 4.5,
+      },
+      {
+        id: "item_2",
+        itemId: "i2",
+        variantId: null,
+        itemName: "Butter Croissant",
+        quantity: 2,
+        unitPrice: 2.75,
+        discountAmount: 1.0,
+        lineTotal: 4.5,
+      },
+    ],
+    createdDate: new Date().toISOString(),
   };
+
+  const mockReceipt: PosReceipt = {
+    id: "rcpt_preview",
+    orderId: "ord_preview",
+    invoiceNumber: "INV-2026-00849",
+    vatNumber: "VATTIN-10928374",
+    type: "PHYSICAL",
+    fileUrl: null,
+    deviceId: null,
+    printedBy: null,
+    printedAt: null,
+    issuedAt: new Date().toISOString(),
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="flex items-center space-x-2 text-muted-foreground">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span>Loading tax settings...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 pb-12">
+      {/* Top Banner & Header */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
-            <Receipt className="size-6 text-primary" aria-hidden="true" />
-            Tax Configuration
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Receipt className="h-6 w-6 text-primary" />
+            Store Tax Settings
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage tax rates, types, default settings, and receipt display options for sales management.
+          <p className="text-sm text-muted-foreground">
+            Configure your store tax rule applied to POS orders and customer receipts.
           </p>
         </div>
-        <Button
-          onClick={openCreateDialog}
-          className="gap-2 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
-        >
-          <Plus className="size-4" />
-          Add Tax Rule
-        </Button>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search tax rules by name or rate..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-background"
-          />
+      {formError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{formError}</span>
         </div>
-        <ColumnSelectDropdown columns={taxCols} onToggleColumn={toggleCol} onResetDefaults={resetCols} />
-      </div>
+      )}
 
-      {/* Table */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              {isColVisible("taxName") && <TableHead className="font-semibold">Tax Name (tax_name)</TableHead>}
-              {isColVisible("taxType") && <TableHead className="font-semibold">Tax Type (tax_type)</TableHead>}
-              {isColVisible("taxRate") && <TableHead className="font-semibold text-right">Tax Rate (tax_rate)</TableHead>}
-              {isColVisible("taxAmount") && <TableHead className="font-semibold text-right">Fixed Amount (tax_amount)</TableHead>}
-              {isColVisible("showTaxOnReceipt") && <TableHead className="font-semibold text-center">Receipt Display</TableHead>}
-              {isColVisible("status") && <TableHead className="font-semibold text-center">Default & Status</TableHead>}
-              <TableHead className="text-right font-semibold">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!isLoaded ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="size-5 animate-spin text-primary" />
-                    Loading tax settings...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : filteredTaxes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  No tax rules found. Click "Add Tax Rule" to create one.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredTaxes.map((tax) => (
-                <TableRow key={tax.id} className="hover:bg-muted/30 transition-colors">
-                  {isColVisible("taxName") && (
-                    <TableCell className="font-medium text-foreground">
-                      <div className="flex items-center gap-2">
-                        {tax.taxName}
-                        {tax.isDefault && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                            <Star className="size-3 fill-primary text-primary" />
-                            Default
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                  )}
-                  {isColVisible("taxType") && (
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium",
-                          tax.taxType === "PERCENTAGE"
-                            ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                            : "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                        )}
-                      >
-                        {tax.taxType === "PERCENTAGE" ? <Percent className="size-3" /> : <DollarSign className="size-3" />}
-                        {tax.taxType}
-                      </span>
-                    </TableCell>
-                  )}
-                  {isColVisible("taxRate") && (
-                    <TableCell className="text-right font-mono font-medium">
-                      {tax.taxType === "PERCENTAGE" ? `${tax.taxRate.toFixed(2)}%` : "—"}
-                    </TableCell>
-                  )}
-                  {isColVisible("taxAmount") && (
-                    <TableCell className="text-right font-mono font-medium">
-                      {tax.taxType === "FIXED_AMOUNT" || tax.taxAmount > 0 ? format(tax.taxAmount) : "—"}
-                    </TableCell>
-                  )}
-                  {isColVisible("showTaxOnReceipt") && (
-                    <TableCell className="text-center">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          tax.showTaxOnReceipt
-                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                        )}
-                      >
-                        {tax.showTaxOnReceipt ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                        {tax.showTaxOnReceipt ? "Visible" : "Hidden"}
-                      </span>
-                    </TableCell>
-                  )}
-                  {isColVisible("status") && (
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant={tax.isDefault ? "default" : "outline"}
-                          size="sm"
-                          className={cn("h-7 px-2.5 text-xs", tax.isDefault && "bg-primary text-primary-foreground")}
-                          onClick={() => handleSetDefault(tax.id)}
-                        >
-                          {tax.isDefault ? "Default" : "Set Default"}
-                        </Button>
-                        <Switch
-                          checked={tax.isActive}
-                          onCheckedChange={() => handleToggleStatus(tax.id)}
-                          aria-label="Toggle tax active status"
-                        />
-                      </div>
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(tax)}
-                        className="size-8 text-muted-foreground hover:text-foreground"
-                      >
-                        <Edit2 className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeletingTax(tax)}
-                        className="size-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Create / Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{editingTax ? "Edit Tax Rule" : "Add Tax Rule"}</DialogTitle>
-            <DialogDescription>
-              Configure tax rate, type, and receipt printing defaults for sales transactions.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            {formError && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm font-medium text-destructive">
-                {formError}
-              </div>
-            )}
-
-            {/* tax_name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="taxName">Tax Name (tax_name)</Label>
-              <Input
-                id="taxName"
-                placeholder="e.g. VAT (Value Added Tax), Sales Tax"
-                value={taxName}
-                onChange={(e) => setTaxName(e.target.value)}
-                maxLength={100}
-                required
-              />
-            </div>
-
-            {/* tax_type */}
-            <div className="space-y-1.5">
-              <Label htmlFor="taxType">Tax Type (tax_type)</Label>
-              <Select value={taxType} onValueChange={(v) => { if (v) setTaxType(v as TaxType); }}>
-                <SelectTrigger id="taxType">
-                  <SelectValue placeholder="Select tax type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                  <SelectItem value="FIXED_AMOUNT">Fixed Amount ($)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* tax_rate */}
-              <div className="space-y-1.5">
-                <Label htmlFor="taxRate">
-                  {taxType === "PERCENTAGE" ? "Tax Rate (%)" : "Base Percentage (%)"}
-                </Label>
-                <Input
-                  id="taxRate"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                  disabled={taxType === "FIXED_AMOUNT"}
-                />
-              </div>
-
-              {/* tax_amount */}
-              <div className="space-y-1.5">
-                <Label htmlFor="taxAmount">
-                  {taxType === "FIXED_AMOUNT" ? "Fixed Amount ($)" : "Fixed Base ($)"}
-                </Label>
-                <Input
-                  id="taxAmount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={taxAmount}
-                  onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
-                  disabled={taxType === "PERCENTAGE"}
-                />
-              </div>
-            </div>
-
-            {/* show_tax_on_receipt */}
-            <div className="flex items-center justify-between rounded-lg border p-3 shadow-xs">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-semibold">Show Tax on Receipt (show_tax_on_receipt)</Label>
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Main Settings Form */}
+        <form onSubmit={handleSave} className="lg:col-span-7 space-y-6">
+          {/* Card 1: Status Options */}
+          <div className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
+            <div className="border-b pb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Tax Status</h2>
                 <p className="text-xs text-muted-foreground">
-                  Prints tax breakdown item line on POS receipts and customer display.
+                  Control whether tax calculation is active for POS checkout transactions.
                 </p>
               </div>
-              <Switch
-                checked={showTaxOnReceipt}
-                onCheckedChange={setShowTaxOnReceipt}
+              <span
+                className={cn(
+                  "px-2.5 py-1 text-xs font-semibold rounded-full border",
+                  isActive
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                    : "bg-muted text-muted-foreground border-muted"
+                )}
+              >
+                {isActive ? "Active" : "Disabled"}
+              </span>
+            </div>
+
+            <div className="space-y-6">
+              {/* Enable Tax Toggle */}
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="isActive" className="text-base font-medium cursor-pointer">
+                    Enable Tax Calculation
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically calculate default tax on POS checkout transactions and receipts.
+                  </p>
+                </div>
+                <Switch
+                  id="isActive"
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Basic Tax Identity & Mode (Grayed out when tax is disabled) */}
+          <div
+            className={cn(
+              "rounded-xl border bg-card p-6 shadow-sm space-y-6 transition-all duration-200",
+              !isActive && "opacity-50 pointer-events-none select-none bg-muted/10"
+            )}
+          >
+            <div className="border-b pb-4">
+              <h2 className="text-lg font-semibold text-foreground">Tax Calculation & Pricing Mode</h2>
+              <p className="text-xs text-muted-foreground">
+                Define tax label, rate, and whether prices include tax or charge extra on top.
+              </p>
+            </div>
+
+            {!isActive && (
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-300 font-medium flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                Tax calculation is disabled. Turn ON &quot;Enable Tax Calculation&quot; above to configure tax settings.
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Tax Name */}
+              <div className="space-y-2">
+                <Label htmlFor="taxName" className="font-medium text-foreground">
+                  Tax Label / Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="taxName"
+                  value={taxName}
+                  disabled={!isActive}
+                  onChange={(e) => setTaxName(e.target.value)}
+                  placeholder="e.g. VAT, Sales Tax, Service Tax"
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Appears on line items on printed receipts.
+                </p>
+              </div>
+
+              {/* Tax Type */}
+              <div className="space-y-2">
+                <Label htmlFor="taxType" className="font-medium text-foreground">
+                  Calculation Type
+                </Label>
+                <Select
+                  value={taxType}
+                  disabled={!isActive}
+                  onValueChange={(v) => {
+                    if (v) setTaxType(v as TaxType);
+                  }}
+                >
+                  <SelectTrigger id="taxType">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
+                    <SelectItem value="FIXED_AMOUNT">Fixed Dollar Amount ($)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Tax Rate or Fixed Amount */}
+              {taxType === "PERCENTAGE" ? (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="taxRate" className="font-medium text-foreground">
+                    Tax Rate Percentage (%)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="taxRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={taxRate}
+                      disabled={!isActive}
+                      onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                      className="pr-10"
+                      required
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-muted-foreground">
+                      <Percent className="h-4 w-4" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="taxAmount" className="font-medium text-foreground">
+                    Fixed Tax Amount ($)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="taxAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={taxAmount}
+                      disabled={!isActive}
+                      onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
+                      className="pl-8"
+                      required
+                    />
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+                      <DollarSign className="h-4 w-4" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tax Pricing Mode (Exclusive vs Inclusive) */}
+              <div className="space-y-2 sm:col-span-2 pt-2 border-t">
+                <Label className="font-medium text-foreground">Tax Pricing Mode</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => isActive && setIsTaxInclusive(false)}
+                    className={cn(
+                      "rounded-lg border p-3.5 space-y-1 transition-all",
+                      isActive ? "cursor-pointer" : "cursor-not-allowed",
+                      !isTaxInclusive && isActive
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : !isActive
+                          ? "bg-muted/30 border-muted"
+                          : "hover:bg-muted/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm">Add Tax On Top (Exclusive)</span>
+                      <div
+                        className={cn(
+                          "h-4 w-4 rounded-full border flex items-center justify-center",
+                          !isTaxInclusive && isActive ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground"
+                        )}
+                      >
+                        {!isTaxInclusive && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Adds tax extra above order subtotal (e.g. $9.00 + $0.90 VAT = $9.90 Total).
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => isActive && setIsTaxInclusive(true)}
+                    className={cn(
+                      "rounded-lg border p-3.5 space-y-1 transition-all",
+                      isActive ? "cursor-pointer" : "cursor-not-allowed",
+                      isTaxInclusive && isActive
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : !isActive
+                          ? "bg-muted/30 border-muted"
+                          : "hover:bg-muted/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm">Included in Prices (Inclusive)</span>
+                      <div
+                        className={cn(
+                          "h-4 w-4 rounded-full border flex items-center justify-center",
+                          isTaxInclusive && isActive ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground"
+                        )}
+                      >
+                        {isTaxInclusive && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Product prices already include tax. No extra charge added to total.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Save Button Action Bar */}
+          <div className="flex justify-end pt-2">
+            <Button type="submit" disabled={!isDirty || isSubmitting} className="min-w-[160px] gap-2">
+              {isSubmitting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Tax Settings
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+
+        {/* Authentic Receipt Ticket Preview Panel */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-6">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-primary" /> Receipt Preview
+              </h3>
+            </div>
+
+            {/* Receipt Ticket Render */}
+            <div className="flex justify-center py-2">
+              <ReceiptTicket
+                business={mockBusiness}
+                order={previewOrder}
+                receipt={mockReceipt}
+                taxConfig={previewTaxConfig}
+                className="max-w-full border"
               />
             </div>
 
-            {/* Default & Active toggles */}
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label className="text-sm cursor-pointer" htmlFor="isDefaultToggle">
-                  Set as Default Tax
-                </Label>
-                <Switch id="isDefaultToggle" checked={isDefault} onCheckedChange={setIsDefault} />
-              </div>
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label className="text-sm cursor-pointer" htmlFor="isActiveToggle">
-                  Active Status
-                </Label>
-                <Switch id="isActiveToggle" checked={isActive} onCheckedChange={setIsActive} />
-              </div>
+            <div className="mt-4 rounded-lg bg-blue-50 dark:bg-blue-950/40 p-3 text-xs text-blue-800 dark:text-blue-200 flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                This preview uses the exact same receipt layout printed for customers after purchasing.
+              </span>
             </div>
-
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground">
-                {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {editingTax ? "Save Changes" : "Create Tax Rule"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <DestructiveConfirmDialog
-        open={!!deletingTax}
-        onOpenChange={(open) => !open && setDeletingTax(null)}
-        title={`Delete tax rule "${deletingTax?.taxName}"?`}
-        description="This action cannot be undone. Sales calculations using this default tax will fall back to zero tax."
-        confirmLabel="Delete Tax Rule"
-        isPending={false}
-        onConfirm={handleDelete}
-      />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

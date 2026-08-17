@@ -174,6 +174,8 @@ export const payOrderSchema = z.object({
     /** Cash tendered. Absent for digital, where there is nothing to hand over. */
     receivedAmount: z.coerce.number().nonnegative().optional(),
     note: z.string().trim().max(200).optional(),
+    isTaxActive: z.boolean().optional(),
+    isTaxInclusive: z.boolean().optional(),
 });
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;

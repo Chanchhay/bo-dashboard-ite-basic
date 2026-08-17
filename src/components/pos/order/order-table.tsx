@@ -47,10 +47,34 @@ export interface OrderTableProps {
 /**
  * The payment dialog still speaks the older snake_case `Order`.
  */
+import { getActiveDefaultTax } from "@/lib/tax-store";
+
 function legacyOrderShape(order: PosOrder): Order {
   const subtotalNum = order.subtotal ?? 0;
   const discountNum = order.discountAmount ?? 0;
-  const computedTotal = Math.max(0, subtotalNum - discountNum);
+  const afterDiscount = Math.max(0, subtotalNum - discountNum);
+
+  const activeTax = getActiveDefaultTax();
+  const isTaxActive = activeTax?.isActive ?? false;
+  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
+
+  const effectiveTaxRate = isTaxActive
+    ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
+    : 0;
+
+  const calculatedTax = isTaxActive
+    ? isTaxInclusive
+      ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+      : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2))
+    : 0;
+
+  const taxAmount = isTaxActive
+    ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
+    : 0;
+
+  const computedTotal = isTaxInclusive
+    ? afterDiscount
+    : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
 
   return {
     id: order.id,
@@ -427,10 +451,41 @@ export function OrderTable({
   }
 
   const items = order?.items ?? [];
+  const subtotalNum = order?.subtotal ?? 0;
+  const discountNum = order?.discountAmount ?? 0;
+  const afterDiscount = Math.max(0, subtotalNum - discountNum);
+
+  const activeTax = getActiveDefaultTax();
+  const isTaxActive = activeTax?.isActive ?? false;
+  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
+
+  const effectiveTaxRate = isTaxActive
+    ? ((order?.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
+    : 0;
+
+  const calculatedTax = isTaxActive
+    ? isTaxInclusive
+      ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+      : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2))
+    : 0;
+
+  const taxAmount = isTaxActive
+    ? ((order?.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
+    : 0;
+
+  const computedCartTotal = isTaxInclusive
+    ? afterDiscount
+    : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
+
   const summary = {
-    subtotal: order?.subtotal ?? 0,
-    discount: order?.discountAmount ?? 0,
-    total: order?.total ?? 0,
+    subtotal: subtotalNum,
+    discount: discountNum,
+    taxName: activeTax?.taxName ?? "VAT",
+    taxRate: effectiveTaxRate,
+    taxAmount: taxAmount,
+    isTaxActive,
+    isTaxInclusive,
+    total: computedCartTotal,
   };
   const totalSecondary = secondaryFor(summary.total, order);
 
@@ -477,10 +532,21 @@ export function OrderTable({
       const sale = await payOrder({
         paymentMethod: method,
         receivedAmount,
+        isTaxActive,
+        isTaxInclusive,
       }).unwrap();
 
       if (sold.id) {
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
+        try {
+          localStorage.setItem(`pos_order_tax_rule_${sold.id}`, JSON.stringify({
+            isTaxActive,
+            isTaxInclusive,
+            taxRate: effectiveTaxRate,
+            taxAmount: summary.taxAmount,
+            totalAmount: summary.total,
+          }));
+        } catch {}
       }
 
       setPaymentOpen(false);
@@ -650,6 +716,19 @@ export function OrderTable({
             -{format(summary.discount, order?.currency)}
           </span>
         </div>
+
+        {summary.isTaxActive && !summary.isTaxInclusive && summary.taxAmount > 0 && (
+          <div className="flex justify-between items-center py-1">
+            <span className="text-gray-600 min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">
+              +
+              {summary.taxName.includes("VAT") ? "VAT" : summary.taxName}
+              {summary.taxRate > 0 ? ` (${summary.taxRate}%)` : ""}
+            </span>
+            <span className="tabular-nums text-emerald-600 min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
+              +{format(summary.taxAmount, order?.currency)}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between border-t border-[#d9d9d9] px-4 py-3 min-[1025px]:h-16">
