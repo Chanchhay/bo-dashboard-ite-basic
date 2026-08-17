@@ -529,11 +529,13 @@ export function OrderTable({
     const sold = order;
 
     try {
+      const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
       const sale = await payOrder({
         paymentMethod: method,
         receivedAmount,
         isTaxActive,
         isTaxInclusive,
+        taxInclusionType,
       }).unwrap();
 
       if (sold.id) {
@@ -542,6 +544,7 @@ export function OrderTable({
           localStorage.setItem(`pos_order_tax_rule_${sold.id}`, JSON.stringify({
             isTaxActive,
             isTaxInclusive,
+            taxInclusionType,
             taxRate: effectiveTaxRate,
             taxAmount: summary.taxAmount,
             totalAmount: summary.total,

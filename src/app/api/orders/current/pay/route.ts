@@ -137,6 +137,8 @@ export async function POST(request: Request) {
             }
         }
 
+        const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
+
         // Send payment to Spring Java backend
         const sale = await backendRequest<Sale>(
             ordersPath(businessId, `/${encodeURIComponent(order.id)}/pay`),
@@ -146,6 +148,7 @@ export async function POST(request: Request) {
                     paymentMethod: result.data.paymentMethod,
                     note: result.data.note,
                     receivedAmount: paidVal,
+                    taxInclusionType,
                 }),
             }
         );
@@ -162,6 +165,7 @@ export async function POST(request: Request) {
             discountAmount,
             taxRate: effectiveTaxRate,
             taxAmount,
+            taxInclusionType,
             totalAmount: effectiveTotal,
             paidAmount: paidVal,
             changeAmount: changeVal,

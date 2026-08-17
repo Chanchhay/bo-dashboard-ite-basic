@@ -26,6 +26,8 @@ export type PosOrderItem = {
     lineTotal: number;
 };
 
+export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
+
 /** The cart. A `PENDING` order the cashier is still building. */
 export type PosOrder = {
     id: string;
@@ -38,6 +40,7 @@ export type PosOrder = {
     discountAmount: number;
     taxRate?: number | null;
     taxAmount?: number | null;
+    taxInclusionType?: TaxInclusionType | null;
     total: number;
     currency: string;
     /** The second currency this order was priced against, frozen at creation. */
@@ -176,6 +179,7 @@ export const payOrderSchema = z.object({
     note: z.string().trim().max(200).optional(),
     isTaxActive: z.boolean().optional(),
     isTaxInclusive: z.boolean().optional(),
+    taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional(),
 });
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;
@@ -228,6 +232,7 @@ export type Sale = {
     discountAmount: number;
     taxRate?: number | null;
     taxAmount?: number | null;
+    taxInclusionType?: TaxInclusionType | null;
     totalAmount: number;
     paidAmount: number;
     /** What to hand back. Calculated by the backend, never re-derived here. */

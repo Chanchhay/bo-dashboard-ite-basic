@@ -84,6 +84,8 @@ export function ReceiptTicket({
   let effectiveTaxRate = 0;
   let taxAmount = 0;
 
+  const recordTaxInclusionType = sale?.taxInclusionType || order?.taxInclusionType;
+
   if (taxConfig !== undefined && taxConfig !== null) {
     // Explicit preview mode override (e.g. Tax Settings preview card)
     isTaxActive = taxConfig.isActive ?? false;
@@ -94,10 +96,26 @@ export function ReceiptTicket({
           ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
           : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
       : 0;
+  } else if (recordTaxInclusionType) {
+    // Direct from Spring backend API (OrderResponse / SaleResponse)
+    isTaxActive = (sale?.taxAmount && sale.taxAmount > 0) || (order?.taxAmount && order.taxAmount > 0) || (activeTaxConfig?.isActive ?? false);
+    isTaxInclusive = recordTaxInclusionType === "INCLUSIVE";
+    effectiveTaxRate = (sale?.taxRate || order?.taxRate) && (sale?.taxRate || order?.taxRate)! > 0
+      ? (sale?.taxRate || order?.taxRate)!
+      : (activeTaxConfig?.taxRate ?? 10);
+    taxAmount = (sale?.taxAmount && sale.taxAmount > 0)
+      ? sale.taxAmount
+      : (order?.taxAmount && order.taxAmount > 0)
+        ? order.taxAmount
+        : (isTaxInclusive
+            ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+            : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)));
   } else if (storedTaxRule !== null) {
     // Historical frozen tax rule snapshot
     isTaxActive = storedTaxRule.isTaxActive ?? false;
-    isTaxInclusive = storedTaxRule.isTaxInclusive ?? false;
+    isTaxInclusive = storedTaxRule.taxInclusionType
+      ? storedTaxRule.taxInclusionType === "INCLUSIVE"
+      : (storedTaxRule.isTaxInclusive ?? false);
     effectiveTaxRate = storedTaxRule.taxRate ?? 0;
     taxAmount = storedTaxRule.taxAmount ?? 0;
   } else {
