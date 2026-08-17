@@ -180,6 +180,8 @@ export const payOrderSchema = z.object({
     isTaxActive: z.boolean().optional(),
     isTaxInclusive: z.boolean().optional(),
     taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional(),
+    taxRate: z.coerce.number().optional(),
+    taxAmount: z.coerce.number().optional(),
 });
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;

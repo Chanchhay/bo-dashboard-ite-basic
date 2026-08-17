@@ -62,7 +62,7 @@ export async function POST(request: Request) {
             : false;
 
         const effectiveTaxRate = isTaxActive
-            ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
+            ? (result.data.taxRate !== undefined ? result.data.taxRate : ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0)))
             : 0;
 
         const calculatedTaxAmount = isTaxActive
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
             : 0;
 
         const taxAmount = isTaxActive
-            ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTaxAmount)
+            ? (result.data.taxAmount !== undefined ? result.data.taxAmount : ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTaxAmount))
             : 0;
 
         const effectiveTotal = Math.max(
@@ -100,40 +100,20 @@ export async function POST(request: Request) {
 
         const paidVal = userReceived ?? effectiveTotal;
 
-        // Sync order item discounts to Spring Java backend prior to payment
-        if (discountAmount > 0 && order.items.length > 0) {
-            const itemsSubtotal = grossSubtotal || 1;
-            const discountRatio = discountAmount / itemsSubtotal;
-            let runningDiscountTotal = 0;
-
-            for (let i = 0; i < order.items.length; i++) {
-                const item = order.items[i];
-                const itemSubtotal = item.unitPrice * item.quantity;
-                let itemDisc = 0;
-                if (i === order.items.length - 1) {
-                    itemDisc = Math.max(0, parseFloat((discountAmount - runningDiscountTotal).toFixed(2)));
-                } else {
-                    itemDisc = Math.min(itemSubtotal, parseFloat((itemSubtotal * discountRatio).toFixed(2)));
-                    runningDiscountTotal += itemDisc;
-                }
-
-                try {
-                    await backendRequest<unknown>(
-                        ordersPath(
-                            businessId,
-                            `/${encodeURIComponent(order.id)}/items/${encodeURIComponent(item.id)}`
-                        ),
-                        {
-                            method: "PATCH",
-                            body: JSON.stringify({
-                                quantity: item.quantity,
-                                discountAmount: itemDisc,
-                            }),
-                        }
-                    );
-                } catch {
-                    // Ignore item patch error
-                }
+        // Sync order discount to Spring Java backend prior to payment
+        if (discountAmount > 0) {
+            try {
+                await backendRequest<unknown>(
+                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            discountAmount,
+                        }),
+                    }
+                );
+            } catch {
+                // Ignore discount patch error if endpoint not reached
             }
         }
 
@@ -149,6 +129,8 @@ export async function POST(request: Request) {
                     note: result.data.note,
                     receivedAmount: paidVal,
                     taxInclusionType,
+                    taxRate: effectiveTaxRate,
+                    taxAmount,
                 }),
             }
         );

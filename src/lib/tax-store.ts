@@ -29,16 +29,17 @@ export function getDefaultTax(): TaxConfig {
 }
 
 export function updateDefaultTax(input: Partial<TaxInput>): TaxConfig {
+  const existing = getDefaultTax();
   currentTax = {
-    ...currentTax,
+    ...existing,
     ...input,
-    taxName: input.taxName !== undefined ? input.taxName : currentTax.taxName,
-    taxType: input.taxType !== undefined ? input.taxType : currentTax.taxType,
-    taxRate: input.taxRate !== undefined ? input.taxRate : currentTax.taxRate,
-    taxAmount: input.taxAmount !== undefined ? input.taxAmount : currentTax.taxAmount,
-    showTaxOnReceipt: input.showTaxOnReceipt !== undefined ? input.showTaxOnReceipt : currentTax.showTaxOnReceipt,
-    isActive: input.isActive !== undefined ? input.isActive : currentTax.isActive,
-    isTaxInclusive: input.isTaxInclusive !== undefined ? input.isTaxInclusive : (currentTax.isTaxInclusive ?? false),
+    taxName: input.taxName !== undefined ? input.taxName : existing.taxName,
+    taxType: input.taxType !== undefined ? input.taxType : existing.taxType,
+    taxRate: input.taxRate !== undefined ? input.taxRate : existing.taxRate,
+    taxAmount: input.taxAmount !== undefined ? input.taxAmount : existing.taxAmount,
+    showTaxOnReceipt: input.showTaxOnReceipt !== undefined ? input.showTaxOnReceipt : existing.showTaxOnReceipt,
+    isActive: input.isActive !== undefined ? input.isActive : existing.isActive,
+    isTaxInclusive: input.isTaxInclusive !== undefined ? input.isTaxInclusive : (existing.isTaxInclusive ?? false),
   };
   if (typeof window !== "undefined") {
     try {
@@ -49,12 +50,13 @@ export function updateDefaultTax(input: Partial<TaxInput>): TaxConfig {
 }
 
 export function getActiveDefaultTax(): TaxConfig | null {
-  return currentTax.isActive ? currentTax : null;
+  const tax = getDefaultTax();
+  return tax.isActive ? tax : null;
 }
 
 /** Backward compatibility helper for existing imports */
 export function getStoredTaxes(): TaxConfig[] {
-  return [currentTax];
+  return [getDefaultTax()];
 }
 
 /** Backward compatibility helper for existing imports */

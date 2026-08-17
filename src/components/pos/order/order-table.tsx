@@ -336,6 +336,41 @@ export function OrderTable({
   const [activeDiscountRule, setActiveDiscountRule] =
     useState<AppliedDiscountRule | null>(null);
 
+  const computeTargetDiscountAmount = (orderVal: PosOrder, rule: AppliedDiscountRule): number => {
+    let eligibleSubtotal = orderVal.subtotal;
+
+    if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+      const targetIds = new Set(rule.targetItemIds || []);
+      if (targetIds.size > 0) {
+        eligibleSubtotal = orderVal.items.reduce((sum, item) => {
+          if (targetIds.has(item.itemId)) {
+            return sum + item.unitPrice * item.quantity;
+          }
+          return sum;
+        }, 0);
+      }
+    }
+
+    if (eligibleSubtotal <= 0) return 0;
+
+    let targetAmount = 0;
+    if (rule.type === "PERCENTAGE") {
+      targetAmount = (eligibleSubtotal * rule.value) / 100;
+      if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
+        targetAmount = rule.maxDiscountAmount;
+      }
+    } else if (rule.type === "FINAL_PRICE") {
+      targetAmount = Math.max(0, eligibleSubtotal - rule.value);
+    } else {
+      targetAmount = Math.min(eligibleSubtotal, rule.value);
+    }
+
+    return Math.min(
+      eligibleSubtotal,
+      Math.max(0, parseFloat(targetAmount.toFixed(2)))
+    );
+  };
+
   useEffect(() => {
     if (!order?.id) {
       setActiveDiscountRule(null);
@@ -353,22 +388,7 @@ export function OrderTable({
       const rule: AppliedDiscountRule = JSON.parse(raw);
       setActiveDiscountRule(rule);
 
-      let targetAmount = 0;
-      if (rule.type === "PERCENTAGE") {
-        targetAmount = (order.subtotal * rule.value) / 100;
-        if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
-          targetAmount = rule.maxDiscountAmount;
-        }
-      } else if (rule.type === "FINAL_PRICE") {
-        targetAmount = Math.max(0, order.subtotal - rule.value);
-      } else {
-        targetAmount = rule.value;
-      }
-
-      targetAmount = Math.min(
-        order.subtotal,
-        Math.max(0, parseFloat(targetAmount.toFixed(2)))
-      );
+      const targetAmount = computeTargetDiscountAmount(order, rule);
 
       if (Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001) {
         void setOrderDiscount({
@@ -381,7 +401,7 @@ export function OrderTable({
       localStorage.removeItem(key);
       setActiveDiscountRule(null);
     }
-  }, [order?.id, order?.subtotal, order?.discountAmount, setOrderDiscount]);
+  }, [order?.id, order?.subtotal, order?.discountAmount, order?.items, setOrderDiscount]);
 
   const selectedCustomer = useMemo(() => {
     if (!order?.customerId) return null;
@@ -414,22 +434,7 @@ export function OrderTable({
     localStorage.setItem(key, JSON.stringify(rule));
     setActiveDiscountRule(rule);
 
-    let targetAmount = 0;
-    if (rule.type === "PERCENTAGE") {
-      targetAmount = (order.subtotal * rule.value) / 100;
-      if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
-        targetAmount = rule.maxDiscountAmount;
-      }
-    } else if (rule.type === "FINAL_PRICE") {
-      targetAmount = Math.max(0, order.subtotal - rule.value);
-    } else {
-      targetAmount = rule.value;
-    }
-
-    targetAmount = Math.min(
-      order.subtotal,
-      Math.max(0, parseFloat(targetAmount.toFixed(2)))
-    );
+    const targetAmount = computeTargetDiscountAmount(order, rule);
 
     await setOrderDiscount({
       discountAmount: targetAmount,
@@ -536,6 +541,8 @@ export function OrderTable({
         isTaxActive,
         isTaxInclusive,
         taxInclusionType,
+        taxRate: effectiveTaxRate,
+        taxAmount: summary.taxAmount,
       }).unwrap();
 
       if (sold.id) {
@@ -694,7 +701,7 @@ export function OrderTable({
               Discount
             </span>
             {activeDiscountRule?.label && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-green-100 text-primary border border-green-200">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
                 {activeDiscountRule.label}
                 <button
                   type="button"
@@ -727,8 +734,20 @@ export function OrderTable({
               {summary.taxName.includes("VAT") ? "VAT" : summary.taxName}
               {summary.taxRate > 0 ? ` (${summary.taxRate}%)` : ""}
             </span>
-            <span className="tabular-nums text-emerald-600 min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
+            <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
               +{format(summary.taxAmount, order?.currency)}
+            </span>
+          </div>
+        )}
+
+        {summary.isTaxActive && summary.isTaxInclusive && summary.taxAmount > 0 && (
+          <div className="flex justify-between items-center py-1 text-xs text-muted-foreground italic">
+            <span>
+              Incl. {summary.taxName.includes("VAT") ? "VAT" : summary.taxName}
+              {summary.taxRate > 0 ? ` (${summary.taxRate}%)` : ""}
+            </span>
+            <span className="tabular-nums font-mono">
+              ({format(summary.taxAmount, order?.currency)})
             </span>
           </div>
         )}
