@@ -7,9 +7,7 @@ import {
   Clock,
   DollarSign,
   Eye,
-  PlusCircle,
   AlertTriangle,
-  RefreshCw,
   Search,
   User,
   X,
@@ -18,11 +16,12 @@ import {
   Loader2,
   Columns,
   Check,
+  Receipt,
+  FileSpreadsheet,
+  ChevronDown,
 } from "lucide-react";
-import Link from "next/link";
 
 import { useMoney } from "@/hooks/useMoney";
-import { POS_ROUTES } from "@/lib/pos-routes";
 import type { RegisterSession } from "@/lib/api/pos-session";
 import {
   Table,
@@ -42,11 +41,13 @@ type DateRange = (typeof DATE_RANGES)[number];
 export type SessionColumnKey =
   | "sessionId"
   | "registerAndCashier"
+  | "orderCount"
   | "openedAt"
   | "closedAt"
   | "openingCash"
   | "cashSales"
   | "expectedTotal"
+  | "actualCash"
   | "difference"
   | "status"
   | "action";
@@ -59,11 +60,13 @@ interface SessionColumnConfig {
 const ALL_SESSION_COLUMNS: SessionColumnConfig[] = [
   { key: "sessionId", label: "Session ID" },
   { key: "registerAndCashier", label: "Register & Cashier" },
+  { key: "orderCount", label: "Orders" },
   { key: "openedAt", label: "Opened At" },
   { key: "closedAt", label: "Closed At" },
   { key: "openingCash", label: "Opening Cash" },
   { key: "cashSales", label: "Cash Sales" },
   { key: "expectedTotal", label: "Expected Total" },
+  { key: "actualCash", label: "Counted Cash" },
   { key: "difference", label: "Difference" },
   { key: "status", label: "Status" },
   { key: "action", label: "Action" },
@@ -81,18 +84,26 @@ export function RegisterSessionsHistory() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dateRange, setDateRange] = useState<DateRange>("All time");
+
+  // Selected session for Summary Details modal
   const [selectedSession, setSelectedSession] = useState<RegisterSession | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
+  // Date range dropdown state
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
 
   // Column visibility state
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<SessionColumnKey, boolean>>({
     sessionId: true,
     registerAndCashier: true,
+    orderCount: true,
     openedAt: true,
     closedAt: true,
     openingCash: true,
     cashSales: true,
     expectedTotal: true,
+    actualCash: false,
     difference: true,
     status: true,
     action: true,
@@ -115,16 +126,38 @@ export function RegisterSessionsHistory() {
     setVisibleColumns({
       sessionId: true,
       registerAndCashier: true,
+      orderCount: true,
       openedAt: true,
       closedAt: true,
       openingCash: true,
       cashSales: true,
       expectedTotal: true,
+      actualCash: true,
       difference: true,
       status: true,
       action: true,
     });
   };
+
+  // Open Details Modal with live fetch from /api/register/sessions/{sessionId}/summary
+  const handleOpenDetails = useCallback(async (session: RegisterSession) => {
+    setSelectedSession(session);
+    setLoadingSummary(true);
+
+    try {
+      const res = await fetch(`/api/register/sessions/${session.id}/summary?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const summaryData: RegisterSession = await res.json();
+        setSelectedSession(summaryData);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch fresh session summary, using table row data:", err);
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, []);
 
   // Fetch dynamic session history data from backend API
   const fetchSessions = useCallback(async (showRefreshing = false) => {
@@ -152,7 +185,6 @@ export function RegisterSessionsHistory() {
     }
   }, []);
 
-
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
@@ -172,9 +204,11 @@ export function RegisterSessionsHistory() {
           const matchesCashier = session.cashierName?.toLowerCase().includes(q);
           const matchesRegister = session.registerName?.toLowerCase().includes(q);
           const matchesId = session.id.toString().includes(q);
+          const matchesUser = session.userId?.toLowerCase().includes(q);
+          const matchesRecon = session.reconciliationStatus?.toLowerCase().includes(q);
           const matchesNote = session.note?.toLowerCase().includes(q);
 
-          if (!matchesCashier && !matchesRegister && !matchesId && !matchesNote) {
+          if (!matchesCashier && !matchesRegister && !matchesId && !matchesUser && !matchesRecon && !matchesNote) {
             return false;
           }
         }
@@ -252,28 +286,6 @@ export function RegisterSessionsHistory() {
             Track live and past till opens, closes, starting floats, cash sales, and shift discrepancies.
           </p>
         </div>
-
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => fetchSessions(true)}
-            disabled={isRefreshing || isLoading}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 sm:px-3.5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-foreground shadow-xs transition-all hover:bg-accent active:scale-95 disabled:opacity-50 dark:border-slate-800 dark:bg-[#151c28] dark:text-slate-200 dark:hover:bg-[#1c2638]"
-            title="Refresh session data"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-emerald-500" : ""}`} />
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
-
-          <Link
-            href={POS_ROUTES.openRegister}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white shadow-xs transition-all active:scale-95 shrink-0"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span className="hidden xs:inline">Open New Register</span>
-            <span className="xs:hidden">Open</span>
-          </Link>
-        </div>
       </div>
 
       {/* Metric Cards */}
@@ -283,7 +295,7 @@ export function RegisterSessionsHistory() {
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
               Active Sessions
             </span>
-            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400 dark:border dark:border-emerald-800/50">
+            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
               <Clock className="h-4 sm:h-5 w-4 sm:w-5" />
             </div>
           </div>
@@ -291,7 +303,7 @@ export function RegisterSessionsHistory() {
             <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
               {metrics.activeCount}
             </span>
-            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/80 dark:text-emerald-400 dark:border dark:border-emerald-800/50 px-2 py-0.5 rounded-md">
+            <span className="text-xs font-semibold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
               Live Tills
             </span>
           </div>
@@ -318,7 +330,7 @@ export function RegisterSessionsHistory() {
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
               Total Cash Sales
             </span>
-            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400 dark:border dark:border-emerald-800/50">
+            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
               <DollarSign className="h-4 sm:h-5 w-4 sm:w-5" />
             </div>
           </div>
@@ -354,7 +366,7 @@ export function RegisterSessionsHistory() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by cashier, register name, session ID or notes..."
+            placeholder="Search by cashier, user ID, register name, session ID or notes..."
             className="w-full rounded-xl border border-border bg-muted/40 dark:bg-[#0d121c] dark:border-slate-800 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground dark:text-slate-100 placeholder:text-muted-foreground dark:placeholder:text-slate-500 outline-none transition-colors focus:border-emerald-500"
           />
           {query && (
@@ -375,7 +387,7 @@ export function RegisterSessionsHistory() {
                 key={st}
                 type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${statusFilter === st
+                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:bg-white focus:text-foreground dark:focus:bg-[#1d2739] dark:focus:text-white ${statusFilter === st
                     ? "bg-background text-foreground dark:bg-[#1d2739] dark:text-white dark:border dark:border-slate-700 shadow-xs font-semibold"
                     : "text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-200"
                   }`}
@@ -385,20 +397,51 @@ export function RegisterSessionsHistory() {
             ))}
           </div>
 
-          {/* Date Filter */}
-          <div className="relative inline-flex items-center">
-            <Calendar className="absolute left-3 h-4 w-4 text-muted-foreground dark:text-slate-500 pointer-events-none" />
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as DateRange)}
-              className="rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 pl-9 pr-8 py-2 text-xs font-medium text-foreground dark:text-slate-200 outline-none hover:border-accent dark:hover:border-slate-700 focus:border-emerald-500"
+          {/* Date Filter Dropdown */}
+          <div className="relative inline-block text-left">
+            <button
+              type="button"
+              onClick={() => setDateDropdownOpen((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 sm:px-3.5 py-2 text-xs font-medium text-foreground dark:text-slate-200 shadow-xs transition-all hover:bg-accent dark:hover:bg-[#182132] active:scale-95"
             >
-              {DATE_RANGES.map((d) => (
-                <option key={d} value={d} className="bg-card dark:bg-[#151c28] text-foreground dark:text-slate-200">
-                  {d}
-                </option>
-              ))}
-            </select>
+              <Calendar className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
+              <span>{dateRange}</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-muted-foreground dark:text-slate-400 transition-transform ${dateDropdownOpen ? "rotate-180" : ""
+                  }`}
+              />
+            </button>
+
+            {dateDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={() => setDateDropdownOpen(false)}
+                />
+                <div className="absolute left-0 mt-2 z-30 w-40 rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 p-1.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-foreground dark:text-slate-100">
+                  {DATE_RANGES.map((d) => {
+                    const isActive = dateRange === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setDateRange(d);
+                          setDateDropdownOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${isActive
+                            ? "bg-primary text-primary-foreground font-semibold"
+                            : "text-foreground dark:text-slate-200 hover:bg-muted dark:hover:bg-[#1c2638]"
+                          }`}
+                      >
+                        {d}
+                        {isActive && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Column Picker Dropdown */}
@@ -429,7 +472,7 @@ export function RegisterSessionsHistory() {
                     <button
                       type="button"
                       onClick={selectAllColumns}
-                      className="text-[11px] font-semibold text-emerald-500 hover:underline"
+                      className="text-[11px] font-semibold text-primary hover:underline"
                     >
                       Show All
                     </button>
@@ -446,7 +489,7 @@ export function RegisterSessionsHistory() {
                           <span className="font-medium">{col.label}</span>
                           <div
                             className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${isChecked
-                                ? "bg-emerald-600 border-emerald-600 text-white"
+                                ? "bg-primary border-primary text-primary-foreground"
                                 : "border-border dark:border-slate-700 bg-background dark:bg-[#0d121c]"
                               }`}
                           >
@@ -479,6 +522,11 @@ export function RegisterSessionsHistory() {
                     Register & Cashier
                   </TableHead>
                 )}
+                {visibleColumns.orderCount && (
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-center">
+                    Orders
+                  </TableHead>
+                )}
                 {visibleColumns.openedAt && (
                   <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
                     Opened At
@@ -502,6 +550,11 @@ export function RegisterSessionsHistory() {
                 {visibleColumns.expectedTotal && (
                   <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
                     Expected Total
+                  </TableHead>
+                )}
+                {visibleColumns.actualCash && (
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                    Counted Cash
                   </TableHead>
                 )}
                 {visibleColumns.difference && (
@@ -557,13 +610,21 @@ export function RegisterSessionsHistory() {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-semibold text-sm text-foreground dark:text-slate-100">
-                              {session.registerName || "Register"}
+                              {session.registerName || `Register #${session.registerId || 1}`}
                             </span>
                             <span className="text-xs text-muted-foreground dark:text-slate-400 flex items-center gap-1 mt-0.5">
                               <User className="h-3 w-3" />
                               {session.cashierName || "Cashier"}
                             </span>
                           </div>
+                        </TableCell>
+                      )}
+                      {visibleColumns.orderCount && (
+                        <TableCell className="text-center font-medium text-xs text-foreground dark:text-slate-300">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted dark:bg-slate-800/60 font-semibold">
+                            <Receipt className="h-3 w-3 text-muted-foreground dark:text-slate-400" />
+                            {session.orderCount ?? 0}
+                          </span>
                         </TableCell>
                       )}
                       {visibleColumns.openedAt && (
@@ -593,8 +654,17 @@ export function RegisterSessionsHistory() {
                         </TableCell>
                       )}
                       {visibleColumns.expectedTotal && (
-                        <TableCell className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 text-right">
+                        <TableCell className="text-sm font-semibold text-primary text-right">
                           {format(session.expectedAmount, session.currency ?? undefined)}
+                        </TableCell>
+                      )}
+                      {visibleColumns.actualCash && (
+                        <TableCell className="text-sm font-medium text-foreground dark:text-slate-200 text-right">
+                          {session.actualAmount !== null ? (
+                            format(session.actualAmount, session.currency ?? undefined)
+                          ) : (
+                            <span className="text-xs text-muted-foreground dark:text-slate-500">—</span>
+                          )}
                         </TableCell>
                       )}
                       {visibleColumns.difference && (
@@ -607,7 +677,7 @@ export function RegisterSessionsHistory() {
                               {format(diff, session.currency ?? undefined)}
                             </span>
                           ) : isSurplus ? (
-                            <span className="inline-flex items-center gap-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 dark:border dark:border-emerald-800/50 px-2 py-0.5 rounded-md">
+                            <span className="inline-flex items-center gap-0.5 text-xs font-bold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
                               <ArrowUpRight className="h-3.5 w-3.5" />
                               +{format(diff, session.currency ?? undefined)}
                             </span>
@@ -626,7 +696,7 @@ export function RegisterSessionsHistory() {
                               OPEN
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-muted dark:bg-slate-800/80 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground dark:text-slate-400">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950/80 dark:border dark:border-red-900/50 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:text-red-400">
                               CLOSED
                             </span>
                           )}
@@ -636,8 +706,8 @@ export function RegisterSessionsHistory() {
                         <TableCell className="text-right">
                           <button
                             type="button"
-                            onClick={() => setSelectedSession(session)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 hover:underline"
+                            onClick={() => handleOpenDetails(session)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 hover:underline"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             Details
@@ -653,7 +723,7 @@ export function RegisterSessionsHistory() {
         </div>
       </div>
 
-      {/* Session Details Modal */}
+      {/* Session Details / Summary Modal */}
       {selectedSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100">
@@ -661,14 +731,19 @@ export function RegisterSessionsHistory() {
             <div className="flex items-center justify-between border-b border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-                  <Building2 className="h-5 w-5" />
+                  <FileSpreadsheet className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-foreground dark:text-white">
-                    Session Audit #{selectedSession.id}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground dark:text-white">
+                      Session Summary #{selectedSession.id}
+                    </h3>
+                    {loadingSummary && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground dark:text-slate-400">
-                    {selectedSession.registerName}
+                    {selectedSession.registerName || `Register #${selectedSession.registerId || 1}`}
                   </p>
                 </div>
               </div>
@@ -683,35 +758,58 @@ export function RegisterSessionsHistory() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex flex-col gap-5 p-6 text-sm">
-              {/* Cashier & Time metadata */}
-              <div className="grid grid-cols-2 gap-4 rounded-2xl bg-muted/40 dark:bg-[#0d121c] p-4 border border-border/50 dark:border-slate-800">
+            <div className="flex flex-col gap-5 p-6 text-sm max-h-[75vh] overflow-y-auto">
+              {/* Cashier & Session metadata */}
+              <div className="grid grid-cols-2 gap-3.5 rounded-2xl bg-muted/40 dark:bg-[#0d121c] p-4 border border-border/50 dark:border-slate-800">
                 <div>
-                  <span className="text-xs font-medium text-muted-foreground dark:text-slate-400">Opened By</span>
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Cashier Name</span>
                   <p className="font-semibold text-foreground dark:text-slate-100 mt-0.5">
-                    {selectedSession.openedBy || selectedSession.cashierName || "N/A"}
+                    {selectedSession.cashierName || "Cashier"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-muted-foreground dark:text-slate-400">Closed By</span>
-                  <p className="font-semibold text-foreground dark:text-slate-100 mt-0.5">
-                    {selectedSession.closedBy || (selectedSession.status === "CLOSED" ? selectedSession.cashierName : "—")}
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">User ID</span>
+                  <p className="font-mono text-xs text-foreground dark:text-slate-300 mt-0.5 truncate" title={selectedSession.userId ?? ""}>
+                    {selectedSession.userId || "—"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-muted-foreground dark:text-slate-400">Opened At</span>
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Opened At</span>
                   <p className="text-xs font-medium text-foreground dark:text-slate-200 mt-0.5">
                     {formatDate(selectedSession.openedAt)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-muted-foreground dark:text-slate-400">Closed At</span>
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Closed At</span>
                   <p className="text-xs font-medium text-foreground dark:text-slate-200 mt-0.5">
-                    {formatDate(selectedSession.closedAt)}
+                    {selectedSession.status === "OPEN" ? (
+                      <span className="text-emerald-500 font-semibold italic">In Progress (Open)</span>
+                    ) : (
+                      formatDate(selectedSession.closedAt)
+                    )}
                   </p>
                 </div>
+                <div>
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Total Orders</span>
+                  <p className="text-xs font-bold text-foreground dark:text-slate-100 mt-0.5">
+                    {selectedSession.orderCount ?? 0} orders
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Reconciliation</span>
+                  <p className="text-xs font-semibold text-foreground dark:text-slate-200 mt-0.5">
+                    {selectedSession.reconciliationStatus || (selectedSession.status === "OPEN" ? "IN_PROGRESS" : "CLOSED")}
+                  </p>
+                </div>
+                {selectedSession.businessId && (
+                  <div className="col-span-2">
+                    <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Business ID</span>
+                    <p className="font-mono text-[11px] text-muted-foreground dark:text-slate-400 mt-0.5 truncate" title={selectedSession.businessId}>
+                      {selectedSession.businessId}
+                    </p>
+                  </div>
+                )}
               </div>
-
 
               {/* Financial Breakdown */}
               <div className="flex flex-col gap-2.5 border-t border-b border-border dark:border-slate-800 py-4">
@@ -729,7 +827,7 @@ export function RegisterSessionsHistory() {
                 </div>
                 {selectedSession.totalPaidIn > 0 && (
                   <div className="flex justify-between text-muted-foreground dark:text-slate-400">
-                    <span>Pay In (Added)</span>
+                    <span>Total Paid In (Added)</span>
                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                       +{format(selectedSession.totalPaidIn, selectedSession.currency ?? undefined)}
                     </span>
@@ -737,7 +835,7 @@ export function RegisterSessionsHistory() {
                 )}
                 {selectedSession.totalPaidOut > 0 && (
                   <div className="flex justify-between text-muted-foreground dark:text-slate-400">
-                    <span>Pay Out (Removed)</span>
+                    <span>Total Paid Out (Removed)</span>
                     <span className="font-semibold text-red-600 dark:text-red-400">
                       -{format(selectedSession.totalPaidOut, selectedSession.currency ?? undefined)}
                     </span>
