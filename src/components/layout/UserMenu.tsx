@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { Compass, LogOut, Moon, Sun, UserRound } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import {
@@ -14,6 +14,7 @@ import {
   MenuTrigger,
 } from "@/components/ui/menu";
 import { useGetUserProfileQuery } from "@/services/userProfileApi";
+import { startGuidedTour } from "@/components/onboarding/GuidedTour";
 
 function initialsOf(name: string) {
   return (
@@ -115,6 +116,11 @@ export default function UserMenu({
             <UserRound aria-hidden="true" />
             Your profile
           </MenuLinkItem>
+
+          <MenuItem onClick={() => startGuidedTour()}>
+            <Compass aria-hidden="true" className="size-4 text-primary" />
+            Take Guided Tour
+          </MenuItem>
 
           <MenuItem
             className="sm:hidden"

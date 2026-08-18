@@ -359,10 +359,11 @@ function BusinessProfileEditor({
             ref={formRef}
             onSubmit={handleSubmit}
             noValidate
+            data-tour="business-profile-form"
             className="flex min-h-0 flex-col gap-4 sm:gap-5 rounded-xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-4 sm:p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
         >
             <div className="grid gap-6 xl:gap-[30px] xl:grid-cols-[303px_minmax(0,1fr)]">
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4" data-tour="profile-logo">
                     <StagedImageField
                         staged={logo}
                         rules={businessLogoRules}
@@ -392,60 +393,63 @@ function BusinessProfileEditor({
                     <SectionTitle>Business Identity</SectionTitle>
 
                     <div className="mt-5 grid gap-x-4 gap-y-5 md:grid-cols-2">
-                        <Field
-                            label="Legal Name"
-                            name="name"
-                            error={fieldErrors.name}
-                        >
-                            <Input
-                                id="name"
+                        <div data-tour="profile-name">
+                            <Field
+                                label="Legal Name"
                                 name="name"
-                                defaultValue={business.name || ""}
-                                maxLength={200}
-                                aria-invalid={Boolean(fieldErrors.name)}
-                                className={inputClassName}
-                            />
-                        </Field>
-
-                        <Field
-                            label="Business Type"
-                            name="categoryId"
-                            error={fieldErrors.categoryId}
-                        >
-                            <Select
-                                name="categoryId"
-                                defaultValue={business.category?.id || ""}
-                                /* Without this the trigger shows the raw id. */
-                                items={Object.fromEntries(
-                                    businessTypes.map((businessType) => [
-                                        businessType.id,
-                                        businessType.name,
-                                    ]),
-                                )}
+                                error={fieldErrors.name}
                             >
-                                <SelectTrigger
-                                    id="categoryId"
-                                    aria-invalid={Boolean(
-                                        fieldErrors.categoryId,
-                                    )}
-                                    className={`${inputClassName} w-full`}
-                                >
-                                    <SelectValue placeholder="Select business type" />
-                                </SelectTrigger>
-                                <SelectContent align="start">
-                                    {businessTypes.map((businessType) => (
-                                        <SelectItem
-                                            key={businessType.id}
-                                            value={businessType.id || ""}
-                                        >
-                                            {businessType.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </Field>
+                                <Input
+                                    id="name"
+                                    name="name"
+                                    defaultValue={business.name || ""}
+                                    maxLength={200}
+                                    aria-invalid={Boolean(fieldErrors.name)}
+                                    className={inputClassName}
+                                />
+                            </Field>
+                        </div>
 
-                        <div className="md:col-span-2">
+                        <div data-tour="profile-category">
+                            <Field
+                                label="Business Type"
+                                name="categoryId"
+                                error={fieldErrors.categoryId}
+                            >
+                                <Select
+                                    name="categoryId"
+                                    defaultValue={business.category?.id || ""}
+                                    items={Object.fromEntries(
+                                        businessTypes.map((businessType) => [
+                                            businessType.id,
+                                            businessType.name,
+                                        ]),
+                                    )}
+                                >
+                                    <SelectTrigger
+                                        id="categoryId"
+                                        aria-invalid={Boolean(
+                                            fieldErrors.categoryId,
+                                        )}
+                                        className={`${inputClassName} w-full`}
+                                    >
+                                        <SelectValue placeholder="Select business type" />
+                                    </SelectTrigger>
+                                    <SelectContent align="start">
+                                        {businessTypes.map((businessType) => (
+                                            <SelectItem
+                                                key={businessType.id}
+                                                value={businessType.id || ""}
+                                            >
+                                                {businessType.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                        </div>
+
+                        <div className="md:col-span-2" data-tour="profile-about">
                             <Field
                                 label="Public Description"
                                 name="about"
@@ -471,21 +475,23 @@ function BusinessProfileEditor({
 
                 <div className="grid gap-5 lg:gap-10 lg:grid-cols-2">
                     <div className="flex flex-col gap-3">
-                        <Field
-                            label="Email Address"
-                            name="email"
-                            error={fieldErrors.email}
-                        >
-                            <Input
-                                id="email"
+                        <div data-tour="profile-email">
+                            <Field
+                                label="Email Address"
                                 name="email"
-                                type="email"
-                                defaultValue={business.email || ""}
-                                maxLength={255}
-                                aria-invalid={Boolean(fieldErrors.email)}
-                                className={`${inputClassName} text-[#6b7280]`}
-                            />
-                        </Field>
+                                error={fieldErrors.email}
+                            >
+                                <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    defaultValue={business.email || ""}
+                                    maxLength={255}
+                                    aria-invalid={Boolean(fieldErrors.email)}
+                                    className={`${inputClassName} text-[#6b7280]`}
+                                />
+                            </Field>
+                        </div>
 
                         <Field
                             label="Website"
@@ -504,41 +510,45 @@ function BusinessProfileEditor({
                             />
                         </Field>
 
-                        <Field
-                            label="Phone Number"
-                            name="phoneNumber"
-                            error={fieldErrors.phoneNumber}
-                        >
-                            <Input
-                                id="phoneNumber"
+                        <div data-tour="profile-phone">
+                            <Field
+                                label="Phone Number"
                                 name="phoneNumber"
-                                type="tel"
-                                defaultValue={business.phoneNumber || ""}
-                                maxLength={30}
-                                aria-invalid={Boolean(
-                                    fieldErrors.phoneNumber,
-                                )}
-                                className={`${inputClassName} text-[#6b7280]`}
-                            />
-                        </Field>
+                                error={fieldErrors.phoneNumber}
+                            >
+                                <Input
+                                    id="phoneNumber"
+                                    name="phoneNumber"
+                                    type="tel"
+                                    defaultValue={business.phoneNumber || ""}
+                                    maxLength={30}
+                                    aria-invalid={Boolean(
+                                        fieldErrors.phoneNumber,
+                                    )}
+                                    className={`${inputClassName} text-[#6b7280]`}
+                                />
+                            </Field>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-3">
-                        <Field
-                            label="Physical Address"
-                            name="address"
-                            error={fieldErrors.address}
-                        >
-                            <Textarea
-                                id="address"
+                        <div data-tour="profile-address">
+                            <Field
+                                label="Physical Address"
                                 name="address"
-                                defaultValue={business.address || ""}
-                                maxLength={255}
-                                rows={2}
-                                aria-invalid={Boolean(fieldErrors.address)}
-                                className={`${textareaClassName} min-h-[88px] text-[#6b7280]`}
-                            />
-                        </Field>
+                                error={fieldErrors.address}
+                            >
+                                <Textarea
+                                    id="address"
+                                    name="address"
+                                    defaultValue={business.address || ""}
+                                    maxLength={255}
+                                    rows={2}
+                                    aria-invalid={Boolean(fieldErrors.address)}
+                                    className={`${textareaClassName} min-h-[88px] text-[#6b7280]`}
+                                />
+                            </Field>
+                        </div>
 
                         <Field
                             label="Google Map"
@@ -560,7 +570,7 @@ function BusinessProfileEditor({
             </section>
 
             <div className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto">
+                <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto" data-tour="profile-save">
                     <Button
                         type="button"
                         onClick={handleCancel}

@@ -201,7 +201,7 @@ export function InventoryStock() {
         }));
 
     return (
-        <div className="flex flex-col gap-6">
+        <div data-tour="inventory-stock-overview" className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Stock"
                 description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."

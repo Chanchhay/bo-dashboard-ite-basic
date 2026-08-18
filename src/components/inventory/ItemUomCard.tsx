@@ -167,7 +167,7 @@ export function ItemUomCard({
             </div>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-                <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2" data-tour="item-form-unit">
                     <Label
                         htmlFor="unitId"
                         className="text-sm font-semibold text-foreground"
@@ -210,7 +210,7 @@ export function ItemUomCard({
                     </p>
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2" data-tour="item-form-low-stock">
                     <Label
                         htmlFor="lowStockDefault"
                         className="text-sm font-semibold text-foreground"

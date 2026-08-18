@@ -439,7 +439,7 @@ function CurrencyEditor({
                 <SectionTitle>General Configuration</SectionTitle>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
-                    <div>
+                    <div data-tour="exchange-base">
                         <Label
                             htmlFor="base-currency"
                             className="mb-3 ml-1 block text-base font-medium text-foreground"
@@ -735,6 +735,7 @@ function CurrencyEditor({
                 </Button>
                 <Button
                     type="submit"
+                    data-tour="exchange-save"
                     disabled={updateState.isLoading}
                     size="lg"
                     className="min-w-[124px]"

@@ -372,7 +372,7 @@ export function UnitsTab() {
                     </div>
 
                     <div className="mt-5 flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="unit-form-name">
                             <Label htmlFor="unit-name">Name *</Label>
                             <Input
                                 id="unit-name"
@@ -391,7 +391,7 @@ export function UnitsTab() {
                             ) : null}
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="unit-form-symbol">
                             <Label htmlFor="unit-symbol">Short symbol *</Label>
                             <Input
                                 id="unit-symbol"
@@ -414,7 +414,7 @@ export function UnitsTab() {
                             )}
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="unit-form-base-toggle">
                             <Label htmlFor="unit-category">
                                 What it measures *
                             </Label>

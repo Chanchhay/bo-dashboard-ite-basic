@@ -348,7 +348,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
                     {/* Main Form Section */}
-                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7 flex flex-col gap-6">
+                    <section data-tour={isStockIn ? "stock-in-form" : "stock-out-form"} className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7 flex flex-col gap-6">
                         <div className="flex items-center gap-3.5 border-b border-border pb-5">
                             <span
                                 className={`grid size-11 shrink-0 place-items-center rounded-2xl ${

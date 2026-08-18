@@ -97,7 +97,7 @@ export function BusinessPaymentsForm() {
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div data-tour="business-payments-form" className="flex flex-col gap-6">
             <section className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>

@@ -524,6 +524,7 @@ export function StockAdjustmentForm() {
             <form
                 onSubmit={handleSubmit}
                 noValidate
+                data-tour="stock-adjust-form"
                 className="flex flex-col gap-6"
             >
             <InventoryPageHeader

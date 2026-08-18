@@ -703,6 +703,7 @@ export function InventoryProductList() {
                         <Button
                             render={<Link href="/inventory/new" />}
                             nativeButton={false}
+                            data-tour="add-item"
                             className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
                         >
                             <PackagePlus className="size-4 shrink-0" />
@@ -712,10 +713,10 @@ export function InventoryProductList() {
                 }
             />
 
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="item-list" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-col gap-3 border-b border-border p-4">
                     <div className="flex flex-row items-center gap-2">
-                        <div className="relative min-w-0 flex-1">
+                        <div className="relative min-w-0 flex-1" data-tour="item-search">
                             <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={productSearch}

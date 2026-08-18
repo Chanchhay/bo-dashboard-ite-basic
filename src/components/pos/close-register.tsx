@@ -142,7 +142,7 @@ export function CloseRegister({
   }, [handleConfirm, router]);
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center overflow-hidden p-4">
+    <div data-tour="pos-close-register" className="flex h-screen w-screen items-center justify-center overflow-hidden p-4">
       <div className="flex w-full max-w-md max-h-full flex-col rounded-3xl bg-white shadow-sm overflow-hidden border border-gray-100">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-2">

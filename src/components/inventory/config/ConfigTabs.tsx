@@ -33,7 +33,7 @@ export function ConfigTabs({
             aria-label="Item configuration"
             className="scrollbar-none -mx-1 overflow-x-auto px-1 [&::-webkit-scrollbar]:hidden"
         >
-            <div className="flex w-max min-w-full items-center gap-1 rounded-2xl border border-border bg-card p-1">
+            <div data-tour="inventory-config-tabs" className="flex w-max min-w-full items-center gap-1 rounded-2xl border border-border bg-card p-1">
                 {configTabs.map((tab) => {
                     const Icon = tab.icon;
                     const active = tab.id === value;

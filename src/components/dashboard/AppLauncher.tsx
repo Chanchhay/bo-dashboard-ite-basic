@@ -13,7 +13,9 @@ import UserMenu from "@/components/layout/UserMenu";
 import type { Permission } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
+import { Compass } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
+import { startGuidedTour } from "@/components/onboarding/GuidedTour";
 
 /** How long the icon grows before the route actually changes. */
 const OPEN_MS = 620;
@@ -57,15 +59,30 @@ export default function AppLauncher({
                     <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-8 w-auto shrink-0" />
                 </Link>
 
-                <div className="flex items-center gap-4 sm:gap-6">
+                <div className="flex items-center gap-3 sm:gap-5">
+                    <button
+                        type="button"
+                        onClick={startGuidedTour}
+                        title="Take Guided Tour"
+                        aria-label="Take Guided Tour"
+                        className="hidden sm:flex items-center gap-1.5 rounded-xl border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-xs font-semibold text-primary hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                        <Compass className="size-4" />
+                        <span>Guided Tour</span>
+                    </button>
+
                     <ThemeToggle variant="icon" className="hidden sm:grid" />
-                    <NotificationMenu />
-                    <UserMenu name={managerName} />
+                    <div data-tour="notifications" className="inline-flex">
+                        <NotificationMenu />
+                    </div>
+                    <div data-tour="user-menu" className="inline-flex">
+                        <UserMenu name={managerName} />
+                    </div>
                 </div>
             </header>
 
             <main className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
-                <header className="mb-8 sm:mb-10">
+                <header className="mb-8 sm:mb-10" data-tour="apps-welcome">
                     <h1 className="text-[32px] leading-tight text-[#161d16] dark:text-[#f8fafc]">
                         <span className="font-semibold">Hello,</span>{" "}
                         {managerName.split(" ")[0]}
@@ -76,9 +93,9 @@ export default function AppLauncher({
                 </header>
 
                 {apps.length > 0 ? (
-                    <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-4">
+                    <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-4" data-tour="apps-grid">
                         {apps.map((section) => (
-                            <li key={section.id}>
+                            <li key={section.id} data-tour={`app-tile-${section.id}`}>
                                 <AppTile
                                     section={section}
                                     onOpen={setOpening}
