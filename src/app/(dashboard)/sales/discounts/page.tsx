@@ -39,6 +39,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
 import type {
     CouponResponse,
+    CouponStatus,
     CreateCouponInput,
     CreateDiscountInput,
     DiscountResponse,
@@ -46,6 +47,7 @@ import type {
     DiscountScope,
     DiscountType,
     OrderChannel,
+    RecordStatus,
 } from "@/lib/api/discount";
 import {
     useActivateCouponMutation,
@@ -64,6 +66,7 @@ import {
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
+import { SelectField } from "@/components/ui/select-field";
 
 export default function DiscountsAndCouponsPage() {
     const { format, base } = useMoney();
@@ -141,7 +144,7 @@ export default function DiscountsAndCouponsPage() {
     const [dType, setDType] = useState<DiscountType>("PERCENTAGE");
     const [dRuleType, setDRuleType] = useState<DiscountRuleType>("NO_CONDITION");
     const [dValue, setDValue] = useState("");
-    const [dScope, setDScope] = useState<DiscountScope>("ORDER");
+    const [dScope, setDScope] = useState<DiscountScope>("ALL_ITEMS");
     const [dMinOrderAmount, setDMinOrderAmount] = useState("");
     const [dMaxDiscountAmount, setDMaxDiscountAmount] = useState("");
     const [dBuyQty, setDBuyQty] = useState("");
@@ -150,6 +153,7 @@ export default function DiscountsAndCouponsPage() {
     const [dStartsAt, setDStartsAt] = useState("");
     const [dEndsAt, setDEndsAt] = useState("");
     const [dRequiresCoupon, setDRequiresCoupon] = useState(false);
+    const [dStatus, setDStatus] = useState<RecordStatus>("ACTIVE");
     const [dChannels, setDChannels] = useState<OrderChannel[]>(["POS", "WEB"]);
     const [dSelectedItems, setDSelectedItems] = useState<string[]>([]);
 
@@ -165,6 +169,7 @@ export default function DiscountsAndCouponsPage() {
     const [cMinPurchase, setCMinPurchase] = useState("");
     const [cStartsAt, setCStartsAt] = useState("");
     const [cEndsAt, setCEndsAt] = useState("");
+    const [cStatus, setCStatus] = useState<CouponStatus>("ACTIVE");
 
     // --- Delete confirmation ---
     const [deletingItem, setDeletingItem] = useState<{ id: string; type: "discount" | "coupon"; name: string } | null>(null);
@@ -201,7 +206,7 @@ export default function DiscountsAndCouponsPage() {
         setDType("PERCENTAGE");
         setDRuleType("NO_CONDITION");
         setDValue("10");
-        setDScope("ORDER");
+        setDScope("ALL_ITEMS");
         setDMinOrderAmount("");
         setDMaxDiscountAmount("");
         setDBuyQty("");
@@ -210,6 +215,7 @@ export default function DiscountsAndCouponsPage() {
         setDStartsAt(new Date().toISOString().slice(0, 16));
         setDEndsAt(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
         setDRequiresCoupon(false);
+        setDStatus("ACTIVE");
         setDChannels(["POS", "WEB"]);
         setDSelectedItems([]);
         setIsDiscountDialogOpen(true);
@@ -232,6 +238,7 @@ export default function DiscountsAndCouponsPage() {
         setDStartsAt(d.startsAt ? new Date(d.startsAt).toISOString().slice(0, 16) : "");
         setDEndsAt(d.endsAt ? new Date(d.endsAt).toISOString().slice(0, 16) : "");
         setDRequiresCoupon(d.requiresCoupon ?? false);
+        setDStatus(d.status || "ACTIVE");
         setDChannels(d.applicableChannels || ["POS", "WEB"]);
         setDSelectedItems(d.targets?.filter((t) => t.targetType === "ITEM").map((t) => t.targetId) || []);
         setIsDiscountDialogOpen(true);
@@ -252,10 +259,13 @@ export default function DiscountsAndCouponsPage() {
             return;
         }
 
-        const scopePayload: DiscountScope =
-            dScope === "ITEM" || dScope === "SPECIFIC_ITEMS"
-                ? "SPECIFIC_ITEMS"
-                : "ALL_ITEMS";
+        const isSpecificScope = dScope === "ITEM" || dScope === "SPECIFIC_ITEMS";
+        if (isSpecificScope && dSelectedItems.length === 0) {
+            setDiscountFormError("Please select at least one product when scope is set to Specific Products.");
+            return;
+        }
+
+        const scopePayload: DiscountScope = isSpecificScope ? "SPECIFIC_ITEMS" : "ALL_ITEMS";
 
         const payload: CreateDiscountInput = {
             name: dName.trim(),
@@ -272,9 +282,9 @@ export default function DiscountsAndCouponsPage() {
             requiresCoupon: dRequiresCoupon,
             startsAt: new Date(dStartsAt).toISOString(),
             endsAt: new Date(dEndsAt).toISOString(),
-            status: editingDiscount ? editingDiscount.status : "ACTIVE",
+            status: dStatus,
             applicableChannels: dChannels,
-            targetItemIds: (dScope === "ITEM" || dScope === "SPECIFIC_ITEMS") ? dSelectedItems : undefined,
+            targetItemIds: isSpecificScope ? dSelectedItems : undefined,
         };
 
         try {
@@ -300,6 +310,7 @@ export default function DiscountsAndCouponsPage() {
         setCMinPurchase("0");
         setCStartsAt(new Date().toISOString().slice(0, 16));
         setCEndsAt(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
+        setCStatus("ACTIVE");
         setIsCouponDialogOpen(true);
     };
 
@@ -313,6 +324,7 @@ export default function DiscountsAndCouponsPage() {
         setCMinPurchase(c.minPurchaseAmount ? String(c.minPurchaseAmount) : "");
         setCStartsAt(c.startsAt ? new Date(c.startsAt).toISOString().slice(0, 16) : "");
         setCEndsAt(c.endsAt ? new Date(c.endsAt).toISOString().slice(0, 16) : "");
+        setCStatus(c.status || "ACTIVE");
         setIsCouponDialogOpen(true);
     };
 
@@ -339,7 +351,7 @@ export default function DiscountsAndCouponsPage() {
             minPurchaseAmount: cMinPurchase ? Number(cMinPurchase) : undefined,
             startsAt: new Date(cStartsAt).toISOString(),
             endsAt: new Date(cEndsAt).toISOString(),
-            status: editingCoupon ? editingCoupon.status : "ACTIVE",
+            status: cStatus,
         };
 
         try {
@@ -571,16 +583,15 @@ export default function DiscountsAndCouponsPage() {
                                         )}
                                         {isDiscColVisible("status") && (
                                             <TableCell>
-                                                <button
-                                                    onClick={() => handleToggleDiscountStatus(d)}
-                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                <span
+                                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                                                         d.status === "ACTIVE"
-                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                            ? "bg-primary/10 text-primary border border-primary/20"
+                                                            : "bg-muted text-muted-foreground border border-border"
                                                     }`}
                                                 >
                                                     {d.status === "ACTIVE" ? "Active" : "Inactive"}
-                                                </button>
+                                                </span>
                                             </TableCell>
                                         )}
                                         <TableCell className="text-right space-x-1">
@@ -680,16 +691,15 @@ export default function DiscountsAndCouponsPage() {
                                         )}
                                         {isCoupColVisible("status") && (
                                             <TableCell>
-                                                <button
-                                                    onClick={() => handleToggleCouponStatus(c)}
-                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                <span
+                                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                                                         c.status === "ACTIVE"
-                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                            ? "bg-primary/10 text-primary border border-primary/20"
+                                                            : "bg-muted text-muted-foreground border border-border"
                                                     }`}
                                                 >
                                                     {c.status === "ACTIVE" ? "Active" : "Inactive"}
-                                                </button>
+                                                </span>
                                             </TableCell>
                                         )}
                                         <TableCell className="text-right space-x-1">
@@ -720,20 +730,22 @@ export default function DiscountsAndCouponsPage() {
 
             {/* --- CREATE / EDIT DISCOUNT DIALOG --- */}
             <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold">
-                            {editingDiscount ? "Edit Discount Rule" : "Create New Discount Rule"}
-                        </DialogTitle>
-                    </DialogHeader>
+                <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <div className="p-6 pb-4 border-b border-border shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-lg font-bold">
+                                {editingDiscount ? "Edit Discount Rule" : "Create New Discount Rule"}
+                            </DialogTitle>
+                        </DialogHeader>
 
-                    {discountFormError && (
-                        <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
-                            {discountFormError}
-                        </div>
-                    )}
+                        {discountFormError && (
+                            <div className="mt-3 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+                                {discountFormError}
+                            </div>
+                        )}
+                    </div>
 
-                    <div className="space-y-4 py-2">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         {/* Name & Description */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -748,15 +760,15 @@ export default function DiscountsAndCouponsPage() {
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="dType">Discount Calculation Type *</Label>
-                                <select
+                                <SelectField
                                     id="dType"
                                     value={dType}
-                                    onChange={(e) => setDType(e.target.value as DiscountType)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                >
-                                    <option value="PERCENTAGE">Percentage (%)</option>
-                                    <option value="FIXED_AMOUNT">Fixed Amount ({baseSymbol})</option>
-                                </select>
+                                    onValueChange={(val) => setDType(val as DiscountType)}
+                                    options={[
+                                        { value: "PERCENTAGE", label: "Percentage (%)" },
+                                        { value: "FIXED_AMOUNT", label: `Fixed Amount (${baseSymbol})` },
+                                    ]}
+                                />
                             </div>
                         </div>
 
@@ -789,20 +801,20 @@ export default function DiscountsAndCouponsPage() {
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="dScope">Scope *</Label>
-                                <select
+                                <SelectField
                                     id="dScope"
-                                    value={dScope}
-                                    onChange={(e) => setDScope(e.target.value as DiscountScope)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                >
-                                    <option value="ORDER">Entire Order</option>
-                                    <option value="ITEM">Specific Products</option>
-                                </select>
+                                    value={dScope === "ITEM" || dScope === "SPECIFIC_ITEMS" ? "SPECIFIC_ITEMS" : "ALL_ITEMS"}
+                                    onValueChange={(val) => setDScope(val as DiscountScope)}
+                                    options={[
+                                        { value: "ALL_ITEMS", label: "Entire Order" },
+                                        { value: "SPECIFIC_ITEMS", label: "Specific Products" },
+                                    ]}
+                                />
                             </div>
                         </div>
 
-                        {/* Specific Items Selection when scope = ITEM */}
-                        {dScope === "ITEM" && (
+                        {/* Specific Items Selection when scope = SPECIFIC_ITEMS */}
+                        {(dScope === "ITEM" || dScope === "SPECIFIC_ITEMS") && (
                             <div className="space-y-1.5 border border-border p-3 rounded-lg bg-muted/20">
                                 <Label>Target Products</Label>
                                 <p className="text-xs text-muted-foreground mb-2">Select items this discount applies to:</p>
@@ -826,17 +838,17 @@ export default function DiscountsAndCouponsPage() {
                         {/* Rule Conditions */}
                         <div className="space-y-2 border border-border p-3 rounded-lg bg-muted/10">
                             <Label htmlFor="dRuleType">Condition Rule Type</Label>
-                            <select
+                            <SelectField
                                 id="dRuleType"
                                 value={dRuleType}
-                                onChange={(e) => setDRuleType(e.target.value as DiscountRuleType)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                            >
-                                <option value="NO_CONDITION">No Minimum Condition</option>
-                                <option value="MIN_ORDER_AMOUNT">Minimum Order Amount</option>
-                                <option value="MIN_QUANTITY">Minimum Quantity</option>
-                                <option value="BUY_X_GET_Y">Buy X Get Y Free</option>
-                            </select>
+                                onValueChange={(val) => setDRuleType(val as DiscountRuleType)}
+                                options={[
+                                    { value: "NO_CONDITION", label: "No Minimum Condition" },
+                                    { value: "MIN_ORDER_AMOUNT", label: "Minimum Order Amount" },
+                                    { value: "MIN_QUANTITY", label: "Minimum Quantity" },
+                                    { value: "BUY_X_GET_Y", label: "Buy X Get Y Free" },
+                                ]}
+                            />
 
                             {dRuleType === "MIN_ORDER_AMOUNT" && (
                                 <div className="pt-2">
@@ -913,6 +925,31 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         </div>
 
+                        {/* Status Toggle Switch */}
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
+                            <div>
+                                <Label className="text-sm font-semibold">Discount Rule Status</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {dStatus === "ACTIVE"
+                                        ? "Active — discount rule is enabled and will apply to orders"
+                                        : "Inactive — discount rule is disabled"}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setDStatus(dStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
+                                    dStatus === "ACTIVE" ? "bg-primary" : "bg-muted-foreground/40"
+                                }`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                                        dStatus === "ACTIVE" ? "translate-x-5" : "translate-x-0"
+                                    }`}
+                                />
+                            </button>
+                        </div>
+
                         {/* Applicable Channels */}
                         <div className="space-y-1.5">
                             <Label>Applicable Channels</Label>
@@ -949,55 +986,56 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveDiscount}
-                            disabled={isCreatingDiscount || isUpdatingDiscount}
-                            className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                            {(isCreatingDiscount || isUpdatingDiscount) && (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            )}
-                            Save Discount
-                        </Button>
-                    </DialogFooter>
+                    <div className="p-4 sm:px-6 border-t border-border shrink-0 bg-card">
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveDiscount}
+                                disabled={isCreatingDiscount || isUpdatingDiscount}
+                                className="bg-primary hover:bg-primary/90 text-white"
+                            >
+                                {(isCreatingDiscount || isUpdatingDiscount) && (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                )}
+                                Save Discount
+                            </Button>
+                        </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 
             {/* --- CREATE / EDIT COUPON DIALOG --- */}
             <Dialog open={isCouponDialogOpen} onOpenChange={setIsCouponDialogOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold">
-                            {editingCoupon ? "Edit Coupon Code" : "Create New Coupon Code"}
-                        </DialogTitle>
-                    </DialogHeader>
+                <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <div className="p-6 pb-4 border-b border-border shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-lg font-bold">
+                                {editingCoupon ? "Edit Coupon Code" : "Create New Coupon Code"}
+                            </DialogTitle>
+                        </DialogHeader>
 
-                    {couponFormError && (
-                        <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
-                            {couponFormError}
-                        </div>
-                    )}
+                        {couponFormError && (
+                            <div className="mt-3 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+                                {couponFormError}
+                            </div>
+                        )}
+                    </div>
 
-                    <div className="space-y-4 py-2">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="cDiscount">Linked Discount Rule *</Label>
-                            <select
+                            <SelectField
                                 id="cDiscount"
                                 value={cDiscountId}
-                                onChange={(e) => setCDiscountId(e.target.value)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                            >
-                                <option value="">Select a Discount Rule...</option>
-                                {discounts.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={(val) => setCDiscountId(val)}
+                                placeholder="Select a Discount Rule..."
+                                options={discounts.map((d) => ({
+                                    value: d.id,
+                                    label: `${d.name} (${d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})`,
+                                }))}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -1066,23 +1104,49 @@ export default function DiscountsAndCouponsPage() {
                                 />
                             </div>
                         </div>
+                        {/* Status Toggle Switch */}
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
+                            <div>
+                                <Label className="text-sm font-semibold">Coupon Status</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {cStatus === "ACTIVE"
+                                        ? "Active — coupon code can be redeemed"
+                                        : "Inactive — coupon code is disabled"}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setCStatus(cStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
+                                    cStatus === "ACTIVE" ? "bg-primary" : "bg-muted-foreground/40"
+                                }`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                                        cStatus === "ACTIVE" ? "translate-x-5" : "translate-x-0"
+                                    }`}
+                                />
+                            </button>
+                        </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveCoupon}
-                            disabled={isCreatingCoupon || isUpdatingCoupon}
-                            className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                            {(isCreatingCoupon || isUpdatingCoupon) && (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            )}
-                            Save Coupon
-                        </Button>
-                    </DialogFooter>
+                    <div className="p-4 sm:px-6 border-t border-border shrink-0 bg-card">
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveCoupon}
+                                disabled={isCreatingCoupon || isUpdatingCoupon}
+                                className="bg-primary hover:bg-primary/90 text-white"
+                            >
+                                {(isCreatingCoupon || isUpdatingCoupon) && (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                )}
+                                Save Coupon
+                            </Button>
+                        </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 

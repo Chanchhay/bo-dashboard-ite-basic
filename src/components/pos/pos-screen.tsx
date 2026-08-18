@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 
 import type { Item } from "@/types/pos-type";
@@ -106,6 +106,33 @@ export function PosScreen({
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [paidReceipt, setPaidReceipt] = useState<PaidReceiptState | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  const [activeDiscountLabel, setActiveDiscountLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    const updateDiscountLabel = () => {
+      try {
+        const raw = localStorage.getItem("pos_store_default_discount");
+        if (raw) {
+          const rule = JSON.parse(raw);
+          setActiveDiscountLabel(rule.label || "Active");
+        } else {
+          setActiveDiscountLabel(null);
+        }
+      } catch {
+        setActiveDiscountLabel(null);
+      }
+    };
+
+    updateDiscountLabel();
+    window.addEventListener("storage", updateDiscountLabel);
+    const interval = setInterval(updateDiscountLabel, 1000);
+    return () => {
+      window.removeEventListener("storage", updateDiscountLabel);
+      clearInterval(interval);
+    };
+  }, []);
+
   const { data: currentStockList = [] } = useGetCurrentStockQuery();
 
   const stockByItemId = useMemo(() => {
@@ -754,7 +781,12 @@ export function PosScreen({
 
         <PosButton
           active={activeTab}
+          activeDiscountLabel={activeDiscountLabel}
           onChange={(tab) => {
+            if (tab === "Discount") {
+              setDiscountModalOpen(true);
+              return;
+            }
             setActiveTab(tab);
             setOpenReceiptId(null);
           }}
@@ -767,6 +799,8 @@ export function PosScreen({
             onPaymentSuccess={handlePaymentSuccess}
             onOrderCreated={handleOrderCreated}
             isEditingOrder={editingOrderId !== null}
+            discountModalOpen={discountModalOpen}
+            onDiscountModalOpenChange={setDiscountModalOpen}
           />
         </div>
       )}
@@ -803,6 +837,8 @@ export function PosScreen({
               onPaymentSuccess={handlePaymentSuccess}
               onOrderCreated={handleOrderCreated}
               isEditingOrder={editingOrderId !== null}
+              discountModalOpen={discountModalOpen}
+              onDiscountModalOpenChange={setDiscountModalOpen}
             />
           </div>
         </div>

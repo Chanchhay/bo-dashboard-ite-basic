@@ -42,12 +42,80 @@ export interface OrderTableProps {
   /** Selects the Order tab after the current order is parked. */
   onOrderCreated?: () => void;
   isEditingOrder?: boolean;
+  discountModalOpen?: boolean;
+  onDiscountModalOpenChange?: (open: boolean) => void;
 }
 
 /**
  * The payment dialog still speaks the older snake_case `Order`.
  */
 import { getActiveDefaultTax } from "@/lib/tax-store";
+
+function computeItemDiscount(
+  item: PosOrderItem,
+  orderVal: PosOrder | null,
+  rule: AppliedDiscountRule | null
+): { discountAmount: number; label?: string } {
+  if (!rule) {
+    return { discountAmount: item.discountAmount ?? 0 };
+  }
+
+  let isEligible = true;
+  if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+    const targetIds = new Set(rule.targetItemIds || []);
+    if (targetIds.size > 0 && !targetIds.has(item.itemId)) {
+      isEligible = false;
+    }
+  }
+
+  if (!isEligible) {
+    return { discountAmount: 0 };
+  }
+
+  const lineSubtotal = item.unitPrice * item.quantity;
+  if (lineSubtotal <= 0) return { discountAmount: 0 };
+
+  const targetIds = (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM")
+    ? new Set(rule.targetItemIds || [])
+    : null;
+
+  const eligibleSubtotal = (orderVal?.items || []).reduce((sum, i) => {
+    if (!targetIds || targetIds.has(i.itemId)) {
+      return sum + i.unitPrice * i.quantity;
+    }
+    return sum;
+  }, 0);
+
+  if (eligibleSubtotal <= 0) return { discountAmount: 0 };
+
+  let disc = 0;
+  if (rule.type === "PERCENTAGE") {
+    disc = (lineSubtotal * rule.value) / 100;
+    if (rule.maxDiscountAmount) {
+      const totalPercentageDisc = (eligibleSubtotal * rule.value) / 100;
+      if (totalPercentageDisc > rule.maxDiscountAmount) {
+        disc = (lineSubtotal / eligibleSubtotal) * rule.maxDiscountAmount;
+      }
+    }
+  } else if (rule.type === "FINAL_PRICE") {
+    const targetAmount = Math.max(0, eligibleSubtotal - rule.value);
+    disc = (lineSubtotal / eligibleSubtotal) * targetAmount;
+  } else {
+    const totalDisc = Math.min(eligibleSubtotal, rule.value);
+    disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+  }
+
+  disc = Math.min(lineSubtotal, Math.max(0, parseFloat(disc.toFixed(2))));
+
+  return {
+    discountAmount: disc,
+    label: rule.discountCode
+      ? `Code: ${rule.discountCode}`
+      : rule.type === "PERCENTAGE"
+      ? `${rule.value}% OFF`
+      : undefined,
+  };
+}
 
 function legacyOrderShape(order: PosOrder): Order {
   const subtotalNum = order.subtotal ?? 0;
@@ -76,6 +144,12 @@ function legacyOrderShape(order: PosOrder): Order {
     ? afterDiscount
     : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
 
+  let storedRule: AppliedDiscountRule | null = null;
+  try {
+    const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
+    if (raw) storedRule = JSON.parse(raw);
+  } catch {}
+
   return {
     id: order.id,
     business_owner_id: order.businessId,
@@ -93,26 +167,26 @@ function legacyOrderShape(order: PosOrder): Order {
     comment: null,
     created_at: order.createdDate ?? "",
     updated_at: null,
-    items: order.items.map((line) => ({
-      id: line.id,
-      business_owner_id: order.businessId,
-      order_id: order.id,
-      product_id: line.itemId,
-      variant_id: line.variantId,
-      product_name: line.itemName,
-      // The option and the unit are two different things. This used to put the
-      // unit in the variant's field, which left nowhere to say which size it
-      // was and made "6 Pack" read as an option.
-      variant_name: line.variantName ?? null,
-      unit_name: line.unitName ?? null,
-      unit_factor: line.unitFactor ?? null,
-      add_ons: (line.addOns || []).map((addOn) => ({ name: addOn.name })),
-      quantity: line.quantity,
-      unit_price: String(line.unitPrice),
-      unit_cost: "0",
-      discount_amount: String(line.discountAmount),
-      applied_discount: null,
-    })),
+    items: order.items.map((line) => {
+      const disc = computeItemDiscount(line, order, storedRule);
+      return {
+        id: line.id,
+        business_owner_id: order.businessId,
+        order_id: order.id,
+        product_id: line.itemId,
+        variant_id: line.variantId,
+        product_name: line.itemName,
+        variant_name: line.variantName ?? null,
+        unit_name: line.unitName ?? null,
+        unit_factor: line.unitFactor ?? null,
+        add_ons: (line.addOns || []).map((addOn) => ({ name: addOn.name })),
+        quantity: line.quantity,
+        unit_price: String(line.unitPrice),
+        unit_cost: "0",
+        discount_amount: String(disc.discountAmount),
+        applied_discount: null,
+      };
+    }),
   };
 }
 
@@ -127,6 +201,7 @@ interface ItemRowProps {
   onRemove: (orderItemId: string) => void;
   /** Quantity buttons are held while the line is being written. */
   busy?: boolean;
+  discountInfo?: { discountAmount: number; label?: string };
 }
 
 const ItemRow = memo(function ItemRow({
@@ -136,13 +211,17 @@ const ItemRow = memo(function ItemRow({
   onDecrease,
   onRemove,
   busy,
+  discountInfo,
 }: ItemRowProps) {
   const { format } = useMoney();
+  const grossTotal = item.unitPrice * item.quantity;
+  const lineDiscount = discountInfo?.discountAmount ?? item.discountAmount ?? 0;
+  const netTotal = Math.max(0, grossTotal - lineDiscount);
 
   return (
-    <tr className="align-middle">
+    <tr className="align-middle border-b border-gray-100">
       <td className="break-words px-2 py-2.5 text-xs text-gray-800 sm:px-4 sm:text-sm">
-        {item.itemName}
+        <span className="font-semibold text-gray-900">{item.itemName}</span>
         {/* Which option was picked. Two sizes at two prices are otherwise the
             same line twice, and the cashier cannot tell which is which. */}
         {item.variantName ? (
@@ -171,6 +250,7 @@ const ItemRow = memo(function ItemRow({
               .join(" · ")}
           </span>
         ) : null}
+
       </td>
 
       <td className="px-1 py-2.5 sm:px-4">
@@ -206,7 +286,18 @@ const ItemRow = memo(function ItemRow({
       </td>
 
       <td className="py-2.5 pl-2 pr-2 text-right font-mono text-sm font-bold text-[#1e1e1e]">
-        {format(item.lineTotal, currency)}
+        {lineDiscount > 0 ? (
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-[11px] font-normal text-gray-400 line-through">
+              {format(grossTotal, currency)}
+            </span>
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              {format(netTotal, currency)}
+            </span>
+          </div>
+        ) : (
+          format(grossTotal, currency)
+        )}
       </td>
 
       <td className="px-2 py-2.5 sm:px-4">
@@ -232,6 +323,8 @@ export function OrderTable({
   onPaymentSuccess,
   onOrderCreated,
   isEditingOrder = false,
+  discountModalOpen: externalDiscountModalOpen,
+  onDiscountModalOpenChange,
 }: OrderTableProps) {
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
@@ -252,7 +345,13 @@ export function OrderTable({
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
-  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  const [internalDiscountModalOpen, setInternalDiscountModalOpen] = useState(false);
+
+  const isDiscountModalOpen = externalDiscountModalOpen ?? internalDiscountModalOpen;
+  const setDiscountModalOpen = (open: boolean) => {
+    setInternalDiscountModalOpen(open);
+    onDiscountModalOpenChange?.(open);
+  };
 
   const lineQuantityRef = useRef<Map<string, number>>(new Map());
 
@@ -333,8 +432,17 @@ export function OrderTable({
     [removeOrderItem],
   );
 
+  const STORE_DEFAULT_DISCOUNT_KEY = "pos_store_default_discount";
+
   const [activeDiscountRule, setActiveDiscountRule] =
-    useState<AppliedDiscountRule | null>(null);
+    useState<AppliedDiscountRule | null>(() => {
+      if (typeof window === "undefined") return null;
+      try {
+        const raw = localStorage.getItem("pos_store_default_discount");
+        if (raw) return JSON.parse(raw);
+      } catch {}
+      return null;
+    });
 
   const computeTargetDiscountAmount = (orderVal: PosOrder, rule: AppliedDiscountRule): number => {
     let eligibleSubtotal = orderVal.subtotal;
@@ -372,33 +480,44 @@ export function OrderTable({
   };
 
   useEffect(() => {
-    if (!order?.id) {
-      setActiveDiscountRule(null);
-      return;
+    if (typeof window === "undefined") return;
+
+    const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+    let rule: AppliedDiscountRule | null = null;
+
+    if (storeDefaultRaw) {
+      try {
+        rule = JSON.parse(storeDefaultRaw);
+      } catch {}
     }
 
-    const key = `pos_cart_discount_${order.id}`;
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      setActiveDiscountRule(null);
-      return;
-    }
-
-    try {
-      const rule: AppliedDiscountRule = JSON.parse(raw);
-      setActiveDiscountRule(rule);
-
-      const targetAmount = computeTargetDiscountAmount(order, rule);
-
-      if (Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001) {
-        void setOrderDiscount({
-          discountAmount: targetAmount,
-          discountId: rule.discountId,
-          discountCode: rule.discountCode,
-        });
+    if (order?.id) {
+      const cartKey = `pos_cart_discount_${order.id}`;
+      const cartRaw = localStorage.getItem(cartKey);
+      if (cartRaw) {
+        try {
+          rule = JSON.parse(cartRaw);
+        } catch {}
+      } else if (rule) {
+        try {
+          localStorage.setItem(cartKey, JSON.stringify(rule));
+        } catch {}
       }
-    } catch {
-      localStorage.removeItem(key);
+    }
+
+    if (rule) {
+      setActiveDiscountRule(rule);
+      if (order?.id) {
+        const targetAmount = computeTargetDiscountAmount(order, rule);
+        if (Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001) {
+          void setOrderDiscount({
+            discountAmount: targetAmount,
+            discountId: rule.discountId,
+            discountCode: rule.discountCode,
+          });
+        }
+      }
+    } else {
       setActiveDiscountRule(null);
     }
   }, [order?.id, order?.subtotal, order?.discountAmount, order?.items, setOrderDiscount]);
@@ -421,26 +540,34 @@ export function OrderTable({
   };
 
   const handleApplyDiscountRule = async (rule: AppliedDiscountRule | null) => {
-    if (!order?.id) return;
-    const key = `pos_cart_discount_${order.id}`;
-
     if (!rule) {
-      localStorage.removeItem(key);
+      localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
+      if (order?.id) {
+        localStorage.removeItem(`pos_cart_discount_${order.id}`);
+      }
       setActiveDiscountRule(null);
-      await setOrderDiscount({ discountAmount: 0 }).unwrap();
+      if (order?.id) {
+        await setOrderDiscount({ discountAmount: 0 }).unwrap();
+      }
       return;
     }
 
-    localStorage.setItem(key, JSON.stringify(rule));
-    setActiveDiscountRule(rule);
+    localStorage.setItem(STORE_DEFAULT_DISCOUNT_KEY, JSON.stringify(rule));
 
-    const targetAmount = computeTargetDiscountAmount(order, rule);
+    if (order?.id) {
+      localStorage.setItem(`pos_cart_discount_${order.id}`, JSON.stringify(rule));
+      setActiveDiscountRule(rule);
 
-    await setOrderDiscount({
-      discountAmount: targetAmount,
-      discountId: rule.discountId,
-      discountCode: rule.discountCode,
-    }).unwrap();
+      const targetAmount = computeTargetDiscountAmount(order, rule);
+
+      await setOrderDiscount({
+        discountAmount: targetAmount,
+        discountId: rule.discountId,
+        discountCode: rule.discountCode,
+      }).unwrap();
+    } else {
+      setActiveDiscountRule(rule);
+    }
   };
 
   if (isLoading) {
@@ -546,6 +673,14 @@ export function OrderTable({
       }).unwrap();
 
       if (sold.id) {
+        if (activeDiscountRule) {
+          try {
+            localStorage.setItem(`pos_order_discount_rule_${sold.id}`, JSON.stringify(activeDiscountRule));
+            if (sale?.id) {
+              localStorage.setItem(`pos_order_discount_rule_${sale.id}`, JSON.stringify(activeDiscountRule));
+            }
+          } catch {}
+        }
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
         try {
           localStorage.setItem(`pos_order_tax_rule_${sold.id}`, JSON.stringify({
@@ -579,11 +714,26 @@ export function OrderTable({
       onIncrease={handleIncrease}
       onDecrease={handleDecrease}
       onRemove={handleRemove}
+      discountInfo={computeItemDiscount(item, order ?? null, activeDiscountRule)}
     />
   );
 
   return (
     <div className="flex h-full flex-col bg-white/90">
+      {/* Active Shop Discount Banner */}
+      {activeDiscountRule && (
+        <div className="flex items-center justify-between gap-2 border-b border-primary/20 bg-primary/10 px-4 py-2 text-xs text-primary shrink-0">
+          <div className="flex items-center gap-1.5 font-medium truncate">
+            <Tag className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="font-bold">Active Shop Discount:</span>
+            <span className="truncate">{activeDiscountRule.label}</span>
+          </div>
+          <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+            Active
+          </span>
+        </div>
+      )}
+
       {/* Customer Bar at top of POS cart */}
       <div className="border-b border-[#d9d9d9] bg-gray-50/80 px-4 py-2.5">
         {selectedCustomer ? (
@@ -695,37 +845,16 @@ export function OrderTable({
           </span>
         </div>
 
-        <div className="flex justify-between items-center py-1">
-          <div className="flex items-center gap-2">
+        {summary.discount > 0 && (
+          <div className="flex justify-between items-center py-1">
             <span className="text-primary min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">
               Discount
             </span>
-            {activeDiscountRule?.label && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
-                {activeDiscountRule.label}
-                <button
-                  type="button"
-                  onClick={() => void handleApplyDiscountRule(null)}
-                  className="hover:text-brand-red ml-0.5"
-                  title="Remove Discount"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setDiscountModalOpen(true)}
-              className="text-xs font-bold text-primary hover:bg-primary/10 px-2 py-0.5 rounded-md border border-primary/30 flex items-center gap-1 transition-all"
-            >
-              <Tag className="h-3 w-3" />
-              {summary.discount > 0 ? "Edit" : "+ Apply"}
-            </button>
+            <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
+              -{format(summary.discount, order?.currency)}
+            </span>
           </div>
-          <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-medium min-[1025px]:leading-7">
-            -{format(summary.discount, order?.currency)}
-          </span>
-        </div>
+        )}
 
         {summary.isTaxActive && !summary.isTaxInclusive && summary.taxAmount > 0 && (
           <div className="flex justify-between items-center py-1">
@@ -808,7 +937,7 @@ export function OrderTable({
 
       {/* Discount select modal */}
       <DiscountSelectModal
-        open={discountModalOpen}
+        open={isDiscountModalOpen}
         onOpenChange={setDiscountModalOpen}
         subtotal={summary.subtotal}
         currency={order?.currency}

@@ -5,7 +5,7 @@ import { Building2 } from "lucide-react";
 
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
-import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
+import type { PosOrder, PosOrderItem, PosReceipt, Sale } from "@/lib/api/pos-order";
 import type { TaxConfig } from "@/lib/api/tax";
 import { getActiveDefaultTax } from "@/lib/tax-store";
 import { useGetCustomersQuery } from "@/services/customerApi";
@@ -36,6 +36,62 @@ function businessInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+function computeItemDiscountFromRule(
+  item: PosOrderItem,
+  orderItems: PosOrderItem[],
+  rule: any
+): number {
+  if (item.discountAmount && item.discountAmount > 0) {
+    return item.discountAmount;
+  }
+  if (!rule) return 0;
+
+  let isEligible = true;
+  if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+    const targetIds = new Set(rule.targetItemIds || []);
+    if (targetIds.size > 0 && (!item.itemId || !targetIds.has(item.itemId))) {
+      isEligible = false;
+    }
+  }
+
+  if (!isEligible) return 0;
+
+  const lineSubtotal = item.unitPrice * item.quantity;
+  if (lineSubtotal <= 0) return 0;
+
+  const targetIds = (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM")
+    ? new Set(rule.targetItemIds || [])
+    : null;
+
+  const eligibleSubtotal = orderItems.reduce((sum, i) => {
+    if (!targetIds || targetIds.has(i.itemId)) {
+      return sum + i.unitPrice * i.quantity;
+    }
+    return sum;
+  }, 0);
+
+  if (eligibleSubtotal <= 0) return 0;
+
+  let disc = 0;
+  if (rule.type === "PERCENTAGE") {
+    disc = (lineSubtotal * rule.value) / 100;
+    if (rule.maxDiscountAmount) {
+      const totalPercentageDisc = (eligibleSubtotal * rule.value) / 100;
+      if (totalPercentageDisc > rule.maxDiscountAmount) {
+        disc = (lineSubtotal / eligibleSubtotal) * rule.maxDiscountAmount;
+      }
+    }
+  } else if (rule.type === "FINAL_PRICE") {
+    const targetAmount = Math.max(0, eligibleSubtotal - rule.value);
+    disc = (lineSubtotal / eligibleSubtotal) * targetAmount;
+  } else {
+    const totalDisc = Math.min(eligibleSubtotal, rule.value);
+    disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+  }
+
+  return Math.min(lineSubtotal, Math.max(0, parseFloat(disc.toFixed(2))));
 }
 
 export function ReceiptTicket({
@@ -174,13 +230,16 @@ export function ReceiptTicket({
   const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
 
   const storedRule = useMemo(() => {
-    if (!order?.id || typeof window === "undefined") return null;
+    const id = sale?.orderId || sale?.id || order?.id;
+    if (!id || typeof window === "undefined") return null;
     try {
-      const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
+      const raw =
+        localStorage.getItem(`pos_order_discount_rule_${id}`) ||
+        localStorage.getItem(`pos_cart_discount_${id}`);
       if (raw) return JSON.parse(raw);
     } catch {}
     return null;
-  }, [order?.id]);
+  }, [sale?.orderId, sale?.id, order?.id]);
 
   const discountLabel = useMemo(() => {
     if (storedRule?.label) return storedRule.label;
@@ -195,11 +254,21 @@ export function ReceiptTicket({
   const displayTotal =
     getRecordedSecondaryAmount(total, record, currencies) ??
     getSecondaryAmount(total, currencyCode, currencies);
-  const location = [business.address, business.cityOrProvince]
+  const locationStr = [business.address, business.cityOrProvince]
     .filter(Boolean)
     .join(", ");
-  const documentTitle = receipt?.vatNumber ? "Tax invoice" : "Receipt";
-  const documentTitleKhmer = receipt?.vatNumber ? "វិក្កយបត្រ" : "បង្កាន់ដៃ";
+  const statusStr = String(order.status || "");
+  const isUnpaid = statusStr === "PENDING" || statusStr === "PARKED" || statusStr === "DRAFT" || (!sale && !receipt && statusStr !== "PAID");
+  const documentTitle = isUnpaid
+    ? "UNPAID ORDER TICKET"
+    : receipt?.vatNumber
+    ? "Tax invoice"
+    : "Receipt";
+  const documentTitleKhmer = isUnpaid
+    ? "វិក្កយបត្រ (មិនទាន់ទូទាត់)"
+    : receipt?.vatNumber
+    ? "វិក្កយបត្រ"
+    : "បង្កាន់ដៃ";
 
   return (
     <article
@@ -227,9 +296,9 @@ export function ReceiptTicket({
         <h1 className="mt-[13px] text-[22px] font-bold leading-[1.45] tracking-[0.44px] text-[#006b26]">
           {businessName}
         </h1>
-        {location && (
+        {locationStr && (
           <p className="mt-[7px] max-w-full text-[13px] leading-[1.5] text-[#3d4a3c]">
-            {location}
+            {locationStr}
           </p>
         )}
         {business.phoneNumber && (
@@ -291,8 +360,12 @@ export function ReceiptTicket({
 
         {order.items.map((item) => {
           const grossAmount = item.unitPrice * item.quantity;
-          const itemDisc = item.discountAmount ?? 0;
-          const netAmount = item.lineTotal ?? (grossAmount - itemDisc);
+          let itemDisc = item.discountAmount ?? 0;
+          if (itemDisc <= 0 && storedRule) {
+            itemDisc = computeItemDiscountFromRule(item, order.items, storedRule);
+          }
+          const netAmount = Math.max(0, grossAmount - itemDisc);
+          const itemDiscPercent = grossAmount > 0 && itemDisc > 0 ? Math.round((itemDisc / grossAmount) * 100) : 0;
 
           return (
             <div
@@ -328,18 +401,29 @@ export function ReceiptTicket({
                 ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
+                  {itemDiscPercent > 0 && (
+                    <span className="ml-1.5 font-bold text-[#006b26]">
+                      ({itemDiscPercent}% OFF)
+                    </span>
+                  )}
                 </p>
-                {itemDisc > 0 && (
-                  <p className="font-mono text-[11px] font-medium text-[#d14341]">
-                    Disc: -{formatMoney(itemDisc, currency)}
-                  </p>
-                )}
               </div>
               <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
                 {item.quantity}
               </span>
               <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
-                {formatMoney(netAmount, currency)}
+                {itemDisc > 0 ? (
+                  <div className="flex flex-col items-end leading-tight">
+                    <span className="text-[11px] font-normal text-gray-400 line-through">
+                      {formatMoney(grossAmount, currency)}
+                    </span>
+                    <span className="font-bold text-[#006b26]">
+                      {formatMoney(netAmount, currency)}
+                    </span>
+                  </div>
+                ) : (
+                  formatMoney(grossAmount, currency)
+                )}
               </span>
             </div>
           );
@@ -422,19 +506,21 @@ export function ReceiptTicket({
       <dl className="space-y-1 border-b border-dashed border-[#9aa79a] py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
         <div className="flex justify-between gap-4">
           <dt>
-            Paid
-            {sale
+            {isUnpaid ? "Status / ស្ថានភាព" : "Paid"}
+            {!isUnpaid && sale
               ? ` · ${sale.paymentMethod === "CASH" ? "Cash" : "Digital"}`
               : ""}
           </dt>
-          <dd className="font-mono text-[#0e140e]">
-            {formatMoney(
-              sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
-              currency,
-            )}
+          <dd className={cn("font-mono", isUnpaid ? "font-bold text-amber-600" : "text-[#0e140e]")}>
+            {isUnpaid
+              ? "UNPAID / មិនទាន់ទូទាត់"
+              : formatMoney(
+                  sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
+                  currency,
+                )}
           </dd>
         </div>
-        {sale?.paymentMethod === "CASH" && (
+        {!isUnpaid && sale?.paymentMethod === "CASH" && (
           <div className="flex justify-between gap-4">
             <dt>Change / អាប់</dt>
             <dd className="font-mono text-[#0e140e]">
