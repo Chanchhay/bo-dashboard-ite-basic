@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const STATUS_OPTIONS = ["ALL", "OPEN", "CLOSED"] as const;
 type StatusFilter = (typeof STATUS_OPTIONS)[number];
@@ -312,7 +313,7 @@ export function RegisterSessionsHistory() {
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-              Opening Floats
+              Opening Cash
             </span>
             <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-blue-400 dark:border dark:border-blue-800/50">
               <Building2 className="h-4 sm:h-5 w-4 sm:w-5" />
@@ -344,7 +345,7 @@ export function RegisterSessionsHistory() {
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-              Total Variance
+              Total Cash Discrepancy
             </span>
             <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 dark:border dark:border-amber-800/50">
               <AlertTriangle className="h-4 sm:h-5 w-4 sm:w-5" />
@@ -366,8 +367,8 @@ export function RegisterSessionsHistory() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by cashier, user ID, register name, session ID or notes..."
-            className="w-full rounded-xl border border-border bg-muted/40 dark:bg-[#0d121c] dark:border-slate-800 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground dark:text-slate-100 placeholder:text-muted-foreground dark:placeholder:text-slate-500 outline-none transition-colors focus:border-emerald-500"
+            placeholder="Search "
+            className="w-full rounded-xl border border-border bg-muted/40 dark:bg-[#0d121c] dark:border-slate-800 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground dark:text-slate-100 placeholder:text-muted-foreground dark:placeholder:text-slate-500 outline-none transition-colors focus:border-primary"
           />
           {query && (
             <button
@@ -381,16 +382,17 @@ export function RegisterSessionsHistory() {
 
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Status Tabs */}
-          <div className="inline-flex rounded-xl bg-muted dark:bg-[#0d121c] p-1 border dark:border-slate-800/60">
+          <div className="inline-flex rounded-xl bg-muted dark:bg-[#0d121c] p-1 border border-border/60 dark:border-slate-800/60">
             {STATUS_OPTIONS.map((st) => (
               <button
                 key={st}
                 type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all focus:outline-none focus:bg-white focus:text-foreground dark:focus:bg-[#1d2739] dark:focus:text-white ${statusFilter === st
-                    ? "bg-background text-foreground dark:bg-[#1d2739] dark:text-white dark:border dark:border-slate-700 shadow-xs font-semibold"
+                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all focus:outline-none ${
+                  statusFilter === st
+                    ? "bg-white text-slate-900 shadow-sm font-semibold dark:bg-[#1d2739] dark:text-white dark:border dark:border-slate-700"
                     : "text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-200"
-                  }`}
+                }`}
               >
                 {st}
               </button>
@@ -576,14 +578,15 @@ export function RegisterSessionsHistory() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={activeColumnCount || 1} className="h-44 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground dark:text-slate-400">
-                      <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-                      <span className="text-xs font-medium">Fetching session history...</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                Array.from({ length: 8 }).map((_, rowIdx) => (
+                  <TableRow key={rowIdx} className="border-b border-border/60 dark:border-slate-800/60">
+                    {ALL_SESSION_COLUMNS.filter((col) => visibleColumns[col.key]).map((col) => (
+                      <TableCell key={col.key}>
+                        <Skeleton className="h-4 w-full max-w-24" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
               ) : filteredSessions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={activeColumnCount || 1} className="h-40 text-center text-muted-foreground dark:text-slate-400">
@@ -635,7 +638,7 @@ export function RegisterSessionsHistory() {
                       {visibleColumns.closedAt && (
                         <TableCell className="text-xs text-muted-foreground dark:text-slate-300 whitespace-nowrap">
                           {session.status === "OPEN" ? (
-                            <span className="italic text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span className="italic text-primary font-medium">
                               In Progress
                             </span>
                           ) : (
@@ -730,7 +733,7 @@ export function RegisterSessionsHistory() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <FileSpreadsheet className="h-5 w-5" />
                 </div>
                 <div>
@@ -739,12 +742,9 @@ export function RegisterSessionsHistory() {
                       Session Summary #{selectedSession.id}
                     </h3>
                     {loadingSummary && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground dark:text-slate-400">
-                    {selectedSession.registerName || `Register #${selectedSession.registerId || 1}`}
-                  </p>
                 </div>
               </div>
 
@@ -768,9 +768,9 @@ export function RegisterSessionsHistory() {
                   </p>
                 </div>
                 <div>
-                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">User ID</span>
-                  <p className="font-mono text-xs text-foreground dark:text-slate-300 mt-0.5 truncate" title={selectedSession.userId ?? ""}>
-                    {selectedSession.userId || "—"}
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Total Orders</span>
+                  <p className="text-xs font-bold text-foreground dark:text-slate-100 mt-0.5">
+                    {selectedSession.orderCount ?? 0} orders
                   </p>
                 </div>
                 <div>
@@ -783,16 +783,10 @@ export function RegisterSessionsHistory() {
                   <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Closed At</span>
                   <p className="text-xs font-medium text-foreground dark:text-slate-200 mt-0.5">
                     {selectedSession.status === "OPEN" ? (
-                      <span className="text-emerald-500 font-semibold italic">In Progress (Open)</span>
+                      <span className="text-primary font-semibold italic">In Progress (Open)</span>
                     ) : (
                       formatDate(selectedSession.closedAt)
                     )}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Total Orders</span>
-                  <p className="text-xs font-bold text-foreground dark:text-slate-100 mt-0.5">
-                    {selectedSession.orderCount ?? 0} orders
                   </p>
                 </div>
                 <div>
@@ -801,34 +795,26 @@ export function RegisterSessionsHistory() {
                     {selectedSession.reconciliationStatus || (selectedSession.status === "OPEN" ? "IN_PROGRESS" : "CLOSED")}
                   </p>
                 </div>
-                {selectedSession.businessId && (
-                  <div className="col-span-2">
-                    <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Business ID</span>
-                    <p className="font-mono text-[11px] text-muted-foreground dark:text-slate-400 mt-0.5 truncate" title={selectedSession.businessId}>
-                      {selectedSession.businessId}
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Financial Breakdown */}
               <div className="flex flex-col gap-2.5 border-t border-b border-border dark:border-slate-800 py-4">
                 <div className="flex justify-between text-muted-foreground dark:text-slate-400">
-                  <span>Starting Cash Float</span>
+                  <span>Opening Cash</span>
                   <span className="font-semibold text-foreground dark:text-slate-100">
                     {format(selectedSession.openingBalance, selectedSession.currency ?? undefined)}
                   </span>
                 </div>
                 <div className="flex justify-between text-muted-foreground dark:text-slate-400">
                   <span>Total Cash Sales</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="font-semibold text-primary">
                     +{format(selectedSession.totalCashSales, selectedSession.currency ?? undefined)}
                   </span>
                 </div>
                 {selectedSession.totalPaidIn > 0 && (
                   <div className="flex justify-between text-muted-foreground dark:text-slate-400">
                     <span>Total Paid In (Added)</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="font-semibold text-primary">
                       +{format(selectedSession.totalPaidIn, selectedSession.currency ?? undefined)}
                     </span>
                   </div>
@@ -843,7 +829,7 @@ export function RegisterSessionsHistory() {
                 )}
                 <div className="flex justify-between pt-2 border-t border-border dark:border-slate-800 text-base font-bold">
                   <span className="text-foreground dark:text-white">Expected Total Cash</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">
+                  <span className="text-primary">
                     {format(selectedSession.expectedAmount, selectedSession.currency ?? undefined)}
                   </span>
                 </div>
@@ -857,14 +843,15 @@ export function RegisterSessionsHistory() {
                 )}
                 {selectedSession.differenceAmount !== null && (
                   <div className="flex justify-between text-sm pt-1">
-                    <span className="font-semibold text-foreground dark:text-slate-200">Variance / Difference</span>
+                    <span className="font-semibold text-foreground dark:text-slate-200">Cash Discrepancy</span>
                     <span
-                      className={`font-bold ${selectedSession.differenceAmount < 0
+                      className={`font-bold ${
+                        selectedSession.differenceAmount < 0
                           ? "text-red-600 dark:text-red-400"
                           : selectedSession.differenceAmount > 0
-                            ? "text-emerald-600 dark:text-emerald-400"
+                            ? "text-primary"
                             : "text-muted-foreground dark:text-slate-400"
-                        }`}
+                      }`}
                     >
                       {selectedSession.differenceAmount >= 0 ? "+" : ""}
                       {format(selectedSession.differenceAmount, selectedSession.currency ?? undefined)}
