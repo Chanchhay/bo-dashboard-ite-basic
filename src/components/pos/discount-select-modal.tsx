@@ -31,6 +31,9 @@ export type AppliedDiscountRule = {
     discountId?: string;
     discountCode?: string;
     label?: string;
+    scope?: string;
+    targetItemIds?: string[];
+    targetItemGroupIds?: string[];
 };
 
 interface DiscountSelectModalProps {
@@ -299,12 +302,22 @@ export function DiscountSelectModal({
                                     }
                                     amt = Math.min(subtotal, amt);
 
+                                    const targetItemIds = d.targets
+                                        ?.filter((t) => t.targetType === "ITEM")
+                                        .map((t) => t.targetId);
+                                    const targetItemGroupIds = d.targets
+                                        ?.filter((t) => t.targetType === "ITEM_GROUP")
+                                        .map((t) => t.targetId);
+
                                     const rule: AppliedDiscountRule = {
                                         type: d.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
                                         value: d.value,
                                         maxDiscountAmount: d.maxDiscountAmount,
                                         discountId: d.id,
                                         label: d.name,
+                                        scope: d.scope,
+                                        targetItemIds,
+                                        targetItemGroupIds,
                                     };
 
                                     return (

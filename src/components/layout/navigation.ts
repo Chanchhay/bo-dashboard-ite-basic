@@ -296,6 +296,11 @@ export const NAVIGATION: NavSection[] = [
                 href: "/sales/sessions",
                 permission: PERMISSIONS.SALES_POS,
             },
+            {
+                label: "Tax Settings",
+                href: "/sales/taxes",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
         ],
         // The terminal is its own fullscreen app, so it gets a launch button
         // rather than a nav row that pretends to stay inside the dashboard.
