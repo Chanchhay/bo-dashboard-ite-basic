@@ -305,6 +305,15 @@ export const NAVIGATION: NavSection[] = [
                 href: "/sales/taxes",
                 permission: PERMISSIONS.SALES_MANAGE,
             },
+            {
+                // Who was on the till, and whether the drawer counted true.
+                // Beside the terminal that opens and closes those drawers
+                // rather than with the reports: it is read at the end of a
+                // shift, not for the trend.
+                label: "Register Sessions",
+                href: "/sales/sessions",
+                permission: PERMISSIONS.SALES_POS,
+            },
         ],
         // The terminal is its own fullscreen app, so it gets a launch button
         // rather than a nav row that pretends to stay inside the dashboard.

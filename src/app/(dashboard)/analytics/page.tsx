@@ -1,5 +1,4 @@
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
-import { DailyRevenue } from "@/components/analytics/DailyRevenue";
 import { ProfitByChannel } from "@/components/analytics/ProfitByChannel";
 
 /**
@@ -18,8 +17,6 @@ export default function AnalyticsPage() {
             />
 
             <ProfitByChannel />
-
-            <DailyRevenue />
         </div>
     );
 }

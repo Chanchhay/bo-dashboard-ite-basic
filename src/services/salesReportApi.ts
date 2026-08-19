@@ -1,8 +1,5 @@
 import { baseApi } from "@/lib/baseApi";
-import type {
-    DailyChannelRevenue,
-    SalesProfit,
-} from "@/lib/api/sales-report";
+import type { DailyChannelRevenue, SalesProfit } from "@/lib/api/sales-report";
 
 export const salesReportApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
@@ -27,12 +24,13 @@ export const salesReportApi = baseApi.injectEndpoints({
         }),
 
         /**
-         * Revenue per channel per day over a range.
+         * Revenue per channel, per day, over a range.
          *
-         * Days a channel sold nothing come back absent rather than zero; the
-         * caller knows the range it asked for and fills its own gaps.
+         * What the dashboard's trend graph draws from — one row per day a
+         * channel had at least one sale, so a quiet day is a gap rather than a
+         * zero the caller has to know to insert.
          */
-        getDailyRevenue: builder.query<
+        getDailyRevenueByChannel: builder.query<
             DailyChannelRevenue[],
             { from?: string; to?: string }
         >({
@@ -43,10 +41,10 @@ export const salesReportApi = baseApi.injectEndpoints({
                     ...(to ? { to } : {}),
                 },
             }),
-            providesTags: ["SalesDailyRevenue"],
+            providesTags: ["SalesProfit"],
         }),
     }),
 });
 
-export const { useGetSalesProfitQuery, useGetDailyRevenueQuery } =
+export const { useGetSalesProfitQuery, useGetDailyRevenueByChannelQuery } =
     salesReportApi;
