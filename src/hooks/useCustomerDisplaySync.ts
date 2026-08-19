@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { usePublishCustomerDisplayMutation } from "@/services/customerDisplayApi";
 import type {
@@ -93,6 +94,17 @@ export function useCustomerDisplaySync({
     }
     lastPayloadKeyRef.current = payloadKey;
 
+    const subtotal = sale?.subtotal ?? order?.subtotal ?? 0;
+    const discountAmount = sale?.discountAmount ?? order?.discountAmount ?? 0;
+
+    const activeTax = getActiveDefaultTax();
+    const isTaxActive = activeTax?.isActive ?? false;
+    const taxRate = isTaxActive ? (sale?.taxRate ?? order?.taxRate ?? activeTax?.taxRate ?? 0) : 0;
+
+    const computedTax = isTaxActive
+      ? (sale?.taxAmount ?? order?.taxAmount ?? (subtotal - discountAmount) * (taxRate / 100))
+      : 0;
+
     const payload: CustomerDisplayPayload = {
       terminalId,
       businessId: businessId || business?.id,
@@ -101,10 +113,11 @@ export function useCustomerDisplaySync({
       businessThumbnail: business?.thumbnail || null,
       status: computedStatus,
       items,
-      subtotal: sale?.subtotal ?? order?.subtotal ?? 0,
-      discountAmount: sale?.discountAmount ?? order?.discountAmount ?? 0,
-      tax: 0,
-      total: sale?.totalAmount ?? order?.total ?? 0,
+      subtotal,
+      discountAmount,
+      tax: Math.max(0, computedTax),
+      taxRate,
+      total: sale?.totalAmount ?? order?.total ?? Math.max(0, subtotal - discountAmount + computedTax),
       currency: sale?.currency ?? order?.currency ?? "USD",
       invoiceNumber: sale?.invoiceNumber || order?.invoiceNumber || null,
       qrCodeUrl: qrCodeUrl ?? null,

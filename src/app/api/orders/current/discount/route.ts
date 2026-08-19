@@ -34,47 +34,9 @@ export async function PATCH(request: Request) {
         const discountRatio = discountAmount / itemsSubtotal;
         let runningDiscountTotal = 0;
 
-        // Try updating Spring backend order items with proportional discounts
-        for (let i = 0; i < order.items.length; i++) {
-            const item = order.items[i];
-            const itemSubtotal = item.unitPrice * item.quantity;
-
-            let itemDiscount = 0;
-            if (i === order.items.length - 1) {
-                // Ensure exact total match on last item
-                itemDiscount = Math.max(0, parseFloat((discountAmount - runningDiscountTotal).toFixed(2)));
-            } else {
-                itemDiscount = Math.min(
-                    itemSubtotal,
-                    parseFloat((itemSubtotal * discountRatio).toFixed(2))
-                );
-                runningDiscountTotal += itemDiscount;
-            }
-
-            try {
-                await backendRequest<unknown>(
-                    ordersPath(
-                        businessId,
-                        `/${encodeURIComponent(order.id)}/items/${encodeURIComponent(item.id)}`
-                    ),
-                    {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                            quantity: item.quantity,
-                            discountAmount: itemDiscount,
-                        }),
-                    }
-                );
-            } catch {
-                // Ignore item patch error if endpoint not reached
-            }
-        }
-
-        let updated: PosOrder;
-
+        // 1. Try explicit order discount patch directly to Spring backend
         try {
-            // Try explicit order discount patch
-            updated = await backendRequest<PosOrder>(
+            const updated = await backendRequest<PosOrder>(
                 ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
                 {
                     method: "PATCH",
@@ -85,30 +47,17 @@ export async function PATCH(request: Request) {
                     }),
                 }
             );
+            return Response.json(updated);
         } catch {
-            try {
-                // Try main order get/patch
-                updated = await backendRequest<PosOrder>(
-                    ordersPath(businessId, `/${encodeURIComponent(order.id)}`)
-                );
-                updated = {
-                    ...updated,
-                    subtotal: itemsSubtotal,
-                    discountAmount,
-                    total: Math.max(0, itemsSubtotal - discountAmount),
-                };
-            } catch {
-                // Fallback for local order state
-                updated = {
-                    ...order,
-                    subtotal: itemsSubtotal,
-                    discountAmount,
-                    total: Math.max(0, itemsSubtotal - discountAmount),
-                };
-            }
+            // 2. Fallback: update local order state
+            const updated: PosOrder = {
+                ...order,
+                subtotal: itemsSubtotal,
+                discountAmount,
+                total: Math.max(0, itemsSubtotal - discountAmount),
+            };
+            return Response.json(updated);
         }
-
-        return Response.json(updated);
     } catch (error) {
         return backendErrorResponse(error);
     }
