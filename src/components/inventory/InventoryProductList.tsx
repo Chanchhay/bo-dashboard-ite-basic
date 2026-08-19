@@ -4,7 +4,7 @@ import { useMoney } from "@/hooks/useMoney";
 import { formatAmount } from "@/lib/inventory-config/units";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     ChevronDown,
     ChevronLeft,
@@ -61,6 +61,7 @@ import { cn } from "@/lib/utils";
 import {
     useDeleteInventoryItemMutation,
     useGetAddOnSetsQuery,
+    useGetInventoryItemOptionsQuery,
     useGetInventoryItemsQuery,
     useLazyGetInventoryItemsQuery,
     useGetInventoryUnitsQuery,
@@ -549,6 +550,118 @@ export function InventoryProductList() {
             unit.name || "Unnamed unit",
         ]),
     );
+    const itemOptionsQuery = useGetInventoryItemOptionsQuery();
+
+    const dynamicPriceRanges = useMemo(() => {
+        const storeItems = itemOptionsQuery.data ?? [];
+        const prices: number[] = [];
+
+        for (const item of storeItems) {
+            if (typeof item.price === "number" && !isNaN(item.price) && item.price >= 0) {
+                prices.push(item.price);
+            }
+            if (Array.isArray(item.variants)) {
+                for (const v of item.variants) {
+                    if (typeof v.price === "number" && !isNaN(v.price) && v.price >= 0) {
+                        prices.push(v.price);
+                    }
+                }
+            }
+        }
+
+        const candidateSteps = [
+            1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 5000, 10000,
+        ];
+
+        let boundaries: number[] = [];
+
+        if (prices.length === 0) {
+            boundaries = [5, 10, 20, 50];
+        } else {
+            const minP = Math.min(...prices);
+            const maxP = Math.max(...prices);
+
+            const firstStepIndex = candidateSteps.findIndex((step) => step > minP);
+            const startIndex = firstStepIndex !== -1 ? firstStepIndex : 0;
+
+            const selectedSteps: number[] = [];
+            let currIdx = startIndex;
+            while (currIdx < candidateSteps.length && selectedSteps.length < 4) {
+                const step = candidateSteps[currIdx];
+                selectedSteps.push(step);
+                if (step >= maxP) {
+                    break;
+                }
+                currIdx++;
+            }
+
+            if (selectedSteps.length === 1 && startIndex + 1 < candidateSteps.length) {
+                selectedSteps.push(candidateSteps[startIndex + 1]);
+            }
+
+            boundaries = selectedSteps.length > 0 ? selectedSteps : [5, 10, 20, 50];
+        }
+
+        const options: Array<{
+            id: string;
+            label: string;
+            minPrice: string;
+            maxPrice: string;
+        }> = [];
+
+        const b1 = boundaries[0];
+        options.push({
+            id: `under-${b1}`,
+            label: `Under ${formatMoney(b1)}`,
+            minPrice: "",
+            maxPrice: String(b1),
+        });
+
+        for (let i = 0; i < boundaries.length - 1; i++) {
+            const low = boundaries[i];
+            const high = boundaries[i + 1];
+            options.push({
+                id: `${low}-${high}`,
+                label: `${formatMoney(low)} – ${formatMoney(high)}`,
+                minPrice: String(low),
+                maxPrice: String(high),
+            });
+        }
+
+        const lastB = boundaries[boundaries.length - 1];
+        options.push({
+            id: `${lastB}-plus`,
+            label: `${formatMoney(lastB)}+`,
+            minPrice: String(lastB),
+            maxPrice: "",
+        });
+
+        return options;
+    }, [itemOptionsQuery.data, formatMoney]);
+
+    const selectedPriceRangeKey = useMemo(() => {
+        const min = productDraftFilters.minPrice;
+        const max = productDraftFilters.maxPrice;
+        if (!min && !max) return "ALL";
+
+        const match = dynamicPriceRanges.find(
+            (r) => r.minPrice === min && r.maxPrice === max,
+        );
+        return match ? match.id : "ALL";
+    }, [productDraftFilters.minPrice, productDraftFilters.maxPrice, dynamicPriceRanges]);
+
+    function handlePriceRangeChange(value: string) {
+        if (value === "ALL") {
+            updateDraftFilter("minPrice", "");
+            updateDraftFilter("maxPrice", "");
+        } else {
+            const option = dynamicPriceRanges.find((r) => r.id === value);
+            if (option) {
+                updateDraftFilter("minPrice", option.minPrice);
+                updateDraftFilter("maxPrice", option.maxPrice);
+            }
+        }
+    }
 
     const advancedFilterCount = Object.entries(productFilters).filter(
         ([key, value]) => key === "itemType" ? value !== "ALL" : Boolean(value),
@@ -1002,59 +1115,35 @@ export function InventoryProductList() {
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-min-price">
-                                        Minimum price
+                                    <Label htmlFor="item-filter-price-range">
+                                        Price range
                                     </Label>
-                                    <Input
-                                        id="item-filter-min-price"
-                                        type="number"
-                                        inputMode="decimal"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={productDraftFilters.minPrice}
-                                        aria-invalid={Boolean(
-                                            filterErrors.minPrice,
-                                        )}
-                                        onChange={(event) =>
-                                            updateDraftFilter(
-                                                "minPrice",
-                                                event.target.value,
-                                            )
+                                    <Select
+                                        value={selectedPriceRangeKey}
+                                        onValueChange={(value) =>
+                                            handlePriceRangeChange(value || "ALL")
                                         }
-                                    />
-                                    {filterErrors.minPrice ? (
+                                    >
+                                        <SelectTrigger id="item-filter-price-range">
+                                            <SelectValue placeholder="All prices" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">
+                                                All prices
+                                            </SelectItem>
+                                            {dynamicPriceRanges.map((option) => (
+                                                <SelectItem
+                                                    key={option.id}
+                                                    value={option.id}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {filterErrors.minPrice || filterErrors.maxPrice ? (
                                         <p className="text-xs text-danger">
-                                            {filterErrors.minPrice}
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-max-price">
-                                        Maximum price
-                                    </Label>
-                                    <Input
-                                        id="item-filter-max-price"
-                                        type="number"
-                                        inputMode="decimal"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="No maximum"
-                                        value={productDraftFilters.maxPrice}
-                                        aria-invalid={Boolean(
-                                            filterErrors.maxPrice,
-                                        )}
-                                        onChange={(event) =>
-                                            updateDraftFilter(
-                                                "maxPrice",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                    {filterErrors.maxPrice ? (
-                                        <p className="text-xs text-danger">
-                                            {filterErrors.maxPrice}
+                                            {filterErrors.minPrice || filterErrors.maxPrice}
                                         </p>
                                     ) : null}
                                 </div>
@@ -1173,20 +1262,19 @@ export function InventoryProductList() {
                                     }
                                 />
                             ) : null}
-                            {productFilters.minPrice ? (
+                            {productFilters.minPrice || productFilters.maxPrice ? (
                                 <FilterChip
-                                    label={`Min: ${formatMoney(Number(productFilters.minPrice))}`}
-                                    onRemove={() =>
-                                        dispatch(clearProductFilter("minPrice"))
+                                    label={
+                                        productFilters.minPrice && productFilters.maxPrice
+                                            ? `Price: ${formatMoney(Number(productFilters.minPrice))} – ${formatMoney(Number(productFilters.maxPrice))}`
+                                            : productFilters.maxPrice
+                                            ? `Price: Under ${formatMoney(Number(productFilters.maxPrice))}`
+                                            : `Price: ${formatMoney(Number(productFilters.minPrice))}+`
                                     }
-                                />
-                            ) : null}
-                            {productFilters.maxPrice ? (
-                                <FilterChip
-                                    label={`Max: ${formatMoney(Number(productFilters.maxPrice))}`}
-                                    onRemove={() =>
-                                        dispatch(clearProductFilter("maxPrice"))
-                                    }
+                                    onRemove={() => {
+                                        dispatch(clearProductFilter("minPrice"));
+                                        dispatch(clearProductFilter("maxPrice"));
+                                    }}
                                 />
                             ) : null}
                             {productFilters.sku ? (
