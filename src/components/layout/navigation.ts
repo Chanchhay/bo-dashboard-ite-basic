@@ -277,15 +277,6 @@ export const NAVIGATION: NavSection[] = [
                 permission: PERMISSIONS.SALES_MANAGE,
             },
             {
-                // Who was on the till, and whether the drawer counted true.
-                // Next to the terminal that opens and closes those drawers,
-                // rather than with the reports: it is read at the end of a
-                // shift, not for the trend.
-                label: "Register sessions",
-                href: "/sales/register-sessions",
-                permission: PERMISSIONS.SALES_MANAGE,
-            },
-            {
                 label: "Customers",
                 href: "/sales/customers",
                 permission: PERMISSIONS.SALES_MANAGE,
