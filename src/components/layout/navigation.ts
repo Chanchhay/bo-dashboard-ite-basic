@@ -230,11 +230,6 @@ export const NAVIGATION: NavSection[] = [
                 label: "Profit",
                 href: "/analytics",
             },
-            {
-                // Who was on the till, and whether the drawer counted true.
-                label: "Register sessions",
-                href: "/analytics/sessions",
-            },
         ],
         app: {
             label: "Overview Dashboard",
@@ -279,6 +274,15 @@ export const NAVIGATION: NavSection[] = [
                 // open Sale Management to do.
                 label: "Item & Pricing",
                 href: "/sales/pricing",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                // Who was on the till, and whether the drawer counted true.
+                // Next to the terminal that opens and closes those drawers,
+                // rather than with the reports: it is read at the end of a
+                // shift, not for the trend.
+                label: "Register sessions",
+                href: "/sales/register-sessions",
                 permission: PERMISSIONS.SALES_MANAGE,
             },
             {
