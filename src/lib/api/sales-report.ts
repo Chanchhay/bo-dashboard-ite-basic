@@ -33,6 +33,13 @@ export type SalesProfit = {
     total: ChannelProfit;
 };
 
+/** What one channel took on one day. Absent for a day it sold nothing. */
+export type DailyChannelRevenue = {
+    date: string;
+    channel: OrderChannelCode;
+    revenue: number;
+};
+
 /** The ranges worth asking for, and how far back each one reaches. */
 export const profitRanges = {
     TODAY: "Today",

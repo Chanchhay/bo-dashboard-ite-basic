@@ -91,3 +91,71 @@ export function normalizeRegisterSession(
         expectedAmount: money(session.expectedAmount),
     };
 }
+
+/**
+ * One page of the business's session history, and the totals behind it.
+ *
+ * The backend pages this because a shop opens a drawer every trading day, so
+ * the history grows without bound and a summary is not cheap enough to build
+ * for all of it at once. The metrics cover everything the filter matched, not
+ * the page being shown — a total that changed each time you clicked "next"
+ * would not be a total.
+ */
+export type RegisterSessionPage = {
+    content: RegisterSession[];
+    /** Zero-based, as Spring counts pages. */
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    first: boolean;
+    last: boolean;
+    empty: boolean;
+};
+
+export type RegisterSessionMetrics = {
+    /** Drawers open right now. Not narrowed by the filter. */
+    activeCount: number;
+    totalOpening: number;
+    totalCashSales: number;
+    /** Over and short added as distances, so they do not cancel out. */
+    totalDiscrepancies: number;
+};
+
+export type RegisterSessionSearch = {
+    page: RegisterSessionPage;
+    metrics: RegisterSessionMetrics;
+};
+
+/** Narrows the search payload, defaulting anything the backend left out. */
+export function normalizeRegisterSessionSearch(
+    payload: Partial<RegisterSessionSearch> | null | undefined,
+    requested: { page: number; size: number },
+): RegisterSessionSearch {
+    const page = payload?.page;
+    const content = (page?.content ?? []).map(normalizeRegisterSession);
+    const size = page?.size ?? requested.size;
+    const totalElements = page?.totalElements ?? content.length;
+    const totalPages =
+        page?.totalPages ?? Math.max(1, Math.ceil(totalElements / Math.max(size, 1)));
+    const number = page?.page ?? requested.page;
+
+    return {
+        page: {
+            content,
+            page: number,
+            size,
+            totalElements,
+            totalPages,
+            first: page?.first ?? number <= 0,
+            last: page?.last ?? number >= totalPages - 1,
+            empty: page?.empty ?? content.length === 0,
+        },
+        metrics: {
+            activeCount: money(payload?.metrics?.activeCount),
+            totalOpening: money(payload?.metrics?.totalOpening),
+            totalCashSales: money(payload?.metrics?.totalCashSales),
+            totalDiscrepancies: money(payload?.metrics?.totalDiscrepancies),
+        },
+    };
+}

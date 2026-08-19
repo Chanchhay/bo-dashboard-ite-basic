@@ -26,6 +26,12 @@ export async function findCurrentRegisterSession(): Promise<RegisterSession | nu
     return normalizeRegisterSession(session);
 }
 
+/** Every session for the caller's business, most recently opened first. */
+export async function listRegisterSessions(): Promise<RegisterSession[]> {
+    const sessions = await backendRequest<RegisterSession[]>("/api/v1/sessions");
+    return (sessions ?? []).map(normalizeRegisterSession);
+}
+
 /** Records the current authenticated user as a participant in the drawer. */
 export async function joinRegisterSession(
     sessionId: number,
@@ -75,4 +81,14 @@ export async function getCurrentRegisterSession(): Promise<RegisterSession | nul
 
         throw error;
     }
+}
+
+export default async function getSessionSummary(
+    sessionId: number | string,
+): Promise<RegisterSession> {
+    const session = await backendRequest<RegisterSession>(
+        `/api/v1/sessions/${encodeURIComponent(sessionId)}/summary`,
+    );
+
+    return normalizeRegisterSession(session);
 }
