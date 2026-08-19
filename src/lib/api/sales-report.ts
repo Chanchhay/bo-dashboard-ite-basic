@@ -33,6 +33,21 @@ export type SalesProfit = {
     total: ChannelProfit;
 };
 
+/**
+ * What one channel took on one day.
+ *
+ * A day a channel sold nothing has no row at all, rather than a row of zero —
+ * the backend groups what exists and does not invent the gaps. A caller
+ * plotting a continuous line has to fill them itself, over whatever range it
+ * asked for.
+ */
+export type DailyChannelRevenue = {
+    /** `YYYY-MM-DD`, in the shop's own time. */
+    date: string;
+    channel: OrderChannelCode;
+    revenue: number;
+};
+
 /** The ranges worth asking for, and how far back each one reaches. */
 export const profitRanges = {
     TODAY: "Today",

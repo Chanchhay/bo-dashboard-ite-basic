@@ -91,3 +91,67 @@ export function normalizeRegisterSession(
         expectedAmount: money(session.expectedAmount),
     };
 }
+
+/**
+ * One page of the business's session history, newest first.
+ *
+ * The backend pages this because a shop opens a drawer every trading day, so
+ * the history grows without bound and a summary is not cheap enough to build
+ * for all of it at once. `totalElements` is the whole history, not the page.
+ */
+export type RegisterSessionPage = {
+    content: RegisterSession[];
+    /** Zero-based, as Spring counts pages. */
+    number: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+};
+
+/**
+ * A page of sessions as the backend sends it.
+ *
+ * Spring has shipped the page metadata both flat and nested under `page`
+ * depending on version and serialisation settings, and this endpoint is new
+ * enough that neither shape is settled. Both are read here so the browser only
+ * ever sees {@link RegisterSessionPage}.
+ */
+type BackendSessionPage = {
+    content?: RegisterSession[];
+    number?: number;
+    size?: number;
+    totalElements?: number;
+    totalPages?: number;
+    page?: {
+        number?: number;
+        size?: number;
+        totalElements?: number;
+        totalPages?: number;
+    };
+};
+
+export function normalizeRegisterSessionPage(
+    payload: BackendSessionPage,
+    requested: { page: number; size: number },
+): RegisterSessionPage {
+    const nested = payload.page ?? null;
+    const content = (payload.content ?? []).map(normalizeRegisterSession);
+
+    const number = nested?.number ?? payload.number ?? requested.page;
+    const size = nested?.size ?? payload.size ?? requested.size;
+    const totalElements =
+        nested?.totalElements ?? payload.totalElements ?? content.length;
+
+    return {
+        content,
+        number,
+        size,
+        totalElements,
+        // Derived only as a fallback: a server that sends the count is the
+        // authority, because the last page can be short.
+        totalPages:
+            nested?.totalPages ??
+            payload.totalPages ??
+            Math.max(1, Math.ceil(totalElements / Math.max(size, 1))),
+    };
+}

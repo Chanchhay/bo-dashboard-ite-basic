@@ -230,6 +230,11 @@ export const NAVIGATION: NavSection[] = [
                 label: "Profit",
                 href: "/analytics",
             },
+            {
+                // Who was on the till, and whether the drawer counted true.
+                label: "Register sessions",
+                href: "/analytics/sessions",
+            },
         ],
         app: {
             label: "Overview Dashboard",

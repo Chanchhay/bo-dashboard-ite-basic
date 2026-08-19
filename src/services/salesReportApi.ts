@@ -1,5 +1,8 @@
 import { baseApi } from "@/lib/baseApi";
-import type { SalesProfit } from "@/lib/api/sales-report";
+import type {
+    DailyChannelRevenue,
+    SalesProfit,
+} from "@/lib/api/sales-report";
 
 export const salesReportApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
@@ -22,7 +25,28 @@ export const salesReportApi = baseApi.injectEndpoints({
             }),
             providesTags: ["SalesProfit"],
         }),
+
+        /**
+         * Revenue per channel per day over a range.
+         *
+         * Days a channel sold nothing come back absent rather than zero; the
+         * caller knows the range it asked for and fills its own gaps.
+         */
+        getDailyRevenue: builder.query<
+            DailyChannelRevenue[],
+            { from?: string; to?: string }
+        >({
+            query: ({ from, to }) => ({
+                url: "/sales/revenue/daily",
+                params: {
+                    ...(from ? { from } : {}),
+                    ...(to ? { to } : {}),
+                },
+            }),
+            providesTags: ["SalesDailyRevenue"],
+        }),
     }),
 });
 
-export const { useGetSalesProfitQuery } = salesReportApi;
+export const { useGetSalesProfitQuery, useGetDailyRevenueQuery } =
+    salesReportApi;
