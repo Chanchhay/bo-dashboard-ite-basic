@@ -1265,13 +1265,106 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     },
   ],
 
+  "/business/currency": [
+    {
+      element: '[data-tour="currency-base"]',
+      popover: {
+        title: "1. Base Currency",
+        description: "Select your primary store base currency (e.g. USD or KHR). All accounting balances and stock values reference this base currency.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="currency-decimals"]',
+      popover: {
+        title: "2. Decimal Places",
+        description: "Choose currency precision (0 decimals for KHR, 2 decimals standard for USD/EUR).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="currency-display"]',
+      popover: {
+        title: "3. Display Currency",
+        description: "Select secondary dual-currency display for customer receipts and POS till screens.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="currency-list"]',
+      popover: {
+        title: "4. Active Trading Currencies",
+        description: "Add and manage foreign currencies accepted by your store for multi-currency transactions.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="currency-calculator"]',
+      popover: {
+        title: "5. Exchange Rate & Calculator",
+        description: "Interactively test live currency conversions and swap base exchange rates.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="currency-live-rates"]',
+      popover: {
+        title: "6. Dynamic World Exchange Rates",
+        description: "Connect to real-time global market rates with 30-second live polling updates.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
   "/business/payments": [
     {
-      element: '[data-tour="business-payments-form"]',
+      element: '[data-tour="payments-toggle"]',
       popover: {
-        title: "Bakong KHQR & Payment Methods",
-        description: "Configure Bakong Merchant ID, Bank Account, and accepted payment options.",
+        title: "1. Bakong KHQR Till Toggle",
+        description: "Turn KHQR digital payments ON/OFF for customer checkout at the POS register.",
         side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="payments-account"]',
+      popover: {
+        title: "2. Bakong Account Credentials",
+        description: "Enter your Bakong account ID (e.g. your_name@bank), merchant name, city, acquiring bank, and store label.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="payments-token"]',
+      popover: {
+        title: "3. Bakong API Token",
+        description: "Input your Bakong Open API Token to automatically verify payment arrival in real time.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="payments-save"]',
+      popover: {
+        title: "4. Save Payment Configuration",
+        description: "Click Save to store your Bakong KHQR merchant settings.",
+        side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
@@ -1280,11 +1373,74 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
 
   "/business/telegram": [
     {
-      element: '[data-tour="business-telegram-form"]',
+      element: '[data-tour="telegram-toggle"]',
       popover: {
-        title: "Telegram Bot Notifications",
-        description: "Connect Telegram bot token and chat ID for instant store alerts.",
+        title: "1. Enable Telegram Bot Integration",
+        description: "Toggle Telegram bot connectivity ON/OFF for automated customer messaging and storefront access.",
         side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="telegram-token"]',
+      popover: {
+        title: "2. Bot Token",
+        description: "Enter your unique Telegram Bot Token generated from @BotFather.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="telegram-chat-id"]',
+      popover: {
+        title: "3. Notification Chat ID",
+        description: "Specify the Telegram group or channel chat ID to receive instant store sales and payment notifications.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="telegram-welcome"]',
+      popover: {
+        title: "4. Customer Welcome Message",
+        description: "Write a custom welcome greeting for shoppers opening your bot storefront.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="telegram-save"]',
+      popover: {
+        title: "5. Save Telegram Settings",
+        description: "Click Save to activate your Telegram store bot integration.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/business/facebook": [
+    {
+      element: '[data-tour="facebook-connect-panel"]',
+      popover: {
+        title: "1. Facebook Messenger & Auto-Reply",
+        description: "Manage your Facebook Page connection, automated messaging, and shop catalog setup.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="facebook-connect-btn"]',
+      popover: {
+        title: "2. 1-Click Facebook OAuth Connect",
+        description: "Click here to securely connect your Facebook Page using official Facebook OAuth authorization.",
+        side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
