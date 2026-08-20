@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { Khqr, Sale } from "@/lib/api/pos-order";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 import {
   useGenerateKhqrMutation,
   useGetBakongStatusQuery,
@@ -64,6 +65,21 @@ export function Payment({
   const discount = parseFloat(order.discount_amount);
   const total = parseFloat(order.total);
   const totalSecondary = secondaryFor(total, order);
+
+  const activeTax = useMemo(() => getActiveDefaultTax(), [open]);
+  const isTaxActive = activeTax?.isActive ?? false;
+  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
+
+  const effectiveTaxRate = isTaxActive ? (activeTax?.taxRate ?? 0) : 0;
+  const afterDiscount = Math.max(0, subtotal - discount);
+
+  const taxAmount = isTaxActive
+    ? (isTaxInclusive
+        ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+        : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+    : 0;
+
+  const taxName = activeTax?.taxName ?? "VAT";
 
   const storedDiscountRule = useMemo(() => {
     if (!order.id || typeof window === "undefined") return null;
@@ -219,6 +235,16 @@ export function Payment({
                       </span>
                       <span>-{format(discount, order.currency)}</span>
                     </div>
+                    {isTaxActive && !isTaxInclusive && taxAmount > 0 && (
+                      <div className="flex justify-between text-[#00501a]">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          +
+                          {taxName.includes("VAT") ? "VAT" : taxName}
+                          {effectiveTaxRate > 0 ? ` (${effectiveTaxRate}%)` : ""}
+                        </span>
+                        <span className="font-semibold">+{format(taxAmount, order.currency)}</span>
+                      </div>
+                    )}
                     <div className="mt-3 flex justify-between border-t border-[#1e293b] pt-4 font-semibold">
                       <span>To pay</span>
                       <span className="text-primary">{format(total, order.currency)}</span>

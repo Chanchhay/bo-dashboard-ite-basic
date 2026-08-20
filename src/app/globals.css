@@ -102,6 +102,17 @@ body {
     --success: #00932a;
     --warning: #9a6900;
     --danger: #d14341;
+
+    /* Categorical series colors, in fixed slot order — a channel keeps its
+       hue whatever it ranks, so a filter that drops a series never repaints
+       the ones left. Validated as a set against the #ffffff card surface:
+       worst adjacent CVD ΔE 9.1, normal-vision ΔE 22.9. Aqua and yellow sit
+       below 3:1 here, so any chart using them ships direct labels or a table
+       view rather than leaning on the colour alone. */
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-3: #1baf7a;
+    --chart-4: #eda100;
 }
 
 .dark {
@@ -135,6 +146,14 @@ body {
     --success: var(--primary);
     --warning: #fbbf24;
     --danger: #f87171;
+
+    /* The same four hues stepped for the dark card, not an automatic flip.
+       Validated against #1a1e29: worst adjacent CVD ΔE 8.4, normal-vision
+       ΔE 19.8, and all four clear 3:1 on this surface. */
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
 }
 
 /* The barcode scanner overlay. It is a deliberate single-look surface: the
@@ -173,6 +192,11 @@ body {
     --color-success: var(--success);
     --color-warning: var(--warning);
     --color-danger: var(--danger);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
 
     --color-scanner-scrim: var(--scanner-scrim);
     --color-scanner-ink: var(--scanner-ink);

@@ -6,6 +6,8 @@ import { Building2 } from "lucide-react";
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
 import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
+import type { TaxConfig } from "@/lib/api/tax";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import {
   findCurrency,
@@ -23,6 +25,7 @@ interface ReceiptTicketProps {
   /** Present immediately after payment; historical sale lookup is not exposed. */
   sale?: Sale | null;
   currencies?: BusinessCurrencyConfiguration;
+  taxConfig?: TaxConfig | null;
   className?: string;
 }
 
@@ -41,6 +44,7 @@ export function ReceiptTicket({
   receipt,
   sale,
   currencies,
+  taxConfig,
   className,
 }: ReceiptTicketProps) {
   const { data: customers = [] } = useGetCustomersQuery();
@@ -55,7 +59,117 @@ export function ReceiptTicket({
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const subtotal = sale?.subtotal ?? order.subtotal;
   const discount = sale?.discountAmount ?? order.discountAmount;
-  const total = Math.max(0, subtotal - discount);
+  const afterDiscount = Math.max(0, subtotal - discount);
+
+  const activeTaxConfig = useMemo(() => {
+    if (taxConfig !== undefined) return taxConfig;
+    if (typeof window === "undefined") return null;
+    return getActiveDefaultTax();
+  }, [taxConfig]);
+
+  const isHistoricalSale = Boolean(sale || (order && order.status === "PAID"));
+
+  const storedTaxRule = useMemo(() => {
+    const id = sale?.orderId || order?.id;
+    if (!id || typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(`pos_order_tax_rule_${id}`);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }, [sale?.orderId, order?.id]);
+
+  let isTaxActive = false;
+  let isTaxInclusive = false;
+  let effectiveTaxRate = 0;
+  let taxAmount = 0;
+
+  const recordTaxInclusionType = sale?.taxInclusionType || order?.taxInclusionType;
+
+  if (taxConfig !== undefined && taxConfig !== null) {
+    // Explicit preview mode override (e.g. Tax Settings preview card)
+    isTaxActive = taxConfig.isActive ?? false;
+    isTaxInclusive = taxConfig.isTaxInclusive ?? false;
+    effectiveTaxRate = isTaxActive ? (taxConfig.taxRate ?? 0) : 0;
+    taxAmount = isTaxActive
+      ? (isTaxInclusive
+          ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+          : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+      : 0;
+  } else if (recordTaxInclusionType) {
+    // Direct from Spring backend API (OrderResponse / SaleResponse)
+    isTaxActive = (sale?.taxAmount && sale.taxAmount > 0) || (order?.taxAmount && order.taxAmount > 0) || (activeTaxConfig?.isActive ?? false);
+    isTaxInclusive = recordTaxInclusionType === "INCLUSIVE";
+    effectiveTaxRate = (sale?.taxRate || order?.taxRate) && (sale?.taxRate || order?.taxRate)! > 0
+      ? (sale?.taxRate || order?.taxRate)!
+      : (activeTaxConfig?.taxRate ?? 10);
+    taxAmount = (sale?.taxAmount && sale.taxAmount > 0)
+      ? sale.taxAmount
+      : (order?.taxAmount && order.taxAmount > 0)
+        ? order.taxAmount
+        : (isTaxInclusive
+            ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+            : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)));
+  } else if (storedTaxRule !== null) {
+    // Historical frozen tax rule snapshot
+    isTaxActive = storedTaxRule.isTaxActive ?? false;
+    isTaxInclusive = storedTaxRule.taxInclusionType
+      ? storedTaxRule.taxInclusionType === "INCLUSIVE"
+      : (storedTaxRule.isTaxInclusive ?? false);
+    effectiveTaxRate = storedTaxRule.taxRate ?? 0;
+    taxAmount = storedTaxRule.taxAmount ?? 0;
+  } else {
+    // Check live store default tax settings
+    const liveTaxActive = activeTaxConfig?.isActive ?? false;
+    const liveTaxInclusive = activeTaxConfig?.isTaxInclusive ?? false;
+    const liveTaxRate = activeTaxConfig?.taxRate ?? 10;
+
+    if (isHistoricalSale && sale) {
+      const saleTaxAmt = sale.taxAmount ?? 0;
+      const saleTaxRate = sale.taxRate ?? 0;
+
+      if (sale.totalAmount > afterDiscount + 0.01) {
+        isTaxActive = true;
+        isTaxInclusive = false;
+        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
+        taxAmount = saleTaxAmt > 0 ? saleTaxAmt : parseFloat((sale.totalAmount - afterDiscount).toFixed(2));
+      } else if (saleTaxAmt > 0 || saleTaxRate > 0) {
+        isTaxActive = true;
+        isTaxInclusive = true;
+        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
+        taxAmount = saleTaxAmt;
+      } else {
+        isTaxActive = false;
+        isTaxInclusive = false;
+        effectiveTaxRate = 0;
+        taxAmount = 0;
+      }
+    } else {
+      // Current open cart
+      isTaxActive = liveTaxActive;
+      isTaxInclusive = liveTaxInclusive;
+      effectiveTaxRate = isTaxActive
+        ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : liveTaxRate)
+        : 0;
+
+      const calculatedTax = isTaxActive
+        ? (isTaxInclusive
+            ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+            : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+        : 0;
+
+      taxAmount = isTaxActive
+        ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
+        : 0;
+    }
+  }
+
+  const effectiveTaxName = activeTaxConfig?.taxName ?? "VAT";
+  const effectiveShowTax = isTaxActive;
+
+  const total = (isHistoricalSale && sale?.totalAmount && sale.totalAmount > 0)
+    ? sale.totalAmount
+    : (isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + taxAmount));
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
   const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
 
@@ -254,11 +368,35 @@ export function ReceiptTicket({
             </dd>
           </div>
         )}
+
+        {effectiveShowTax && !isTaxInclusive && taxAmount > 0 && (
+          <div className="flex justify-between gap-4 text-[#52605b] text-xs">
+            <dt>Amount Excl. Tax / សរុបមិនទាន់គិតអាករ</dt>
+            <dd className="font-mono font-medium">
+              {formatMoney(afterDiscount, currency)}
+            </dd>
+          </div>
+        )}
+
+        {effectiveShowTax && !isTaxInclusive && taxAmount > 0 && (
+          <div className="flex justify-between gap-4 font-medium text-[#006b26]">
+            <dt className="flex items-center gap-1">
+              +
+              {effectiveTaxName.includes("VAT") ? "VAT" : (effectiveTaxName.split("(")[0]?.trim() || effectiveTaxName)}
+              {effectiveTaxRate > 0 ? ` (${effectiveTaxRate}%)` : ""} / អាករ
+            </dt>
+            <dd className="font-mono font-bold">
+              +{formatMoney(taxAmount, currency)}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">
         <div className="flex items-center justify-between gap-4">
-          <dt className="text-sm font-bold uppercase">Total</dt>
+          <dt className="text-sm font-bold uppercase">
+            Total {!isTaxInclusive && effectiveShowTax && taxAmount > 0 ? "(Incl. Tax)" : ""} / សរុប{!isTaxInclusive && effectiveShowTax && taxAmount > 0 ? "រួមអាករ" : ""}
+          </dt>
           <dd className="font-mono text-xl font-bold leading-none">
             {formatMoney(total, currency)}
           </dd>
@@ -274,6 +412,12 @@ export function ReceiptTicket({
           </div>
         )}
       </dl>
+
+      {isTaxActive && isTaxInclusive && (
+        <p className="mt-2 text-center text-[11px] font-medium text-[#3d4a3c] italic">
+          * Product prices include {effectiveTaxName.includes("VAT") ? "VAT" : effectiveTaxName} {effectiveTaxRate > 0 ? `(${effectiveTaxRate}%)` : ""} · តម្លៃរួមបញ្ចូលអាកររួចជាស្រេច
+        </p>
+      )}
 
       <dl className="space-y-1 border-b border-dashed border-[#9aa79a] py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
         <div className="flex justify-between gap-4">
