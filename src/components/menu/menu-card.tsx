@@ -29,15 +29,15 @@ export default function MenuCard({
     <Link
       href={`/menu/${id}`}
       onClick={onClick}
-      className="group relative flex flex-col gap-3 transition-transform duration-200 hover:-translate-y-1 cursor-pointer"
+      className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
     >
-      {/* Image Rounded Container */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-[#1a1e29] border border-gray-100 dark:border-gray-800/80 shadow-xs group-hover:shadow-md transition-all duration-300">
+      {/* Image Rounded Container (No outer border box, matching screenshot 100%) */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#1a1e29]">
         <Image
           src={image || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80"}
           alt={name}
-          width={100}
-          height={100}
+          width={400}
+          height={400}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
@@ -46,19 +46,17 @@ export default function MenuCard({
         />
       </div>
 
-      {/* Item Details */}
-      <div className="flex flex-col px-1">
-        <span className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
+      {/* Item Details directly below image */}
+      <div className="flex flex-col px-0.5">
+        <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
           {category || "General"}
         </span>
-        <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-1 mt-0.5">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 line-clamp-1 mt-0.5 group-hover:text-[#00932a] transition-colors">
           {name}
         </h3>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-base sm:text-lg font-extrabold text-[#d14341] dark:text-[#f87171]">
-            ${formattedPrice}
-          </span>
-        </div>
+        <span className="text-base font-bold text-[#d14341] dark:text-[#f87171] mt-1">
+          ${formattedPrice}
+        </span>
       </div>
     </Link>
   );

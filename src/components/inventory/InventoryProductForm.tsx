@@ -2469,7 +2469,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             onClick={() => setNewAddOnOpen(true)}
                         >
                             <Plus />
-                            New add-on
+                            Attach add-on
                         </Button>
                     </div>
                 </div>
