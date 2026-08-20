@@ -277,35 +277,66 @@ export const NAVIGATION: NavSection[] = [
         label: "Item & Pricing",
         href: "/sales/pricing",
         permission: PERMISSIONS.SALES_MANAGE,
-      },
-      {
-        label: "Customers",
-        href: "/sales/customers",
-        permission: PERMISSIONS.SALES_MANAGE,
-      },
-      {
-        label: "Discounts & Coupons",
-        href: "/sales/discounts",
-        permission: PERMISSIONS.SALES_MANAGE,
-      },
-      {
-        label: "Member Types",
-        href: "/sales/membership-types",
-        permission: PERMISSIONS.SALES_MANAGE,
-      },
-      {
-        label: "Tax Settings",
-        href: "/sales/taxes",
-        permission: PERMISSIONS.SALES_MANAGE,
-      },
-    ],
-    // The terminal is its own fullscreen app, so it gets a launch button
-    // rather than a nav row that pretends to stay inside the dashboard.
-    launch: {
-      label: "Open Point of Sale",
-      href: POS_ROUTES.openRegister,
-      icon: ScanLine,
-      permission: PERMISSIONS.SALES_POS,
+        app: {
+            label: "Sale Management",
+            // hint: "Orders & point of sale",
+            fill: "#e8e8e8",
+            ink: "#00932a",
+        },
+        children: [
+            {
+                label: "Orders",
+                href: "/sales",
+                exact: true,
+                permission: PERMISSIONS.SALES_ORDERS,
+            },
+            {
+                // Base prices, what each channel charges instead, and where
+                // each item sells — one screen, where it used to be three.
+                // Sits above Customers because it is the thing most owners
+                // open Sale Management to do.
+                label: "Item & Pricing",
+                href: "/sales/pricing",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                label: "Customers",
+                href: "/sales/customers",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                label: "Discounts & Coupons",
+                href: "/sales/discounts",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                label: "Member Types",
+                href: "/sales/membership-types",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                label: "Tax Settings",
+                href: "/sales/taxes",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
+                // Who was on the till, and whether the drawer counted true.
+                // Beside the terminal that opens and closes those drawers
+                // rather than with the reports: it is read at the end of a
+                // shift, not for the trend.
+                label: "Register Sessions",
+                href: "/sales/sessions",
+                permission: PERMISSIONS.SALES_POS,
+            },
+        ],
+        // The terminal is its own fullscreen app, so it gets a launch button
+        // rather than a nav row that pretends to stay inside the dashboard.
+        launch: {
+            label: "Open Point of Sale",
+            href: POS_ROUTES.openRegister,
+            icon: ScanLine,
+            permission: PERMISSIONS.SALES_POS,
+        },
     },
   },
   {

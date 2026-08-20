@@ -1,11 +1,4 @@
-/**
- * The POS terminal's routes.
- *
- * POS is a separate app from the dashboard: it runs fullscreen with no sidebar,
- * and a cashier moves between these four screens for a whole shift. Keeping the
- * paths here means the shift flow reads as a flow, and moving a screen is one
- * edit rather than a grep across components.
- */
+
 export const POS_ROUTES = {
     /** The selling screen — the terminal itself. */
     terminal: "/pos",
