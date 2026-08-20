@@ -94,15 +94,15 @@ function MarginCell({
                         margin < 0
                             ? "bg-danger/10 text-danger"
                             : margin === 0
-                              ? "bg-muted text-muted-foreground"
-                              : "bg-success/10 text-success",
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-success/10 text-success",
                     )}
                 >
                     {margin < 0
                         ? `${format(Math.abs(margin))} under cost`
                         : margin === 0
-                          ? "No profit"
-                          : `Keeps ${format(margin)}`}
+                            ? "No profit"
+                            : `Keeps ${format(margin)}`}
                 </span>
             )}
         </div>
@@ -243,13 +243,13 @@ export function SetPriceDialog({
     const changedRows = !canPrice
         ? []
         : soldAs.filter((row) => {
-              const draft = drafts[row.key];
+            const draft = drafts[row.key];
 
-              return (
-                  draft !== undefined &&
-                  draftAmount(draft, row.saved) !== (row.saved ?? undefined)
-              );
-          });
+            return (
+                draft !== undefined &&
+                draftAmount(draft, row.saved) !== (row.saved ?? undefined)
+            );
+        });
     const changedAddOns = addOns.filter((addOn) => {
         // An add-on is costed on its own, so it is gated on its own stock.
         if (!addOnCosts.has(addOn.id)) return false;
@@ -307,56 +307,56 @@ export function SetPriceDialog({
             ...(basePrice === undefined ? {} : { price: basePrice }),
             ...(options.length
                 ? {
-                      // Saving variants replaces the list, so what this screen
-                      // never edits goes back exactly as it came.
-                      variants: options.map((option) => ({
-                          name: option.name || "",
-                          sku: option.sku || "",
-                          barcode: option.barcode || "",
-                          // The option's own picture is one of those things:
-                          // left out, pricing an item would strip every
-                          // picture its options carry.
-                          imageUrl: option.imageUrl || "",
-                          // So is the pair it stands for: pricing an item must
-                          // not turn Large/Red back into a loose "Large" and
-                          // merge two shelves into one.
-                          optionName: option.optionName || option.name || "",
-                          colorValue: option.colorValue || "",
-                          available: option.available !== false,
-                          price: draftAmount(
-                              drafts[soldAsKey(item.id, "OPTION", option.id)],
-                              option.price,
-                          ),
-                      })),
-                  }
+                    // Saving variants replaces the list, so what this screen
+                    // never edits goes back exactly as it came.
+                    variants: options.map((option) => ({
+                        name: option.name || "",
+                        sku: option.sku || "",
+                        barcode: option.barcode || "",
+                        // The option's own picture is one of those things:
+                        // left out, pricing an item would strip every
+                        // picture its options carry.
+                        imageUrl: option.imageUrl || "",
+                        // So is the pair it stands for: pricing an item must
+                        // not turn Large/Red back into a loose "Large" and
+                        // merge two shelves into one.
+                        optionName: option.optionName || option.name || "",
+                        colorValue: option.colorValue || "",
+                        available: option.available !== false,
+                        price: draftAmount(
+                            drafts[soldAsKey(item.id, "OPTION", option.id)],
+                            option.price,
+                        ),
+                    })),
+                }
                 : {}),
             ...(packs.length
                 ? {
-                      uomConversions: packs.map((conversion) => {
-                          const price = draftAmount(
-                              drafts[
-                                  soldAsKey(
-                                      item.id,
-                                      "PACK",
-                                      conversion.unit?.id,
-                                      conversion.variantId || undefined,
-                                  )
-                              ],
-                              conversion.price,
-                          );
+                    uomConversions: packs.map((conversion) => {
+                        const price = draftAmount(
+                            drafts[
+                            soldAsKey(
+                                item.id,
+                                "PACK",
+                                conversion.unit?.id,
+                                conversion.variantId || undefined,
+                            )
+                            ],
+                            conversion.price,
+                        );
 
-                          return {
-                              unitId: conversion.unit?.id || "",
-                              // Which option it is for is part of what the
-                              // conversion is; sent back or it would be lost.
-                              ...(conversion.variantId
-                                  ? { variantId: conversion.variantId }
-                                  : {}),
-                              factor: conversion.factor ?? 1,
-                              ...(price === undefined ? {} : { price }),
-                          };
-                      }),
-                  }
+                        return {
+                            unitId: conversion.unit?.id || "",
+                            // Which option it is for is part of what the
+                            // conversion is; sent back or it would be lost.
+                            ...(conversion.variantId
+                                ? { variantId: conversion.variantId }
+                                : {}),
+                            factor: conversion.factor ?? 1,
+                            ...(price === undefined ? {} : { price }),
+                        };
+                    }),
+                }
                 : {}),
         };
 
@@ -374,9 +374,9 @@ export function SetPriceDialog({
                 title: `${item.name || "Item"} priced`,
                 ...(changedAddOns.length
                     ? {
-                          description:
-                              "Add-on prices apply everywhere they are offered.",
-                      }
+                        description:
+                            "Add-on prices apply everywhere they are offered.",
+                    }
                     : {}),
             });
 
