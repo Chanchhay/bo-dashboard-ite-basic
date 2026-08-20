@@ -136,6 +136,49 @@ function rangeStart(filter: DateFilter): string | undefined {
     return start.toISOString();
 }
 
+function asPosOrder(order: any): PosOrder {
+    if (!order) return order;
+    const subtotal = typeof order.subtotal === "number" ? order.subtotal : parseFloat(order.subtotal || "0");
+    const discountAmount = typeof order.discountAmount === "number" ? order.discountAmount : parseFloat(order.discountAmount || order.discount_amount || "0");
+    const taxAmount = typeof order.taxAmount === "number" ? order.taxAmount : parseFloat(order.taxAmount || "0");
+    const total = typeof order.total === "number" ? order.total : Math.max(0, subtotal - discountAmount + taxAmount);
+
+    return {
+        id: order.id,
+        businessId: order.businessId || order.business_owner_id || "",
+        invoiceNumber: order.invoiceNumber || order.invoice_number || null,
+        customerId: order.customerId || order.customer_id || null,
+        channel: order.channel || "POS",
+        status: order.status || "PENDING",
+        subtotal,
+        discountAmount,
+        taxRate: order.taxRate || 0,
+        taxAmount,
+        taxInclusionType: order.taxInclusionType || null,
+        total,
+        displayCurrency: order.displayCurrency || null,
+        displayExchangeRate: order.displayExchangeRate || null,
+        createdDate: order.createdDate || order.created_at || new Date().toISOString(),
+        note: order.note || null,
+        currency: order.currency || "USD",
+        items: (order.items || []).map((i: any) => ({
+            id: i.id || "",
+            itemId: i.itemId || i.product_id || "",
+            variantId: i.variantId || i.variant_id || null,
+            itemName: i.itemName || i.product_name || "Item",
+            variantName: i.variantName || i.variant_name || null,
+            unitName: i.unitName || i.unit_name || null,
+            unitFactor: i.unitFactor || i.unit_factor || 1,
+            quantity: i.quantity || 1,
+            unitPrice: typeof i.unitPrice === "number" ? i.unitPrice : parseFloat(i.unitPrice || i.unit_price || "0"),
+            discountAmount: typeof i.discountAmount === "number" ? i.discountAmount : parseFloat(i.discountAmount || i.discount_amount || "0"),
+            lineTotal: typeof i.lineTotal === "number" ? i.lineTotal : parseFloat(i.lineTotal || "0"),
+            addOns: i.addOns || i.add_ons || [],
+            selections: i.selections || [],
+        })),
+    };
+}
+
 export default function SalesOrdersPage() {
     const { format } = useMoney();
     const [status, setStatus] =
@@ -210,6 +253,13 @@ export default function SalesOrdersPage() {
     const orders = useMemo(() => data?.content ?? [], [data]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
+
+    const selectedOrder = useMemo(() => {
+        if (!selectedOrderId) return null;
+        return orders.find((o) => o.id === selectedOrderId) ?? null;
+    }, [orders, selectedOrderId]);
+
+    const displayOrder = receiptQuery.data?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
@@ -416,7 +466,7 @@ export default function SalesOrdersPage() {
                 )}
             </section>
 
-            {/* Receipt Detail Modal Dialog */}
+            {/* Receipt / Order Ticket Detail Modal Dialog */}
             <Dialog
                 open={Boolean(selectedOrderId)}
                 onOpenChange={(open) => !open && setSelectedOrderId(null)}
@@ -424,26 +474,28 @@ export default function SalesOrdersPage() {
                 <DialogContent className="max-w-[480px] p-6 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="pb-3 border-b">
                         <DialogTitle className="text-lg font-bold text-foreground">
-                            Receipt Details
+                            {String(displayOrder?.status || "") === "PENDING" || String(displayOrder?.status || "") === "PARKED"
+                                ? "Order Ticket (Unpaid)"
+                                : "Receipt Details"}
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading ? (
+                    {receiptQuery.isLoading && !selectedOrder ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-                            Loading receipt details...
+                            Loading details...
                         </div>
-                    ) : receiptQuery.data && businessQuery.data ? (
+                    ) : displayOrder && businessQuery.data ? (
                         <div className="py-2">
                             <ReceiptTicket
                                 business={businessQuery.data}
-                                order={receiptQuery.data.order}
-                                receipt={receiptQuery.data.receipt}
+                                order={displayOrder}
+                                receipt={receiptQuery.data?.receipt ?? null}
                                 currencies={currenciesQuery.data}
                             />
                         </div>
                     ) : (
                         <div className="py-8 text-center text-sm text-destructive">
-                            Could not load receipt details.
+                            Could not load details.
                         </div>
                     )}
                 </DialogContent>

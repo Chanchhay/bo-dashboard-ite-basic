@@ -182,15 +182,15 @@ export const posOrderApi = baseApi.injectEndpoints({
                                     // A case and a can are different lines:
                                     // different prices, different stock.
                                     (item.unitId ?? undefined) ===
-                                        arg.unitId &&
+                                    arg.unitId &&
                                     // Different extras, different line.
                                     (item.addOns || [])
                                         .map((addOn) => addOn.addOnId)
                                         .sort()
                                         .join() ===
-                                        [...(arg.addOnIds || [])]
-                                            .sort()
-                                            .join(),
+                                    [...(arg.addOnIds || [])]
+                                        .sort()
+                                        .join(),
                             );
 
                             if (existingIndex !== -1) {
@@ -511,3 +511,6 @@ export const {
     useGenerateKhqrMutation,
     useGetPaymentStatusQuery,
 } = posOrderApi;
+
+
+
