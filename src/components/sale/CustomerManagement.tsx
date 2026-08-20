@@ -12,7 +12,10 @@ import {
     Phone,
     MapPin,
     Crown,
+    Filter,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +57,18 @@ import {
 import { useGetMembershipTypesQuery } from "@/services/membershipTypeApi";
 import { useGetSalesChannelsQuery } from "@/services/salesChannelApi";
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
+
+const formatLocalPhone = (phoneStr?: string | null): string => {
+    if (!phoneStr) return "";
+    let cleaned = phoneStr.trim();
+    let digits = cleaned.replace(/\D/g, "");
+    if (digits.startsWith("855") && digits.length >= 10) {
+        digits = "0" + digits.slice(3);
+    } else if (!digits.startsWith("0") && (digits.length === 8 || digits.length === 9)) {
+        digits = "0" + digits;
+    }
+    return digits || cleaned;
+};
 
 export default function CustomerManagement() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -122,24 +137,50 @@ export default function CustomerManagement() {
     const [deletingCustomer, setDeletingCustomer] =
         useState<CustomerResponse | null>(null);
 
+    // Channel Filter state
+    const [selectedChannelFilter, setSelectedChannelFilter] = useState<string>("ALL");
+
     const filteredCustomers = useMemo(() => {
-        if (!searchQuery.trim()) return customers;
-        const q = searchQuery.toLowerCase();
         return customers.filter((c) => {
+            // 1. Channel Filter
+            if (selectedChannelFilter !== "ALL") {
+                if (selectedChannelFilter === "NONE") {
+                    if (c.salesChannel) return false;
+                } else {
+                    if (c.salesChannel?.id !== selectedChannelFilter) return false;
+                }
+            }
+
+            // 2. Search Query Filter
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.trim().toLowerCase();
+
+            const rawPhone = c.globalCustomer?.phoneNumber || "";
+            const formattedPhone = formatLocalPhone(rawPhone).toLowerCase();
+            const rawPhoneLower = rawPhone.toLowerCase();
+
+            // Phone search match starting from 0 (e.g. 092...) or containing query
+            const isPhoneMatch =
+                formattedPhone.startsWith(q) ||
+                formattedPhone.includes(q) ||
+                rawPhoneLower.includes(q);
+
+            if (isPhoneMatch) return true;
+
             const name = c.globalCustomer?.fullName?.toLowerCase() || "";
             const mail = c.globalCustomer?.email?.toLowerCase() || "";
-            const phone = c.globalCustomer?.phoneNumber?.toLowerCase() || "";
             const addr = c.address?.toLowerCase() || "";
             const tier = c.membershipType?.typeName?.toLowerCase() || "";
+            const channel = c.salesChannel?.name?.toLowerCase() || "";
             return (
                 name.includes(q) ||
                 mail.includes(q) ||
-                phone.includes(q) ||
                 addr.includes(q) ||
-                tier.includes(q)
+                tier.includes(q) ||
+                channel.includes(q)
             );
         });
-    }, [customers, searchQuery]);
+    }, [customers, searchQuery, selectedChannelFilter]);
 
     const openCreateDialog = () => {
         setEditingCustomer(null);
@@ -149,7 +190,10 @@ export default function CustomerManagement() {
         setPhoneNumber("");
         setAddress("");
         setMembershipTypeId("");
-        setSalesChannelId("");
+        const posChannel = salesChannels.find(
+            (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
+        );
+        setSalesChannelId(posChannel?.id || salesChannels[0]?.id || "");
         setTotalSpend("");
         setActive(true);
         setIsDialogOpen(true);
@@ -177,13 +221,18 @@ export default function CustomerManagement() {
         }
 
         try {
+            const posChannel = salesChannels.find(
+                (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
+            );
+            const effectiveChannelId = salesChannelId || posChannel?.id || salesChannels[0]?.id || undefined;
+
             const payload = {
                 fullName: fullName.trim() || undefined,
                 email: email.trim() || undefined,
                 phoneNumber: phoneNumber.trim() || undefined,
                 address: address.trim() || undefined,
                 membershipTypeId: membershipTypeId || undefined,
-                salesChannelId: salesChannelId || undefined,
+                salesChannelId: effectiveChannelId,
                 totalSpend:
                     totalSpend !== "" && !isNaN(Number(totalSpend))
                         ? Number(totalSpend)
@@ -230,6 +279,39 @@ export default function CustomerManagement() {
         }
     };
 
+    const posSalesChannels = useMemo(() => {
+        const filtered = salesChannels.filter((sc) => {
+            const name = sc.name?.toUpperCase() || "";
+            const code = sc.code?.toUpperCase() || "";
+            if (name.includes("ONLINE") || code.includes("ONLINE") || name.includes("WEB") || code.includes("WEB") || name.includes("APP")) {
+                return false;
+            }
+            return (
+                name.includes("POS") ||
+                code.includes("POS") ||
+                name.includes("POINT OF SALE") ||
+                name.includes("SHOP") ||
+                name.includes("DIRECT") ||
+                name.includes("IN-STORE")
+            );
+        });
+        return filtered.length > 0 ? filtered : salesChannels.filter((sc) => !sc.name?.toUpperCase().includes("ONLINE"));
+    }, [salesChannels]);
+
+    const selectedMembershipTypeLabel = useMemo(() => {
+        if (!membershipTypeId || membershipTypeId === "NONE") return "None (Regular)";
+        const found = membershipTypes.find((t) => t.id === membershipTypeId);
+        return found ? found.typeName : "None (Regular)";
+    }, [membershipTypeId, membershipTypes]);
+
+    const selectedSalesChannelLabel = useMemo(() => {
+        if (!salesChannelId || salesChannelId === "NONE") {
+            return posSalesChannels[0]?.name || "POS / Direct";
+        }
+        const found = salesChannels.find((sc) => sc.id === salesChannelId);
+        return found ? found.name : posSalesChannels[0]?.name || "POS / Direct";
+    }, [salesChannelId, salesChannels, posSalesChannels]);
+
     return (
         <div className="space-y-6">
             {/* Header Section */}
@@ -250,22 +332,74 @@ export default function CustomerManagement() {
                 </Button>
             </div>
 
-            {/* Controls Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-3 gap-2">
-                <div className="relative w-full sm:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name, email, phone..."
-                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
+            {/* Controls & Channel Filter Bar */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mr-1">
+                        <Filter className="h-3.5 w-3.5" /> Channel:
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedChannelFilter("ALL")}
+                        className={cn(
+                            "px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer",
+                            selectedChannelFilter === "ALL"
+                                ? "bg-primary text-white shadow-xs"
+                                : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                        )}
+                    >
+                        All ({customers.length})
+                    </button>
+                    {salesChannels.map((sc) => {
+                        const count = customers.filter((c) => c.salesChannel?.id === sc.id).length;
+                        return (
+                            <button
+                                key={sc.id}
+                                type="button"
+                                onClick={() => setSelectedChannelFilter(sc.id)}
+                                className={cn(
+                                    "px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer flex items-center gap-1",
+                                    selectedChannelFilter === sc.id
+                                        ? "bg-primary text-white shadow-xs"
+                                        : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                                )}
+                            >
+                                {sc.name} <span className="opacity-75 font-normal">({count})</span>
+                            </button>
+                        );
+                    })}
+                    {customers.some((c) => !c.salesChannel) && (
+                        <button
+                            type="button"
+                            onClick={() => setSelectedChannelFilter("NONE")}
+                            className={cn(
+                                "px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer flex items-center gap-1",
+                                selectedChannelFilter === "NONE"
+                                    ? "bg-primary text-white shadow-xs"
+                                    : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                            )}
+                        >
+                            Direct / Unassigned <span className="opacity-75 font-normal">({customers.filter((c) => !c.salesChannel).length})</span>
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by phone number or name..."
+                            className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
+                        />
+                    </div>
+                    <ColumnSelectDropdown
+                        columns={customerCols}
+                        onToggleColumn={toggleCol}
+                        onResetDefaults={resetCols}
                     />
                 </div>
-                <ColumnSelectDropdown
-                    columns={customerCols}
-                    onToggleColumn={toggleCol}
-                    onResetDefaults={resetCols}
-                />
             </div>
 
             {/* Table */}
@@ -313,7 +447,7 @@ export default function CustomerManagement() {
                                 const displayName =
                                     c.globalCustomer?.fullName || "Unnamed Customer";
                                 const displayEmail = c.globalCustomer?.email;
-                                const displayPhone = c.globalCustomer?.phoneNumber;
+                                const displayPhone = formatLocalPhone(c.globalCustomer?.phoneNumber);
 
                                 return (
                                     <TableRow
@@ -322,21 +456,16 @@ export default function CustomerManagement() {
                                     >
                                         {isColVisible("customerInfo") && (
                                             <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary font-bold text-sm">
-                                                        {displayName.charAt(0).toUpperCase()}
+                                                <div>
+                                                    <div className="font-bold text-foreground text-sm">
+                                                        {displayName}
                                                     </div>
-                                                    <div>
-                                                        <div className="font-bold text-foreground text-sm">
-                                                            {displayName}
+                                                    {displayEmail && (
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                            <Mail className="h-3 w-3" />
+                                                            {displayEmail}
                                                         </div>
-                                                        {displayEmail && (
-                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                                <Mail className="h-3 w-3" />
-                                                                {displayEmail}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         )}
@@ -415,23 +544,27 @@ export default function CustomerManagement() {
                                                 </button>
                                             </TableCell>
                                         )}
-                                        <TableCell className="text-right space-x-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openEditDialog(c)}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeletingCustomer(c)}
-                                                className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
-                                            >
-                                                <Trash2 className="size-4 text-brand-red" />
-                                            </Button>
+                                        <TableCell className="text-right whitespace-nowrap">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => openEditDialog(c)}
+                                                    className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                    title="Edit Customer"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setDeletingCustomer(c)}
+                                                    className="h-8 w-8 p-0 hover:bg-red-50 dark:hover:bg-red-950/40 text-brand-red rounded-lg"
+                                                    title="Delete Customer"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -485,7 +618,7 @@ export default function CustomerManagement() {
                                     id="phoneNumber"
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
-                                    placeholder="+855 12 345 678"
+                                    placeholder="012 345 678"
                                 />
                             </div>
                         </div>
@@ -508,7 +641,9 @@ export default function CustomerManagement() {
                                     onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
                                 >
                                     <SelectTrigger id="membershipType" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                                        <SelectValue placeholder="Select type..." />
+                                        <SelectValue placeholder="Select type...">
+                                            {selectedMembershipTypeLabel}
+                                        </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="NONE">None (Regular)</SelectItem>
@@ -523,22 +658,32 @@ export default function CustomerManagement() {
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="salesChannel">Sales Channel</Label>
-                                <Select
-                                    value={salesChannelId || "NONE"}
-                                    onValueChange={(val: string | null) => setSalesChannelId(val && val !== "NONE" ? val : "")}
-                                >
-                                    <SelectTrigger id="salesChannel" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                                        <SelectValue placeholder="Select channel..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="NONE">None / Direct</SelectItem>
-                                        {salesChannels.map((sc) => (
-                                            <SelectItem key={sc.id} value={sc.id}>
-                                                {sc.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {posSalesChannels.length <= 1 ? (
+                                    <Input
+                                        readOnly
+                                        disabled
+                                        value={posSalesChannels[0]?.name || "Point of Sale"}
+                                        className="h-10 rounded-md border border-input bg-muted/60 px-3 text-sm text-muted-foreground font-medium cursor-not-allowed"
+                                    />
+                                ) : (
+                                    <Select
+                                        value={salesChannelId || posSalesChannels[0]?.id || "NONE"}
+                                        onValueChange={(val: string | null) => setSalesChannelId(val && val !== "NONE" ? val : "")}
+                                    >
+                                        <SelectTrigger id="salesChannel" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                            <SelectValue placeholder="Select channel...">
+                                                {selectedSalesChannelLabel}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {posSalesChannels.map((sc) => (
+                                                <SelectItem key={sc.id} value={sc.id}>
+                                                    {sc.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                         </div>
 

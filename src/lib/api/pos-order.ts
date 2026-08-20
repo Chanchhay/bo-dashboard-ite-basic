@@ -196,8 +196,8 @@ export const setOrderCustomerSchema = z.object({
 
 export const setOrderDiscountSchema = z.object({
     discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
-    discountId: z.string().optional(),
-    discountCode: z.string().optional(),
+    discountId: z.string().nullable().optional(),
+    discountCode: z.string().nullable().optional(),
 });
 
 export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;

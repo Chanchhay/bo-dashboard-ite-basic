@@ -31,6 +31,7 @@ export type AppliedDiscountRule = {
     discountId?: string;
     discountCode?: string;
     isCoupon?: boolean;
+    isMembership?: boolean;
     label?: string;
     scope?: string;
     targetItemIds?: string[];

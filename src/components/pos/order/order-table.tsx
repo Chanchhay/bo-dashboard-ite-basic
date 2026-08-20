@@ -19,6 +19,7 @@ import type { PosOrder, PosOrderItem, Sale } from "@/lib/api/pos-order";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetCustomersQuery } from "@/services/customerApi";
+import { useGetDiscountsQuery } from "@/services/discountApi";
 import {
   posOrderApi,
   useGetCurrentOrderQuery,
@@ -50,6 +51,25 @@ export interface OrderTableProps {
  * The payment dialog still speaks the older snake_case `Order`.
  */
 import { getActiveDefaultTax } from "@/lib/tax-store";
+
+const formatLocalPhone = (phoneStr?: string | null): string => {
+  if (!phoneStr) return "";
+  let cleaned = phoneStr.trim();
+  let digits = cleaned.replace(/\D/g, "");
+  if (digits.startsWith("855") && digits.length >= 10) {
+    digits = "0" + digits.slice(3);
+  } else if (!digits.startsWith("0") && (digits.length === 8 || digits.length === 9)) {
+    digits = "0" + digits;
+  }
+  return digits || cleaned;
+};
+
+const isMembershipDiscount = (r: AppliedDiscountRule | null): boolean => {
+  if (!r) return false;
+  if (r.isMembership) return true;
+  const lbl = (r.label || "").toLowerCase();
+  return lbl.includes("vip") || lbl.includes("membership") || lbl.includes("member");
+};
 
 function isRuleConditionMet(orderVal: PosOrder | null, rule: AppliedDiscountRule | null): boolean {
   if (!rule || !orderVal) return true;
@@ -405,6 +425,7 @@ export function OrderTable({
 
   const { data: order, isLoading, error } = useGetCurrentOrderQuery();
   const { data: customers = [] } = useGetCustomersQuery();
+  const { data: discounts = [] } = useGetDiscountsQuery();
 
   const [updateOrderItem] = useUpdateOrderItemMutation();
   const [removeOrderItem] = useRemoveOrderItemMutation();
@@ -582,7 +603,7 @@ export function OrderTable({
     if (storeDefaultRaw) {
       try {
         const parsed = JSON.parse(storeDefaultRaw);
-        if (parsed?.isCoupon || parsed?.discountCode) {
+        if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed)) {
           localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
         } else {
           rule = parsed;
@@ -633,6 +654,51 @@ export function OrderTable({
   const handleSelectCustomer = async (customerId: string | null) => {
     try {
       await setOrderCustomer({ customerId }).unwrap();
+
+      if (customerId) {
+        const targetCustomer = customers.find((c) => c.id === customerId);
+        const discountId =
+          targetCustomer?.membershipType?.discountId ||
+          targetCustomer?.membershipType?.discount?.id;
+
+        const d: any = (discountId ? discounts.find((rule) => rule.id === discountId) : null) ||
+          targetCustomer?.membershipType?.discount;
+
+        if (d) {
+          const isBuyXGetY =
+            d.ruleType === "BUY_X_GET_Y" ||
+            String(d.type) === "BUY_X_GET_Y";
+
+          const targetItemIds = Array.isArray(d.targets)
+            ? d.targets.map((t: any) => t.targetId)
+            : d.targetItemIds;
+
+          const memberRule: AppliedDiscountRule = {
+            label: targetCustomer?.membershipType?.typeName
+              ? `${targetCustomer.membershipType.typeName} Discount`
+              : d.name,
+            type: isBuyXGetY ? "BUY_X_GET_Y" : (d.type as any),
+            value: d.value ?? 0,
+            minOrderAmount: d.minOrderAmount,
+            maxDiscountAmount: d.maxDiscountAmount,
+            buyQuantity: d.buyQuantity,
+            getQuantity: d.getQuantity,
+            scope: d.scope,
+            targetItemIds,
+            discountId: d.id,
+            isMembership: true,
+          };
+
+          await handleApplyDiscountRule(memberRule);
+          toast({
+            tone: "success",
+            title: "Membership Discount Applied",
+            description: `Applied ${targetCustomer?.membershipType?.typeName || "Membership"} discount to order.`,
+          });
+          return;
+        }
+      }
+
       if (activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode) {
         await handleApplyDiscountRule(null);
       }
@@ -649,51 +715,22 @@ export function OrderTable({
     const isCouponRule = Boolean(rule?.isCoupon || rule?.discountCode);
 
     if (!rule) {
-      const currentIsCoupon = Boolean(
-        activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode
-      );
-
-      if (currentIsCoupon) {
-        const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
-        let defaultRule: AppliedDiscountRule | null = null;
-        if (storeDefaultRaw) {
-          try {
-            defaultRule = JSON.parse(storeDefaultRaw);
-          } catch {}
-        }
-
-        if (defaultRule) {
-          if (order?.id) {
-            localStorage.setItem(
-              `pos_cart_discount_${order.id}`,
-              JSON.stringify(defaultRule)
-            );
-            setActiveDiscountRule(defaultRule);
-            const targetAmount = computeTargetDiscountAmount(order, defaultRule);
-            await setOrderDiscount({
-              discountAmount: targetAmount,
-              discountId: defaultRule.discountId,
-              discountCode: defaultRule.discountCode,
-            }).unwrap();
-          } else {
-            setActiveDiscountRule(defaultRule);
-          }
-          return;
-        }
-      }
-
       localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
       if (order?.id) {
         localStorage.removeItem(`pos_cart_discount_${order.id}`);
       }
       setActiveDiscountRule(null);
       if (order?.id) {
-        await setOrderDiscount({ discountAmount: 0 }).unwrap();
+        await setOrderDiscount({
+          discountAmount: 0,
+          discountId: null,
+          discountCode: null,
+        }).unwrap();
       }
       return;
     }
 
-    if (!isCouponRule) {
+    if (!isCouponRule && !rule.isMembership) {
       localStorage.setItem(STORE_DEFAULT_DISCOUNT_KEY, JSON.stringify(rule));
     }
 
@@ -839,19 +876,23 @@ export function OrderTable({
         } catch {}
       }
 
-      if (activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode) {
-        const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
-        let defaultRule: AppliedDiscountRule | null = null;
-        if (storeDefaultRaw) {
-          try {
-            const parsed = JSON.parse(storeDefaultRaw);
-            if (!parsed?.isCoupon && !parsed?.discountCode) {
-              defaultRule = parsed;
-            }
-          } catch {}
-        }
-        setActiveDiscountRule(defaultRule);
+      // Revert discount to previous normal store default discount (or clear if none)
+      const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+      let defaultRule: AppliedDiscountRule | null = null;
+      if (storeDefaultRaw) {
+        try {
+          const parsed = JSON.parse(storeDefaultRaw);
+          if (!parsed?.isCoupon && !parsed?.discountCode && !isMembershipDiscount(parsed)) {
+            defaultRule = parsed;
+          } else {
+            localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
+          }
+        } catch {}
       }
+      setActiveDiscountRule(defaultRule);
+
+      // Reset attached customer so next order starts fresh
+      void setOrderCustomer({ customerId: null });
 
       setPaymentOpen(false);
       onPaymentSuccess?.(sold, sale);
@@ -926,7 +967,7 @@ export function OrderTable({
                 </div>
                 {selectedCustomer.globalCustomer?.phoneNumber && (
                   <p className="text-[11px] text-gray-500 truncate">
-                    {selectedCustomer.globalCustomer.phoneNumber}
+                    {formatLocalPhone(selectedCustomer.globalCustomer.phoneNumber)}
                   </p>
                 )}
               </div>

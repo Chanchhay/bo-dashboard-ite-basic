@@ -9,7 +9,15 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
         "message" in error.data &&
         typeof error.data.message === "string"
     ) {
-        return error.data.message;
+        const msg = error.data.message;
+        if (
+            msg.toLowerCase().includes("database operation failed") ||
+            msg.toLowerCase().includes("duplicate key") ||
+            msg.toLowerCase().includes("data integrity violation")
+        ) {
+            return "This phone number or email is already registered to another customer.";
+        }
+        return msg;
     }
 
     return fallback;

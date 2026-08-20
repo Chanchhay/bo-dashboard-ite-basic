@@ -185,6 +185,18 @@ export default function MembershipTypesPage() {
         }
     };
 
+    const selectedDiscountLabel = useMemo(() => {
+        if (!discountId || discountId === "NONE") return "None (No special discount)";
+        const d = discounts.find((item) => item.id === discountId);
+        if (!d) return "None (No special discount)";
+        const isBuyXGetY = d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y";
+        return isBuyXGetY
+            ? `${d.name} (Buy ${d.buyQuantity ?? "X"} get ${d.getQuantity ?? "Y"})`
+            : d.type === "PERCENTAGE"
+            ? `${d.name} (${d.value}%)`
+            : `${d.name} (${format(d.value)})`;
+    }, [discountId, discounts, format]);
+
     return (
         <div className="space-y-6">
             {/* Header section */}
@@ -351,7 +363,9 @@ export default function MembershipTypesPage() {
                                 onValueChange={(val: string | null) => setDiscountId(val && val !== "NONE" ? val : "")}
                             >
                                 <SelectTrigger id="discount" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                                    <SelectValue placeholder="Select discount rule..." />
+                                    <SelectValue placeholder="Select discount rule...">
+                                        {selectedDiscountLabel}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="NONE">None (No special discount)</SelectItem>
