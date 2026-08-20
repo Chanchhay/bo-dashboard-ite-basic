@@ -20,6 +20,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { CustomerResponse } from "@/lib/api/customer";
@@ -36,6 +43,18 @@ interface CustomerSelectModalProps {
     selectedCustomerId?: string | null;
     onSelectCustomer: (customerId: string | null) => Promise<void>;
 }
+
+const formatLocalPhone = (phoneStr?: string | null): string => {
+    if (!phoneStr) return "";
+    let cleaned = phoneStr.trim();
+    let digits = cleaned.replace(/\D/g, "");
+    if (digits.startsWith("855") && digits.length >= 10) {
+        digits = "0" + digits.slice(3);
+    } else if (!digits.startsWith("0") && (digits.length === 8 || digits.length === 9)) {
+        digits = "0" + digits;
+    }
+    return digits || cleaned;
+};
 
 export function CustomerSelectModal({
     open,
@@ -67,16 +86,27 @@ export function CustomerSelectModal({
 
     const filteredCustomers = useMemo(() => {
         if (!searchQuery.trim()) return customers;
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.trim().toLowerCase();
+
         return customers.filter((c) => {
+            const rawPhone = c.globalCustomer?.phoneNumber || "";
+            const formattedPhone = formatLocalPhone(rawPhone).toLowerCase();
+            const rawPhoneLower = rawPhone.toLowerCase();
+
+            // Phone search match starting from 0 (e.g. 092...) or containing query
+            const isPhoneMatch =
+                formattedPhone.startsWith(q) ||
+                formattedPhone.includes(q) ||
+                rawPhoneLower.includes(q);
+
+            if (isPhoneMatch) return true;
+
             const name = c.globalCustomer?.fullName?.toLowerCase() || "";
             const mail = c.globalCustomer?.email?.toLowerCase() || "";
-            const ph = c.globalCustomer?.phoneNumber?.toLowerCase() || "";
             const tier = c.membershipType?.typeName?.toLowerCase() || "";
             return (
                 name.includes(q) ||
                 mail.includes(q) ||
-                ph.includes(q) ||
                 tier.includes(q)
             );
         });
@@ -108,12 +138,17 @@ export function CustomerSelectModal({
         }
 
         try {
+            const posChannel = salesChannels.find(
+                (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
+            );
+            const effectiveChannelId = salesChannelId || posChannel?.id || salesChannels[0]?.id || undefined;
+
             const newCust = await createCustomer({
                 fullName: fullName.trim() || undefined,
                 phoneNumber: phone.trim() || undefined,
                 email: email.trim() || undefined,
                 membershipTypeId: membershipTypeId || undefined,
-                salesChannelId: salesChannelId || undefined,
+                salesChannelId: effectiveChannelId,
                 address: address.trim() || undefined,
                 active: true,
             }).unwrap();
@@ -139,6 +174,39 @@ export function CustomerSelectModal({
             setFormError(getApiErrorMessage(err, "Could not create customer."));
         }
     };
+
+    const posSalesChannels = useMemo(() => {
+        const filtered = salesChannels.filter((sc) => {
+            const name = sc.name?.toUpperCase() || "";
+            const code = sc.code?.toUpperCase() || "";
+            if (name.includes("ONLINE") || code.includes("ONLINE") || name.includes("WEB") || code.includes("WEB") || name.includes("APP")) {
+                return false;
+            }
+            return (
+                name.includes("POS") ||
+                code.includes("POS") ||
+                name.includes("POINT OF SALE") ||
+                name.includes("SHOP") ||
+                name.includes("DIRECT") ||
+                name.includes("IN-STORE")
+            );
+        });
+        return filtered.length > 0 ? filtered : salesChannels.filter((sc) => !sc.name?.toUpperCase().includes("ONLINE"));
+    }, [salesChannels]);
+
+    const selectedQuickMembershipLabel = useMemo(() => {
+        if (!membershipTypeId || membershipTypeId === "NONE") return "Standard (No Tier)";
+        const found = membershipTypes.find((mt) => mt.id === membershipTypeId);
+        return found ? found.typeName : "Standard (No Tier)";
+    }, [membershipTypeId, membershipTypes]);
+
+    const selectedQuickChannelLabel = useMemo(() => {
+        if (!salesChannelId || salesChannelId === "NONE") {
+            return posSalesChannels[0]?.name || "POS / Direct";
+        }
+        const found = salesChannels.find((sc) => sc.id === salesChannelId);
+        return found ? found.name : posSalesChannels[0]?.name || "POS / Direct";
+    }, [salesChannelId, salesChannels, posSalesChannels]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -187,7 +255,7 @@ export function CustomerSelectModal({
                                 <Input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search customer name, phone, tier..."
+                                    placeholder="Search by phone number or name..."
                                     className="pl-9 h-10 text-sm rounded-xl"
                                 />
                             </div>
@@ -222,7 +290,7 @@ export function CustomerSelectModal({
                                 filteredCustomers.map((c) => {
                                     const isSelected = selectedCustomerId === c.id;
                                     const name = c.globalCustomer?.fullName || "Unnamed Customer";
-                                    const phoneNum = c.globalCustomer?.phoneNumber;
+                                    const phoneNum = formatLocalPhone(c.globalCustomer?.phoneNumber);
                                     const emailAddr = c.globalCustomer?.email;
                                     const tier = c.membershipType?.typeName;
                                     const channel = c.salesChannel?.name;
@@ -325,7 +393,7 @@ export function CustomerSelectModal({
                                     id="quick-phone"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="+855 12 345 678"
+                                    placeholder="012 345 678"
                                     className="h-10 text-sm rounded-xl"
                                 />
                             </div>
@@ -349,38 +417,56 @@ export function CustomerSelectModal({
                                 <Label htmlFor="quick-membership" className="text-xs font-bold text-gray-700 flex items-center gap-1">
                                     <Sparkles className="h-3 w-3 text-amber-500" /> Membership Tier
                                 </Label>
-                                <select
-                                    id="quick-membership"
-                                    value={membershipTypeId}
-                                    onChange={(e) => setMembershipTypeId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                                <Select
+                                    value={membershipTypeId || "NONE"}
+                                    onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
                                 >
-                                    <option value="">Standard (No Tier)</option>
-                                    {membershipTypes.map((mt) => (
-                                        <option key={mt.id} value={mt.id}>
-                                            {mt.typeName}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="quick-membership" size="sm" className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm">
+                                        <SelectValue placeholder="Standard (No Tier)">
+                                            {selectedQuickMembershipLabel}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">Standard (No Tier)</SelectItem>
+                                        {membershipTypes.map((mt) => (
+                                            <SelectItem key={mt.id} value={mt.id}>
+                                                {mt.typeName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="quick-channel" className="text-xs font-bold text-gray-700">
                                     Sales Channel
                                 </Label>
-                                <select
-                                    id="quick-channel"
-                                    value={salesChannelId}
-                                    onChange={(e) => setSalesChannelId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                                >
-                                    <option value="">POS / Direct</option>
-                                    {salesChannels.map((sc) => (
-                                        <option key={sc.id} value={sc.id}>
-                                            {sc.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                {posSalesChannels.length <= 1 ? (
+                                    <Input
+                                        readOnly
+                                        disabled
+                                        value={posSalesChannels[0]?.name || "Point of Sale"}
+                                        className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-600 font-medium cursor-not-allowed"
+                                    />
+                                ) : (
+                                    <Select
+                                        value={salesChannelId || posSalesChannels[0]?.id || "NONE"}
+                                        onValueChange={(val: string | null) => setSalesChannelId(val && val !== "NONE" ? val : "")}
+                                    >
+                                        <SelectTrigger id="quick-channel" size="sm" className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm">
+                                            <SelectValue placeholder="Select channel">
+                                                {selectedQuickChannelLabel}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {posSalesChannels.map((sc) => (
+                                                <SelectItem key={sc.id} value={sc.id}>
+                                                    {sc.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                         </div>
 
