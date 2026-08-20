@@ -290,6 +290,9 @@ function BusinessProfileEditor({
             phoneNumber: String(formData.get("phoneNumber") || ""),
             address: String(formData.get("address") || ""),
             googleMap: String(formData.get("googleMap") || ""),
+            openTime: String(formData.get("openTime") || ""),
+            closeTime: String(formData.get("closeTime") || ""),
+            isClosed: formData.get("isClosed") === "true",
         });
 
         if (!result.success) {

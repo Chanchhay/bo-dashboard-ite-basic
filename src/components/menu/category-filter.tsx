@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ChevronDown, ChevronUp, Check, Search as SearchIcon, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ChevronDown, ChevronUp, Check, Search as SearchIcon, X, SlidersHorizontal } from "lucide-react";
 import { CategoryFilterSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +26,9 @@ export type SearchItemEntry = {
 
 type ExactSidebarFilterProps = {
   mainCategories?: MainCategory[];
-  categories?: string[]; // Main Item Groups created by Business Owner
-  subCategories?: string[]; // Subgroups created by Business Owner under selected group
-  items?: SearchItemEntry[]; // Published store items for live modal search results
+  categories?: string[];
+  subCategories?: string[];
+  items?: SearchItemEntry[];
   selectedCategory?: string;
   selectedSubCategory?: string;
   searchQuery?: string;
@@ -64,7 +64,19 @@ export default function CategoryFilter({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
-  // Take strictly Item Groups created by Business Owner in Inventory Config
+  // Close search modal on Esc key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchModalOpen(false);
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Take Item Groups created by Business Owner in Inventory Config
   const categoryList: string[] = useMemo(() => {
     const list = categories.filter((c) => c !== "All" && c !== "All Dishes");
     if (mainCategories && mainCategories.length > 0) {
@@ -77,7 +89,7 @@ export default function CategoryFilter({
     return ["All", ...list];
   }, [categories, mainCategories]);
 
-  // Take strictly Subcategories created under Item Groups by Business Owner
+  // Take Subcategories created under Item Groups by Business Owner
   const subcategoryList: string[] = useMemo(() => {
     const list = subCategories.filter((s) => s !== "All" && s !== "All Subcategories");
     return ["All", ...list];
@@ -116,19 +128,32 @@ export default function CategoryFilter({
   const FilterMarkup = (
     <div className="w-full text-gray-900 dark:text-gray-100 font-sans space-y-5">
       {/* 🔍 Circular Search Button above Filters */}
-      <div>
+      <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setSearchModalOpen(true)}
+          onClick={() => {
+            setSearchModalOpen(true);
+            setMobileOpen(false);
+          }}
           className="size-11 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1a1e29] shadow-2xs hover:border-[#00932a] hover:bg-gray-50 dark:hover:bg-gray-800/80 flex items-center justify-center transition-all cursor-pointer group"
           aria-label="Search items"
         >
           <SearchIcon className="size-5 text-gray-700 dark:text-gray-200 group-hover:text-[#00932a] transition-colors" />
         </button>
+
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={onResetFilters}
+            className="text-xs font-bold text-[#00932a] hover:underline cursor-pointer md:hidden"
+          >
+            Clear all
+          </button>
+        )}
       </div>
 
       {/* Sidebar Heading */}
-      <div className="flex items-baseline justify-between border-b border-gray-200 dark:border-gray-800/80 pb-4">
+      <div className="flex items-baseline justify-between border-b border-gray-200 dark:border-gray-800/80 pb-3">
         <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
           Filters
         </h2>
@@ -136,7 +161,7 @@ export default function CategoryFilter({
           <button
             type="button"
             onClick={onResetFilters}
-            className="text-xs font-semibold text-[#00932a] hover:underline cursor-pointer"
+            className="hidden md:inline-block text-xs font-semibold text-[#00932a] hover:underline cursor-pointer"
           >
             Clear all
           </button>
@@ -146,12 +171,12 @@ export default function CategoryFilter({
       {/* ─────────────────────────────────────────────────────────────
           SECTION 1: ITEM GROUPS / CATEGORIES
          ───────────────────────────────────────────────────────────── */}
-      <div className="border-b border-gray-200 dark:border-gray-800/80 pb-6 space-y-3">
+      <div className="border-b border-gray-200 dark:border-gray-800/80 pb-5 space-y-3">
         <h3 className="text-xs font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
           Categories
         </h3>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {visibleCategories.map((cat) => {
             const isChecked =
               cat.toLowerCase() === selectedCategory.toLowerCase();
@@ -159,8 +184,10 @@ export default function CategoryFilter({
             return (
               <label
                 key={cat}
-                onClick={() => onChange?.(cat)}
-                className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer select-none group"
+                onClick={() => {
+                  onChange?.(cat);
+                }}
+                className="flex items-center gap-3 py-1 px-1 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer select-none group active:bg-gray-100 dark:active:bg-gray-800 transition-colors"
               >
                 <div
                   className={cn(
@@ -172,7 +199,7 @@ export default function CategoryFilter({
                 >
                   {isChecked && <Check className="size-3 stroke-[3]" />}
                 </div>
-                <span className={cn(isChecked && "font-bold text-[#00932a] dark:text-emerald-400")}>
+                <span className={cn("truncate", isChecked && "font-bold text-[#00932a] dark:text-emerald-400")}>
                   {cat}
                 </span>
               </label>
@@ -204,15 +231,17 @@ export default function CategoryFilter({
           Subcategories
         </h3>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {visibleSubcategories.map((sub) => {
             const isChecked = sub.toLowerCase() === selectedSubCategory.toLowerCase();
 
             return (
               <label
                 key={sub}
-                onClick={() => onSubCategoryChange?.(sub)}
-                className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer select-none group"
+                onClick={() => {
+                  onSubCategoryChange?.(sub);
+                }}
+                className="flex items-center gap-3 py-1 px-1 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer select-none group active:bg-gray-100 dark:active:bg-gray-800 transition-colors"
               >
                 <div
                   className={cn(
@@ -224,7 +253,7 @@ export default function CategoryFilter({
                 >
                   {isChecked && <Check className="size-3 stroke-[3]" />}
                 </div>
-                <span className={cn(isChecked && "font-bold text-[#00932a] dark:text-emerald-400")}>
+                <span className={cn("truncate", isChecked && "font-bold text-[#00932a] dark:text-emerald-400")}>
                   {sub}
                 </span>
               </label>
@@ -252,47 +281,69 @@ export default function CategoryFilter({
 
   return (
     <>
-      {/* Mobile Toggle Button */}
-      <div className="md:hidden w-full mb-4">
-        <button
-          type="button"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="w-full flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] p-3 text-sm font-bold text-gray-800 dark:text-gray-200 shadow-2xs"
-        >
-          <span>Filter Options</span>
-          <ChevronDown className={cn("size-4 transition-transform", mobileOpen && "rotate-180")} />
-        </button>
+      {/* Mobile Responsive Header Bar & Drawer Toggle (Phones & Small Tablets) */}
+      <div className="md:hidden w-full mb-3 space-y-2">
+        <div className="flex items-center gap-2">
+          {/* Mobile Filter Button */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="flex-1 flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] px-4 py-3 text-sm font-bold text-gray-800 dark:text-gray-200 shadow-2xs active:scale-[0.99] transition-transform"
+          >
+            <div className="flex items-center gap-2.5">
+              <SlidersHorizontal className="size-4 text-[#00932a]" />
+              <span>Filters</span>
+              {selectedCategory !== "All" && (
+                <span className="rounded-full bg-[#00932a] px-2 py-0.5 text-[11px] font-bold text-white">
+                  {selectedCategory}
+                </span>
+              )}
+            </div>
+            <ChevronDown className={cn("size-4 transition-transform duration-200", mobileOpen && "rotate-180")} />
+          </button>
 
+          {/* Quick Search Glass Button for Mobile */}
+          <button
+            type="button"
+            onClick={() => setSearchModalOpen(true)}
+            className="size-11 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] shadow-2xs flex items-center justify-center text-gray-700 dark:text-gray-200 active:scale-95 transition-transform"
+            aria-label="Open Search"
+          >
+            <SearchIcon className="size-5 text-[#00932a]" />
+          </button>
+        </div>
+
+        {/* Mobile Filter Collapsible Sheet */}
         {mobileOpen && (
-          <div className="mt-2 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] p-5 shadow-lg">
+          <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] p-5 shadow-xl animate-in slide-in-from-top-3 duration-200">
             {FilterMarkup}
           </div>
         )}
       </div>
 
       {/* Desktop Sticky Sidebar */}
-      <aside className="hidden md:block w-56 lg:w-64 shrink-0 sticky top-20">
+      <aside className="hidden md:block w-56 lg:w-64 shrink-0">
         <div className="pr-2">
           {FilterMarkup}
         </div>
       </aside>
 
       {/* ─────────────────────────────────────────────────────────────
-          SEARCH MODAL DIALOG
+          RESPONSIVE SEARCH MODAL DIALOG
          ───────────────────────────────────────────────────────────── */}
       {searchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-black/40 backdrop-blur-sm animate-in fade-in-50 duration-200">
-          <div className="w-full max-w-3xl rounded-[32px] bg-white dark:bg-[#151923] p-7 shadow-2xl border border-gray-200/80 dark:border-gray-800 space-y-5 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-sm animate-in fade-in-50 duration-200 overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-2xl sm:rounded-[32px] bg-white dark:bg-[#151923] p-4 sm:p-7 shadow-2xl border border-gray-200/80 dark:border-gray-800 space-y-4 sm:space-y-5 my-auto animate-in zoom-in-95 duration-200">
             {/* Search Input Bar with Green Ring & Clear Button */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 flex items-center rounded-full border border-[#00932a]/80 dark:border-[#00932a]/80 bg-white dark:bg-[#1a1e29] px-4 py-2.5 shadow-2xs focus-within:ring-2 focus-within:ring-[#00932a]/30">
-                <SearchIcon className="size-4 text-gray-400 mr-2.5 shrink-0" />
+            <div className="flex items-center gap-2.5 sm:gap-4">
+              <div className="relative flex-1 flex items-center rounded-full border border-[#00932a]/80 dark:border-[#00932a]/80 bg-white dark:bg-[#1a1e29] px-3.5 sm:px-4 py-2.5 shadow-2xs focus-within:ring-2 focus-within:ring-[#00932a]/30">
+                <SearchIcon className="size-4 text-gray-400 mr-2 shrink-0" />
                 <input
                   type="text"
                   autoFocus
                   value={searchQuery}
                   onChange={(e) => onSearchChange?.(e.target.value)}
-                  placeholder="Search by name, location, or category..."
+                  placeholder="Search by name or category..."
                   className="w-full bg-transparent text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none"
                 />
                 {searchQuery && (
@@ -310,25 +361,25 @@ export default function CategoryFilter({
               <button
                 type="button"
                 onClick={() => setSearchModalOpen(false)}
-                className="text-base font-bold text-[#00932a] hover:text-[#00932a]/80 px-2 py-1 transition-colors cursor-pointer"
+                className="text-sm sm:text-base font-bold text-[#00932a] hover:text-[#00932a]/80 px-1 sm:px-2 py-1 transition-colors cursor-pointer shrink-0"
               >
                 Cancel
               </button>
             </div>
 
-            {/* RESULTS Header & 4-Column Grid with rounded square thumbnail & shadow */}
+            {/* RESULTS Header & Responsive Grid */}
             {searchQuery.trim().length > 0 && (
-              <div className="space-y-4 pt-1">
+              <div className="space-y-3 pt-1">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 px-1">
                   RESULTS ({searchResults.length})
                 </h4>
 
                 {searchResults.length === 0 ? (
-                  <div className="py-12 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">
+                  <div className="py-10 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">
                     No results found for &quot;{searchQuery}&quot;
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[380px] overflow-y-auto py-1 pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 max-h-[60vh] sm:max-h-[380px] overflow-y-auto py-1 pr-1 scrollbar-thin">
                     {searchResults.map((item) => (
                       <div
                         key={item.id}
@@ -336,9 +387,9 @@ export default function CategoryFilter({
                           onItemSelect?.(item.id);
                           setSearchModalOpen(false);
                         }}
-                        className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/80 transition-colors cursor-pointer group"
+                        className="flex items-center gap-3 p-2 sm:p-2.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/80 transition-colors cursor-pointer group active:scale-[0.98]"
                       >
-                        <div className="relative size-12 rounded-2xl overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 shadow-md shadow-gray-200/70 dark:shadow-black/40 border border-gray-200/80 dark:border-gray-700/80 group-hover:scale-105 transition-transform duration-200">
+                        <div className="relative size-11 sm:size-12 rounded-2xl overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 shadow-md shadow-gray-200/70 dark:shadow-black/40 border border-gray-200/80 dark:border-gray-700/80 group-hover:scale-105 transition-transform duration-200">
                           <img
                             src={item.image || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80"}
                             alt={item.name}
