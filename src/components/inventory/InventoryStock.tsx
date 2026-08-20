@@ -11,6 +11,7 @@ import {
 
 import { useMoney } from "@/hooks/useMoney";
 
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -205,9 +206,10 @@ export function InventoryStock() {
             <InventoryPageHeader
                 title="Stock"
                 description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."
+                action={<TourButton />}
             />
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div data-tour="stock-metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                     label="Tracked"
                     value={String(items.length + addOns.length)}
@@ -248,7 +250,7 @@ export function InventoryStock() {
                             Counted in each item&apos;s base unit.
                         </p>
                     </div>
-                    <div className="relative w-full sm:max-w-xs">
+                    <div data-tour="stock-search" className="relative w-full sm:max-w-xs">
                         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={stockSearch}

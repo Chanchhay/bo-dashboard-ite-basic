@@ -169,6 +169,7 @@ function SectionItem({
     if (!section.children) {
         return (
             <Link
+                data-tour={`sidebar-section-${section.id}`}
                 href={section.href ?? "#"}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
@@ -192,7 +193,7 @@ function SectionItem({
     }
 
     return (
-        <>
+        <div data-tour={`sidebar-section-${section.id}`} className="flex flex-col">
             {/* Not a control — inside an app there is nothing to collapse into.
                 Named as the launcher names it, so the tile you clicked and the
                 app you land in agree. */}
@@ -213,8 +214,9 @@ function SectionItem({
                     const leafActive = isLeafActive(leaf, fullPath);
 
                     if (isNavGroup(leaf)) {
+                        const groupKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
                         return (
-                            <li key={leaf.label}>
+                            <li key={leaf.label} data-tour={`sidebar-group-${groupKey}`}>
                                 <details
                                     className="group/pos"
                                     open={leafActive || undefined}
@@ -242,8 +244,9 @@ function SectionItem({
                                                 child,
                                                 fullPath,
                                             );
+                                            const childKey = child.label.toLowerCase().replace(/\s+/g, "-");
                                             return (
-                                                <li key={child.href}>
+                                                <li key={child.href} data-tour={`sidebar-link-${childKey}`}>
                                                     <Link
                                                         href={child.href}
                                                         onClick={onNavigate}
@@ -272,8 +275,9 @@ function SectionItem({
                         );
                     }
 
+                    const leafKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
                     return (
-                        <li key={leaf.href}>
+                        <li key={leaf.href} data-tour={`sidebar-link-${leafKey}`}>
                             <Link
                                 href={leaf.href}
                                 onClick={onNavigate}
@@ -296,6 +300,6 @@ function SectionItem({
                     );
                 })}
             </ul>
-        </>
+        </div>
     );
 }

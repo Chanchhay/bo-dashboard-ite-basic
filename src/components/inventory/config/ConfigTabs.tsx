@@ -43,6 +43,7 @@ export function ConfigTabs({
                             key={tab.id}
                             type="button"
                             role="tab"
+                            data-tour={`config-tab-${tab.id}`}
                             id={`config-tab-${tab.id}`}
                             aria-selected={active}
                             aria-controls={`config-panel-${tab.id}`}

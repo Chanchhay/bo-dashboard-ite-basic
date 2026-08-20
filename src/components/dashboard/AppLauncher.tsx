@@ -13,9 +13,7 @@ import UserMenu from "@/components/layout/UserMenu";
 import type { Permission } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
-import { Compass } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
-import { startGuidedTour } from "@/components/onboarding/GuidedTour";
 
 /** How long the icon grows before the route actually changes. */
 const OPEN_MS = 620;
@@ -60,22 +58,14 @@ export default function AppLauncher({
                 </Link>
 
                 <div className="flex items-center gap-3 sm:gap-5">
-                    <button
-                        type="button"
-                        onClick={startGuidedTour}
-                        title="Take Guided Tour"
-                        aria-label="Take Guided Tour"
-                        className="hidden sm:flex items-center gap-1.5 rounded-xl border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] px-3 py-1.5 text-xs font-semibold text-primary hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                        <Compass className="size-4" />
-                        <span>Guided Tour</span>
-                    </button>
-
-                    <ThemeToggle variant="icon" className="hidden sm:grid" />
-                    <div data-tour="notifications" className="inline-flex">
-                        <NotificationMenu />
+                    <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">
+                        <ThemeToggle variant="icon" className="hidden sm:grid" />
+                        <div data-tour="notifications" className="inline-flex h-10 items-center justify-center">
+                            <NotificationMenu />
+                        </div>
                     </div>
-                    <div data-tour="user-menu" className="inline-flex">
+
+                    <div data-tour="user-menu" className="inline-flex h-10 sm:h-11 items-center justify-center">
                         <UserMenu name={managerName} />
                     </div>
                 </div>

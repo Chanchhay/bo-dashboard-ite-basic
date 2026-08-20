@@ -460,13 +460,14 @@ export default function StaffTab() {
                 </Panel>
             )}
 
-            <Panel>
+            <Panel data-tour="user-list">
                 <PanelHeader
                     title="Users"
                     description="People who can sign in to this business."
                     action={
                         <Button
                             type="button"
+                            data-tour="add-user"
                             onClick={() => {
                                 setEditor({ mode: "create" });
                                 setFieldErrors({});
@@ -479,7 +480,7 @@ export default function StaffTab() {
                     }
                 />
 
-                <div className="relative mt-6 sm:w-72">
+                <div data-tour="staff-search" className="relative mt-6 sm:w-72">
                     <Search
                         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"

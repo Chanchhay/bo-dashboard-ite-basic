@@ -439,7 +439,7 @@ function CurrencyEditor({
                 <SectionTitle>General Configuration</SectionTitle>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
-                    <div data-tour="exchange-base">
+                    <div data-tour="currency-base">
                         <Label
                             htmlFor="base-currency"
                             className="mb-3 ml-1 block text-base font-medium text-foreground"
@@ -463,7 +463,7 @@ function CurrencyEditor({
                         />
                     </div>
 
-                    <div>
+                    <div data-tour="currency-decimals">
                         <Label
                             htmlFor="decimal-places"
                             className="mb-3 ml-1 block text-base font-medium text-foreground"
@@ -493,7 +493,7 @@ function CurrencyEditor({
                         />
                     </div>
 
-                    <div>
+                    <div data-tour="currency-display">
                         <Label
                             htmlFor="display-currency"
                             className="mb-3 ml-1 block text-base font-medium text-foreground"
@@ -525,7 +525,7 @@ function CurrencyEditor({
                     </div>
                 </div>
 
-                <div className="mt-7">
+                <div className="mt-7" data-tour="currency-list">
                     <Label
                         htmlFor="add-currency"
                         className="mb-3 ml-1 block text-base font-medium text-foreground"
@@ -597,7 +597,7 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <section className="mt-4 rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="currency-calculator" className="mt-4 rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>Exchange Rate &amp; Calculator</SectionTitle>
 
                 <div className="mt-5 max-w-[630px] rounded-2xl border border-border bg-muted/30 p-4 sm:p-6">
@@ -735,7 +735,7 @@ function CurrencyEditor({
                 </Button>
                 <Button
                     type="submit"
-                    data-tour="exchange-save"
+                    data-tour="currency-save"
                     disabled={updateState.isLoading}
                     size="lg"
                     className="min-w-[124px]"

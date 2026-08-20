@@ -320,13 +320,14 @@ export default function RolesTab() {
                 </Panel>
             )}
 
-            <Panel>
+            <Panel data-tour="roles-list">
                 <PanelHeader
                     title="Roles & permissions"
                     description="A role is a named set of permissions you assign to users."
                     action={
                         <Button
                             type="button"
+                            data-tour="add-role"
                             onClick={() => openEditor({ mode: "create" })}
                             className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
@@ -353,13 +354,14 @@ export default function RolesTab() {
                     />
                 ) : (
                     <ul className="mt-6 flex flex-col gap-3">
-                        {roles.map((role) => {
+                        {roles.map((role, index) => {
                             const permissions = role.permissions || [];
                             const assigned = assignedCounts.get(role.id) || 0;
 
                             return (
                                 <li
                                     key={role.id}
+                                    data-tour={index === 0 ? "role-card" : undefined}
                                     className="rounded-2xl border border-[#e2e2de] dark:border-[#242937] bg-white/50 dark:bg-[#151821] p-5 shadow-xs dark:shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-4">

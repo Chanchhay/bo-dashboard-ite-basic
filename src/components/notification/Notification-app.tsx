@@ -29,6 +29,7 @@ import {
 import type { Notification } from "@/lib/api/notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 function formatTimeAgo(dateStr?: string | null): string {
     if (!dateStr) return "";
@@ -180,22 +181,25 @@ export default function NotificationsApp() {
                     </p>
                 </div>
 
-                {stats.unread > 0 && (
-                    <Button
-                        type="button"
-                        onClick={() => markAllAsRead()}
-                        disabled={isMarkingAll}
-                        size="sm"
-                        className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl h-10 px-4 shadow-xs shrink-0 self-start sm:self-auto"
-                    >
-                        <CheckCheck className="size-4" />
-                        <span>Mark all as read ({stats.unread})</span>
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    <TourButton />
+                    {stats.unread > 0 && (
+                        <Button
+                            type="button"
+                            onClick={() => markAllAsRead()}
+                            disabled={isMarkingAll}
+                            size="sm"
+                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl h-10 px-4 shadow-xs shrink-0 self-start sm:self-auto"
+                        >
+                            <CheckCheck className="size-4" />
+                            <span>Mark all as read ({stats.unread})</span>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div data-tour="notifications-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
                     <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
                         <Bell className="size-5" />
@@ -241,7 +245,7 @@ export default function NotificationsApp() {
             <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
                 {/* Control Bar */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3">
-                    <div className="relative w-full sm:w-80">
+                    <div data-tour="notifications-search" className="relative w-full sm:w-80">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                         <Input
                             value={searchQuery}
@@ -252,6 +256,7 @@ export default function NotificationsApp() {
                     </div>
 
                     <div
+                        data-tour="notifications-tabs"
                         role="group"
                         aria-label="Filter notifications"
                         className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-none rounded-xl bg-muted p-1 border border-transparent dark:border-border shrink-0"
@@ -281,7 +286,7 @@ export default function NotificationsApp() {
                 </div>
 
                 {/* List Container */}
-                <div className="divide-y divide-border">
+                <div data-tour="notifications-list" className="divide-y divide-border">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
                             <Loader2 className="size-7 animate-spin text-primary" />

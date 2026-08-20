@@ -1,13 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Compass, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { getPageTitle } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import { NotificationMenu } from "@/components/notification/Notification";
-import { startGuidedTour } from "@/components/onboarding/GuidedTour";
 
 export default function Header({
     managerName,
@@ -48,23 +47,15 @@ export default function Header({
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-                <button
-                    type="button"
-                    onClick={startGuidedTour}
-                    title="Take Guided Tour"
-                    aria-label="Take Guided Tour"
-                    className="hidden sm:grid size-10 shrink-0 place-items-center rounded-xl text-primary outline-none hover:bg-primary/10 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                    <Compass className="size-5" aria-hidden="true" />
-                </button>
+                <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">
+                    <ThemeToggle variant="icon" className="hidden sm:grid" />
 
-                <ThemeToggle variant="icon" className="hidden sm:grid" />
-
-                <div data-tour="notifications" className="inline-flex">
-                    <NotificationMenu />
+                    <div data-tour="notifications" className="inline-flex h-10 items-center justify-center">
+                        <NotificationMenu />
+                    </div>
                 </div>
 
-                <div data-tour="user-menu" className="inline-flex">
+                <div data-tour="user-menu" className="inline-flex h-10 sm:h-11 items-center justify-center">
                     <UserMenu name={managerName} />
                 </div>
             </div>

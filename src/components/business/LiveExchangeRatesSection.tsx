@@ -140,7 +140,7 @@ export default function LiveExchangeRatesSection({
     const unitRate = calcFrom === calcTo ? 1 : ((rates[calcTo] || 1) / (rates[calcFrom] || 1));
 
     return (
-        <section className="mt-4 rounded-2xl border border-border bg-card p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+        <section data-tour="currency-live-rates" className="mt-4 rounded-2xl border border-border bg-card p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                     <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">

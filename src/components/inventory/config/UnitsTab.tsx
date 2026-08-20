@@ -214,7 +214,7 @@ export function UnitsTab() {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 sm:px-5">
+            <div data-tour="units-info-banner" className="rounded-2xl border border-border bg-muted/40 px-4 py-3 sm:px-5">
                 <div className="flex items-start gap-3">
                     <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
@@ -227,10 +227,11 @@ export function UnitsTab() {
             </div>
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <ConfigSection
-                    title="Units"
-                    description="Grouped by what they measure. Built-in units can be used but not changed."
-                >
+                <div data-tour="units-category-list">
+                    <ConfigSection
+                        title="Units"
+                        description="Grouped by what they measure. Built-in units can be used but not changed."
+                    >
                     <div className="divide-y divide-border">
                         {unitsByCategory(units).map(
                             ({ category, units: categoryUnits }) => {
@@ -343,6 +344,7 @@ export function UnitsTab() {
                         )}
                     </div>
                 </ConfigSection>
+                </div>
 
                 <form
                     onSubmit={handleSubmit}

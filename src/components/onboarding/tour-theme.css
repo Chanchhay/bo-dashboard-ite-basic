@@ -129,3 +129,25 @@
 .dark .driver-popover.fluxibiz-tour-popover .driver-popover-close-btn:hover {
   color: #f8fafc;
 }
+
+/* Spotlight cutout positioning and centering fixes */
+.driver-stage {
+  border-radius: 14px !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Ensure data-tour wrappers align tightly with contained chips & icons */
+[data-tour="user-menu"],
+[data-tour="notifications"],
+[data-tour="topbar-icons"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 40px !important;
+  max-height: 40px !important;
+  line-height: 1 !important;
+  margin-top: auto !important;
+  margin-bottom: auto !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+}

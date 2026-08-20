@@ -26,6 +26,7 @@ import {
     toStockTargets,
     type StockTargetRef,
 } from "@/components/inventory/stock/StockTargetSelect";
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -531,15 +532,18 @@ export function StockAdjustmentForm() {
                 title="Adjust stock"
                 description="Every change to stock is recorded as a movement, so the history stays complete."
                 action={
-                    <Button
-                        variant="outline"
-                        render={<Link href="/inventory/stock" />}
-                        nativeButton={false}
-                        className="h-10 gap-2 rounded-xl"
-                    >
-                        <ArrowLeft className="size-4" />
-                        Back to stock
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <TourButton />
+                        <Button
+                            variant="outline"
+                            render={<Link href="/inventory/stock" />}
+                            nativeButton={false}
+                            className="h-10 gap-2 rounded-xl"
+                        >
+                            <ArrowLeft className="size-4" />
+                            Back to stock
+                        </Button>
+                    </div>
                 }
             />
 
@@ -566,73 +570,77 @@ export function StockAdjustmentForm() {
                     </div>
                 ) : (
                     <div className="mt-6 grid gap-5 md:grid-cols-2">
-                        <Field
-                            label="Item *"
-                            name="itemId"
-                            hint={
-                                scannedItemName
-                                    ? `${scannedItemName} selected by barcode.`
-                                    : "Search item by name, SKU, or barcode."
-                            }
-                            error={fieldErrors.itemId}
-                        >
-                            <div className="flex gap-2">
-                                <StockTargetSelect
-                                    targets={targets}
-                                    selected={target}
-                                    onSelect={(picked) => {
-                                        setTarget(picked);
-                                        setAdjustedEntryId("");
-                                        setOptionId("");
-                                        setScannedItemName(null);
-                                        setFieldErrors((current) => {
-                                            const next = { ...current };
-                                            delete next.itemId;
-                                            return next;
-                                        });
-                                    }}
-                                    ariaInvalid={Boolean(fieldErrors.itemId)}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon-lg"
-                                    onClick={() => setScannerOpen(true)}
-                                    aria-label="Scan an item barcode"
-                                    title="Scan item barcode"
-                                >
-                                    <ScanBarcode />
-                                </Button>
-                            </div>
-                        </Field>
+                        <div data-tour="adjust-item-select">
+                            <Field
+                                label="Item *"
+                                name="itemId"
+                                hint={
+                                    scannedItemName
+                                        ? `${scannedItemName} selected by barcode.`
+                                        : "Search item by name, SKU, or barcode."
+                                }
+                                error={fieldErrors.itemId}
+                            >
+                                <div className="flex gap-2">
+                                    <StockTargetSelect
+                                        targets={targets}
+                                        selected={target}
+                                        onSelect={(picked) => {
+                                            setTarget(picked);
+                                            setAdjustedEntryId("");
+                                            setOptionId("");
+                                            setScannedItemName(null);
+                                            setFieldErrors((current) => {
+                                                const next = { ...current };
+                                                delete next.itemId;
+                                                return next;
+                                            });
+                                        }}
+                                        ariaInvalid={Boolean(fieldErrors.itemId)}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon-lg"
+                                        onClick={() => setScannerOpen(true)}
+                                        aria-label="Scan an item barcode"
+                                        title="Scan item barcode"
+                                    >
+                                        <ScanBarcode />
+                                    </Button>
+                                </div>
+                            </Field>
+                        </div>
 
                         {/* Adjustment Action Dropdown */}
-                        <Field
-                            label="Adjustment Action *"
-                            name="adjustmentAction"
-                            hint={
-                                adjustmentType === "OVERSTATED"
-                                    ? "Overstated deducts stock from current balance."
-                                    : adjustmentType === "UNDERSTATED"
-                                      ? "Understated adds stock to current balance."
-                                      : "Manual mode allows entering positive or negative quantity change."
-                            }
-                        >
-                            <SelectField
-                                id="adjustmentAction"
+                        <div data-tour="adjust-action-select">
+                            <Field
+                                label="Adjustment Action *"
                                 name="adjustmentAction"
-                                value={adjustmentType}
-                                onValueChange={(val) =>
-                                    setAdjustmentType(val as "OVERSTATED" | "UNDERSTATED" | "MANUAL")
+                                hint={
+                                    adjustmentType === "OVERSTATED"
+                                        ? "Overstated deducts stock from current balance."
+                                        : adjustmentType === "UNDERSTATED"
+                                          ? "Understated adds stock to current balance."
+                                          : "Manual mode allows entering positive or negative quantity change."
                                 }
-                                options={[
-                                    { value: "OVERSTATED", label: "Overstated" },
-                                    { value: "UNDERSTATED", label: "Understated" },
-                                    { value: "MANUAL", label: "Manual" },
-                                ]}
-                                className={inventoryControlClassName}
-                            />
-                        </Field>
+                            >
+                                <SelectField
+                                    id="adjustmentAction"
+                                    name="adjustmentAction"
+                                    value={adjustmentType}
+                                    onValueChange={(val) =>
+                                        setAdjustmentType(val as "OVERSTATED" | "UNDERSTATED" | "MANUAL")
+                                    }
+                                    options={[
+                                        { value: "OVERSTATED", label: "Overstated" },
+                                        { value: "UNDERSTATED", label: "Understated" },
+                                        { value: "MANUAL", label: "Manual" },
+                                    ]}
+                                    className={inventoryControlClassName}
+                                />
+                            </Field>
+                        </div>
 
                         {/* Which option, when the item is sold in options */}
                         {itemOptions.length ? (
@@ -682,7 +690,7 @@ export function StockAdjustmentForm() {
                         ) : null}
 
                         {/* Which record this correction is made against */}
-                        <div className="sm:col-span-2 md:col-span-2">
+                        <div data-tour="adjust-record-link" className="sm:col-span-2 md:col-span-2">
                             <Field
                                 label="Adjust against record"
                                 name="adjustedEntryId"
@@ -725,7 +733,7 @@ export function StockAdjustmentForm() {
                         </div>
 
                         {/* Quantity Field with Manual edit checkbox */}
-                        <div className="flex flex-col gap-2">
+                        <div data-tour="adjust-quantity-input" className="flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">
                                     Quantity *
@@ -867,7 +875,7 @@ export function StockAdjustmentForm() {
                                         : `Carries forward the last cost recorded, ${formatMoney(existingUnitCost)}.`}
                             </p>
                         </div>
-                        <div className="sm:col-span-2">
+                        <div data-tour="adjust-reason-input" className="sm:col-span-2">
                             <Field
                                 label="Reason"
                                 name="reason"
@@ -887,7 +895,7 @@ export function StockAdjustmentForm() {
                         </div>
 
                         {/* Batch Details Card */}
-                        <div className={cn("sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5 transition-opacity", !isManual && "opacity-60")}>
+                        <div data-tour="adjust-batch-card" className={cn("sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5 transition-opacity", !isManual && "opacity-60")}>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-3">
                                     <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -1019,7 +1027,7 @@ export function StockAdjustmentForm() {
 
             {/* Side Live Summary Panel */}
             <div className="flex flex-col gap-4 sticky top-6">
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div data-tour="adjust-summary-panel" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-3">
                         <Calculator className="size-4 text-primary" />
                         <span>Movement Summary</span>
@@ -1110,6 +1118,7 @@ export function StockAdjustmentForm() {
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-2.5">
                     <Button
+                        data-tour="adjust-submit-btn"
                         type="submit"
                         size="lg"
                         disabled={

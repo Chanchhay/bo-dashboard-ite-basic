@@ -22,6 +22,7 @@ import {
     toStockTargets,
     type StockTargetRef,
 } from "@/components/inventory/stock/StockTargetSelect";
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -334,15 +335,18 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                             : "Record outgoing inventory deductions or removals from your stock."
                     }
                     action={
-                        <Button
-                            variant="outline"
-                            render={<Link href="/inventory/stock" />}
-                            nativeButton={false}
-                            className="h-10 gap-2 rounded-xl"
-                        >
-                            <ArrowLeft className="size-4" />
-                            Back to stock
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TourButton />
+                            <Button
+                                variant="outline"
+                                render={<Link href="/inventory/stock" />}
+                                nativeButton={false}
+                                className="h-10 gap-2 rounded-xl"
+                            >
+                                <ArrowLeft className="size-4" />
+                                Back to stock
+                            </Button>
+                        </div>
                     }
                 />
 
@@ -380,7 +384,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                         ) : (
                             <div className="grid gap-5 sm:grid-cols-2">
                                 {/* Item Selector */}
-                                <div className="sm:col-span-2">
+                                <div data-tour="stock-item-select" className="sm:col-span-2">
                                     <FormField
                                         label="Item"
                                         name="itemId"
@@ -461,25 +465,102 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                 ) : null}
 
                                 {/* Quantity Input */}
-                                <FormField
-                                    label="Quantity"
-                                    name="quantity"
-                                    required
-                                    hint={
-                                        selectedItemId
-                                            ? `Current stock: ${onHand} ${unitLabel}`
-                                            : "Number of units to adjust."
-                                    }
-                                    error={fieldErrors.quantity}
-                                >
-                                    <div className="flex items-center gap-2">
+                                <div data-tour="stock-quantity-input">
+                                    <FormField
+                                        label="Quantity"
+                                        name="quantity"
+                                        required
+                                        hint={
+                                            selectedItemId
+                                                ? `Current stock: ${onHand} ${unitLabel}`
+                                                : "Number of units to adjust."
+                                        }
+                                        error={fieldErrors.quantity}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                id="quantity"
+                                                name="quantity"
+                                                type="number"
+                                                step="0.01"
+                                                min="0.01"
+                                                value={quantityInput}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "-" || e.key === "e") {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/-/g, "");
+                                                    setQuantityInput(val);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.quantity;
+                                                        return next;
+                                                    });
+                                                }}
+                                                placeholder="e.g. 50"
+                                                className={`${inventoryControlClassName} flex-1`}
+                                            />
+                                            {unitOptions.length > 1 ? (
+                                                <select
+                                                    aria-label="Unit"
+                                                    value={selectedUnit?.id || ""}
+                                                    onChange={(event) =>
+                                                        setEntryUnitId(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-2 text-xs font-semibold text-foreground outline-none"
+                                                >
+                                                    {unitOptions.map((option) => (
+                                                        <option
+                                                            key={option.id}
+                                                            value={option.id}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : selectedItemId ? (
+                                                <span className="text-xs font-semibold text-muted-foreground shrink-0 bg-muted px-2.5 py-2 rounded-lg border border-border">
+                                                    {unitLabel}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        {conversionFactor !== 1 && isValidQty ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                {qty} {selectedUnit?.label} ={" "}
+                                                {baseQty} {unitLabel}
+                                            </p>
+                                        ) : null}
+                                    </FormField>
+                                </div>
+
+                                {/* Cost on the way in, sale price on the way out. */}
+                                <div data-tour="stock-price-input">
+                                    <FormField
+                                        label={
+                                            isStockIn
+                                                ? "Cost per unit"
+                                                : "Sale price per unit"
+                                        }
+                                        name="unitPrice"
+                                        required={isStockIn}
+                                        hint={
+                                            isStockIn
+                                                ? `What one ${selectedItem?.unit?.name || "unit"} was bought for. Stock is valued from this, oldest batch first, and it is what a selling price is set against. Enter 0 if it was free.`
+                                                : `What one ${selectedItem?.unit?.name || "unit"} sold for, if this is a sale made away from the till. Leave empty for waste or damage — the cost is worked out from the batches it came from.`
+                                        }
+                                        error={fieldErrors.unitPrice}
+                                    >
                                         <Input
-                                            id="quantity"
-                                            name="quantity"
+                                            id="unitPrice"
+                                            name="unitPrice"
                                             type="number"
                                             step="0.01"
-                                            min="0.01"
-                                            value={quantityInput}
+                                            min="0"
+                                            value={unitPriceInput}
                                             onKeyDown={(e) => {
                                                 if (e.key === "-" || e.key === "e") {
                                                     e.preventDefault();
@@ -487,94 +568,21 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                             }}
                                             onChange={(e) => {
                                                 const val = e.target.value.replace(/-/g, "");
-                                                setQuantityInput(val);
+                                                setUnitPriceInput(val);
                                                 setFieldErrors((current) => {
                                                     const next = { ...current };
-                                                    delete next.quantity;
+                                                    delete next.unitPrice;
                                                     return next;
                                                 });
                                             }}
-                                            placeholder="e.g. 50"
-                                            className={`${inventoryControlClassName} flex-1`}
+                                            placeholder="0.00"
+                                            className={inventoryControlClassName}
                                         />
-                                        {unitOptions.length > 1 ? (
-                                            <select
-                                                aria-label="Unit"
-                                                value={selectedUnit?.id || ""}
-                                                onChange={(event) =>
-                                                    setEntryUnitId(
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-2 text-xs font-semibold text-foreground outline-none"
-                                            >
-                                                {unitOptions.map((option) => (
-                                                    <option
-                                                        key={option.id}
-                                                        value={option.id}
-                                                    >
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : selectedItemId ? (
-                                            <span className="text-xs font-semibold text-muted-foreground shrink-0 bg-muted px-2.5 py-2 rounded-lg border border-border">
-                                                {unitLabel}
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                    {conversionFactor !== 1 && isValidQty ? (
-                                        <p className="text-xs text-muted-foreground">
-                                            {qty} {selectedUnit?.label} ={" "}
-                                            {baseQty} {unitLabel}
-                                        </p>
-                                    ) : null}
-                                </FormField>
-
-                                {/* Cost on the way in, sale price on the way out. */}
-                                <FormField
-                                    label={
-                                        isStockIn
-                                            ? "Cost per unit"
-                                            : "Sale price per unit"
-                                    }
-                                    name="unitPrice"
-                                    required={isStockIn}
-                                    hint={
-                                        isStockIn
-                                            ? `What one ${selectedItem?.unit?.name || "unit"} was bought for. Stock is valued from this, oldest batch first, and it is what a selling price is set against. Enter 0 if it was free.`
-                                            : `What one ${selectedItem?.unit?.name || "unit"} sold for, if this is a sale made away from the till. Leave empty for waste or damage — the cost is worked out from the batches it came from.`
-                                    }
-                                    error={fieldErrors.unitPrice}
-                                >
-                                    <Input
-                                        id="unitPrice"
-                                        name="unitPrice"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={unitPriceInput}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "-" || e.key === "e") {
-                                                e.preventDefault();
-                                            }
-                                        }}
-                                        onChange={(e) => {
-                                            const val = e.target.value.replace(/-/g, "");
-                                            setUnitPriceInput(val);
-                                            setFieldErrors((current) => {
-                                                const next = { ...current };
-                                                delete next.unitPrice;
-                                                return next;
-                                            });
-                                        }}
-                                        placeholder="0.00"
-                                        className={inventoryControlClassName}
-                                    />
-                                </FormField>
+                                    </FormField>
+                                </div>
 
                                 {/* Reason Input */}
-                                <div className="sm:col-span-2">
+                                <div data-tour="stock-reason-input" className="sm:col-span-2">
                                     <FormField
                                         label="Reason"
                                         name="reason"
@@ -609,7 +617,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                 </div>
 
                                 {/* Batch Details Card */}
-                                <div className="sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5">
+                                <div data-tour="stock-batch-card" className="sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5">
                                     <div className="flex items-start gap-3">
                                         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                                             <PackageOpen className="size-5" />
@@ -673,7 +681,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
                     {/* Side Live Summary Panel */}
                     <div className="flex flex-col gap-4 sticky top-6">
-                        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div data-tour="stock-summary-panel" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-3">
                                 <Calculator className="size-4 text-primary" />
                                 <span>Movement Summary</span>
@@ -742,6 +750,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-2.5">
                             <Button
+                                data-tour="stock-submit-btn"
                                 type="submit"
                                 size="lg"
                                 disabled={createState.isLoading || items.length === 0}

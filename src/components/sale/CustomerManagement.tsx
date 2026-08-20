@@ -236,6 +236,7 @@ export default function CustomerManagement() {
                     </p>
                 </div>
                 <Button
+                    data-tour="add-customer-btn"
                     onClick={openCreateDialog}
                     className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
                 >
@@ -244,7 +245,7 @@ export default function CustomerManagement() {
             </div>
 
             {/* Controls Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-3 gap-2">
+            <div data-tour="customers-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
                 <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -262,7 +263,7 @@ export default function CustomerManagement() {
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isCustomersLoading ? (
                     <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" /> Loading customers...
