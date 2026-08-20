@@ -71,7 +71,7 @@ function LoginContent() {
                     <button
                         type="button"
                         onClick={startLogin}
-                        className="inline-flex h-10 items-center justify-center rounded-lg bg-[#00932a] px-5 text-sm font-medium text-white transition-colors hover:bg-[#007f24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00932a] focus-visible:ring-offset-2"
+                        className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-white transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                         Sign in
                     </button>

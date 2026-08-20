@@ -440,7 +440,7 @@ export function StockLevelTable({
                 </div>
             ) : null}
 
-            <div className="overflow-x-auto">
+            <div data-tour="stock-table-container" className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                     <tr>
@@ -606,6 +606,7 @@ export function StockLevelTable({
                                                 {onViewBatches ? (
                                                     <button
                                                         type="button"
+                                                        data-tour="stock-batches-action"
                                                         onClick={() =>
                                                             onViewBatches(row.id)
                                                         }
@@ -618,6 +619,7 @@ export function StockLevelTable({
                                                 {onStockIn && !row.options?.length ? (
                                                     <Button
                                                         type="button"
+                                                        data-tour="stock-in-action"
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => onStockIn(row.id)}
@@ -630,6 +632,7 @@ export function StockLevelTable({
                                                 {onStockOut && !row.options?.length ? (
                                                     <Button
                                                         type="button"
+                                                        data-tour="stock-out-action"
                                                         variant="outline"
                                                         size="sm"
                                                         disabled={row.onHand <= 0}

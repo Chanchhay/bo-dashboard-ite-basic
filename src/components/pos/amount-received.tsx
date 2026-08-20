@@ -190,7 +190,7 @@ export function AmountReceived({
 
           {/* Amount entered — a real input, so the caret can be moved and the
               value pasted, not just appended to. */}
-          <div className="mt-3 flex min-h-16 items-center justify-center rounded-xl border border-[#bbcabf] bg-[#f2f4f6] px-5 py-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] min-[400px]:min-h-[82px] sm:min-h-[94px] sm:py-5">
+          <div data-tour="pos-cash-received" className="mt-3 flex min-h-16 items-center justify-center rounded-xl border border-[#bbcabf] bg-[#f2f4f6] px-5 py-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] min-[400px]:min-h-[82px] sm:min-h-[94px] sm:py-5">
             <input
               ref={inputRef}
               type="text"

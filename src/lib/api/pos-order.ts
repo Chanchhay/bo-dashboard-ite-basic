@@ -38,6 +38,8 @@ export type PosOrder = {
     status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
     subtotal: number;
     discountAmount: number;
+    discountId?: string | null;
+    discountCode?: string | null;
     taxRate?: number | null;
     taxAmount?: number | null;
     taxInclusionType?: TaxInclusionType | null;
@@ -182,6 +184,8 @@ export const payOrderSchema = z.object({
     taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional(),
     taxRate: z.coerce.number().optional(),
     taxAmount: z.coerce.number().optional(),
+    discountId: z.string().optional(),
+    discountCode: z.string().optional(),
 });
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;
@@ -192,8 +196,8 @@ export const setOrderCustomerSchema = z.object({
 
 export const setOrderDiscountSchema = z.object({
     discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
-    discountId: z.string().optional(),
-    discountCode: z.string().optional(),
+    discountId: z.string().nullable().optional(),
+    discountCode: z.string().nullable().optional(),
 });
 
 export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;

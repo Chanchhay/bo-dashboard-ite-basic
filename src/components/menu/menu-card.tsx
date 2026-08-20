@@ -51,7 +51,7 @@ export default function MenuCard({
         <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
           {category || "General"}
         </span>
-        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 line-clamp-1 mt-0.5 group-hover:text-[#00932a] transition-colors">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 line-clamp-1 mt-0.5 group-hover:text-primary transition-colors">
           {name}
         </h3>
         <span className="text-base font-bold text-[#d14341] dark:text-[#f87171] mt-1">

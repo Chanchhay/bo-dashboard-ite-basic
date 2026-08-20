@@ -310,7 +310,7 @@ export function OptionPresetsTab() {
 
     return (
         <div className="flex flex-col gap-4">
-            <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+            <p data-tour="preset-info-banner" className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
                 A preset is a starting point, not a live link. Applying one
                 copies its values onto the item — editing the preset afterwards
                 does not rewrite items already using it, so a tweak here can
@@ -318,10 +318,11 @@ export function OptionPresetsTab() {
             </p>
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <ConfigSection
-                    title="Option presets"
-                    description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
-                >
+                <div data-tour="presets-list-container">
+                    <ConfigSection
+                        title="Option presets"
+                        description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
+                    >
                     {presets.length === 0 ? (
                         <ConfigEmpty
                             title="No presets yet"
@@ -416,6 +417,7 @@ export function OptionPresetsTab() {
                         </div>
                     )}
                 </ConfigSection>
+                </div>
 
                 <form
                     onSubmit={handleSubmit}
@@ -445,7 +447,7 @@ export function OptionPresetsTab() {
                     </div>
 
                     <div className="mt-5 flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
+                        <div data-tour="preset-form-name" className="flex flex-col gap-2">
                             <Label htmlFor="preset-name">Name *</Label>
                             <Input
                                 id="preset-name"
@@ -616,6 +618,7 @@ export function OptionPresetsTab() {
                     </div>
 
                     <Button
+                        data-tour="preset-form-submit"
                         type="submit"
                         size="lg"
                         disabled={createState.isLoading || updateState.isLoading}

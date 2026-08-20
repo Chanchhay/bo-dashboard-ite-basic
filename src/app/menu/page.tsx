@@ -254,7 +254,7 @@ function StaticMenuContent() {
                       setQuickFilter("all");
                       setSortBy("default");
                     }}
-                    className="mt-4 rounded-xl bg-[#00932a] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#00932a]/90 transition-all cursor-pointer"
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary/90 transition-all cursor-pointer"
                   >
                     Reset All Filters
                   </button>

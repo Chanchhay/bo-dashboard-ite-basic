@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
+import GuidedTour from "@/components/onboarding/GuidedTour";
 import type { Permission } from "@/lib/permissions";
 
 export default function AppShell({
@@ -45,7 +46,12 @@ export default function AppShell({
     }, [navOpen]);
 
     if (chromeless) {
-        return <div className="min-h-dvh bg-white dark:bg-[#0f1219] text-foreground">{children}</div>;
+        return (
+            <div className="min-h-dvh bg-white dark:bg-[#0f1219] text-foreground">
+                <GuidedTour />
+                {children}
+            </div>
+        );
     }
 
     return (
@@ -57,6 +63,7 @@ export default function AppShell({
          * viewport.
          */
         <div className="fixed inset-0 overflow-hidden bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
+            <GuidedTour />
             <a
                 href="#main-content"
                 className="sr-only rounded-lg bg-white dark:bg-[#1e2330] px-4 py-2 text-[14px] text-[#16181c] dark:text-[#f8fafc] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"

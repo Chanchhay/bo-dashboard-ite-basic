@@ -89,7 +89,7 @@ export function BusinessFacebookPageForm() {
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div data-tour="facebook-connect-panel" className="flex flex-col gap-6">
             <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-start gap-4">

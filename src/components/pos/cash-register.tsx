@@ -203,7 +203,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   }, [handleDigit, handleDelete, handleOpenRegister]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
+    <div data-tour="pos-open-register" className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
       <div className="w-full max-w-95 rounded-3xl bg-white shadow-sm overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">

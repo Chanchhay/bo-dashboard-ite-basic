@@ -25,7 +25,7 @@ export default function Header({
                     type="button"
                     onClick={onOpenNav}
                     aria-label="Open navigation"
-                    className="grid size-10 shrink-0 place-items-center rounded-xl text-[#5c6660] dark:text-[#94a3b8] outline-none hover:bg-black/[.04] dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#00932a] lg:hidden"
+                    className="grid size-10 shrink-0 place-items-center rounded-xl text-[#5c6660] dark:text-[#94a3b8] outline-none hover:bg-black/[.04] dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-primary lg:hidden"
                 >
                     <Menu className="size-5" aria-hidden="true" />
                 </button>
@@ -47,11 +47,17 @@ export default function Header({
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-                <ThemeToggle variant="icon" className="hidden sm:grid" />
+                <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">
+                    <ThemeToggle variant="icon" className="hidden sm:grid" />
 
-                <NotificationMenu />
+                    <div data-tour="notifications" className="inline-flex h-10 items-center justify-center">
+                        <NotificationMenu />
+                    </div>
+                </div>
 
-                <UserMenu name={managerName} />
+                <div data-tour="user-menu" className="inline-flex h-10 sm:h-11 items-center justify-center">
+                    <UserMenu name={managerName} />
+                </div>
             </div>
         </header>
     );
