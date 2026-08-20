@@ -68,7 +68,10 @@ export function ReceiptTicket({
   }, [taxConfig]);
 
   const isHistoricalSale = Boolean(sale || (order && order.status === "PAID"));
-  const isPayLater = sale?.paymentMethod === "PAY_LATER";
+  // `sale` is only ever passed right after a live payment; every other
+  // viewer (Sales history, a reopened receipt) has to fall back to the
+  // order's own record of how it was paid.
+  const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
 
   const storedTaxRule = useMemo(() => {
     const id = sale?.orderId || order?.id;
@@ -450,9 +453,11 @@ export function ReceiptTicket({
             <div className="flex justify-between gap-4">
               <dt>
                 Paid
-                {sale
-                  ? ` · ${sale.paymentMethod === "CASH" ? "Cash" : "Digital"}`
-                  : ""}
+                {(sale?.paymentMethod ?? order.paymentMethod) === "CASH"
+                  ? " · Cash"
+                  : (sale?.paymentMethod ?? order.paymentMethod) === "DIGITAL"
+                    ? " · Digital"
+                    : ""}
               </dt>
               <dd className="font-mono text-[#0e140e]">
                 {formatMoney(

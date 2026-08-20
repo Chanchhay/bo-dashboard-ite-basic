@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Globe, MessageSquare, Send, ShoppingBag, Store } from "lucide-react";
+import { Clock, Globe, MessageSquare, Printer, Send, ShoppingBag, Store } from "lucide-react";
 
 import { AmountReceived } from "@/components/pos/amount-received";
+import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import {
     getApiErrorMessage,
     InventoryEmpty,
     InventoryError,
     InventoryLoading,
 } from "@/components/inventory/InventoryUi";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     Table,
     TableBody,
@@ -20,11 +22,15 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { useMoney } from "@/hooks/useMoney";
+import { printReceipt } from "@/lib/print-receipt";
 import type { PayLaterSale } from "@/lib/api/pay-later";
 import {
     useCollectPayLaterPaymentMutation,
     useGetPayLaterSalesQuery,
 } from "@/services/salesReportApi";
+import { useGetReceiptQuery } from "@/services/posOrderApi";
+import { useGetBusinessProfileQuery } from "@/services/businessApi";
+import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 
 const channelIcons: Record<string, React.ElementType> = {
     POS: Store,
@@ -49,12 +55,19 @@ export function PayLaterList() {
         useCollectPayLaterPaymentMutation();
 
     const [collecting, setCollecting] = useState<PayLaterSale | null>(null);
+    const [paidReceiptOrderId, setPaidReceiptOrderId] = useState<string | null>(null);
+
+    const receiptQuery = useGetReceiptQuery(paidReceiptOrderId ?? "", {
+        skip: paidReceiptOrderId === null,
+    });
+    const businessQuery = useGetBusinessProfileQuery();
+    const currenciesQuery = useGetBusinessCurrenciesQuery();
 
     async function handleCollect(receivedAmount: number) {
         if (!collecting) return;
 
         try {
-            await collectPayment({
+            const sale = await collectPayment({
                 saleId: collecting.id,
                 body: { paymentMethod: "CASH", receivedAmount },
             }).unwrap();
@@ -65,6 +78,10 @@ export function PayLaterList() {
                 description: `${collecting.invoiceNumber ?? "This sale"} is now settled.`,
             });
             setCollecting(null);
+            // Confirms to the cashier, in the same document the customer
+            // gets, that this is no longer owed — not just a toast that
+            // scrolls away.
+            setPaidReceiptOrderId(sale.orderId);
         } catch (cause) {
             toast({
                 tone: "error",
@@ -194,6 +211,47 @@ export function PayLaterList() {
                 onValidate={handleCollect}
                 isProcessing={isCollecting}
             />
+
+            <Dialog
+                open={paidReceiptOrderId !== null}
+                onOpenChange={(open) => !open && setPaidReceiptOrderId(null)}
+            >
+                <DialogContent className="max-w-[480px] max-h-[90vh] overflow-y-auto p-6">
+                    <DialogHeader className="flex-row items-center justify-between gap-3 border-b pb-3">
+                        <DialogTitle className="text-lg font-bold text-foreground">
+                            Payment collected
+                        </DialogTitle>
+                        <button
+                            type="button"
+                            onClick={printReceipt}
+                            disabled={!receiptQuery.data || !businessQuery.data}
+                            className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-white disabled:opacity-40"
+                        >
+                            <Printer className="size-3.5" aria-hidden="true" />
+                            Print
+                        </button>
+                    </DialogHeader>
+
+                    {receiptQuery.isLoading ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
+                            Loading receipt...
+                        </div>
+                    ) : receiptQuery.data && businessQuery.data ? (
+                        <div className="py-2">
+                            <ReceiptTicket
+                                business={businessQuery.data}
+                                order={receiptQuery.data.order}
+                                receipt={receiptQuery.data.receipt}
+                                currencies={currenciesQuery.data}
+                            />
+                        </div>
+                    ) : (
+                        <div className="py-8 text-center text-sm text-destructive">
+                            Could not load the receipt.
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
