@@ -24,6 +24,7 @@ import {
 
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
@@ -283,8 +284,15 @@ export default function SalesOrdersPage() {
     }
 
     return (
-        <div className="flex flex-col gap-5 pb-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-4">
+            <div className="flex items-center justify-between gap-4">
+                <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
+                    Track sales orders, order receipts, channel breakdown, and digital menu configuration.
+                </p>
+                <TourButton />
+            </div>
+
+            <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
                 <div>
                     <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
                     <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
@@ -318,6 +326,7 @@ export default function SalesOrdersPage() {
             </div>
 
             <section
+                data-tour="sales-order-stats"
                 aria-label="Totals"
                 className="grid grid-cols-2 gap-3 lg:grid-cols-4"
             >
@@ -345,7 +354,7 @@ export default function SalesOrdersPage() {
             )}
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
+                <div data-tour="sales-orders-filters" className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -400,6 +409,7 @@ export default function SalesOrdersPage() {
                             <EmptyState searching={Boolean(search)} />
                         ) : (
                             <div
+                                data-tour="sales-orders-table"
                                 className="overflow-x-auto"
                                 aria-busy={isFetching}
                             >

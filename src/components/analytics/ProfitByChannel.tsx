@@ -173,7 +173,7 @@ export function ProfitByChannel() {
         <div className="flex flex-col gap-4">
             {/* One row of controls above the figures, as a filter bar should be. */}
             <div className="flex flex-wrap items-center gap-3">
-                <div className="w-44">
+                <div data-tour="profit-range-select" className="w-44">
                     <Select
                         value={range}
                         items={profitRanges}
@@ -220,7 +220,7 @@ export function ProfitByChannel() {
                 </div>
             ) : (
                 <>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div data-tour="profit-kpi-grid" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <StatTile
                             label="Revenue"
                             hint={`${total.sales} sale${total.sales === 1 ? "" : "s"} · ${total.itemsSold} item${total.itemsSold === 1 ? "" : "s"}`}
@@ -275,7 +275,7 @@ export function ProfitByChannel() {
                         </StatTile>
                     </div>
 
-                    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+                    <section data-tour="profit-channel-breakdown" className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
                         <div className="border-b border-border p-4 sm:px-5">
                             <h2 className="text-base font-semibold text-foreground">
                                 Where it came from

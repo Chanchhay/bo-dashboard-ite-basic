@@ -245,7 +245,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
             )}
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <section className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section data-tour="category-structure-list" className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <div className="border-b border-[#edf0ec] dark:border-[#242937] px-5 py-4">
                         <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                             Category structure
@@ -429,7 +429,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                         ) : null}
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-1 rounded-full bg-[#f4f7f3] dark:bg-[#252a38] p-1">
+                    <div data-tour="category-form-mode" className="mt-5 grid grid-cols-2 gap-1 rounded-full bg-[#f4f7f3] dark:bg-[#252a38] p-1">
                         <button
                             type="button"
                             onClick={() => setMode("CATEGORY")}
@@ -455,7 +455,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                     </div>
 
                     <div className="mt-5 flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
+                        <div data-tour="category-form-name" className="flex flex-col gap-2">
                             <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]" htmlFor="category-name">
                                 Name *
                             </Label>
@@ -512,23 +512,31 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                             </div>
                         ) : null}
 
-                        <div className="flex flex-col gap-2">
+                        <div data-tour="category-form-note" className="flex flex-col gap-2">
                             <Label className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]" htmlFor="category-note">Note</Label>
                             <Textarea
                                 id="category-note"
                                 name="note"
                                 defaultValue={editing?.note}
-                                placeholder="Optional category description"
+                                rows={3}
+                                placeholder="Used for hot and cold drinks."
                                 className={inventoryTextareaClassName}
                             />
                         </div>
+
+                        {fieldError ? (
+                            <p className="text-xs text-brand-red" role="alert">
+                                {fieldError}
+                            </p>
+                        ) : null}
                     </div>
 
                     <Button
+                        data-tour="category-form-submit"
                         type="submit"
                         disabled={isSaving}
                         size="lg"
-                                    className="mt-5 w-full"
+                        className="mt-5 w-full"
                     >
                         {isSaving ? (
                             <LoaderCircle className="animate-spin" />

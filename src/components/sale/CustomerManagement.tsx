@@ -325,6 +325,7 @@ export default function CustomerManagement() {
                     </p>
                 </div>
                 <Button
+                    data-tour="add-customer-btn"
                     onClick={openCreateDialog}
                     className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
                 >
@@ -332,78 +333,21 @@ export default function CustomerManagement() {
                 </Button>
             </div>
 
-            {/* Controls & Channel Filter Bar */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mr-1">
-                        <Filter className="h-3.5 w-3.5" /> Channel:
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => setSelectedChannelFilter("ALL")}
-                        className={cn(
-                            "px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer",
-                            selectedChannelFilter === "ALL"
-                                ? "bg-primary text-white shadow-xs"
-                                : "bg-muted/70 text-muted-foreground hover:bg-muted"
-                        )}
-                    >
-                        All ({customers.length})
-                    </button>
-                    {salesChannels.map((sc) => {
-                        const count = customers.filter((c) => c.salesChannel?.id === sc.id).length;
-                        return (
-                            <button
-                                key={sc.id}
-                                type="button"
-                                onClick={() => setSelectedChannelFilter(sc.id)}
-                                className={cn(
-                                    "px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer flex items-center gap-1",
-                                    selectedChannelFilter === sc.id
-                                        ? "bg-primary text-white shadow-xs"
-                                        : "bg-muted/70 text-muted-foreground hover:bg-muted"
-                                )}
-                            >
-                                {sc.name} <span className="opacity-75 font-normal">({count})</span>
-                            </button>
-                        );
-                    })}
-                    {customers.some((c) => !c.salesChannel) && (
-                        <button
-                            type="button"
-                            onClick={() => setSelectedChannelFilter("NONE")}
-                            className={cn(
-                                "px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer flex items-center gap-1",
-                                selectedChannelFilter === "NONE"
-                                    ? "bg-primary text-white shadow-xs"
-                                    : "bg-muted/70 text-muted-foreground hover:bg-muted"
-                            )}
-                        >
-                            Direct / Unassigned <span className="opacity-75 font-normal">({customers.filter((c) => !c.salesChannel).length})</span>
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search by phone number or name..."
-                            className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
-                        />
-                    </div>
-                    <ColumnSelectDropdown
-                        columns={customerCols}
-                        onToggleColumn={toggleCol}
-                        onResetDefaults={resetCols}
+            {/* Controls Bar */}
+            <div data-tour="customers-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
+                <div className="relative w-full sm:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by name, email, phone..."
+                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                     />
                 </div>
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isCustomersLoading ? (
                     <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" /> Loading customers...
@@ -544,27 +488,23 @@ export default function CustomerManagement() {
                                                 </button>
                                             </TableCell>
                                         )}
-                                        <TableCell className="text-right whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEditDialog(c)}
-                                                    className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
-                                                    title="Edit Customer"
-                                                >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setDeletingCustomer(c)}
-                                                    className="h-8 w-8 p-0 hover:bg-red-50 dark:hover:bg-red-950/40 text-brand-red rounded-lg"
-                                                    title="Delete Customer"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                        <TableCell className="text-right space-x-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => openEditDialog(c)}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setDeletingCustomer(c)}
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 );

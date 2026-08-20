@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -468,7 +469,7 @@ export default function DiscountsAndCouponsPage() {
     return (
         <div className="space-y-6">
             {/* Header section */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div data-tour="discounts-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
                         Discounts & Coupons
@@ -477,18 +478,22 @@ export default function DiscountsAndCouponsPage() {
                         Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
                     </p>
                 </div>
-                <Button
-                    onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
-                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
-                >
-                    <Plus className="h-4 w-4" />
-                    {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <TourButton />
+                    <Button
+                        data-tour="create-discount-btn"
+                        onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" />
+                        {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
+                    </Button>
+                </div>
             </div>
 
             {/* Navigation Tabs & Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border pb-3">
-                <div className="flex items-center space-x-2">
+                <div data-tour="discounts-tabs" className="flex items-center space-x-2">
                     <button
                         onClick={() => setActiveTab("discounts")}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -513,7 +518,7 @@ export default function DiscountsAndCouponsPage() {
                     </button>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <div data-tour="discounts-search-bar" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -533,85 +538,39 @@ export default function DiscountsAndCouponsPage() {
 
             {/* Discounts Table */}
             {activeTab === "discounts" && (
-                <div className="space-y-3">
-                    {/* Sub-filter bar */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground font-medium">Filter Rules:</span>
-                        <button
-                            type="button"
-                            onClick={() => setDiscountFilter("ALL")}
-                            className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-colors ${
-                                discountFilter === "ALL"
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-card text-muted-foreground border-border hover:text-foreground"
-                            }`}
-                        >
-                            All ({discounts.length})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDiscountFilter("AUTO")}
-                            className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-colors ${
-                                discountFilter === "AUTO"
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-card text-muted-foreground border-border hover:text-foreground"
-                            }`}
-                        >
-                            Auto Apply ({discounts.filter((d) => !d.requiresCoupon).length})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDiscountFilter("COUPON")}
-                            className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-colors ${
-                                discountFilter === "COUPON"
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-card text-muted-foreground border-border hover:text-foreground"
-                            }`}
-                        >
-                            Coupon Code ({discounts.filter((d) => d.requiresCoupon).length})
-                        </button>
-                    </div>
-
-                    <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
-                        {isDiscountsLoading ? (
-                            <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
-                                <Loader2 className="h-5 w-5 animate-spin" /> Loading discount rules...
-                            </div>
-                        ) : filteredDiscounts.length === 0 ? (
-                            <div className="text-center py-16 text-muted-foreground space-y-2">
-                                <Tag className="h-8 w-8 mx-auto opacity-40" />
-                                <p className="font-medium text-base text-foreground">No discount rules found</p>
-                                <p className="text-xs">Create discount rules to offer promotional pricing across POS and storefront channels.</p>
-                            </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/40">
-                                        {isDiscColVisible("name") && <TableHead>Rule Name</TableHead>}
-                                        {isDiscColVisible("typeValue") && <TableHead>Type & Value</TableHead>}
-                                        {isDiscColVisible("scope") && <TableHead>Scope</TableHead>}
-                                        {isDiscColVisible("condition") && <TableHead>Condition</TableHead>}
-                                        {isDiscColVisible("channels") && <TableHead>Channels</TableHead>}
-                                        {isDiscColVisible("status") && <TableHead>Status</TableHead>}
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredDiscounts.map((d) => (
-                                        <TableRow key={d.id} className="hover:bg-muted/30 transition-colors">
-                                            {isDiscColVisible("name") && (
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-semibold text-foreground">{d.name}</span>
-                                                        {d.requiresCoupon ? (
-                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                                                                Coupon Code
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                                                Auto Apply
-                                                            </span>
-                                                        )}
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                    {isDiscountsLoading ? (
+                        <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin" /> Loading discount rules...
+                        </div>
+                    ) : filteredDiscounts.length === 0 ? (
+                        <div className="text-center py-16 text-muted-foreground space-y-2">
+                            <Tag className="h-8 w-8 mx-auto opacity-40" />
+                            <p className="font-medium text-base text-foreground">No discount rules found</p>
+                            <p className="text-xs">Create discount rules to offer promotional pricing across POS and storefront channels.</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/40">
+                                    {isDiscColVisible("name") && <TableHead>Rule Name</TableHead>}
+                                    {isDiscColVisible("typeValue") && <TableHead>Type & Value</TableHead>}
+                                    {isDiscColVisible("scope") && <TableHead>Scope</TableHead>}
+                                    {isDiscColVisible("condition") && <TableHead>Condition</TableHead>}
+                                    {isDiscColVisible("channels") && <TableHead>Channels</TableHead>}
+                                    {isDiscColVisible("status") && <TableHead>Status</TableHead>}
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredDiscounts.map((d) => (
+                                    <TableRow key={d.id} className="hover:bg-muted/30 transition-colors">
+                                        {isDiscColVisible("name") && (
+                                            <TableCell>
+                                                <div className="font-semibold text-foreground">{d.name}</div>
+                                                {d.description && (
+                                                    <div className="text-xs text-muted-foreground truncate max-w-xs">
+                                                        {d.description}
                                                     </div>
                                                     {d.description && (
                                                         <div className="text-xs text-muted-foreground truncate max-w-xs">

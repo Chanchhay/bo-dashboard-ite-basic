@@ -1572,96 +1572,79 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     description="What this item is called and how it is identified."
                 />
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
-                    <Field
-                        label="Item name *"
-                        name="name"
-                        error={fieldErrors.name}
-                    >
-                        <Input
-                            id="name"
+                    <div data-tour="item-form-name">
+                        <Field
+                            label="Item name *"
                             name="name"
-                            defaultValue={initialItem?.name}
-                            placeholder="Ice Latte"
-                            aria-invalid={Boolean(fieldErrors.name)}
-                            className={inventoryControlClassName}
-                        />
-                    </Field>
-                    <Field label="SKU" name="sku" error={fieldErrors.sku}>
-                        <Input
-                            id="sku"
-                            name="sku"
-                            defaultValue={initialItem?.sku}
-                            placeholder="LAT-001"
-                            aria-invalid={Boolean(fieldErrors.sku)}
-                            className={inventoryControlClassName}
-                        />
-                    </Field>
-                    <Field
-                        label="Barcode"
-                        name="barcode"
-                        error={fieldErrors.barcode}
-                    >
-                        <div className="flex gap-2">
+                            error={fieldErrors.name}
+                        >
                             <Input
-                                id="barcode"
-                                name="barcode"
-                                value={barcodePreview}
-                                onChange={(event) =>
-                                    setBarcodePreview(event.target.value)
-                                }
-                                placeholder="3547908987678"
-                                aria-invalid={Boolean(fieldErrors.barcode)}
-                                className={`${inventoryControlClassName} flex-1 font-mono`}
+                                id="name"
+                                name="name"
+                                defaultValue={initialItem?.name}
+                                placeholder="Ice Latte"
+                                aria-invalid={Boolean(fieldErrors.name)}
+                                className={inventoryControlClassName}
                             />
-                            {!isEditing ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon-sm"
-                                    disabled={generateBarcodeState.isLoading}
-                                    onClick={handleGenerateBarcode}
-                                    aria-label="Generate a unique barcode"
-                                    title="Generate unique barcode"
-                                    className="shrink-0 self-center"
-                                >
-                                    {generateBarcodeState.isLoading ? (
-                                        <LoaderCircle className="animate-spin" />
-                                    ) : (
-                                        <Dices />
-                                    )}
-                                </Button>
-                            ) : null}
-                        </div>
-                        {barcodePreview.trim() ? (
-                            <div className="rounded-xl border border-border bg-muted/40 p-3">
-                                <BarcodePreview value={barcodePreview} compact />
-                                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-xs text-muted-foreground">
-                                        CODE128 preview
-                                    </p>
+                        </Field>
+                    </div>
+                    <div data-tour="item-form-sku">
+                        <Field label="SKU" name="sku" error={fieldErrors.sku}>
+                            <Input
+                                id="sku"
+                                name="sku"
+                                defaultValue={initialItem?.sku}
+                                placeholder="LAT-001"
+                                aria-invalid={Boolean(fieldErrors.sku)}
+                                className={inventoryControlClassName}
+                            />
+                        </Field>
+                    </div>
+                    <div data-tour="item-form-barcode">
+                        <Field
+                            label="Barcode"
+                            name="barcode"
+                            error={fieldErrors.barcode}
+                        >
+                            <div className="flex gap-2">
+                                <Input
+                                    id="barcode"
+                                    name="barcode"
+                                    value={barcodePreview}
+                                    onChange={(event) =>
+                                        setBarcodePreview(event.target.value)
+                                    }
+                                    placeholder="3547908987678"
+                                    aria-invalid={Boolean(fieldErrors.barcode)}
+                                    className={`${inventoryControlClassName} flex-1 font-mono`}
+                                />
+                                {!isEditing ? (
                                     <Button
+                                        type="button"
                                         variant="outline"
-                                        size="sm"
-                                        render={
-                                            <a
-                                                href={`/api/inventory/items/barcode/image?code=${encodeURIComponent(barcodePreview.trim())}`}
-                                                download
-                                            />
-                                        }
-                                        nativeButton={false}
+                                        size="icon-sm"
+                                        disabled={generateBarcodeState.isLoading}
+                                        onClick={handleGenerateBarcode}
+                                        aria-label="Generate a unique barcode"
+                                        title="Generate unique barcode"
+                                        className="shrink-0 self-center"
                                     >
-                                        <Download />
-                                        Download PNG
+                                        {generateBarcodeState.isLoading ? (
+                                            <LoaderCircle className="animate-spin" />
+                                        ) : (
+                                            <Dices />
+                                        )}
                                     </Button>
-                                </div>
+                                ) : null}
                             </div>
-                        ) : null}
-                    </Field>
-                    <Field
-                        label="Category"
-                        name="itemGroupId"
-                        error={fieldErrors.itemGroupId}
-                    >
+                        </Field>
+                    </div>
+                    <div data-tour="item-form-category">
+                        <Field
+                            label="Category"
+                            name="itemGroupId"
+                            error={fieldErrors.itemGroupId}
+                        >
                         <Select
                             name="itemGroupId"
                             defaultValue={initialItem?.itemGroup?.id || ""}
@@ -1719,6 +1702,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             </p>
                         )}
                     </Field>
+                    </div>
                     <Field
                         label="Item type *"
                         name="itemType"
@@ -1746,11 +1730,12 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             </SelectContent>
                         </Select>
                     </Field>
-                    <Field
-                        label="Status *"
-                        name="status"
-                        error={fieldErrors.status}
-                    >
+                    <div data-tour="item-form-status">
+                        <Field
+                            label="Status *"
+                            name="status"
+                            error={fieldErrors.status}
+                        >
                         <Select
                             name="status"
                             defaultValue={initialItem?.status || "ACTIVE"}
@@ -1776,6 +1761,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             </SelectContent>
                         </Select>
                     </Field>
+                    </div>
                     <Field
                         label="Store badge"
                         name="badge"
@@ -2469,7 +2455,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             onClick={() => setNewAddOnOpen(true)}
                         >
                             <Plus />
-                            New add-on
+                            Attach add-on
                         </Button>
                     </div>
                 </div>
@@ -2586,6 +2572,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 </Button>
                 <Button
                     type="submit"
+                    data-tour="item-form-save"
                     disabled={isSaving || isUploadingBlockImage}
                     className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >

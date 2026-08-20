@@ -305,7 +305,7 @@ export function Payment({
                     <p className="text-sm font-semibold text-[#020409] sm:text-lg">
                       Payment method
                     </p>
-                    <div className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
+                    <div data-tour="pos-payment-method" className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
                       <button
                         type="button"
                         onClick={() => setMethod("CASH")}

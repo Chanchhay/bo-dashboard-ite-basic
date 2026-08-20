@@ -1,5 +1,6 @@
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { ProfitByChannel } from "@/components/analytics/ProfitByChannel";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 /**
  * What the business made, across everywhere it sells.
@@ -10,11 +11,14 @@ import { ProfitByChannel } from "@/components/analytics/ProfitByChannel";
  */
 export default function AnalyticsPage() {
     return (
-        <div className="flex w-full flex-col gap-6">
-            <InventoryPageHeader
-                title="Profit"
-                description="What each sales channel took, what it cost you, and what you kept."
-            />
+        <div data-tour="analytics-overview" className="flex w-full flex-col gap-6">
+            <div className="flex items-center justify-between gap-4">
+                <InventoryPageHeader
+                    title="Profit"
+                    description="What each sales channel took, what it cost you, and what you kept."
+                />
+                <TourButton />
+            </div>
 
             <ProfitByChannel />
         </div>
