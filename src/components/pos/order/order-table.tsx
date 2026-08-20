@@ -51,13 +51,55 @@ export interface OrderTableProps {
  */
 import { getActiveDefaultTax } from "@/lib/tax-store";
 
+function isRuleConditionMet(orderVal: PosOrder | null, rule: AppliedDiscountRule | null): boolean {
+  if (!rule || !orderVal) return true;
+
+  // 1. Minimum Purchase Order Subtotal condition
+  if (rule.minOrderAmount && rule.minOrderAmount > 0) {
+    if ((orderVal.subtotal ?? 0) < rule.minOrderAmount) {
+      return false;
+    }
+  }
+
+  // 2. Minimum Item Quantity condition
+  if (rule.minQuantity && rule.minQuantity > 0) {
+    const totalQty = (orderVal.items || []).reduce((sum, item) => sum + item.quantity, 0);
+    if (totalQty < rule.minQuantity) {
+      return false;
+    }
+  }
+
+  // 3. Buy X Get Y condition
+  if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+    let targetIds: Set<string> | null = null;
+    if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+      targetIds = new Set(rule.targetItemIds || []);
+    }
+    const eligibleQty = (orderVal.items || []).reduce((sum, item) => {
+      if (!targetIds || targetIds.has(item.itemId)) {
+        return sum + item.quantity;
+      }
+      return sum;
+    }, 0);
+    if (eligibleQty < (rule.buyQuantity + rule.getQuantity)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function computeItemDiscount(
   item: PosOrderItem,
   orderVal: PosOrder | null,
   rule: AppliedDiscountRule | null
 ): { discountAmount: number; label?: string } {
-  if (!rule) {
+  if (!rule || !orderVal) {
     return { discountAmount: item.discountAmount ?? 0 };
+  }
+
+  if (!isRuleConditionMet(orderVal, rule)) {
+    return { discountAmount: 0 };
   }
 
   let isEligible = true;
@@ -78,6 +120,38 @@ function computeItemDiscount(
   const targetIds = (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM")
     ? new Set(rule.targetItemIds || [])
     : null;
+
+  // Handle Buy X Get Y discount scope calculation (cheapest eligible items become FREE)
+  if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+    const eligibleUnits: { itemId: string; unitPrice: number }[] = [];
+    for (const orderItem of orderVal.items || []) {
+      if (!targetIds || targetIds.has(orderItem.itemId)) {
+        for (let q = 0; q < orderItem.quantity; q++) {
+          eligibleUnits.push({ itemId: orderItem.itemId, unitPrice: orderItem.unitPrice });
+        }
+      }
+    }
+
+    eligibleUnits.sort((a, b) => a.unitPrice - b.unitPrice);
+
+    const freeCount = Math.floor(eligibleUnits.length / (rule.buyQuantity + rule.getQuantity)) * rule.getQuantity;
+    if (freeCount <= 0) {
+      return { discountAmount: 0 };
+    }
+
+    const freeUnits = eligibleUnits.slice(0, freeCount);
+    const itemFreeQty = freeUnits.filter((u) => u.itemId === item.itemId).length;
+    const freeDiscount = itemFreeQty * item.unitPrice;
+
+    if (itemFreeQty > 0) {
+      return {
+        discountAmount: freeDiscount,
+        label: `🎁 ${itemFreeQty} Free`,
+      };
+    }
+
+    return { discountAmount: 0 };
+  }
 
   const eligibleSubtotal = (orderVal?.items || []).reduce((sum, i) => {
     if (!targetIds || targetIds.has(i.itemId)) {
@@ -439,12 +513,32 @@ export function OrderTable({
       if (typeof window === "undefined") return null;
       try {
         const raw = localStorage.getItem("pos_store_default_discount");
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.isCoupon || parsed?.discountCode) {
+            localStorage.removeItem("pos_store_default_discount");
+            return null;
+          }
+          return parsed;
+        }
       } catch {}
       return null;
     });
 
   const computeTargetDiscountAmount = (orderVal: PosOrder, rule: AppliedDiscountRule): number => {
+    if (!isRuleConditionMet(orderVal, rule)) {
+      return 0;
+    }
+
+    // Handle Buy X Get Y promotion discount calculation independently of rule.value or percentage
+    if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+      const totalBuyXGetYDisc = (orderVal.items || []).reduce((sum, item) => {
+        const itemDisc = computeItemDiscount(item, orderVal, rule);
+        return sum + itemDisc.discountAmount;
+      }, 0);
+      return Math.max(0, parseFloat(totalBuyXGetYDisc.toFixed(2)));
+    }
+
     let eligibleSubtotal = orderVal.subtotal;
 
     if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
@@ -487,7 +581,12 @@ export function OrderTable({
 
     if (storeDefaultRaw) {
       try {
-        rule = JSON.parse(storeDefaultRaw);
+        const parsed = JSON.parse(storeDefaultRaw);
+        if (parsed?.isCoupon || parsed?.discountCode) {
+          localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
+        } else {
+          rule = parsed;
+        }
       } catch {}
     }
 
@@ -509,7 +608,11 @@ export function OrderTable({
       setActiveDiscountRule(rule);
       if (order?.id) {
         const targetAmount = computeTargetDiscountAmount(order, rule);
-        if (Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001) {
+        const needsIdSync = Boolean(rule.discountId && order.discountId !== rule.discountId);
+        const needsCodeSync = Boolean(rule.discountCode && order.discountCode !== rule.discountCode);
+        const needsAmountSync = Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001;
+
+        if (needsAmountSync || needsIdSync || needsCodeSync) {
           void setOrderDiscount({
             discountAmount: targetAmount,
             discountId: rule.discountId,
@@ -520,7 +623,7 @@ export function OrderTable({
     } else {
       setActiveDiscountRule(null);
     }
-  }, [order?.id, order?.subtotal, order?.discountAmount, order?.items, setOrderDiscount]);
+  }, [order?.id, order?.subtotal, order?.discountAmount, order?.discountId, order?.discountCode, order?.items, setOrderDiscount]);
 
   const selectedCustomer = useMemo(() => {
     if (!order?.customerId) return null;
@@ -530,6 +633,9 @@ export function OrderTable({
   const handleSelectCustomer = async (customerId: string | null) => {
     try {
       await setOrderCustomer({ customerId }).unwrap();
+      if (activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode) {
+        await handleApplyDiscountRule(null);
+      }
     } catch (cause) {
       toast({
         tone: "error",
@@ -540,7 +646,42 @@ export function OrderTable({
   };
 
   const handleApplyDiscountRule = async (rule: AppliedDiscountRule | null) => {
+    const isCouponRule = Boolean(rule?.isCoupon || rule?.discountCode);
+
     if (!rule) {
+      const currentIsCoupon = Boolean(
+        activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode
+      );
+
+      if (currentIsCoupon) {
+        const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+        let defaultRule: AppliedDiscountRule | null = null;
+        if (storeDefaultRaw) {
+          try {
+            defaultRule = JSON.parse(storeDefaultRaw);
+          } catch {}
+        }
+
+        if (defaultRule) {
+          if (order?.id) {
+            localStorage.setItem(
+              `pos_cart_discount_${order.id}`,
+              JSON.stringify(defaultRule)
+            );
+            setActiveDiscountRule(defaultRule);
+            const targetAmount = computeTargetDiscountAmount(order, defaultRule);
+            await setOrderDiscount({
+              discountAmount: targetAmount,
+              discountId: defaultRule.discountId,
+              discountCode: defaultRule.discountCode,
+            }).unwrap();
+          } else {
+            setActiveDiscountRule(defaultRule);
+          }
+          return;
+        }
+      }
+
       localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
       if (order?.id) {
         localStorage.removeItem(`pos_cart_discount_${order.id}`);
@@ -552,7 +693,9 @@ export function OrderTable({
       return;
     }
 
-    localStorage.setItem(STORE_DEFAULT_DISCOUNT_KEY, JSON.stringify(rule));
+    if (!isCouponRule) {
+      localStorage.setItem(STORE_DEFAULT_DISCOUNT_KEY, JSON.stringify(rule));
+    }
 
     if (order?.id) {
       localStorage.setItem(`pos_cart_discount_${order.id}`, JSON.stringify(rule));
@@ -670,6 +813,8 @@ export function OrderTable({
         taxInclusionType,
         taxRate: effectiveTaxRate,
         taxAmount: summary.taxAmount,
+        discountId: activeDiscountRule?.discountId,
+        discountCode: activeDiscountRule?.discountCode,
       }).unwrap();
 
       if (sold.id) {
@@ -692,6 +837,20 @@ export function OrderTable({
             totalAmount: summary.total,
           }));
         } catch {}
+      }
+
+      if (activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode) {
+        const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+        let defaultRule: AppliedDiscountRule | null = null;
+        if (storeDefaultRaw) {
+          try {
+            const parsed = JSON.parse(storeDefaultRaw);
+            if (!parsed?.isCoupon && !parsed?.discountCode) {
+              defaultRule = parsed;
+            }
+          } catch {}
+        }
+        setActiveDiscountRule(defaultRule);
       }
 
       setPaymentOpen(false);
@@ -725,7 +884,11 @@ export function OrderTable({
         <div className="flex items-center justify-between gap-2 border-b border-primary/20 bg-primary/10 px-4 py-2 text-xs text-primary shrink-0">
           <div className="flex items-center gap-1.5 font-medium truncate">
             <Tag className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span className="font-bold">Active Shop Discount:</span>
+            <span className="font-bold">
+              {activeDiscountRule.isCoupon || activeDiscountRule.discountCode
+                ? "Applied Coupon:"
+                : "Active Shop Discount:"}
+            </span>
             <span className="truncate">{activeDiscountRule.label}</span>
           </div>
           <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
@@ -941,6 +1104,7 @@ export function OrderTable({
         onOpenChange={setDiscountModalOpen}
         subtotal={summary.subtotal}
         currency={order?.currency}
+        items={order?.items || []}
         currentDiscountAmount={summary.discount}
         activeRule={activeDiscountRule}
         onApplyDiscountRule={handleApplyDiscountRule}
@@ -955,6 +1119,19 @@ export function OrderTable({
           onDigitalPaid={(sale) => {
             if (order.id) {
               localStorage.removeItem(`pos_cart_discount_${order.id}`);
+            }
+            if (activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode) {
+              const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+              let defaultRule: AppliedDiscountRule | null = null;
+              if (storeDefaultRaw) {
+                try {
+                  const parsed = JSON.parse(storeDefaultRaw);
+                  if (!parsed?.isCoupon && !parsed?.discountCode) {
+                    defaultRule = parsed;
+                  }
+                } catch {}
+              }
+              setActiveDiscountRule(defaultRule);
             }
             setPaymentOpen(false);
             onPaymentSuccess?.(order, sale);

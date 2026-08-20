@@ -115,7 +115,12 @@ export function PosScreen({
         const raw = localStorage.getItem("pos_store_default_discount");
         if (raw) {
           const rule = JSON.parse(raw);
-          setActiveDiscountLabel(rule.label || "Active");
+          if (rule?.isCoupon || rule?.discountCode) {
+            localStorage.removeItem("pos_store_default_discount");
+            setActiveDiscountLabel(null);
+          } else {
+            setActiveDiscountLabel(rule.label || "Active");
+          }
         } else {
           setActiveDiscountLabel(null);
         }
@@ -373,7 +378,7 @@ export function PosScreen({
         return;
       }
 
-      await sendItem({
+      void sendItem({
         itemId: item.id,
         itemName: item.name,
         unitPrice: Number(item.price ?? 0),

@@ -20,6 +20,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { CustomerResponse } from "@/lib/api/customer";
@@ -349,38 +356,44 @@ export function CustomerSelectModal({
                                 <Label htmlFor="quick-membership" className="text-xs font-bold text-gray-700 flex items-center gap-1">
                                     <Sparkles className="h-3 w-3 text-amber-500" /> Membership Tier
                                 </Label>
-                                <select
-                                    id="quick-membership"
-                                    value={membershipTypeId}
-                                    onChange={(e) => setMembershipTypeId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                                <Select
+                                    value={membershipTypeId || "NONE"}
+                                    onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
                                 >
-                                    <option value="">Standard (No Tier)</option>
-                                    {membershipTypes.map((mt) => (
-                                        <option key={mt.id} value={mt.id}>
-                                            {mt.typeName}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="quick-membership" size="sm" className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm">
+                                        <SelectValue placeholder="Standard (No Tier)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">Standard (No Tier)</SelectItem>
+                                        {membershipTypes.map((mt) => (
+                                            <SelectItem key={mt.id} value={mt.id}>
+                                                {mt.typeName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="quick-channel" className="text-xs font-bold text-gray-700">
                                     Sales Channel
                                 </Label>
-                                <select
-                                    id="quick-channel"
-                                    value={salesChannelId}
-                                    onChange={(e) => setSalesChannelId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                                <Select
+                                    value={salesChannelId || "NONE"}
+                                    onValueChange={(val: string | null) => setSalesChannelId(val && val !== "NONE" ? val : "")}
                                 >
-                                    <option value="">POS / Direct</option>
-                                    {salesChannels.map((sc) => (
-                                        <option key={sc.id} value={sc.id}>
-                                            {sc.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="quick-channel" size="sm" className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm">
+                                        <SelectValue placeholder="POS / Direct" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">POS / Direct</SelectItem>
+                                        {salesChannels.map((sc) => (
+                                            <SelectItem key={sc.id} value={sc.id}>
+                                                {sc.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

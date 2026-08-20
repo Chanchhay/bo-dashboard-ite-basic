@@ -17,6 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     Table,
     TableBody,
     TableCell,
@@ -339,19 +346,30 @@ export default function MembershipTypesPage() {
 
                         <div className="space-y-1.5">
                             <Label htmlFor="discount">Assign Discount Rule</Label>
-                            <select
-                                id="discount"
-                                value={discountId}
-                                onChange={(e) => setDiscountId(e.target.value)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                            <Select
+                                value={discountId || "NONE"}
+                                onValueChange={(val: string | null) => setDiscountId(val && val !== "NONE" ? val : "")}
                             >
-                                <option value="">None (No special discount)</option>
-                                {discounts.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
-                                    </option>
-                                ))}
-                            </select>
+                                <SelectTrigger id="discount" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                    <SelectValue placeholder="Select discount rule..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="NONE">None (No special discount)</SelectItem>
+                                    {discounts.map((d) => {
+                                        const isBuyXGetY = d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y";
+                                        const label = isBuyXGetY
+                                            ? `${d.name} (Buy ${d.buyQuantity ?? "X"} get ${d.getQuantity ?? "Y"})`
+                                            : d.type === "PERCENTAGE"
+                                            ? `${d.name} (${d.value}%)`
+                                            : `${d.name} (${format(d.value)})`;
+                                        return (
+                                            <SelectItem key={d.id} value={d.id}>
+                                                {label}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectContent>
+                            </Select>
                             <p className="text-[11px] text-muted-foreground">
                                 Members holding this type will automatically receive this discount rate at checkout.
                             </p>

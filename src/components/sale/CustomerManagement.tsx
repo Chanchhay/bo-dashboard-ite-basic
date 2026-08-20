@@ -18,6 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     Table,
     TableBody,
     TableCell,
@@ -496,36 +503,42 @@ export default function CustomerManagement() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="membershipType">Membership Type</Label>
-                                <select
-                                    id="membershipType"
-                                    value={membershipTypeId}
-                                    onChange={(e) => setMembershipTypeId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                <Select
+                                    value={membershipTypeId || "NONE"}
+                                    onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
                                 >
-                                    <option value="">None (Regular)</option>
-                                    {membershipTypes.map((t) => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.typeName}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="membershipType" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                        <SelectValue placeholder="Select type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">None (Regular)</SelectItem>
+                                        {membershipTypes.map((t) => (
+                                            <SelectItem key={t.id} value={t.id}>
+                                                {t.typeName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="salesChannel">Sales Channel</Label>
-                                <select
-                                    id="salesChannel"
-                                    value={salesChannelId}
-                                    onChange={(e) => setSalesChannelId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                <Select
+                                    value={salesChannelId || "NONE"}
+                                    onValueChange={(val: string | null) => setSalesChannelId(val && val !== "NONE" ? val : "")}
                                 >
-                                    <option value="">None / Direct</option>
-                                    {salesChannels.map((sc) => (
-                                        <option key={sc.id} value={sc.id}>
-                                            {sc.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="salesChannel" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                        <SelectValue placeholder="Select channel..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">None / Direct</SelectItem>
+                                        {salesChannels.map((sc) => (
+                                            <SelectItem key={sc.id} value={sc.id}>
+                                                {sc.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

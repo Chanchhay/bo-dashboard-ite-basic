@@ -30,10 +30,15 @@ export type AppliedDiscountRule = {
     maxDiscountAmount?: number;
     discountId?: string;
     discountCode?: string;
+    isCoupon?: boolean;
     label?: string;
     scope?: string;
     targetItemIds?: string[];
     targetItemGroupIds?: string[];
+    minOrderAmount?: number;
+    minQuantity?: number;
+    buyQuantity?: number;
+    getQuantity?: number;
 };
 
 interface DiscountSelectModalProps {
@@ -41,6 +46,7 @@ interface DiscountSelectModalProps {
     onOpenChange: (open: boolean) => void;
     subtotal: number;
     currency?: string;
+    items?: { itemId: string; unitPrice: number; quantity: number }[];
     currentDiscountAmount: number;
     activeRule?: AppliedDiscountRule | null;
     onApplyDiscountRule: (rule: AppliedDiscountRule | null) => Promise<void>;
@@ -51,6 +57,7 @@ export function DiscountSelectModal({
     onOpenChange,
     subtotal,
     currency,
+    items = [],
     currentDiscountAmount,
     activeRule,
     onApplyDiscountRule,
@@ -73,7 +80,7 @@ export function DiscountSelectModal({
     const [couponError, setCouponError] = useState<string>("");
 
     const activeDiscounts = useMemo(() => {
-        return discounts.filter((d) => d.status === "ACTIVE");
+        return discounts.filter((d) => d.status === "ACTIVE" && !d.requiresCoupon);
     }, [discounts]);
 
     const calculateCustomPreview = (): number => {
@@ -100,7 +107,7 @@ export function DiscountSelectModal({
                 toast({
                     tone: "success",
                     title: "Discount applied",
-                    description: `Applied ${rule.label || "discount"} to cart. It will automatically re-apply as items are added!`,
+                    description: `Applied ${rule.label || "discount"} to cart. It will automatically re-apply as matching items are added!`,
                 });
             } else {
                 toast({
@@ -171,11 +178,33 @@ export function DiscountSelectModal({
         }
 
         const match = coupons.find(
-            (c) => c.code.toUpperCase() === code && c.status === "ACTIVE"
+            (c) => c.code.toUpperCase() === code
         );
 
         if (!match) {
-            setCouponError("Invalid or inactive coupon code.");
+            setCouponError("Invalid promo / coupon code.");
+            return;
+        }
+
+        if (match.status !== "ACTIVE") {
+            setCouponError(`This coupon code is currently ${match.status.toLowerCase()}.`);
+            return;
+        }
+
+        const now = new Date();
+
+        if (match.startsAt && new Date(match.startsAt) > now) {
+            setCouponError("This promo coupon is not active yet.");
+            return;
+        }
+
+        if (match.endsAt && new Date(match.endsAt) < now) {
+            setCouponError("This promo coupon has expired.");
+            return;
+        }
+
+        if (match.usageLimit != null && match.usedCount >= match.usageLimit) {
+            setCouponError("This coupon has reached its maximum usage limit.");
             return;
         }
 
@@ -186,15 +215,25 @@ export function DiscountSelectModal({
             return;
         }
 
-        const type = match.discount?.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED";
-        const val = match.discount?.value ?? 10;
+        const discObj = discounts.find((d) => d.id === match.discountId) || match.discount;
+        const type = discObj?.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED";
+        const val = discObj?.value ?? 0;
+        const scope = discObj?.scope === "SPECIFIC_ITEMS" || discObj?.scope === "ITEM" ? "SPECIFIC_ITEMS" : "ALL_ITEMS";
+        const targetItemIds = discObj && "targets" in discObj && Array.isArray((discObj as any).targets)
+            ? (discObj as any).targets.map((t: any) => t.targetId)
+            : undefined;
+        const maxDiscountAmount = discObj && "maxDiscountAmount" in discObj ? (discObj as any).maxDiscountAmount : undefined;
 
         const rule: AppliedDiscountRule = {
             type,
             value: val,
             discountId: match.discountId,
             discountCode: match.code,
+            isCoupon: true,
             label: `Coupon ${match.code}`,
+            scope,
+            targetItemIds: targetItemIds && targetItemIds.length > 0 ? targetItemIds : undefined,
+            maxDiscountAmount,
         };
 
         handleApplyRule(rule);
@@ -217,8 +256,8 @@ export function DiscountSelectModal({
                             type="button"
                             onClick={() => setTab("ACTIVE")}
                             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === "ACTIVE"
-                                    ? "bg-primary text-white shadow-sm"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-primary text-white shadow-sm"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 }`}
                         >
                             Promotions ({activeDiscounts.length})
@@ -227,8 +266,8 @@ export function DiscountSelectModal({
                             type="button"
                             onClick={() => setTab("CUSTOM")}
                             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === "CUSTOM"
-                                    ? "bg-primary text-white shadow-sm"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-primary text-white shadow-sm"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 }`}
                         >
                             Custom % / $
@@ -237,8 +276,8 @@ export function DiscountSelectModal({
                             type="button"
                             onClick={() => setTab("COUPON")}
                             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === "COUPON"
-                                    ? "bg-primary text-white shadow-sm"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-primary text-white shadow-sm"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 }`}
                         >
                             Coupon Code
@@ -252,7 +291,9 @@ export function DiscountSelectModal({
                         <div className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
                             <div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-bold text-amber-900">Applied Discount</span>
+                                    <span className="text-xs font-bold text-amber-900">
+                                        {activeRule?.isCoupon || activeRule?.discountCode ? "Applied Coupon" : "Applied Discount"}
+                                    </span>
                                     {activeRule?.label && (
                                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-900">
                                             {activeRule.label}
@@ -291,23 +332,38 @@ export function DiscountSelectModal({
                                 </div>
                             ) : (
                                 activeDiscounts.map((d) => {
-                                    let amt = 0;
-                                    if (d.type === "PERCENTAGE") {
-                                        amt = (subtotal * d.value) / 100;
-                                        if (d.maxDiscountAmount && amt > d.maxDiscountAmount) {
-                                            amt = d.maxDiscountAmount;
-                                        }
-                                    } else {
-                                        amt = d.value;
-                                    }
-                                    amt = Math.min(subtotal, amt);
-
                                     const targetItemIds = d.targets
                                         ?.filter((t) => t.targetType === "ITEM")
-                                        .map((t) => t.targetId);
+                                        .map((t) => t.targetId) || [];
                                     const targetItemGroupIds = d.targets
                                         ?.filter((t) => t.targetType === "ITEM_GROUP")
-                                        .map((t) => t.targetId);
+                                        .map((t) => t.targetId) || [];
+
+                                    const isSpecificItems = d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM";
+                                    const isSpecificCategories = d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY";
+
+                                    const hasMatchingItem = !isSpecificItems || targetItemIds.length === 0 || items.some((item) => targetItemIds.includes(item.itemId));
+                                    const meetsMinOrder = !d.minOrderAmount || subtotal >= d.minOrderAmount;
+                                    
+                                    const totalCartQty = items.reduce((sum, i) => sum + i.quantity, 0);
+                                    const meetsMinQty = !d.minQuantity || totalCartQty >= d.minQuantity;
+
+                                    const isEligible = hasMatchingItem && meetsMinOrder && meetsMinQty;
+                                    const isSelected = activeRule?.discountId === d.id;
+
+                                    // Build human-friendly requirement guidance for the cashier
+                                    let conditionGuidance: string | null = null;
+                                    if (!meetsMinOrder && d.minOrderAmount) {
+                                        const remaining = Math.max(0, d.minOrderAmount - subtotal);
+                                        conditionGuidance = `🛒 Add ${format(remaining, currency)} more to unlock this discount`;
+                                    } else if (!meetsMinQty && d.minQuantity) {
+                                        const remainingQty = d.minQuantity - totalCartQty;
+                                        conditionGuidance = `📦 Add ${remainingQty} more item(s) to qualify (Requires ${d.minQuantity})`;
+                                    } else if (!hasMatchingItem && isSpecificItems) {
+                                        conditionGuidance = `🏷️ Add matching item to cart to apply discount`;
+                                    } else if (d.ruleType === "BUY_X_GET_Y" || (d.buyQuantity && d.getQuantity)) {
+                                        conditionGuidance = `🎁 Buy ${d.buyQuantity ?? 0} Get ${d.getQuantity ?? 0} Free promotion`;
+                                    }
 
                                     const rule: AppliedDiscountRule = {
                                         type: d.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
@@ -316,42 +372,105 @@ export function DiscountSelectModal({
                                         discountId: d.id,
                                         label: d.name,
                                         scope: d.scope,
-                                        targetItemIds,
-                                        targetItemGroupIds,
+                                        targetItemIds: targetItemIds.length > 0 ? targetItemIds : undefined,
+                                        targetItemGroupIds: targetItemGroupIds.length > 0 ? targetItemGroupIds : undefined,
+                                        minOrderAmount: d.minOrderAmount,
+                                        minQuantity: d.minQuantity,
+                                        buyQuantity: d.buyQuantity,
+                                        getQuantity: d.getQuantity,
                                     };
 
                                     return (
                                         <div
                                             key={d.id}
                                             onClick={() => handleApplyRule(rule)}
-                                            className="group flex items-center justify-between p-3.5 rounded-xl border border-gray-200 hover:border-primary/50 hover:bg-gray-50 cursor-pointer transition-all"
+                                            className={`group flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                                                isSelected
+                                                    ? "border-primary/60 bg-primary/5 shadow-xs"
+                                                    : isEligible
+                                                    ? "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
+                                                    : "border-amber-200 bg-amber-50/30 hover:bg-amber-50/50"
+                                            }`}
                                         >
-                                            <div className="space-y-0.5">
-                                                <div className="flex items-center gap-2">
+                                            <div className="space-y-1.5 flex-1 pr-3">
+                                                <div className="flex items-center flex-wrap gap-1.5">
                                                     <span className="text-sm font-bold text-gray-900">
                                                         {d.name}
                                                     </span>
+
+                                                    {/* Discount Value Badge */}
                                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-primary">
                                                         {d.type === "PERCENTAGE" ? `${d.value}% OFF` : `-${format(d.value, currency)}`}
                                                     </span>
+
+                                                    {/* Condition Badges */}
+                                                    {d.minOrderAmount ? d.minOrderAmount > 0 && (
+                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                                            Min. {format(d.minOrderAmount, currency)}
+                                                        </span>
+                                                    ) : null}
+
+                                                    {d.minQuantity ? d.minQuantity > 0 && (
+                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                                                            Min. {d.minQuantity} Items
+                                                        </span>
+                                                    ) : null}
+
+                                                    {d.buyQuantity && d.getQuantity ? (
+                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                                            Buy {d.buyQuantity} Get {d.getQuantity} Free
+                                                        </span>
+                                                    ) : null}
+
+                                                    {isSpecificItems && (
+                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                            Specific Items
+                                                        </span>
+                                                    )}
+
+                                                    {isSpecificCategories && (
+                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">
+                                                            Specific Category
+                                                        </span>
+                                                    )}
                                                 </div>
+
                                                 {d.description && (
                                                     <p className="text-xs text-gray-500 line-clamp-1">
                                                         {d.description}
                                                     </p>
                                                 )}
+
+                                                {/* Cashier Guidance Helper Label */}
+                                                {conditionGuidance && (
+                                                    <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-amber-800 bg-amber-100/70 px-2.5 py-1 rounded-lg w-fit border border-amber-200/60">
+                                                        <span>{conditionGuidance}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-sm font-bold text-brand-red block">
-                                                    -{format(amt, currency)}
-                                                </span>
+
+                                            <div className="text-right shrink-0">
                                                 <Button
-                                                    variant="ghost"
+                                                    variant={isSelected ? "default" : "ghost"}
                                                     size="sm"
                                                     disabled={isApplying}
-                                                    className="h-7 text-xs font-semibold text-primary group-hover:bg-primary group-hover:text-white rounded-lg mt-0.5"
+                                                    className={`h-7 text-xs font-semibold rounded-lg ${
+                                                        isSelected
+                                                            ? "bg-primary text-white"
+                                                            : isEligible
+                                                            ? "text-primary group-hover:bg-primary group-hover:text-white"
+                                                            : "text-amber-800 bg-amber-100/80 hover:bg-amber-200"
+                                                    }`}
                                                 >
-                                                    Apply
+                                                    {isSelected ? (
+                                                        <>
+                                                            <Check className="h-3.5 w-3.5 mr-1" /> Applied
+                                                        </>
+                                                    ) : isEligible ? (
+                                                        "Apply"
+                                                    ) : (
+                                                        "Select"
+                                                    )}
                                                 </Button>
                                             </div>
                                         </div>
@@ -368,8 +487,8 @@ export function DiscountSelectModal({
                                     type="button"
                                     onClick={() => setCustomType("PERCENTAGE")}
                                     className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "PERCENTAGE"
-                                            ? "border-primary bg-primary/10 text-primary shadow-xs"
-                                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                        ? "border-primary bg-primary/10 text-primary shadow-xs"
+                                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                         }`}
                                 >
                                     <Percent className="h-3.5 w-3.5" /> % OFF
@@ -378,8 +497,8 @@ export function DiscountSelectModal({
                                     type="button"
                                     onClick={() => setCustomType("FIXED")}
                                     className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "FIXED"
-                                            ? "border-primary bg-primary/10 text-primary shadow-xs"
-                                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                        ? "border-primary bg-primary/10 text-primary shadow-xs"
+                                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                         }`}
                                 >
                                     <DollarSign className="h-3.5 w-3.5" /> $ OFF
@@ -388,8 +507,8 @@ export function DiscountSelectModal({
                                     type="button"
                                     onClick={() => setCustomType("FINAL_PRICE")}
                                     className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "FINAL_PRICE"
-                                            ? "border-primary bg-primary/10 text-primary shadow-xs"
-                                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                        ? "border-primary bg-primary/10 text-primary shadow-xs"
+                                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
                                         }`}
                                 >
                                     <Tag className="h-3.5 w-3.5" /> Price After Discount

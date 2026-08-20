@@ -48,6 +48,17 @@ function computeItemDiscountFromRule(
   }
   if (!rule) return 0;
 
+  // Check minimum conditions
+  if (rule.minOrderAmount && rule.minOrderAmount > 0) {
+    const subtotal = orderItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+    if (subtotal < rule.minOrderAmount) return 0;
+  }
+
+  if (rule.minQuantity && rule.minQuantity > 0) {
+    const totalQty = orderItems.reduce((sum, i) => sum + i.quantity, 0);
+    if (totalQty < rule.minQuantity) return 0;
+  }
+
   let isEligible = true;
   if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
     const targetIds = new Set(rule.targetItemIds || []);
@@ -64,6 +75,27 @@ function computeItemDiscountFromRule(
   const targetIds = (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM")
     ? new Set(rule.targetItemIds || [])
     : null;
+
+  // Handle Buy X Get Y discount scope calculation
+  if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+    const eligibleUnits: { itemId: string; unitPrice: number }[] = [];
+    for (const orderItem of orderItems) {
+      if (!targetIds || targetIds.has(orderItem.itemId)) {
+        for (let q = 0; q < orderItem.quantity; q++) {
+          eligibleUnits.push({ itemId: orderItem.itemId, unitPrice: orderItem.unitPrice });
+        }
+      }
+    }
+
+    eligibleUnits.sort((a, b) => a.unitPrice - b.unitPrice);
+
+    const freeCount = Math.floor(eligibleUnits.length / (rule.buyQuantity + rule.getQuantity)) * rule.getQuantity;
+    if (freeCount <= 0) return 0;
+
+    const freeUnits = eligibleUnits.slice(0, freeCount);
+    const itemFreeQty = freeUnits.filter((u) => u.itemId === item.itemId).length;
+    return itemFreeQty * item.unitPrice;
+  }
 
   const eligibleSubtotal = orderItems.reduce((sum, i) => {
     if (!targetIds || targetIds.has(i.itemId)) {
@@ -401,11 +433,19 @@ export function ReceiptTicket({
                 ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
-                  {itemDiscPercent > 0 && (
+                  {itemDisc > 0 && (storedRule?.buyQuantity && storedRule?.getQuantity) ? (
+                    <span className="ml-1.5 font-bold text-[#006b26]">
+                      (FREE ITEM)
+                    </span>
+                  ) : itemDiscPercent > 0 && storedRule?.type === "PERCENTAGE" ? (
                     <span className="ml-1.5 font-bold text-[#006b26]">
                       ({itemDiscPercent}% OFF)
                     </span>
-                  )}
+                  ) : itemDisc > 0 ? (
+                    <span className="ml-1.5 font-bold text-[#006b26]">
+                      (-{formatMoney(itemDisc, currency)})
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
