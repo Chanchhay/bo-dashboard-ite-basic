@@ -1,5 +1,8 @@
 // Server-only: reads the Keycloak configuration from the environment.
 
+const DEFAULT_END_SESSION_ENDPOINT =
+    "https://auth.chanchhay.site/realms/istad-fluxipos-auth/protocol/openid-connect/logout";
+
 const DISCOVERY_PATH = "/.well-known/openid-configuration";
 
 /** Resolved once per server process — the realm's logout URL never moves. */
@@ -15,6 +18,10 @@ function issuerUrl() {
 }
 
 async function endSessionEndpoint(issuer: string) {
+    if (process.env.KEYCLOAK_END_SESSION_ENDPOINT) {
+        return process.env.KEYCLOAK_END_SESSION_ENDPOINT;
+    }
+
     if (cachedEndSessionEndpoint) return cachedEndSessionEndpoint;
 
     try {
@@ -38,7 +45,7 @@ async function endSessionEndpoint(issuer: string) {
 
     // Every Keycloak realm serves logout here, so an unreachable discovery
     // document must not be the reason a user stays signed in.
-    return `${issuer}/protocol/openid-connect/logout`;
+    return issuer ? `${issuer}/protocol/openid-connect/logout` : DEFAULT_END_SESSION_ENDPOINT;
 }
 
 /**
@@ -59,17 +66,22 @@ export async function keycloakLogoutUrl({
     postLogoutRedirectUri: string;
 }) {
     const issuer = issuerUrl();
-    if (!issuer) return null;
+    const endpoint =
+        process.env.KEYCLOAK_END_SESSION_ENDPOINT ||
+        (issuer ? await endSessionEndpoint(issuer) : DEFAULT_END_SESSION_ENDPOINT);
 
-    const url = new URL(await endSessionEndpoint(issuer));
+    const url = new URL(endpoint);
     url.searchParams.set("post_logout_redirect_uri", postLogoutRedirectUri);
 
     // Keycloak only honours `post_logout_redirect_uri` when the request can be
     // tied to a client. Keep client_id even when an ID token is available so
     // the request still identifies the client if the token hint has expired.
-    if (process.env.KEYCLOAK_CLIENT_ID) {
-        url.searchParams.set("client_id", process.env.KEYCLOAK_CLIENT_ID);
-    }
+    const clientId =
+        process.env.KEYCLOAK_CLIENT_ID ||
+        process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ||
+        "fluxipos-client";
+
+    url.searchParams.set("client_id", clientId);
 
     if (idToken) {
         url.searchParams.set("id_token_hint", idToken);
