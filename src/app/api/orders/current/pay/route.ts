@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         );
 
         const userReceived = result.data.receivedAmount;
+        const isPayLater = result.data.paymentMethod === "PAY_LATER";
 
         // Check if cash tendered covers effective discounted total
         if (result.data.paymentMethod === "CASH" && userReceived !== undefined) {
@@ -98,7 +99,9 @@ export async function POST(request: Request) {
             }
         }
 
-        const paidVal = userReceived ?? effectiveTotal;
+        // Pay later collects nothing right now — whatever the client sent is
+        // ignored, so a stray value can never be mistaken for cash in hand.
+        const paidVal = isPayLater ? 0 : (userReceived ?? effectiveTotal);
 
         // Sync order discount to Spring Java backend prior to payment
         if (discountAmount > 0) {
@@ -138,8 +141,12 @@ export async function POST(request: Request) {
         // Forget active cart cookie
         await forgetOrder();
 
-        // Ensure sale returned to frontend accurately reflects discount & effective total
-        const changeVal = Math.max(0, parseFloat((paidVal - effectiveTotal).toFixed(2)));
+        // Ensure sale returned to frontend accurately reflects discount & effective total.
+        // Pay later is left negative on purpose — that's the amount still owed,
+        // not a change to hand back, so it must not be clamped to zero.
+        const changeVal = isPayLater
+            ? parseFloat((paidVal - effectiveTotal).toFixed(2))
+            : Math.max(0, parseFloat((paidVal - effectiveTotal).toFixed(2)));
 
         const formattedSale: Sale = {
             ...sale,

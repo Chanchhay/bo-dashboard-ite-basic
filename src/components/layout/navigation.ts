@@ -297,6 +297,11 @@ export const NAVIGATION: NavSection[] = [
                 permission: PERMISSIONS.SALES_POS,
             },
             {
+                label: "Pay Later",
+                href: "/sales/pay-later",
+                permission: PERMISSIONS.SALES_MANAGE,
+            },
+            {
                 label: "Tax Settings",
                 href: "/sales/taxes",
                 permission: PERMISSIONS.SALES_MANAGE,

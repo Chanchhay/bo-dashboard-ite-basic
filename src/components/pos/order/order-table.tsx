@@ -526,7 +526,7 @@ export function OrderTable({
   };
 
   const handleValidatePayment = async (
-    method: "CASH" | "DIGITAL",
+    method: "CASH" | "DIGITAL" | "PAY_LATER",
     receivedAmount?: number,
   ) => {
     if (!order) return;

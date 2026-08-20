@@ -68,6 +68,7 @@ export function ReceiptTicket({
   }, [taxConfig]);
 
   const isHistoricalSale = Boolean(sale || (order && order.status === "PAID"));
+  const isPayLater = sale?.paymentMethod === "PAY_LATER";
 
   const storedTaxRule = useMemo(() => {
     const id = sale?.orderId || order?.id;
@@ -253,6 +254,17 @@ export function ReceiptTicket({
         </p>
       </section>
 
+      {isPayLater && (
+        <div className="mt-2.5 rounded-[5px] border border-[#f2c14e] bg-[#fff8e6] px-3 py-2 text-center">
+          <p className="text-[13px] font-bold uppercase tracking-widest text-[#8a5a06]">
+            Payment pending
+          </p>
+          <p className="text-[11px] leading-[1.45] text-[#8a5a06]">
+            មិនទាន់បង់ប្រាក់ · balance due at settlement
+          </p>
+        </div>
+      )}
+
       <dl className="grid grid-cols-[minmax(0,125px)_minmax(0,1fr)] gap-x-2.5 gap-y-1 py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
         <dt>Receipt No.</dt>
         <dd className="truncate text-right font-mono font-bold text-[#0e140e]">
@@ -420,27 +432,44 @@ export function ReceiptTicket({
       )}
 
       <dl className="space-y-1 border-b border-dashed border-[#9aa79a] py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
-        <div className="flex justify-between gap-4">
-          <dt>
-            Paid
-            {sale
-              ? ` · ${sale.paymentMethod === "CASH" ? "Cash" : "Digital"}`
-              : ""}
-          </dt>
-          <dd className="font-mono text-[#0e140e]">
-            {formatMoney(
-              sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
-              currency,
+        {isPayLater ? (
+          <>
+            <div className="flex justify-between gap-4">
+              <dt>Amount paid</dt>
+              <dd className="font-mono text-[#0e140e]">
+                {formatMoney(0, currency)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4 font-bold text-[#b45309]">
+              <dt>Balance due / នៅជំពាក់</dt>
+              <dd className="font-mono">{formatMoney(total, currency)}</dd>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex justify-between gap-4">
+              <dt>
+                Paid
+                {sale
+                  ? ` · ${sale.paymentMethod === "CASH" ? "Cash" : "Digital"}`
+                  : ""}
+              </dt>
+              <dd className="font-mono text-[#0e140e]">
+                {formatMoney(
+                  sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
+                  currency,
+                )}
+              </dd>
+            </div>
+            {sale?.paymentMethod === "CASH" && (
+              <div className="flex justify-between gap-4">
+                <dt>Change / អាប់</dt>
+                <dd className="font-mono text-[#0e140e]">
+                  {formatMoney(sale.changeAmount, currency)}
+                </dd>
+              </div>
             )}
-          </dd>
-        </div>
-        {sale?.paymentMethod === "CASH" && (
-          <div className="flex justify-between gap-4">
-            <dt>Change / អាប់</dt>
-            <dd className="font-mono text-[#0e140e]">
-              {formatMoney(sale.changeAmount, currency)}
-            </dd>
-          </div>
+          </>
         )}
       </dl>
 

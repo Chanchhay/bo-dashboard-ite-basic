@@ -628,11 +628,21 @@ function OrderRow({
             )}
             {visibleColumns.status && (
                 <TableCell>
-                    <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium ${STATUS_STYLES[order.status]}`}
-                    >
-                        {order.status}
-                    </span>
+                    {/* The order itself reads as settled the moment stock left —
+                        pay later still deducts stock and prints a receipt, it
+                        just hasn't collected the money yet. That's a fact about
+                        the sale, not the order, so it has to be checked here. */}
+                    {order.status === "PAID" && order.paymentMethod === "PAY_LATER" ? (
+                        <span className="inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium bg-warning/15 text-warning">
+                            Pending payment
+                        </span>
+                    ) : (
+                        <span
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium ${STATUS_STYLES[order.status]}`}
+                        >
+                            {order.status}
+                        </span>
+                    )}
                 </TableCell>
             )}
         </TableRow>
