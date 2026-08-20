@@ -23,6 +23,10 @@ const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
   "/sales/pricing": "/sales/customers",
   "/sales/customers": "/sales/discounts",
   "/sales/discounts": "/sales/membership-types",
+  "/business/profile": "/business/currency",
+  "/business/currency": "/business/payments",
+  "/business/payments": "/business/telegram",
+  "/business/telegram": "/business/facebook",
 };
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
@@ -113,6 +117,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
     const nextRoute = NEXT_TOUR_ROUTE_MAP[pathname];
 
+    let cleanupKeydown: (() => void) | null = null;
+
     const inst = driver({
       showProgress: true,
       animate: true,
@@ -137,9 +143,37 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         inst.moveNext();
       },
       onDestroyed: () => {
+        if (cleanupKeydown) cleanupKeydown();
         handleFinish();
       },
     });
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === "NumpadEnter") {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const isLast = inst.getActiveIndex() === availableSteps.length - 1;
+        if (isLast) {
+          if (nextRoute) {
+            try {
+              sessionStorage.setItem("fluxibiz_auto_tour", "true");
+            } catch {}
+            inst.destroy();
+            router.push(nextRoute);
+          } else {
+            inst.destroy();
+          }
+        } else {
+          inst.moveNext();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    cleanupKeydown = () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
 
     setDriverObj(inst);
     inst.drive();
