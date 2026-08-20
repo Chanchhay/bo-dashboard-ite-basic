@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -416,7 +417,7 @@ export default function DiscountsAndCouponsPage() {
     return (
         <div className="space-y-6">
             {/* Header section */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div data-tour="discounts-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
                         Discounts & Coupons
@@ -425,18 +426,22 @@ export default function DiscountsAndCouponsPage() {
                         Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
                     </p>
                 </div>
-                <Button
-                    onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
-                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
-                >
-                    <Plus className="h-4 w-4" />
-                    {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <TourButton />
+                    <Button
+                        data-tour="create-discount-btn"
+                        onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" />
+                        {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
+                    </Button>
+                </div>
             </div>
 
             {/* Navigation Tabs & Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border pb-3">
-                <div className="flex items-center space-x-2">
+                <div data-tour="discounts-tabs" className="flex items-center space-x-2">
                     <button
                         onClick={() => setActiveTab("discounts")}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -461,7 +466,7 @@ export default function DiscountsAndCouponsPage() {
                     </button>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <div data-tour="discounts-search-bar" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -481,7 +486,7 @@ export default function DiscountsAndCouponsPage() {
 
             {/* Discounts Table */}
             {activeTab === "discounts" && (
-                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
                         <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                             <Loader2 className="h-5 w-5 animate-spin" /> Loading discount rules...

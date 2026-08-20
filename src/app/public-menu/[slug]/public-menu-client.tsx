@@ -181,7 +181,7 @@ export default function PublicMenuClient({
                 href={orderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#00932a] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#00932a]/20 hover:bg-[#00932a]/90 active:scale-95 transition-all cursor-pointer shrink-0"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shrink-0"
               >
                 <ShoppingBag className="size-4" />
                 <span>Order Now</span>
@@ -280,7 +280,7 @@ export default function PublicMenuClient({
                       setSelectedMainCategory("All");
                       setSelectedSubCategory("All");
                     }}
-                    className="mt-4 rounded-xl bg-[#00932a] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#00932a]/90 transition-all cursor-pointer"
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary/90 transition-all cursor-pointer"
                   >
                     Reset Filters
                   </button>

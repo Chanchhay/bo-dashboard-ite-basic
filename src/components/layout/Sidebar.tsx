@@ -95,13 +95,14 @@ export default function Sidebar({
                     <Link
                         href="/apps"
                         onClick={onClose}
+                        data-tour="apps-nav"
                         className="mb-4 flex items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] text-[#5c6660] dark:text-[#94a3b8] outline-none transition-colors hover:bg-black/[.04] dark:hover:bg-white/[.06] hover:text-[#16181c] dark:hover:text-[#f8fafc] focus-visible:ring-2 focus-visible:ring-primary"
                     >
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         All apps
                     </Link>
 
-                    <ul className="flex flex-col gap-1">
+                    <ul className="flex flex-col gap-1" data-tour="sidebar-nav">
                         {sections.map((section) => (
                             <li key={section.id}>
                                 <SectionItem
@@ -135,7 +136,7 @@ function LaunchButton({
     const Icon = launch.icon;
 
     return (
-        <div className="border-t border-[#e2e2de] dark:border-[#242937] px-4 pt-4 pb-6">
+        <div data-tour="pos-launch" className="border-t border-[#e2e2de] dark:border-[#242937] px-4 pt-4 pb-6">
             <Link
                 href={launch.href}
                 onClick={onNavigate}
@@ -168,6 +169,7 @@ function SectionItem({
     if (!section.children) {
         return (
             <Link
+                data-tour={`sidebar-section-${section.id}`}
                 href={section.href ?? "#"}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
@@ -191,7 +193,7 @@ function SectionItem({
     }
 
     return (
-        <>
+        <div data-tour={`sidebar-section-${section.id}`} className="flex flex-col">
             {/* Not a control — inside an app there is nothing to collapse into.
                 Named as the launcher names it, so the tile you clicked and the
                 app you land in agree. */}
@@ -212,8 +214,9 @@ function SectionItem({
                     const leafActive = isLeafActive(leaf, fullPath);
 
                     if (isNavGroup(leaf)) {
+                        const groupKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
                         return (
-                            <li key={leaf.label}>
+                            <li key={leaf.label} data-tour={`sidebar-group-${groupKey}`}>
                                 <details
                                     className="group/pos"
                                     open={leafActive || undefined}
@@ -241,8 +244,9 @@ function SectionItem({
                                                 child,
                                                 fullPath,
                                             );
+                                            const childKey = child.label.toLowerCase().replace(/\s+/g, "-");
                                             return (
-                                                <li key={child.href}>
+                                                <li key={child.href} data-tour={`sidebar-link-${childKey}`}>
                                                     <Link
                                                         href={child.href}
                                                         onClick={onNavigate}
@@ -271,8 +275,9 @@ function SectionItem({
                         );
                     }
 
+                    const leafKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
                     return (
-                        <li key={leaf.href}>
+                        <li key={leaf.href} data-tour={`sidebar-link-${leafKey}`}>
                             <Link
                                 href={leaf.href}
                                 onClick={onNavigate}
@@ -295,6 +300,6 @@ function SectionItem({
                     );
                 })}
             </ul>
-        </>
+        </div>
     );
 }

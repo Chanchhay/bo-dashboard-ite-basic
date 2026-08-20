@@ -1,5 +1,6 @@
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { ItemPricingTab } from "@/components/sales/pricing/ItemPricingTab";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 /**
  * Base prices and what each channel does to them, on one screen.
@@ -11,11 +12,14 @@ import { ItemPricingTab } from "@/components/sales/pricing/ItemPricingTab";
  */
 export default function SalesPricingPage() {
     return (
-        <div className="flex w-full flex-col gap-6">
-            <InventoryPageHeader
-                title="Item & Pricing"
-                description="Set base prices, then what each channel sells and charges — one catalogue, one place."
-            />
+        <div data-tour="pricing-channel-overrides" className="flex w-full flex-col gap-6">
+            <div className="flex items-center justify-between gap-4">
+                <InventoryPageHeader
+                    title="Item & Pricing"
+                    description="Set base prices, then what each channel sells and charges — one catalogue, one place."
+                />
+                <TourButton />
+            </div>
 
             <ItemPricingTab />
         </div>

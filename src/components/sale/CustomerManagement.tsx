@@ -236,6 +236,7 @@ export default function CustomerManagement() {
                     </p>
                 </div>
                 <Button
+                    data-tour="add-customer-btn"
                     onClick={openCreateDialog}
                     className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
                 >
@@ -244,7 +245,7 @@ export default function CustomerManagement() {
             </div>
 
             {/* Controls Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-3 gap-2">
+            <div data-tour="customers-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
                 <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -262,7 +263,7 @@ export default function CustomerManagement() {
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isCustomersLoading ? (
                     <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" /> Loading customers...
@@ -421,9 +422,9 @@ export default function CustomerManagement() {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => setDeletingCustomer(c)}
-                                                className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                                             >
-                                                <Trash2 className="size-4 text-brand-red" />
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>

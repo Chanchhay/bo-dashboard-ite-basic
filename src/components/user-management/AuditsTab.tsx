@@ -87,13 +87,13 @@ export default function AuditsTab({
     };
 
     return (
-        <Panel>
+        <Panel data-tour="audit-logs">
             <PanelHeader
                 title="Audits"
                 description="Administrative changes recorded across the platform."
             />
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
+            <div data-tour="audit-filters" className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
                 <div className="relative">
                     <Search
                         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"

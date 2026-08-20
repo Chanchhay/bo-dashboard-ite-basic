@@ -90,7 +90,7 @@ function getNotificationIcon(type?: string | null) {
             );
         default:
             return (
-                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#f0f7f1] dark:bg-[#00932a]/15 text-[#00932a] dark:text-[#00b032] border border-[#e4eae2] dark:border-emerald-900/50">
+                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20">
                     <Bell className="size-5.5" />
                 </div>
             );
@@ -234,11 +234,11 @@ export function NotificationMenu({ className }: { className?: string }) {
         <Menu>
             <MenuTrigger
                 aria-label="Notifications"
-                className={`relative grid size-12 place-items-center rounded-xl border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-[#16181c] dark:text-[#f8fafc] outline-none transition-colors hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] focus-visible:ring-2 focus-visible:ring-[#00932a] focus:bg-[#f7f7f6] dark:focus:bg-[#252a38] ${className ?? ""}`}
+                className={`relative grid size-10 place-items-center rounded-xl border-0 bg-transparent text-[#16181c] dark:text-[#f8fafc] outline-none transition-colors hover:bg-black/5 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-primary ${className ?? ""}`}
             >
                 <Bell className="size-5.5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-[#00932a] text-xs font-bold text-white ring-2 ring-white dark:ring-[#1a1e29] shadow-xs">
+                    <span className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white ring-2 ring-white dark:ring-[#1a1e29] shadow-xs">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
@@ -254,7 +254,7 @@ export function NotificationMenu({ className }: { className?: string }) {
                     <div className="flex items-center gap-3">
                         <h3 className="text-lg font-bold text-[#161d16] dark:text-[#f8fafc]">Notifications</h3>
                         {unreadCount > 0 && (
-                            <span className="rounded-full bg-[#00932a]/10 dark:bg-[#00932a]/20 px-3 py-1 text-sm font-bold text-[#00932a] dark:text-[#00b032]">
+                            <span className="rounded-full bg-primary/10 dark:bg-primary/20 px-3 py-1 text-sm font-bold text-primary">
                                 {unreadCount} new
                             </span>
                         )}
@@ -264,7 +264,7 @@ export function NotificationMenu({ className }: { className?: string }) {
                             type="button"
                             onClick={handleMarkAllRead}
                             disabled={isMarkingAll}
-                            className="flex items-center gap-1.5 text-sm font-bold text-[#00932a] dark:text-[#00b032] hover:text-[#007020] dark:hover:text-emerald-400 transition-colors disabled:opacity-50 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                            className="flex items-center gap-1.5 text-sm font-bold text-primary hover:text-primary/80 transition-colors disabled:opacity-50 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-primary"
                         >
                             <CheckCheck className="size-4.5" />
                             <span>Mark all read</span>
@@ -302,7 +302,7 @@ export function NotificationMenu({ className }: { className?: string }) {
                 <div ref={scrollContainerRef} className="max-h-[460px] overflow-y-auto">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-12 gap-3 text-[#657064] dark:text-[#94a3b8]">
-                            <Loader2 className="size-7 animate-spin text-[#00932a] dark:text-[#00b032]" />
+                            <Loader2 className="size-7 animate-spin text-primary" />
                             <p className="text-base font-semibold">Loading notifications...</p>
                         </div>
                     )}
@@ -313,7 +313,7 @@ export function NotificationMenu({ className }: { className?: string }) {
                             <button
                                 type="button"
                                 onClick={() => refetch()}
-                                className="text-base text-[#00932a] dark:text-[#00b032] hover:underline font-bold cursor-pointer"
+                                className="text-base text-primary hover:underline font-bold cursor-pointer"
                             >
                                 Try again
                             </button>
@@ -355,11 +355,11 @@ export function NotificationMenu({ className }: { className?: string }) {
                                         type="button"
                                         onClick={handleLoadMore}
                                         disabled={isFetching}
-                                        className="w-full py-3 px-5 text-base font-bold text-[#00932a] dark:text-[#00b032] bg-white dark:bg-[#252a38] border border-[#e4eae2] dark:border-[#242937] hover:bg-[#f2f7f2] dark:hover:bg-[#2a3042] rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-[#00932a]"
+                                        className="w-full py-3 px-5 text-base font-bold text-primary bg-white dark:bg-[#252a38] border border-[#e4eae2] dark:border-[#242937] hover:bg-[#f2f7f2] dark:hover:bg-[#2a3042] rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                     >
                                         {isFetching ? (
                                             <>
-                                                <Loader2 className="size-5 animate-spin text-[#00932a] dark:text-[#00b032]" />
+                                                <Loader2 className="size-5 animate-spin text-primary" />
                                                 <span>Loading previous notifications...</span>
                                             </>
                                         ) : (
@@ -417,7 +417,7 @@ function NotificationItem({
             onClick={onClick}
             className={`group relative flex items-start gap-4 p-4.5 transition-colors cursor-pointer select-none ${
                 isUnread
-                    ? "bg-[#f4f9f4] dark:bg-[#00932a]/15 hover:bg-[#eaf4ea] dark:hover:bg-[#00932a]/25"
+                    ? "bg-primary/10 dark:bg-primary/15 hover:bg-primary/15 dark:hover:bg-primary/25"
                     : "bg-white dark:bg-[#1a1e29] hover:bg-[#f7f7f6] dark:hover:bg-[#252a38]"
             }`}
         >
@@ -447,7 +447,7 @@ function NotificationItem({
                 </div>
 
                 {senderDisplay && (
-                    <span className="text-sm font-bold text-[#00932a] dark:text-[#00b032] truncate">
+                    <span className="text-sm font-bold text-primary truncate">
                         From: {senderDisplay}
                     </span>
                 )}
@@ -462,7 +462,7 @@ function NotificationItem({
             <div className="flex items-center gap-2 shrink-0 self-center">
                 {isUnread && (
                     <span
-                        className="size-3 rounded-full bg-[#00932a] shrink-0 ring-2 ring-white dark:ring-[#1a1e29] shadow-xs group-hover:hidden"
+                        className="size-3 rounded-full bg-primary shrink-0 ring-2 ring-white dark:ring-[#1a1e29] shadow-xs group-hover:hidden"
                         title="Unread"
                     />
                 )}
@@ -480,7 +480,7 @@ function NotificationItem({
 
     if (notification.deepLink) {
         return (
-            <Link href={href} className="block outline-none focus-visible:bg-[#eaf4ea] dark:focus-visible:bg-[#00932a]/15">
+            <Link href={href} className="block outline-none focus-visible:bg-primary/10">
                 {innerContent}
             </Link>
         );
@@ -488,5 +488,3 @@ function NotificationItem({
 
     return innerContent;
 }
-
-

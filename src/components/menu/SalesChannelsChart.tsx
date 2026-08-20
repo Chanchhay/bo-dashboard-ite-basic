@@ -373,7 +373,7 @@ export function SalesChannelsChart() {
     const nothingSold = !revenueQuery.data || revenueQuery.data.length === 0;
 
     return (
-        <div className="rounded-2xl border border-border/80 bg-card p-5 sm:p-7 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] transition-all space-y-6">
+        <div data-tour="dashboard-sales-chart" className="rounded-2xl border border-border/80 bg-card p-5 sm:p-7 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] transition-all space-y-6">
             {/* Top Bar Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
                 <div className="space-y-1">
