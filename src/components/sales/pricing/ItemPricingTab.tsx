@@ -706,7 +706,7 @@ export function ItemPricingTab() {
     return (
         <div className="flex flex-col gap-4">
             {/* Whose price is being set. */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div data-tour="pricing-scope-selector" className="flex flex-wrap items-center gap-2">
                 <button
                     type="button"
                     onClick={() => setScope(baseScope)}
@@ -784,7 +784,7 @@ export function ItemPricingTab() {
             {/* Finding the item and pricing the lot, in one bar. The rule and
                 the search belong together: the rule only ever applies to what
                 the search left showing. */}
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-4 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <div data-tour="pricing-filter-bar" className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-4 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <ItemPricingFilters
                     items={items}
                     searchQuery={searchQuery}

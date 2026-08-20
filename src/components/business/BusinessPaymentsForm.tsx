@@ -97,8 +97,8 @@ export function BusinessPaymentsForm() {
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-border bg-card p-5">
+        <div data-tour="business-payments-form" className="flex flex-col gap-6">
+            <section data-tour="payments-toggle" className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-base font-semibold text-foreground">
@@ -247,7 +247,7 @@ function AccountForm({
                     scan.
                 </p>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div data-tour="payments-account" className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Account type" error={errors.accountType}>
                         <SelectField
                             value={fields.accountType}
@@ -319,7 +319,7 @@ function AccountForm({
                     </Field>
                 </div>
 
-                <div className="mt-5 border-t border-border pt-5">
+                <div data-tour="payments-token" className="mt-5 border-t border-border pt-5">
                     <Label>API token</Label>
                     <p className="mt-1 text-sm text-muted-foreground">
                         From Bakong Open API. Used to confirm that a payment
@@ -369,7 +369,7 @@ function AccountForm({
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-3 border-t border-border pt-5">
-                    <Button type="submit" disabled={isSaving}>
+                    <Button type="submit" data-tour="payments-save" disabled={isSaving}>
                         {isSaving && (
                             <LoaderCircle
                                 className="size-4 animate-spin"
@@ -382,6 +382,7 @@ function AccountForm({
                     {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
+                        data-tour="payments-test"
                         variant="outline"
                         onClick={onPreview}
                         disabled={!canPreview || isPreviewing}

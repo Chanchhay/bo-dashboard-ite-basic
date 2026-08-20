@@ -1,0 +1,153 @@
+/* Custom FluxiBiz styling for driver.js popover tour */
+.driver-popover.fluxibiz-tour-popover {
+  background-color: #ffffff;
+  color: #16181c;
+  border-radius: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  font-family: inherit;
+  max-width: 320px;
+  z-index: 100000;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover {
+  background-color: #1a1f2c;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #16181c;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-title {
+  color: #f8fafc;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-description {
+  font-size: 13.5px;
+  color: #5c6660;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-description {
+  color: #94a3b8;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0ed;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-progress-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0e8a1e;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-progress-text {
+  color: #46ca22;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-navigation-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-prev-btn,
+.driver-popover.fluxibiz-tour-popover .driver-popover-next-btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  outline: none;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-prev-btn {
+  background-color: #f2f2f0;
+  color: #5c6660;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-prev-btn {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #e5e5e0;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-prev-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-next-btn {
+  background-color: #0e8a1e;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(14, 138, 30, 0.3);
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-next-btn:hover {
+  background-color: #0c7519;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-close-btn {
+  color: #8a948e;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-close-btn {
+  color: #64748b;
+}
+
+.driver-popover.fluxibiz-tour-popover .driver-popover-close-btn:hover {
+  color: #16181c;
+}
+
+.dark .driver-popover.fluxibiz-tour-popover .driver-popover-close-btn:hover {
+  color: #f8fafc;
+}
+
+/* Spotlight cutout positioning and centering fixes */
+.driver-stage {
+  border-radius: 14px !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Ensure data-tour wrappers align tightly with contained chips & icons */
+[data-tour="user-menu"],
+[data-tour="notifications"],
+[data-tour="topbar-icons"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 40px !important;
+  max-height: 40px !important;
+  line-height: 1 !important;
+  margin-top: auto !important;
+  margin-bottom: auto !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+}

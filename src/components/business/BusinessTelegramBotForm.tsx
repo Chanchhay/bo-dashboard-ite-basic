@@ -56,8 +56,8 @@ export function BusinessTelegramBotForm() {
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-border bg-card p-5">
+        <div data-tour="business-telegram-form" className="flex flex-col gap-6">
+            <section data-tour="telegram-toggle" className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-base font-semibold text-foreground">
@@ -162,7 +162,7 @@ function AccountForm({
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
-                    <div className="space-y-1.5 md:col-span-2">
+                    <div data-tour="telegram-token" className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="botToken">
                             {isConfigured ? "Update Bot Token" : "Bot Token"}
                         </Label>
@@ -180,7 +180,7 @@ function AccountForm({
                         </p>
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-2">
+                    <div data-tour="telegram-chat-id" className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="notificationChatId">
                             Notification Chat ID (Optional)
                         </Label>
@@ -197,7 +197,7 @@ function AccountForm({
                         </p>
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-2">
+                    <div data-tour="telegram-welcome" className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="welcomeMessage">
                             Welcome Message (Optional)
                         </Label>
@@ -214,7 +214,7 @@ function AccountForm({
                 </div>
 
                 <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
-                    <Button type="submit" disabled={isSaving}>
+                    <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
                         {isSaving && (
                             <LoaderCircle
                                 className="-ml-1 mr-2 size-4 animate-spin"

@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 import BrandLogo from "@/components/brand/BrandLogo";
+import { TourButton } from "@/components/onboarding/TourButton";
 import UserMenu from "@/components/layout/UserMenu";
 import { NotificationMenu } from "@/components/notification/Notification";
 import {
@@ -141,6 +142,8 @@ export function Navbar({
         <UserMenu name={managerName} compact />
 
         <NotificationMenu />
+
+        <TourButton />
 
         <div className="hidden h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-white xl:flex">
           <Wifi className="h-3.5 w-3.5" />

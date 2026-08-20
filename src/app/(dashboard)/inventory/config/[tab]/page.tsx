@@ -5,6 +5,7 @@ import { OptionPresetsTab } from "@/components/inventory/config/OptionPresetsTab
 import { UnitsTab } from "@/components/inventory/config/UnitsTab";
 import { InventoryCategories } from "@/components/inventory/InventoryCategories";
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 const TAB_MAP = {
     units: {
@@ -52,6 +53,7 @@ export default async function InventoryConfigTabPage({
             <InventoryPageHeader
                 title={config.title}
                 description={config.description}
+                action={<TourButton />}
             />
 
             <div>

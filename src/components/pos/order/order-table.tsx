@@ -645,6 +645,7 @@ export function OrderTable({
             </span>
             <button
               type="button"
+              data-tour="pos-select-customer"
               onClick={() => setCustomerModalOpen(true)}
               className="flex items-center gap-1 text-xs font-bold text-primary hover:bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/30 transition-all"
             >
@@ -657,7 +658,7 @@ export function OrderTable({
 
       {/* items — scrolls, header stays visible */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <table className="w-full table-fixed text-sm">
+        <table data-tour="pos-cart-qty" className="w-full table-fixed text-sm">
           <thead className="sticky top-0 z-10 bg-[#f5f5f5] text-left">
             <tr>
               <th className="w-[38%] px-2 py-2 text-xs font-semibold text-[#37423b] sm:w-[42%] sm:px-4 sm:text-sm min-[1025px]:text-lg">Product</th>
@@ -715,6 +716,7 @@ export function OrderTable({
             )}
             <button
               type="button"
+              data-tour="pos-cart-discount"
               onClick={() => setDiscountModalOpen(true)}
               className="text-xs font-bold text-primary hover:bg-primary/10 px-2 py-0.5 rounded-md border border-primary/30 flex items-center gap-1 transition-all"
             >
@@ -780,6 +782,7 @@ export function OrderTable({
         </button>
         <button
           type="button"
+          data-tour="pos-checkout"
           onClick={() => setPaymentOpen(true)}
           disabled={items.length === 0 || isPaying}
           className="h-12 flex-1 rounded-xl bg-primary text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50 min-[1025px]:h-[55px] min-[1025px]:rounded-[15px] min-[1025px]:text-2xl"

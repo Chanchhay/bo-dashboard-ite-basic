@@ -1,5 +1,6 @@
 "use client";
 
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -36,10 +37,11 @@ export function InventoryStockMovements() {
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div data-tour="stock-movements-ledger" className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Movements"
                 description="Every stock in, stock out and adjustment, newest first. A recorded movement is never edited — it is corrected with an adjustment."
+                action={<TourButton />}
             />
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">

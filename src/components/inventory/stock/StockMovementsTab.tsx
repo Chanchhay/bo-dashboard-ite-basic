@@ -472,7 +472,7 @@ export function StockMovementsTab({
             <div className="flex flex-col gap-4 p-4 sm:p-5 border-b border-border bg-card">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     {/* Movement Filter Buttons */}
-                    <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border border-border bg-muted/30">
+                    <div data-tour="movements-filter-chips" className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border border-border bg-muted/30">
                         {filterChips.map((chip) => (
                             <button
                                 key={chip.id}
@@ -508,7 +508,7 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative min-w-60 flex-1 sm:flex-initial">
+                    <div data-tour="movements-search" className="relative min-w-60 flex-1 sm:flex-initial">
                         <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             type="text"
@@ -525,7 +525,7 @@ export function StockMovementsTab({
                 </div>
 
                 {/* Styled Date Filter Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-sm">
+                <div data-tour="movements-date-filter" className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-sm">
                     {/* Date Presets */}
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5">
@@ -815,6 +815,7 @@ export function StockMovementsTab({
                                                 row.entry?.addOnId) &&
                                             row.kind !== "ADJUST" ? (
                                                 <Button
+                                                    data-tour="movements-row-adjust"
                                                     variant="outline"
                                                     size="sm"
                                                     nativeButton={false}

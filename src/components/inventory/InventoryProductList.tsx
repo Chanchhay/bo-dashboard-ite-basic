@@ -799,36 +799,40 @@ export function InventoryProductList() {
                 description="Manage the items and services available to your business."
                 action={
                     <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleExportExcel}
-                            disabled={!items.length || isExporting}
-                            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                        >
-                            {isExporting ? (
-                                <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
-                            ) : (
-                                <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            )}
-                            <span>{isExporting ? "Exporting..." : "Export Excel"}</span>
-                        </Button>
-                        <Button
-                            render={<Link href="/inventory/new" />}
-                            nativeButton={false}
-                            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                        >
-                            <PackagePlus className="size-4 shrink-0" />
-                            <span>Create item</span>
-                        </Button>
+                        <div data-tour="export-header-excel" className="inline-flex">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleExportExcel}
+                                disabled={!items.length || isExporting}
+                                className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                            >
+                                {isExporting ? (
+                                    <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                                ) : (
+                                    <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                )}
+                                <span>{isExporting ? "Exporting..." : "Export Excel"}</span>
+                            </Button>
+                        </div>
+                        <div data-tour="add-item" className="inline-flex">
+                            <Button
+                                render={<Link href="/inventory/new" />}
+                                nativeButton={false}
+                                className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                            >
+                                <PackagePlus className="size-4 shrink-0" />
+                                <span>Create item</span>
+                            </Button>
+                        </div>
                     </div>
                 }
             />
 
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="item-list" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-col gap-3 border-b border-border p-4">
                     <div className="flex flex-row items-center gap-2">
-                        <div className="relative min-w-0 flex-1">
+                        <div className="relative min-w-0 flex-1" data-tour="item-search">
                             <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={productSearch}
@@ -859,6 +863,7 @@ export function InventoryProductList() {
                             >
                                 <SelectTrigger
                                     size="sm"
+                                    data-tour="status-filter"
                                     aria-label="Filter items by status"
                                     className="!h-9 sm:!h-10 py-0 min-w-[68px] sm:w-44 px-2 sm:px-3 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground justify-between items-center"
                                 >
@@ -881,6 +886,7 @@ export function InventoryProductList() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                data-tour="advanced-filters"
                                 aria-label="Advanced filters"
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
@@ -902,6 +908,7 @@ export function InventoryProductList() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                data-tour="scan-barcode"
                                 aria-label="Scan barcode"
                                 onClick={() => setScannerOpen(true)}
                                 className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
@@ -914,6 +921,7 @@ export function InventoryProductList() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                data-tour="export-excel"
                                 aria-label="Export to Excel"
                                 onClick={handleExportExcel}
                                 disabled={!items.length || isExporting}
@@ -1430,7 +1438,7 @@ export function InventoryProductList() {
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <div className="flex justify-end gap-2">
+                                                <div data-tour={items.indexOf(item) === 0 ? "item-actions" : undefined} className="flex justify-end gap-2">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
