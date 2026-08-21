@@ -19,6 +19,8 @@ import {
   Receipt,
   FileSpreadsheet,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
@@ -32,12 +34,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STATUS_OPTIONS = ["ALL", "OPEN", "CLOSED"] as const;
 type StatusFilter = (typeof STATUS_OPTIONS)[number];
 
 const DATE_RANGES = ["Today", "7 days", "30 days", "All time"] as const;
 type DateRange = (typeof DATE_RANGES)[number];
+
+const SESSION_PAGE_SIZES = [10, 25, 50] as const;
+const DEFAULT_SESSION_PAGE_SIZE: (typeof SESSION_PAGE_SIZES)[number] = 10;
 
 export type SessionColumnKey =
   | "sessionId"
@@ -92,6 +104,12 @@ export function RegisterSessionsHistory() {
 
   // Date range dropdown state
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<(typeof SESSION_PAGE_SIZES)[number]>(
+    DEFAULT_SESSION_PAGE_SIZE
+  );
 
   // Column visibility state
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
@@ -238,6 +256,21 @@ export function RegisterSessionsHistory() {
         return timeB - timeA;
       });
   }, [sessions, query, statusFilter, dateRange]);
+
+  // A filter change can leave the current page past the end of the new
+  // result set, so it resets back to the first page rather than showing
+  // an empty table the user has to notice and back out of themselves.
+  useEffect(() => {
+    setPage(0);
+  }, [query, statusFilter, dateRange]);
+
+  const pageCount = Math.max(Math.ceil(filteredSessions.length / pageSize), 1);
+  const pagedSessions = useMemo(
+    () => filteredSessions.slice(page * pageSize, page * pageSize + pageSize),
+    [filteredSessions, page, pageSize]
+  );
+  const firstRow = filteredSessions.length === 0 ? 0 : page * pageSize + 1;
+  const lastRow = Math.min(filteredSessions.length, page * pageSize + pageSize);
 
   // Aggregate Metrics
   const metrics = useMemo(() => {
@@ -509,7 +542,7 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* History Table */}
-      <div className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] shadow-md overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] overflow-hidden">
         <div className="overflow-x-auto min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="bg-muted/50 dark:bg-[#0f1520]">
@@ -594,7 +627,7 @@ export function RegisterSessionsHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSessions.map((session) => {
+                pagedSessions.map((session) => {
                   const diff = session.differenceAmount;
                   const isShortage = diff !== null && diff < 0;
                   const isSurplus = diff !== null && diff > 0;
@@ -723,6 +756,66 @@ export function RegisterSessionsHistory() {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border dark:border-slate-800 px-4 py-3">
+          <p className="text-[13px] text-muted-foreground dark:text-slate-400">
+            {filteredSessions.length === 0
+              ? "No sessions"
+              : `Showing ${firstRow}–${lastRow} of ${filteredSessions.length}`}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-muted-foreground dark:text-slate-400">
+              Rows
+            </span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => {
+                setPageSize(Number(value) as (typeof SESSION_PAGE_SIZES)[number]);
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="h-8 w-18 rounded-lg border-border bg-card px-2 text-[13px] dark:border-slate-800 dark:bg-[#0d121c] dark:text-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SESSION_PAGE_SIZES.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                disabled={page === 0}
+                aria-label="Previous page"
+                className="grid size-8 place-items-center rounded-lg border border-border dark:border-slate-800 text-foreground dark:text-slate-200 outline-none transition-colors hover:bg-muted dark:hover:bg-[#1c2638] focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                <ChevronLeft className="size-4" aria-hidden="true" />
+              </button>
+              <span
+                className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground dark:text-slate-400"
+                aria-live="polite"
+              >
+                Page {page + 1} of {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(pageCount - 1, prev + 1))}
+                disabled={page + 1 >= pageCount}
+                aria-label="Next page"
+                className="grid size-8 place-items-center rounded-lg border border-border dark:border-slate-800 text-foreground dark:text-slate-200 outline-none transition-colors hover:bg-muted dark:hover:bg-[#1c2638] focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
