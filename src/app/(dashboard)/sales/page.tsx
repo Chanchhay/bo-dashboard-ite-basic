@@ -634,7 +634,7 @@ function OrderRow({
                         the sale, not the order, so it has to be checked here. */}
                     {order.status === "PAID" && order.paymentMethod === "PAY_LATER" ? (
                         <span className="inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium bg-warning/15 text-warning">
-                            Pending payment
+                            PENDING
                         </span>
                     ) : (
                         <span
