@@ -141,7 +141,9 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         );
     }
 
-    const items = itemsQuery.data || [];
+    const items = (itemsQuery.data || []).filter(
+        (item) => item.trackInventory !== false,
+    );
     const addOns = addOnsQuery.data || [];
     const selectedItemId = target?.kind === "ITEM" ? target.id : "";
     const selectedAddOnId = target?.kind === "ADDON" ? target.id : "";
@@ -218,6 +220,14 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const totalValue = isValidPrice ? baseQty * price : 0;
 
     function handleScannedItem(item: InventoryItem) {
+        if (item.trackInventory === false) {
+            toast({
+                tone: "error",
+                title: "Inventory tracking disabled",
+                description: `"${item.name || "This item"}" does not track inventory.`,
+            });
+            return;
+        }
         setTarget({ kind: "ITEM", id: item.id });
         setScannedItemName(item.name || "Unnamed item");
         setFieldErrors((current) => {

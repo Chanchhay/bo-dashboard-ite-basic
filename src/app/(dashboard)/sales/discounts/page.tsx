@@ -572,13 +572,9 @@ export default function DiscountsAndCouponsPage() {
                                                     <div className="text-xs text-muted-foreground truncate max-w-xs">
                                                         {d.description}
                                                     </div>
-                                                    {d.description && (
-                                                        <div className="text-xs text-muted-foreground truncate max-w-xs">
-                                                            {d.description}
-                                                        </div>
-                                                    )}
-                                                </TableCell>
-                                            )}
+                                                )}
+                                            </TableCell>
+                                        )}
                                         {isDiscColVisible("typeValue") && (
                                             <TableCell>
                                                 <div className="inline-flex items-center gap-1 font-bold text-primary">
@@ -673,7 +669,6 @@ export default function DiscountsAndCouponsPage() {
                         </Table>
                     )}
                 </div>
-            </div>
         )}
 
             {/* Coupons Table */}

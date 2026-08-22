@@ -97,7 +97,10 @@ export function useStockLevels() {
     } | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    const items = useMemo(() => itemsQuery.data || [], [itemsQuery.data]);
+    const items = useMemo(
+        () => (itemsQuery.data || []).filter((item) => item.trackInventory !== false),
+        [itemsQuery.data],
+    );
     const addOns = useMemo(() => addOnsQuery.data || [], [addOnsQuery.data]);
     const entries = useMemo(() => entriesQuery.data || [], [entriesQuery.data]);
     /**

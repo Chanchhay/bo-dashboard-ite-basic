@@ -175,6 +175,7 @@ function asPosOrder(order: any): PosOrder {
             lineTotal: typeof i.lineTotal === "number" ? i.lineTotal : parseFloat(i.lineTotal || "0"),
             addOns: i.addOns || i.add_ons || [],
             selections: i.selections || [],
+            trackInventory: i.trackInventory ?? i.track_inventory ?? true,
         })),
     };
 }
@@ -254,6 +255,28 @@ export default function SalesOrdersPage() {
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
+    const pageItemBreakdown = useMemo(() => {
+        let stockQty = 0;
+        let stockRevenue = 0;
+        let noStockQty = 0;
+        let noStockRevenue = 0;
+
+        for (const o of orders) {
+            for (const item of o.items || []) {
+                const lineAmount = (item.unitPrice * item.quantity) - (item.discountAmount || 0);
+                if (item.trackInventory === false) {
+                    noStockQty += item.quantity;
+                    noStockRevenue += Math.max(0, lineAmount);
+                } else {
+                    stockQty += item.quantity;
+                    stockRevenue += Math.max(0, lineAmount);
+                }
+            }
+        }
+
+        return { stockQty, stockRevenue, noStockQty, noStockRevenue };
+    }, [orders]);
+
     const selectedOrder = useMemo(() => {
         if (!selectedOrderId) return null;
         return orders.find((o) => o.id === selectedOrderId) ?? null;
@@ -328,15 +351,23 @@ export default function SalesOrdersPage() {
             <section
                 data-tour="sales-order-stats"
                 aria-label="Totals"
-                className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+                className="grid grid-cols-2 gap-3 lg:grid-cols-6"
             >
                 <Stat
                     label="Orders"
                     value={totals ? String(totals.orders) : "—"}
                 />
                 <Stat
-                    label="Revenue"
+                    label="Total Revenue"
                     value={totals ? format(totals.revenue) : "—"}
+                />
+                <Stat
+                    label="Stock Items Sold"
+                    value={format(pageItemBreakdown.stockRevenue)}
+                />
+                <Stat
+                    label="No-Stock Items Sold"
+                    value={format(pageItemBreakdown.noStockRevenue)}
                 />
                 <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
                 <Stat

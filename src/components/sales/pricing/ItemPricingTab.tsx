@@ -412,10 +412,20 @@ export function ItemPricingTab() {
      * item's figure is the honest answer until it does.
      */
     const unitCostFor = useCallback(
-        (itemId: string) => (variantId?: string) =>
-            unitCosts.get(stockTargetKey(itemId, variantId)) ??
-            unitCosts.get(itemId),
-        [unitCosts],
+        (itemId: string) => (variantId?: string) => {
+            const itemObj = items.find((i) => i.id === itemId);
+            if (itemObj?.trackInventory === false && typeof window !== "undefined") {
+                const key = soldAsKey(itemId, variantId ? "OPTION" : "BASE", variantId);
+                const local = localStorage.getItem(`untracked_cost_${itemId}_${key}`);
+                if (local !== null && local !== "") return parseFloat(local);
+                return 0;
+            }
+            return (
+                unitCosts.get(stockTargetKey(itemId, variantId)) ??
+                unitCosts.get(itemId)
+            );
+        },
+        [items, unitCosts],
     );
 
     /** The same for add-ons, which are stocked and costed in their own right. */

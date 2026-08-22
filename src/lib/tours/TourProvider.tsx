@@ -56,7 +56,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("ipos_is_new_user", "true");
       sessionStorage.setItem("ipos_is_new_user", "true");
       setIsNewUser(true);
-    } catch {}
+    } catch { }
   }, []);
 
   const markAsOldUser = useCallback(() => {
@@ -66,7 +66,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("ipos_user_onboarded", "true");
       sessionStorage.removeItem("ipos_is_new_user");
       setIsNewUser(false);
-    } catch {}
+    } catch { }
   }, []);
 
   // Find exact match or prefix route match for current pathname
@@ -135,7 +135,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         if (isLast && nextRoute) {
           try {
             sessionStorage.setItem("fluxibiz_auto_tour", "true");
-          } catch {}
+          } catch { }
           inst.destroy();
           router.push(nextRoute);
           return;
@@ -158,7 +158,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           if (nextRoute) {
             try {
               sessionStorage.setItem("fluxibiz_auto_tour", "true");
-            } catch {}
+            } catch { }
             inst.destroy();
             router.push(nextRoute);
           } else {

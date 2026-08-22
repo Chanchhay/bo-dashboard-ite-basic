@@ -44,6 +44,7 @@ export type ChannelItem = {
         barcode?: string;
         price?: number;
         status?: "ACTIVE" | "INACTIVE";
+        trackInventory?: boolean;
         /**
          * Whether there is anything to count.
          *

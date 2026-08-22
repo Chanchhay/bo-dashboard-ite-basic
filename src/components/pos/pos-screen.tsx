@@ -229,6 +229,8 @@ export function PosScreen({
    */
   const outOfStock = useCallback(
     (entry: ChannelItem) => {
+      if (entry.item.trackInventory === false) return false;
+
       const itemType = entry.item.itemType;
 
       if (itemType === "SERVICE" || itemType === "DIGITAL") return false;
@@ -485,7 +487,7 @@ export function PosScreen({
       if (variant?.id) {
         const optionName = [name, variant.name].filter(Boolean).join(" · ");
 
-        if ((stockFor(item.id, variant.id) ?? 0) <= 0) {
+        if (entry.item.trackInventory !== false && (stockFor(item.id, variant.id) ?? 0) <= 0) {
           rejectScan(
             `${optionName} is out of stock`,
             "Receive stock for it before selling it.",

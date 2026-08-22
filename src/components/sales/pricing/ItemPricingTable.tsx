@@ -251,7 +251,7 @@ export function ItemPricingTable({
                     {items.map((item) => {
                         const listed = enabled.has(item.id);
                         const sellable = item.status !== "INACTIVE";
-                        const canPrice = unitCosts.has(item.id);
+                        const canPrice = item.trackInventory === false || unitCosts.has(item.id);
 
                         const summary = isBase
                             ? baseSummary(
