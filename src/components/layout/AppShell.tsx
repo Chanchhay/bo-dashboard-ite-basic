@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import GuidedTour from "@/components/onboarding/GuidedTour";
-import type { Permission } from "@/lib/permissions";
+import type { GrantedPermissions } from "@/lib/permissions";
 
 export default function AppShell({
     managerName,
@@ -14,7 +14,7 @@ export default function AppShell({
     children,
 }: {
     managerName: string;
-    permissions: Permission[];
+    permissions: GrantedPermissions;
     children: React.ReactNode;
 }) {
     const pathname = usePathname();

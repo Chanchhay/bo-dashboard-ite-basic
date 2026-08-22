@@ -37,6 +37,24 @@ export function getApiErrorMessage(
     return fallback;
 }
 
+/**
+ * Whether the backend answered with a message of its own, rather than the
+ * request failing to reach it. Screens use this to decide between explaining
+ * what the server said and pointing at the connection.
+ */
+export function hasApiErrorMessage(error: unknown) {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "message" in error.data &&
+        typeof error.data.message === "string" &&
+        error.data.message.trim().length > 0
+    );
+}
+
 export type FieldErrors = Record<string, string[] | undefined>;
 
 /** Zod field errors returned by the route handlers on a 400. */

@@ -1,17 +1,12 @@
 import UserManagement from "@/components/user-management/UserManagement";
 import { TourButton } from "@/components/onboarding/TourButton";
-import { getUserRoles } from "@/lib/permissions-server";
-
-/** The Keycloak client role guarding `/api/v1/admin/audit-logs`. */
-const AUDIT_READ = "admin-audit:read";
+import { can } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
 
 export default async function EmployeesPage() {
-    const roles = await getUserRoles();
-
-    // Checking here only hides the tab — the backend still enforces access.
-    const canReadAudits = roles.some(
-        (role) => role.trim().toLowerCase() === AUDIT_READ,
-    );
+    // Checking here only hides the tab — the backend still enforces access
+    // on `/api/v1/admin/audit-logs`.
+    const canReadAudits = can(await getUserPermissions(), "admin-audit:read");
 
     return (
         <div className="pb-4">

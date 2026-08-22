@@ -39,6 +39,7 @@ import {
     type BusinessProfileInput,
     type BusinessSubCategory,
 } from "@/lib/api/business";
+import { hasApiErrorMessage } from "@/lib/api-error";
 import type { ImageUploadRules } from "@/lib/api/image-upload";
 import {
     businessApi,
@@ -597,9 +598,12 @@ function BusinessProfileEditor({
 
 function ProfileQueryError({
     message,
+    /** The server answered; the message below is its own words, not a guess. */
+    answered,
     onRetry,
 }: {
     message: string;
+    answered: boolean;
     onRetry: () => void;
 }) {
     return (
@@ -609,10 +613,15 @@ function ProfileQueryError({
         >
             <h2 className="text-lg font-bold">Unable to load business profile</h2>
             <p className="mt-2 text-sm text-[#636b74]">{message}</p>
-            <p className="mt-4 text-sm text-[#636b74]">
-                Check the server&apos;s <code>API_BASE_URL</code> value and the
-                backend availability, then try again.
-            </p>
+            {!answered && (
+                // Only when the request never got an answer. Printing this
+                // beside a reply the server did send blames the connection for
+                // something the backend already explained.
+                <p className="mt-4 text-sm text-[#636b74]">
+                    Check the server&apos;s <code>API_BASE_URL</code> value and
+                    the backend availability, then try again.
+                </p>
+            )}
             <Button
                 type="button"
                 onClick={onRetry}
@@ -641,6 +650,7 @@ export default function BusinessProfileForm() {
                     businessQuery.error,
                     "The business API could not be reached.",
                 )}
+                answered={hasApiErrorMessage(businessQuery.error)}
                 onRetry={() => {
                     void businessQuery.refetch();
                     void categoriesQuery.refetch();

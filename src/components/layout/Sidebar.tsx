@@ -13,7 +13,7 @@ import {
     type NavLaunch,
     type NavSection,
 } from "@/components/layout/navigation";
-import type { Permission } from "@/lib/permissions";
+import type { GrantedPermissions } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function Sidebar({
@@ -23,7 +23,7 @@ export default function Sidebar({
 }: {
     open: boolean;
     onClose: () => void;
-    permissions: Permission[];
+    permissions: GrantedPermissions;
 }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
