@@ -13,13 +13,21 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { PERMISSIONS, can, type Permission } from "@/lib/permissions";
+import {
+  can,
+  type GrantedPermissions,
+  type PermissionRule,
+} from "@/lib/permissions";
 import { POS_ROUTES } from "@/lib/pos-routes";
 
 type NavItemBase = {
   label: string;
-  /** Omit to make the page available to everyone who can see the section. */
-  permission?: Permission;
+  /**
+   * The Keycloak permission this entry needs, or several of which any one
+   * suffices. Omit to make the page available to everyone who can see the
+   * section.
+   */
+  permission?: PermissionRule;
 };
 
 export type NavLink = NavItemBase & {
@@ -48,7 +56,7 @@ export type NavLaunch = {
   label: string;
   href: string;
   icon: LucideIcon;
-  permission?: Permission;
+  permission?: PermissionRule;
 };
 
 export type NavSection = {
@@ -59,8 +67,11 @@ export type NavSection = {
   href?: string;
   exact?: boolean;
   children?: NavLeaf[];
-  /** Omit to make the section available to everyone. */
-  permission?: Permission;
+  /**
+   * Omit to make the section available to everyone. Otherwise list what its
+   * pages need: a section opens if the user can reach anything inside it.
+   */
+  permission?: PermissionRule;
   /** A separate app launched from this section's sidebar. */
   launch?: NavLaunch;
   /** Launcher presentation. Sections without this never appear as an app. */
@@ -73,12 +84,25 @@ export type NavSection = {
   };
 };
 
+/**
+ * Gates name Keycloak permissions directly — the same names the access token
+ * carries and the role editor lists. A few screens have no permission of their
+ * own yet because the backend does not guard their endpoints (Facebook, add-ons
+ * and option presets, and the sales configuration pages); those borrow the
+ * nearest real permission, noted where it happens, and should be given their
+ * own once the backend defines one.
+ */
 export const NAVIGATION: NavSection[] = [
   {
     id: "business",
     label: "Business",
     icon: Building2,
-    permission: PERMISSIONS.BUSINESS_MANAGE,
+    permission: [
+      "business:read",
+      "currency:read",
+      "bakong-setting:read",
+      "telegram-setting:read",
+    ],
     app: {
       label: "Business Management",
       // hint: "Profile & currency",
@@ -89,27 +113,28 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Profile",
         href: "/business/profile",
-        permission: PERMISSIONS.BUSINESS_PROFILE,
+        permission: "business:read",
       },
       {
         label: "Currency",
         href: "/business/currency",
-        permission: PERMISSIONS.BUSINESS_CURRENCY,
+        permission: "currency:read",
       },
       {
         label: "Payments",
         href: "/business/payments",
-        permission: PERMISSIONS.BUSINESS_PAYMENTS,
+        permission: "bakong-setting:read",
       },
       {
         label: "Telegram Bot",
         href: "/business/telegram",
-        permission: PERMISSIONS.BUSINESS_MANAGE,
+        permission: "telegram-setting:read",
       },
       {
         label: "Facebook Page",
         href: "/business/facebook",
-        permission: PERMISSIONS.BUSINESS_MANAGE,
+        // No Keycloak permission of its own; treated as business settings.
+        permission: "business:read",
       },
     ],
   },
@@ -118,7 +143,7 @@ export const NAVIGATION: NavSection[] = [
     label: "Employees",
     icon: Users,
     href: "/employees",
-    permission: PERMISSIONS.USERS_MANAGE,
+    permission: ["member:read", "role:read"],
     app: {
       label: "User Management",
       // hint: "Staff & roles",
@@ -130,7 +155,13 @@ export const NAVIGATION: NavSection[] = [
     id: "items",
     label: "Items",
     icon: Package,
-    permission: PERMISSIONS.INVENTORY_MANAGE,
+    permission: [
+      "item:read",
+      "item-group:read",
+      "stock:read",
+      "stock:write",
+      "unit:read",
+    ],
     app: {
       label: "Inventory Management",
       // hint: "Catalog, categories & stock",
@@ -142,18 +173,18 @@ export const NAVIGATION: NavSection[] = [
         label: "Items",
         href: "/inventory",
         exact: true,
-        permission: PERMISSIONS.INVENTORY_ITEMS,
+        permission: "item:read",
         alsoActiveOn: [/^\/inventory\/new$/, /^\/inventory\/[^/]+\/edit$/],
       },
       {
         label: "Stock",
-        permission: PERMISSIONS.INVENTORY_STOCK,
+        permission: ["stock:read", "stock:write"],
         children: [
           {
             label: "Overview",
             href: "/inventory/stock",
             exact: true,
-            permission: PERMISSIONS.INVENTORY_STOCK,
+            permission: "stock:read",
             alsoActiveOn: [/^\/inventory\/stock\/overview$/],
           },
           {
@@ -162,22 +193,22 @@ export const NAVIGATION: NavSection[] = [
             // answers what happened, not what is left.
             label: "Movements",
             href: "/inventory/stock/movements",
-            permission: PERMISSIONS.INVENTORY_STOCK,
+            permission: "stock:read",
           },
           {
             label: "Stock in",
             href: "/inventory/stock/in",
-            permission: PERMISSIONS.INVENTORY_STOCK,
+            permission: "stock:write",
           },
           {
             label: "Stock out",
             href: "/inventory/stock/out",
-            permission: PERMISSIONS.INVENTORY_STOCK,
+            permission: "stock:write",
           },
           {
             label: "Adjust stock",
             href: "/inventory/stock/adjust",
-            permission: PERMISSIONS.INVENTORY_STOCK,
+            permission: "stock:write",
           },
         ],
       },
@@ -186,29 +217,30 @@ export const NAVIGATION: NavSection[] = [
         // the building blocks items are assembled from. Categories used
         // to live at `/inventory/categories`, which now redirects to groups.
         label: "Item config",
-        permission: PERMISSIONS.INVENTORY_CATEGORIES,
+        permission: ["unit:read", "item-group:read", "item:read"],
         children: [
           {
             label: "Units",
             href: "/inventory/config/units",
-            permission: PERMISSIONS.INVENTORY_CATEGORIES,
+            permission: "unit:read",
             alsoActiveOn: [/^\/inventory\/config$/],
           },
           {
             label: "Categories",
             href: "/inventory/config/groups",
-            permission: PERMISSIONS.INVENTORY_CATEGORIES,
+            permission: "item-group:read",
             alsoActiveOn: [/^\/inventory\/categories$/],
           },
           {
             label: "Add-ons",
             href: "/inventory/config/add-ons",
-            permission: PERMISSIONS.INVENTORY_CATEGORIES,
+            // Add-ons ride on items; no permission of their own yet.
+            permission: "item:read",
           },
           {
             label: "Option presets",
             href: "/inventory/config/presets",
-            permission: PERMISSIONS.INVENTORY_CATEGORIES,
+            permission: "item:read",
           },
         ],
       },
@@ -255,7 +287,7 @@ export const NAVIGATION: NavSection[] = [
     id: "sales",
     label: "Sales",
     icon: ShoppingCart,
-    permission: PERMISSIONS.SALES_MANAGE,
+    permission: ["order:read", "order:create", "item:read"],
     app: {
       label: "Sale Management",
       // hint: "Orders & point of sale",
@@ -267,7 +299,7 @@ export const NAVIGATION: NavSection[] = [
         label: "Orders",
         href: "/sales",
         exact: true,
-        permission: PERMISSIONS.SALES_ORDERS,
+        permission: "order:read",
       },
       {
         // Base prices, what each channel charges instead, and where
@@ -276,27 +308,29 @@ export const NAVIGATION: NavSection[] = [
         // open Sale Management to do.
         label: "Item & Pricing",
         href: "/sales/pricing",
-        permission: PERMISSIONS.SALES_MANAGE,
+        permission: "item:read",
       },
       {
         label: "Customers",
         href: "/sales/customers",
-        permission: PERMISSIONS.SALES_MANAGE,
+        // Customers, discounts, member types and taxes are sales
+        // configuration the backend does not guard separately yet.
+        permission: "order:read",
       },
       {
         label: "Discounts & Coupons",
         href: "/sales/discounts",
-        permission: PERMISSIONS.SALES_MANAGE,
+        permission: "order:read",
       },
       {
         label: "Member Types",
         href: "/sales/membership-types",
-        permission: PERMISSIONS.SALES_MANAGE,
+        permission: "order:read",
       },
       {
         label: "Tax Settings",
         href: "/sales/taxes",
-        permission: PERMISSIONS.SALES_MANAGE,
+        permission: "order:read",
       },
       {
         // Who was on the till, and whether the drawer counted true.
@@ -305,7 +339,7 @@ export const NAVIGATION: NavSection[] = [
         // shift, not for the trend.
         label: "Register Sessions",
         href: "/sales/sessions",
-        permission: PERMISSIONS.SALES_POS,
+        permission: "order:create",
       },
     ],
     // The terminal is its own fullscreen app, so it gets a launch button
@@ -314,7 +348,7 @@ export const NAVIGATION: NavSection[] = [
       label: "Open Point of Sale",
       href: POS_ROUTES.openRegister,
       icon: ScanLine,
-      permission: PERMISSIONS.SALES_POS,
+      permission: "order:create",
     },
   },
   {
@@ -340,7 +374,7 @@ export const LEAF_ICONS = {
 };
 
 /** Sections the user may reach, with unreachable child pages stripped out. */
-export function visibleSections(permissions: readonly Permission[]) {
+export function visibleSections(permissions: GrantedPermissions) {
   return NAVIGATION.filter((section) => can(permissions, section.permission))
     .map((section) =>
       section.launch && !can(permissions, section.launch.permission)
@@ -371,7 +405,7 @@ export function visibleSections(permissions: readonly Permission[]) {
 }
 
 /** The apps shown in the launcher, in navigation order. */
-export function launcherApps(permissions: readonly Permission[]) {
+export function launcherApps(permissions: GrantedPermissions) {
   return visibleSections(permissions).filter((section) => section.app);
 }
 

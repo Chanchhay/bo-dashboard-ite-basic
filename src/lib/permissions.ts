@@ -1,5 +1,12 @@
 /**
- * What a user is allowed to reach in the UI.
+ * Matching a user's granted permissions against what a screen requires.
+ *
+ * The vocabulary itself lives in `@/lib/api/permission-catalog` and comes from
+ * Keycloak; this module only answers "does this user hold what this entry
+ * asks for". There is no translation layer and no hardcoded role → permission
+ * table: a role is whatever composite of permissions the business built for
+ * it, so the only thing that can be reasoned about is the permissions
+ * themselves.
  *
  * These gate *navigation affordances only* — which apps appear in the launcher
  * and which sections appear in the sidebar. They are not a security boundary:
@@ -7,144 +14,30 @@
  * directly is stopped there, not here.
  *
  * This module stays free of server-only imports so client components can use
- * the constants. Role resolution lives in `permissions-server.ts`.
+ * it. Reading the access token lives in `permissions-server.ts`.
  */
-export const PERMISSIONS = {
-    BUSINESS_MANAGE: "business:manage",
-    BUSINESS_PROFILE: "business:profile",
-    BUSINESS_CURRENCY: "business:currency",
-    BUSINESS_PAYMENTS: "business:payments",
-    USERS_MANAGE: "users:manage",
-    INVENTORY_MANAGE: "inventory:manage",
-    INVENTORY_ITEMS: "inventory:items",
-    INVENTORY_CATEGORIES: "inventory:categories",
-    INVENTORY_STOCK: "inventory:stock",
-    SALES_MANAGE: "sales:manage",
-    SALES_ORDERS: "sales:orders",
-    SALES_POS: "sales:pos",
-    ANALYTICS_VIEW: "analytics:view",
-    BILLING_MANAGE: "billing:manage",
-} as const;
+import type { Permission } from "@/lib/api/permission-catalog";
 
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-
-export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
-
-const BUSINESS_PERMISSIONS = [
-    PERMISSIONS.BUSINESS_MANAGE,
-    PERMISSIONS.BUSINESS_PROFILE,
-    PERMISSIONS.BUSINESS_CURRENCY,
-    PERMISSIONS.BUSINESS_PAYMENTS,
-] as const;
-
-const INVENTORY_PERMISSIONS = [
-    PERMISSIONS.INVENTORY_MANAGE,
-    PERMISSIONS.INVENTORY_ITEMS,
-    PERMISSIONS.INVENTORY_CATEGORIES,
-    PERMISSIONS.INVENTORY_STOCK,
-] as const;
-
-const SALES_PERMISSIONS = [
-    PERMISSIONS.SALES_MANAGE,
-    PERMISSIONS.SALES_ORDERS,
-    PERMISSIONS.SALES_POS,
-] as const;
+export type { Permission };
 
 /**
- * Keycloak role → permissions. Role names are matched case-insensitively and
- * with `-`/`_` treated the same, so `general-manager` and `GENERAL_MANAGER`
- * both land here. These named roles are retained for existing accounts; staff
- * created by a business are resolved from their concrete client permissions
- * below.
+ * What a user holds. Kept as plain strings rather than `Permission[]` because
+ * it originates in a token: Keycloak may hand us a name this build has never
+ * heard of, and that should be ignored, not crash a render.
  */
-export const ROLE_PERMISSIONS: Record<string, readonly Permission[]> = {
-    OWNER: ALL_PERMISSIONS,
-    BUSINESS_OWNER: ALL_PERMISSIONS,
-    ADMIN: ALL_PERMISSIONS,
-    GENERAL_MANAGER: [
-        ...BUSINESS_PERMISSIONS,
-        PERMISSIONS.USERS_MANAGE,
-        ...INVENTORY_PERMISSIONS,
-        ...SALES_PERMISSIONS,
-        PERMISSIONS.ANALYTICS_VIEW,
-    ],
-    MANAGER: [
-        ...INVENTORY_PERMISSIONS,
-        ...SALES_PERMISSIONS,
-        PERMISSIONS.ANALYTICS_VIEW,
-    ],
-    INVENTORY_STAFF: INVENTORY_PERMISSIONS,
-    STOCK_KEEPER: [
-        PERMISSIONS.INVENTORY_MANAGE,
-        PERMISSIONS.INVENTORY_STOCK,
-    ],
-    CASHIER: [PERMISSIONS.SALES_MANAGE, PERMISSIONS.SALES_POS],
-    STAFF: [],
-    BUSINESS_STAFF: [],
-    EMPLOYEE: [],
-};
+export type GrantedPermissions = readonly string[];
 
-export function normalizeRole(role: string) {
-    return role.trim().toUpperCase().replace(/-/g, "_");
-}
+/**
+ * What an entry requires. A single permission, or several of which *any one*
+ * suffices — a section opens if the user can reach at least one page inside
+ * it. Undefined means the entry is open to everyone.
+ */
+export type PermissionRule = Permission | readonly Permission[];
 
-export function permissionsForRoles(roles: readonly string[]): Permission[] {
-    const granted = new Set<Permission>();
+export function can(granted: GrantedPermissions, rule?: PermissionRule) {
+    if (rule === undefined) return true;
 
-    for (const role of roles) {
-        const namedRole = normalizeRole(role);
-        for (const permission of ROLE_PERMISSIONS[namedRole] ?? []) {
-            granted.add(permission);
-        }
-
-        const clientPermission = role.trim().toLowerCase();
-        const [resource, action] = clientPermission.split(":");
-        if (!resource || !action) continue;
-
-        if (resource === "business") {
-            granted.add(PERMISSIONS.BUSINESS_MANAGE);
-            granted.add(PERMISSIONS.BUSINESS_PROFILE);
-        } else if (resource === "currency") {
-            granted.add(PERMISSIONS.BUSINESS_MANAGE);
-            granted.add(PERMISSIONS.BUSINESS_CURRENCY);
-        } else if (resource === "bakong-setting") {
-            granted.add(PERMISSIONS.BUSINESS_MANAGE);
-            granted.add(PERMISSIONS.BUSINESS_PAYMENTS);
-        } else if (resource === "member" || resource === "role") {
-            granted.add(PERMISSIONS.USERS_MANAGE);
-        } else if (resource === "item") {
-            granted.add(PERMISSIONS.INVENTORY_MANAGE);
-            granted.add(PERMISSIONS.INVENTORY_ITEMS);
-        } else if (resource === "item-group") {
-            granted.add(PERMISSIONS.INVENTORY_MANAGE);
-            granted.add(PERMISSIONS.INVENTORY_CATEGORIES);
-        } else if (resource === "stock") {
-            granted.add(PERMISSIONS.INVENTORY_MANAGE);
-            granted.add(PERMISSIONS.INVENTORY_STOCK);
-        } else if (resource === "unit") {
-            granted.add(PERMISSIONS.INVENTORY_MANAGE);
-        } else if (resource === "order") {
-            granted.add(PERMISSIONS.SALES_MANAGE);
-
-            if (action === "read" || action === "cancel") {
-                granted.add(PERMISSIONS.SALES_ORDERS);
-            }
-            if (
-                action === "create" ||
-                action === "pay" ||
-                action === "generate-khqr"
-            ) {
-                granted.add(PERMISSIONS.SALES_POS);
-            }
-        }
-    }
-
-    return [...granted];
-}
-
-export function can(
-    permissions: readonly Permission[],
-    required?: Permission,
-) {
-    return required === undefined || permissions.includes(required);
+    return typeof rule === "string"
+        ? granted.includes(rule)
+        : rule.some((permission) => granted.includes(permission));
 }

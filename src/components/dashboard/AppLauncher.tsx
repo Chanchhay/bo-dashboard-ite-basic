@@ -10,7 +10,7 @@ import {
     type NavSection,
 } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
-import type { Permission } from "@/lib/permissions";
+import type { GrantedPermissions } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
@@ -30,7 +30,7 @@ export default function AppLauncher({
     permissions,
 }: {
     managerName: string;
-    permissions: Permission[];
+    permissions: GrantedPermissions;
 }) {
     const router = useRouter();
     const [opening, setOpening] = useState<Opening | null>(null);

@@ -10,6 +10,7 @@ import {
     Check,
     LoaderCircle,
     Minus,
+    ChevronRight,
     PackageOpen,
     Plus,
     ScanBarcode,
@@ -35,6 +36,7 @@ import {
     inventoryControlClassName,
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
@@ -154,6 +156,16 @@ export function StockAdjustmentForm() {
     const [overrideBatchLot, setOverrideBatchLot] = useState(false);
     const [overrideBatchMfg, setOverrideBatchMfg] = useState(false);
     const [overrideBatchExp, setOverrideBatchExp] = useState(false);
+    const [batchReceivedAt, setBatchReceivedAt] = useState("");
+    const [overrideBatchReceived, setOverrideBatchReceived] = useState(false);
+    /**
+     * Whether the batch section is showing.
+     *
+     * Held here rather than left to the browser so a validation error can open
+     * it: an error on a field nobody can see is a form that will not submit
+     * and will not say why.
+     */
+    const [batchOpen, setBatchOpen] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
@@ -354,6 +366,51 @@ export function StockAdjustmentForm() {
     // The backend refuses an entry that would take the count below zero, so the
     // form refuses it first and says so where the number was typed.
     const goesNegative = resulting !== undefined && resulting < 0;
+    // Stock cannot have arrived in the future.
+    const todayIso = new Date().toLocaleDateString("en-CA");
+    /**
+     * Whether an arrival date would actually go anywhere.
+     *
+     * Only an adjustment that adds stock opens a batch, and the arrival date
+     * belongs to that batch. On a correction downwards, or one that leaves the
+     * count alone, there is no batch being opened for it to describe — so the
+     * field is offered but says why it is doing nothing.
+     */
+    const opensBatch = change > 0;
+    /*
+     * The earliest day an expiry may name: never in the past, and never
+     * before the batch was made.
+     *
+     * A stocktake corrects what a batch is, and a batch still on the shelf
+     * has not gone off yet — if it had, the correction to record is a
+     * write-off, not a date. So the same floor applies here as on the way in.
+     */
+    const earliestExpiry =
+        batchManufacturedAt && batchManufacturedAt > todayIso
+            ? batchManufacturedAt
+            : todayIso;
+
+    /**
+     * A correction with the count left alone: the quantity on the shelf is
+     * already right and what is wrong is the cost or the batch details beside
+     * it. The entry still goes to the ledger, carrying a change of zero.
+     */
+    const preservesQuantity = isManual && !overrideQuantity;
+    const hasCostEdit =
+        isManual && overrideUnitCost && unitCostInput.trim() !== "";
+    const hasBatchEdit =
+        isManual &&
+        ((overrideBatchLot && batchLot.trim() !== "") ||
+            (overrideBatchMfg && batchManufacturedAt.trim() !== "") ||
+            (overrideBatchExp && batchExpiresAt.trim() !== "") ||
+            (overrideBatchReceived && batchReceivedAt.trim() !== ""));
+    /**
+     * Preserving the quantity is only a saveable entry when something else is
+     * actually being corrected — otherwise it records nothing at all.
+     */
+    const canSubmit = preservesQuantity
+        ? hasCostEdit || hasBatchEdit
+        : qtyValid && !goesNegative;
 
     function handleScannedItem(item: InventoryItem) {
         setTarget({ kind: "ITEM", id: item.id });
@@ -389,16 +446,55 @@ export function StockAdjustmentForm() {
         }
 
         const formData = new FormData(event.currentTarget);
-        const batchData: Record<string, string> = {};
-        if (isManual) {
-            if (overrideBatchLot && batchLot.trim()) batchData.lot = batchLot.trim();
-            if (overrideBatchMfg && batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
-            if (overrideBatchExp && batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
+
+        // Real fields on the movement now rather than a free-form blob, so a
+        // date corrected at stocktake is the same kind of thing as the date
+        // recorded on the way in. Only what was ticked is sent; an untouched
+        // field is left off rather than sent blank, which would read as
+        // clearing it.
+        const lotNumber =
+            isManual && overrideBatchLot ? batchLot.trim() : "";
+        const manufacturedAt =
+            isManual && overrideBatchMfg ? batchManufacturedAt.trim() : "";
+        const expiresAt =
+            isManual && overrideBatchExp ? batchExpiresAt.trim() : "";
+        // Only meaningful on an adjustment that adds stock, since that is the
+        // only one that opens a batch for it to belong to.
+        const receivedAt =
+            isManual && overrideBatchReceived ? batchReceivedAt.trim() : "";
+        const batchEdits = [
+            lotNumber,
+            manufacturedAt,
+            expiresAt,
+            receivedAt,
+        ].filter(Boolean);
+
+        if (manufacturedAt && expiresAt && expiresAt < manufacturedAt) {
+            const message = "This batch expires before it was made.";
+            setFieldErrors({ batchExpiresAt: message });
+            // The offending field sits in the collapsed section on any form
+            // the operator has since tidied away.
+            setBatchOpen(true);
+            toast({
+                tone: "error",
+                title: "Check the batch dates",
+                description: message,
+            });
+            return;
         }
 
-        if (isManual && !overrideQuantity) {
+        const typedUnitCost =
+            isManual && overrideUnitCost
+                ? getOptionalFormValue(formData, "unitCost")
+                : "";
+
+        if (
+            preservesQuantity &&
+            typedUnitCost === "" &&
+            batchEdits.length === 0
+        ) {
             const message =
-                "Quantity is preserved, so there is nothing to record. Tick \u201cEdit quantity\u201d to adjust it.";
+                "Nothing is being changed. Enter a new cost or batch detail, or tick \u201cEdit quantity\u201d to change the count.";
             setFieldErrors({ quantityChange: message });
             toast({
                 tone: "error",
@@ -408,13 +504,15 @@ export function StockAdjustmentForm() {
             return;
         }
 
-        // Every adjustment is a new entry with a non-zero change; the API has no
-        // way to amend one already written.
+        // Every adjustment is a new entry; the API has no way to amend one
+        // already written. A change of zero is only meaningful when something
+        // else on the entry is being corrected, which is checked above.
         const typedQuantity = Number(quantityInput);
         if (
-            !quantityInput.trim() ||
-            !Number.isFinite(typedQuantity) ||
-            roundTo(typedQuantity, quantityDecimals) === 0
+            !preservesQuantity &&
+            (!quantityInput.trim() ||
+                !Number.isFinite(typedQuantity) ||
+                roundTo(typedQuantity, quantityDecimals) === 0)
         ) {
             const message = "Please enter a non-zero quantity change.";
             setFieldErrors({ quantityChange: message });
@@ -426,14 +524,16 @@ export function StockAdjustmentForm() {
             return;
         }
 
-        const calculatedChange = roundTo(
-            adjustmentType === "OVERSTATED"
-                ? -Math.abs(typedQuantity)
-                : adjustmentType === "UNDERSTATED"
-                  ? Math.abs(typedQuantity)
-                  : typedQuantity,
-            quantityDecimals,
-        );
+        const calculatedChange = preservesQuantity
+            ? 0
+            : roundTo(
+                  adjustmentType === "OVERSTATED"
+                      ? -Math.abs(typedQuantity)
+                      : adjustmentType === "UNDERSTATED"
+                        ? Math.abs(typedQuantity)
+                        : typedQuantity,
+                  quantityDecimals,
+              );
 
         if (roundTo(onHand + calculatedChange, quantityDecimals) < 0) {
             const message = `Only ${onHand} ${unitLabel} on hand — this would take stock below zero.`;
@@ -454,10 +554,6 @@ export function StockAdjustmentForm() {
          * sends none would leave the item looking as if it cost nothing, and
          * every valuation built on it would be wrong.
          */
-        const typedUnitCost =
-            isManual && overrideUnitCost
-                ? getOptionalFormValue(formData, "unitCost")
-                : "";
         const unitCost =
             typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
 
@@ -465,7 +561,13 @@ export function StockAdjustmentForm() {
         // cost belongs on it. An adjustment downward consumes existing batches
         // oldest first, and is costed from them — a typed cost there is refused
         // by the API rather than quietly overriding what the stock was worth.
-        const isFound = calculatedChange > 0;
+        //
+        // A correction that moves nothing sits outside both: the cost is the
+        // whole point of it, and only what was typed is sent — falling back to
+        // the cost already on file would record a correction to nothing.
+        const sendsUnitCost = preservesQuantity
+            ? typedUnitCost !== ""
+            : calculatedChange > 0;
 
         const result = stockEntrySchema.safeParse({
             ...(target?.kind === "ADDON"
@@ -479,10 +581,16 @@ export function StockAdjustmentForm() {
             entryType: "ADJUSTMENT",
             quantityChange: calculatedChange,
             unitCost:
-                !isFound || unitCost === undefined || !Number.isFinite(unitCost)
+                !sendsUnitCost ||
+                unitCost === undefined ||
+                !Number.isFinite(unitCost)
                     ? undefined
                     : roundTo(unitCost, unitCostDecimals),
-            batchData,
+            lotNumber: lotNumber || undefined,
+            manufacturedAt: manufacturedAt || undefined,
+            expiresAt: expiresAt || undefined,
+            receivedAt: receivedAt || undefined,
+            batchData: {},
             referenceType: "ADJUSTMENT_FORM",
             referenceId: adjustedEntryId,
             referenceNumber: "",
@@ -790,8 +898,8 @@ export function StockAdjustmentForm() {
                                 </p>
                             ) : (
                                 <p className="text-xs text-muted-foreground">
-                                    {isManual && !overrideQuantity
-                                        ? "Existing quantity preserved (check box above to edit)."
+                                    {preservesQuantity
+                                        ? "Quantity preserved — only the cost and batch details below are corrected."
                                         : selectedItemId
                                           ? `Current stock: ${onHand} ${unitLabel} · ${
                                                 adjustmentType === "OVERSTATED"
@@ -895,31 +1003,39 @@ export function StockAdjustmentForm() {
                         </div>
 
                         {/* Batch Details Card */}
-                        <div data-tour="adjust-batch-card" className={cn("sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5 transition-opacity", !isManual && "opacity-60")}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3">
-                                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                                        <PackageOpen className="size-5" />
-                                    </span>
-                                    <div>
-                                        <h3 className="font-semibold text-foreground flex items-center gap-2">
-                                            <span>Batch details</span>
-                                            {!isManual ? (
-                                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                                    Locked (Select Manual to edit)
-                                                </span>
-                                            ) : null}
-                                        </h3>
-                                        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                                            {!isManual
-                                                ? "Locked. Select Manual mode to enable editing."
-                                                : "Check the box above any batch field you wish to modify. Unchecked fields remain unchanged."}
-                                        </p>
-                                    </div>
+                        <details
+                            data-tour="adjust-batch-card"
+                            open={batchOpen}
+                            onToggle={(e) => setBatchOpen(e.currentTarget.open)}
+                            className={cn("group sm:col-span-2 rounded-xl border border-border bg-transparent transition-opacity", !isManual && "opacity-60")}
+                        >
+                            <summary className="flex cursor-pointer list-none items-start gap-3 p-4 sm:p-5">
+                                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                    <PackageOpen className="size-5" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                                        <span>Batch details</span>
+                                        {!isManual ? (
+                                            <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                Locked (Select Manual to edit)
+                                            </span>
+                                        ) : (
+                                            <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                Optional
+                                            </span>
+                                        )}
+                                    </h3>
+                                    <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                                        {!isManual
+                                            ? "Locked. Select Manual mode to enable editing."
+                                            : "Correct a lot number or date read off the carton. Tick the box above any field you want to change; the rest are left alone."}
+                                    </p>
                                 </div>
-                            </div>
+                                <ChevronRight className="mt-2.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                            </summary>
 
-                            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                            <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-2 sm:p-5">
                                 {/* Batch Lot Number */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
@@ -956,38 +1072,6 @@ export function StockAdjustmentForm() {
                                     </p>
                                 </div>
 
-                                {/* Manufactured Date */}
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="batchManufacturedAt" className="text-xs font-semibold text-foreground">
-                                            Manufactured date
-                                        </Label>
-                                        {isManual ? (
-                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={overrideBatchMfg}
-                                                    onChange={(e) => setOverrideBatchMfg(e.target.checked)}
-                                                    className="size-3.5 rounded border-border text-primary"
-                                                />
-                                                <span>Edit Mfg date</span>
-                                            </label>
-                                        ) : null}
-                                    </div>
-                                    <Input
-                                        id="batchManufacturedAt"
-                                        name="batchManufacturedAt"
-                                        type="date"
-                                        disabled={!isManual || !overrideBatchMfg}
-                                        value={batchManufacturedAt}
-                                        onChange={(e) => setBatchManufacturedAt(e.target.value)}
-                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
-                                    />
-                                    <p className="text-[11px] text-muted-foreground">
-                                        {!isManual ? "Locked" : !overrideBatchMfg ? "Existing date kept unchanged" : "Select date"}
-                                    </p>
-                                </div>
-
                                 {/* Expiration Date */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
@@ -1006,21 +1090,108 @@ export function StockAdjustmentForm() {
                                             </label>
                                         ) : null}
                                     </div>
-                                    <Input
+                                    <DatePicker
                                         id="batchExpiresAt"
-                                        name="batchExpiresAt"
-                                        type="date"
                                         disabled={!isManual || !overrideBatchExp}
                                         value={batchExpiresAt}
-                                        onChange={(e) => setBatchExpiresAt(e.target.value)}
-                                        className={`${inventoryControlClassName} disabled:opacity-50 disabled:bg-muted/50 disabled:cursor-not-allowed`}
+                                        min={earliestExpiry}
+                                        aria-invalid={Boolean(fieldErrors.batchExpiresAt)}
+                                        placeholder={!isManual || !overrideBatchExp ? "Unchanged" : "Pick a date"}
+                                        onValueChange={(value) => {
+                                            setBatchExpiresAt(value);
+                                            setFieldErrors((current) => {
+                                                const next = { ...current };
+                                                delete next.batchExpiresAt;
+                                                return next;
+                                            });
+                                        }}
+                                    />
+                                    <p className={cn("text-[11px]", fieldErrors.batchExpiresAt ? "text-danger" : "text-muted-foreground")}>
+                                        {fieldErrors.batchExpiresAt
+                                            ? fieldErrors.batchExpiresAt
+                                            : !isManual
+                                              ? "Locked"
+                                              : !overrideBatchExp
+                                                ? "Existing date kept unchanged"
+                                                : "Sold before stock with no date, soonest first"}
+                                    </p>
+                                </div>
+                                {/* Manufactured Date */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchManufacturedAt" className="text-xs font-semibold text-foreground">
+                                            Manufactured date
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchMfg}
+                                                    onChange={(e) => setOverrideBatchMfg(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit Mfg date</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
+                                    <DatePicker
+                                        id="batchManufacturedAt"
+                                        disabled={!isManual || !overrideBatchMfg}
+                                        value={batchManufacturedAt}
+                                        max={batchExpiresAt || todayIso}
+                                        placeholder={!isManual || !overrideBatchMfg ? "Unchanged" : "Pick a date"}
+                                        onValueChange={(value) => {
+                                            setBatchManufacturedAt(value);
+                                            setFieldErrors((current) => {
+                                                const next = { ...current };
+                                                delete next.batchExpiresAt;
+                                                return next;
+                                            });
+                                        }}
                                     />
                                     <p className="text-[11px] text-muted-foreground">
-                                        {!isManual ? "Locked" : !overrideBatchExp ? "Existing date kept unchanged" : "Select date"}
+                                        {!isManual ? "Locked" : !overrideBatchMfg ? "Existing date kept unchanged" : "Select date"}
+                                    </p>
+                                </div>
+
+                                {/* Arrived On */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="batchReceivedAt" className="text-xs font-semibold text-foreground">
+                                            Arrived on
+                                        </Label>
+                                        {isManual ? (
+                                            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overrideBatchReceived}
+                                                    onChange={(e) => setOverrideBatchReceived(e.target.checked)}
+                                                    className="size-3.5 rounded border-border text-primary"
+                                                />
+                                                <span>Edit arrival</span>
+                                            </label>
+                                        ) : null}
+                                    </div>
+                                    <DatePicker
+                                        id="batchReceivedAt"
+                                        disabled={!isManual || !overrideBatchReceived}
+                                        value={batchReceivedAt}
+                                        max={todayIso}
+                                        placeholder={!isManual || !overrideBatchReceived ? "Unchanged" : "Pick a date"}
+                                        onValueChange={setBatchReceivedAt}
+                                    />
+                                    <p className={cn("text-[11px]", isManual && overrideBatchReceived && !opensBatch ? "text-warning" : "text-muted-foreground")}>
+                                        {!isManual
+                                            ? "Locked"
+                                            : !overrideBatchReceived
+                                              ? "Existing date kept unchanged"
+                                              : opensBatch
+                                                ? "Where the added stock sits in the queue"
+                                                : "Only applies when the count goes up — this adjustment opens no batch"}
                                     </p>
                                 </div>
                             </div>
-                        </div>
+                        </details>
                     </div>
                 )}
             </section>
@@ -1077,7 +1248,9 @@ export function StockAdjustmentForm() {
                             >
                                 {qtyValid
                                     ? `${change > 0 ? "+" : ""}${change} ${unitLabel}`
-                                    : "-"}
+                                    : preservesQuantity
+                                      ? "No change"
+                                      : "-"}
                             </span>
                         </div>
 
@@ -1125,8 +1298,7 @@ export function StockAdjustmentForm() {
                             createState.isLoading ||
                             items.length === 0 ||
                             !selectedItemId ||
-                            !qtyValid ||
-                            goesNegative
+                            !canSubmit
                         }
                         className="w-full rounded-xl gap-2"
                     >
