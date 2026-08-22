@@ -196,7 +196,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       element: '[data-tour="stock-batches-action"]',
       popover: {
         title: "4. Batch & Expiry Control",
-        description: "Click 'Batches' on any item to view individual supplier delivery lots, purchase costs, manufacture dates, and expiration dates.",
+        description: "Click 'Batches' on any item to view each supplier delivery lot, what it cost, when it expires, and which one the next sale comes out of. Anything already past its date is flagged for write-off.",
         side: "left",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -352,7 +352,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       element: '[data-tour="stock-batch-card"]',
       popover: {
         title: "6. Lot & Expiry Date Details",
-        description: "Optional. Input Supplier Batch / Lot #, Manufactured Date, and Expiration Date for perishable inventory tracking.",
+        description: "Optional. Record the supplier's Lot / Batch #, Manufactured Date and Expiration Date. Stock with an expiry date is sold before stock without one, soonest first — so a short-dated delivery leaves ahead of older stock that keeps.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -442,20 +442,10 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
     {
-      element: '[data-tour="stock-batch-card"]',
-      popover: {
-        title: "6. Lot & Expiry Deduction",
-        description: "Specify which supplier Lot / Batch # is being deducted to maintain FIFO inventory accuracy.",
-        side: "top",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-    {
       element: '[data-tour="stock-summary-panel"]',
       popover: {
-        title: "7. Live Movement Summary",
-        description: "Preview resulting stock levels before confirming. Warns automatically if deduction exceeds available stock.",
+        title: "6. Live Movement Summary",
+        description: "Preview resulting stock levels before confirming. Warns automatically if deduction exceeds available stock. The batches this comes out of are chosen for you — soonest to expire first — and their cost is what the write-off is valued at.",
         side: "left",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -464,7 +454,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="stock-submit-btn"]',
       popover: {
-        title: "8. Confirm Stock Out",
+        title: "7. Confirm Stock Out",
         description: "Click to confirm and log this stock deduction into your audit ledger.",
         side: "left",
         align: "start",
@@ -548,7 +538,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       element: '[data-tour="adjust-batch-card"]',
       popover: {
         title: "7. Batch & Expiry Adjustment",
-        description: "Update batch numbers or expiration dates during physical stocktaking.",
+        description: "Correct a lot number or expiry date read off the carton during physical stocktaking. Tick the field you want to change; anything unticked is left alone.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",

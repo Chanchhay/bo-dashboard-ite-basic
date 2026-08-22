@@ -9,6 +9,7 @@ import {
     ArrowUpRight,
     Calculator,
     Check,
+    ChevronRight,
     LoaderCircle,
     Package,
     PackageOpen,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
     StockTargetSelect,
     toStockTargets,
@@ -119,11 +121,38 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const [batchLot, setBatchLot] = useState("");
     const [batchManufacturedAt, setBatchManufacturedAt] = useState("");
     const [batchExpiresAt, setBatchExpiresAt] = useState("");
+    const [batchReceivedAt, setBatchReceivedAt] = useState("");
+    /**
+     * Whether the batch section is showing.
+     *
+     * Held here rather than left to the browser so a validation error can open
+     * it: dates that contradict each other are refused, and an error on a
+     * field nobody can see is a form that will not submit and will not say
+     * why.
+     */
+    const [batchOpen, setBatchOpen] = useState(false);
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const isStockIn = mode === "in";
+    // Stock cannot have arrived in the future, and nothing is made after it
+    // expires — the pickers say so rather than leaving the API to.
+    const todayIso = new Date().toLocaleDateString("en-CA");
+    // Worth flagging while it can still be corrected: a delivery keyed in with
+    // a date already gone is almost always a typo, and it would otherwise go
+    // straight to the front of the queue and be sold first.
+    const batchAlreadyExpired =
+        Boolean(batchExpiresAt) && batchExpiresAt < todayIso;
+    /*
+     * The earliest day an expiry may name: never in the past, and never
+     * before the batch was made. Stock arriving today cannot already have
+     * gone off, and a date behind us would put it first in the sell queue.
+     */
+    const earliestExpiry =
+        batchManufacturedAt && batchManufacturedAt > todayIso
+            ? batchManufacturedAt
+            : todayIso;
 
     if (itemsQuery.isLoading) {
         return <InventoryLoading label={`Loading stock ${mode} form`} />;
@@ -267,9 +296,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 "Enter what one unit cost. Put 0 if this stock was free.";
         }
 
-        if (!reasonInput.trim()) {
-            errors.reason = "Please enter a reason for this stock change.";
-        }
 
         if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
@@ -284,10 +310,31 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         setFieldErrors({});
 
         const quantityChange = isStockIn ? baseQty : -baseQty;
-        const batchData: Record<string, string> = {};
-        if (batchLot.trim()) batchData.lot = batchLot.trim();
-        if (batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
-        if (batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
+
+        // These used to go into `batchData`, a free-form blob nothing read —
+        // so an expiry date could be typed in and the batch would still be
+        // sold in arrival order. They are real fields on the batch now, and
+        // the expiry is what the consumption queue is ordered by.
+        const lotNumber = batchLot.trim();
+        const manufacturedAt = batchManufacturedAt.trim();
+        const expiresAt = batchExpiresAt.trim();
+
+        const receivedAt = batchReceivedAt.trim();
+
+        if (manufacturedAt && expiresAt && expiresAt < manufacturedAt) {
+            setFieldErrors({
+                batchExpiresAt: "This batch expires before it was made.",
+            });
+            // The offending field is in the collapsed section on any form the
+            // operator has since tidied away.
+            setBatchOpen(true);
+            toast({
+                tone: "error",
+                title: "Check the batch dates",
+                description: "The expiry date falls before the manufactured date.",
+            });
+            return;
+        }
 
         try {
             await createEntry({
@@ -308,7 +355,17 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 // Kept so the ledger reads "2 sacks", not just the base amount.
                 enteredQuantity: selectedUnit ? qty : undefined,
                 unitId: selectedUnit?.id,
-                batchData,
+                // The API refuses these on the way out: which batch stock left
+                // by is worked out from the queue, never typed.
+                ...(isStockIn
+                    ? {
+                          lotNumber: lotNumber || undefined,
+                          manufacturedAt: manufacturedAt || undefined,
+                          expiresAt: expiresAt || undefined,
+                          receivedAt: receivedAt || undefined,
+                      }
+                    : {}),
+                batchData: {},
                 referenceType: isStockIn ? "STOCK_IN_FORM" : "STOCK_OUT_FORM",
                 referenceId: "",
                 referenceNumber: "",
@@ -382,7 +439,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     {isStockIn ? "Stock In Movement" : "Stock Out Movement"}
                                 </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    Select an item, specify quantity, price, and reason for this change.
+                                    Select an item, then say how much and what it cost. A reason is worth adding but not required.
                                 </p>
                             </div>
                         </div>
@@ -596,11 +653,10 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     <FormField
                                         label="Reason"
                                         name="reason"
-                                        required
                                         hint={
                                             isStockIn
-                                                ? "Enter reason for stock in (e.g. Supplier delivery, Restock, PO-2026-001)"
-                                                : "Enter reason for stock out (e.g. Damaged item, Expired, Waste)"
+                                                ? "Optional. What this delivery was — supplier delivery, restock, PO-2026-001."
+                                                : "Optional, but worth saying: damaged item, expired, waste."
                                         }
                                         error={fieldErrors.reason}
                                     >
@@ -626,65 +682,123 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     </FormField>
                                 </div>
 
-                                {/* Batch Details Card */}
-                                <div data-tour="stock-batch-card" className="sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5">
-                                    <div className="flex items-start gap-3">
+                                {/* Batch Details Card — receiving only.
+                                    On the way out there is no batch to
+                                    describe: which one the stock leaves by is
+                                    worked out from the queue, soonest to
+                                    expire first, and the API refuses these
+                                    fields there. Showing them would invite an
+                                    operator to pick a lot and be quietly
+                                    ignored. */}
+                                {isStockIn ? (
+                                <details
+                                    data-tour="stock-batch-card"
+                                    open={batchOpen}
+                                    onToggle={(e) =>
+                                        setBatchOpen(e.currentTarget.open)
+                                    }
+                                    className="group sm:col-span-2 rounded-xl border border-border bg-transparent"
+                                >
+                                    <summary className="flex cursor-pointer list-none items-start gap-3 p-4 sm:p-5">
                                         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                                             <PackageOpen className="size-5" />
                                         </span>
-                                        <div>
-                                            <h3 className="font-semibold text-foreground">
-                                                Batch details
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="flex items-center gap-2 font-semibold text-foreground">
+                                                <span>Batch details</span>
+                                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                    Optional
+                                                </span>
                                             </h3>
                                             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                                                Optional. Use these fields when stock is tracked by lot or expiration date. No JSON is required.
+                                                For anything that goes off. Stock with an expiry date is sold before stock without one, soonest first &mdash; so a short-dated delivery leaves ahead of older stock that keeps.
                                             </p>
                                         </div>
-                                    </div>
+                                        <ChevronRight className="mt-2.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                                    </summary>
 
-                                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                                    {/* Two by two: four fields across three
+                                        columns left the last one stranded on a
+                                        row of its own. */}
+                                    <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-2 sm:p-5">
                                         <FormField
                                             label="Batch / lot number"
                                             name="batchLot"
-                                            hint="For example, LOT-01."
+                                            hint="The supplier's reference, for example LOT-01."
                                         >
                                             <Input
                                                 id="batchLot"
                                                 name="batchLot"
                                                 value={batchLot}
+                                                maxLength={80}
                                                 onChange={(e) => setBatchLot(e.target.value)}
                                                 placeholder="LOT-01"
                                                 className={inventoryControlClassName}
+                                            />
+                                        </FormField>
+                                        {/* Expiry leads: it is the one that
+                                            decides when this batch sells. */}
+                                        <FormField
+                                            label="Expiration date"
+                                            name="batchExpiresAt"
+                                            hint={
+                                                batchAlreadyExpired
+                                                    ? "That date has passed. This batch will be first out and flagged as expired."
+                                                    : "Leave empty if this stock does not expire."
+                                            }
+                                            error={fieldErrors.batchExpiresAt}
+                                        >
+                                            <DatePicker
+                                                id="batchExpiresAt"
+                                                value={batchExpiresAt}
+                                                min={earliestExpiry}
+                                                placeholder="Does not expire"
+                                                aria-invalid={Boolean(fieldErrors.batchExpiresAt)}
+                                                onValueChange={(value) => {
+                                                    setBatchExpiresAt(value);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.batchExpiresAt;
+                                                        return next;
+                                                    });
+                                                }}
                                             />
                                         </FormField>
                                         <FormField
                                             label="Manufactured date"
                                             name="batchManufacturedAt"
                                         >
-                                            <Input
+                                            <DatePicker
                                                 id="batchManufacturedAt"
-                                                name="batchManufacturedAt"
-                                                type="date"
                                                 value={batchManufacturedAt}
-                                                onChange={(e) => setBatchManufacturedAt(e.target.value)}
-                                                className={inventoryControlClassName}
+                                                max={batchExpiresAt || todayIso}
+                                                placeholder="Not recorded"
+                                                onValueChange={(value) => {
+                                                    setBatchManufacturedAt(value);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.batchExpiresAt;
+                                                        return next;
+                                                    });
+                                                }}
                                             />
                                         </FormField>
                                         <FormField
-                                            label="Expiration date"
-                                            name="batchExpiresAt"
+                                            label="Arrived on"
+                                            name="batchReceivedAt"
+                                            hint="Only if you are recording this delivery late. Left empty, it arrived now."
                                         >
-                                            <Input
-                                                id="batchExpiresAt"
-                                                name="batchExpiresAt"
-                                                type="date"
-                                                value={batchExpiresAt}
-                                                onChange={(e) => setBatchExpiresAt(e.target.value)}
-                                                className={inventoryControlClassName}
+                                            <DatePicker
+                                                id="batchReceivedAt"
+                                                value={batchReceivedAt}
+                                                max={todayIso}
+                                                placeholder="Arrived now"
+                                                onValueChange={setBatchReceivedAt}
                                             />
                                         </FormField>
                                     </div>
-                                </div>
+                                </details>
+                                ) : null}
                             </div>
                         )}
                     </section>

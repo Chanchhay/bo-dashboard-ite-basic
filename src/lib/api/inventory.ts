@@ -576,7 +576,7 @@ export const stockStateLabels: Record<StockState, string> = {
  * One delivery still on the shelf, and what it cost.
  *
  * Stock is not one number at one price. Each delivery keeps the price it
- * arrived at and a sale eats the oldest first, so an item can be sitting on
+ * arrived at and a sale eats them in date order, so an item can be sitting on
  * two batches bought months apart at different money — and what the next sale
  * costs depends which of them it comes out of. This is what makes a margin
  * explicable rather than something the shop takes on trust.
@@ -591,8 +591,44 @@ export type StockBatch = {
     quantityRemaining: number;
     remainingValue: number;
     receivedAt?: string | null;
-    /** Where in the queue it sits. The next sale draws from position 1. */
+    /** The supplier's reference for the delivery, for traceability. */
+    lotNumber?: string | null;
+    manufacturedAt?: string | null;
+    /** When it goes off. Null on a batch that does not expire. */
+    expiresAt?: string | null;
+    /**
+     * Whether it is already past its date.
+     *
+     * The API works this out rather than leaving the screen to compare against
+     * whichever clock the browser happens to be set to.
+     */
+    expired?: boolean;
+    /**
+     * Where in the queue it sits: soonest to expire first, then oldest arrival
+     * among those that never expire. The next sale draws from position 1 —
+     * which is not always the oldest delivery.
+     */
     position: number;
+};
+
+/**
+ * One batch a movement drew from, and what that share of it cost.
+ *
+ * A sale of six often spans two deliveries — five of the old batch at one
+ * price and one of the new at another. The movement records a single cost for
+ * the whole thing, and that number is explicable from nowhere else: it is
+ * neither price paid, and dividing it by the quantity gives an average that
+ * matches no batch on the shelf.
+ */
+export type StockConsumption = {
+    batchId: string;
+    lotNumber?: string | null;
+    expiresAt?: string | null;
+    receivedAt?: string | null;
+    quantity: number;
+    unitCost: number;
+    /** Quantity times unit cost: this batch's share of the movement's cost. */
+    cost: number;
 };
 
 export type StockSummary = {
@@ -650,6 +686,18 @@ export type StockEntry = {
     /** What was counted, in the unit it was counted in. */
     enteredQuantity?: number;
     enteredUnit?: Unit | null;
+    /**
+     * The batches this movement drew from, on the way out.
+     *
+     * Only the single-movement endpoint fills this in; on a list it is absent,
+     * because reading it per row would be a query per row to answer something
+     * no row is showing.
+     */
+    consumedBatches?: StockConsumption[];
+    /** The lot and dates this movement was recorded against. */
+    lotNumber?: string;
+    manufacturedAt?: string;
+    expiresAt?: string;
     batchData?: Record<string, unknown>;
     referenceType?: string;
     referenceId?: string;
@@ -659,10 +707,48 @@ export type StockEntry = {
     createdDate?: string;
 };
 
-const optionalUuidSchema = z.string().trim();
+/**
+ * The lot a movement was recorded against, wherever it is stored.
+ *
+ * Lot and dates are columns on a movement now, because the expiry is what
+ * orders the sell queue and a free-form blob cannot be sorted on. They used to
+ * live in `batchData` under a `lot` key, and the ledger is never rewritten —
+ * so movements from before that change still keep it there and have to be read
+ * back from it.
+ */
+export function entryLotNumber(entry: StockEntry): string {
+    if (entry.lotNumber) return entry.lotNumber;
+
+    const stored = entry.batchData?.lot;
+
+    return typeof stored === "string" ? stored : "";
+}
+
+const optionalUuidSchema = z
+    .string()
+    .trim()
+    .refine(
+        (value) => !value || z.uuid().safeParse(value).success,
+        "Select a valid option.",
+    );
 
 const optionalText = (maximum: number, message: string) =>
     z.string().trim().max(maximum, message);
+
+/**
+ * A calendar date the form may simply not have been given.
+ *
+ * `<input type="date">` hands back `""` when it is cleared, which has to mean
+ * "not set" rather than fail as a malformed date — otherwise a user who types
+ * an expiry and then thinks better of it cannot save at all.
+ */
+const optionalDate = z
+    .string()
+    .trim()
+    .refine(
+        (value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value),
+        "Enter a date as YYYY-MM-DD.",
+    );
 
 /**
  * A money field that may simply not be set.
@@ -1265,6 +1351,18 @@ export const stockEntrySchema = z
     enteredQuantity: z.number().positive().optional(),
     /** The unit they typed it in: the item's base unit or a conversion. */
     unitId: optionalUuidSchema.optional(),
+    /** The supplier's reference for the delivery, so a recall can be answered. */
+    lotNumber: optionalText(80, "Lot number must be 80 characters or fewer.")
+        .optional(),
+    manufacturedAt: optionalDate.optional(),
+    /**
+     * When this delivery goes off. What the queue is ordered by before
+     * anything else — a short-dated delivery leaves before older stock that
+     * keeps longer. Left out, the batch is treated as one that never expires.
+     */
+    expiresAt: optionalDate.optional(),
+    /** When it actually arrived, if a delivery is being recorded late. */
+    receivedAt: optionalDate.optional(),
     batchData: z.record(z.string(), z.unknown()),
     referenceType: optionalText(
         40,
@@ -1285,6 +1383,16 @@ export const stockEntrySchema = z
     .refine(
         (entry) => !entry.variantId || Boolean(entry.itemId),
         "An option belongs to an item.",
+    )
+    .refine(
+        (entry) =>
+            !entry.manufacturedAt ||
+            !entry.expiresAt ||
+            entry.expiresAt >= entry.manufacturedAt,
+        {
+            message: "This batch expires before it was made.",
+            path: ["expiresAt"],
+        },
     );
 
 export type StockEntryInput = z.infer<typeof stockEntrySchema>;
@@ -1556,6 +1664,20 @@ export function toStockEntryRequest(input: StockEntryInput) {
         ...(input.variantId ? { variantId: input.variantId } : {}),
         entryType: input.entryType,
         quantityChange: input.quantityChange,
+        // Lot and dates belong to stock arriving; the API refuses them on the
+        // way out, so an empty field must be left off rather than sent blank.
+        ...(input.lotNumber ? { lotNumber: input.lotNumber } : {}),
+        ...(input.manufacturedAt
+            ? { manufacturedAt: input.manufacturedAt }
+            : {}),
+        ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
+        // The API takes a moment here, the form only asks for a day. Midnight
+        // is the honest reading of "it arrived on the 20th" — it puts the
+        // batch ahead of anything else logged that day, which is what somebody
+        // recording a delivery late is telling us.
+        ...(input.receivedAt
+            ? { receivedAt: `${input.receivedAt}T00:00:00` }
+            : {}),
         batchData: input.batchData,
         referenceType: input.referenceType,
         referenceNumber: input.referenceNumber,

@@ -171,7 +171,13 @@ export function CustomerSelectModal({
             setAddress("");
             setTab("SELECT");
         } catch (err) {
-            setFormError(getApiErrorMessage(err, "Could not create customer."));
+            setFormError(
+                getApiErrorMessage(
+                    err,
+                    "Could not create customer.",
+                    "This phone number or email is already registered to another customer.",
+                ),
+            );
         }
     };
 

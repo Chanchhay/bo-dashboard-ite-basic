@@ -1,6 +1,10 @@
 import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth/auth";
+import {
+    persistAuthCookies,
+    resolveKeycloakAccessToken,
+} from "@/lib/auth/keycloak-token";
 
 /*
  * The parts of the server-side session the browser legitimately needs.
@@ -85,11 +89,9 @@ export async function GET() {
     let accessToken: string | null = null;
 
     try {
-        const tokens = await auth.api.getAccessToken({
-            headers: requestHeaders,
-            body: { providerId: "keycloak" },
-        });
-        accessToken = tokens.accessToken ?? null;
+        const resolved = await resolveKeycloakAccessToken(requestHeaders);
+        await persistAuthCookies(resolved.setCookies);
+        accessToken = resolved.accessToken;
     } catch {
         accessToken = null;
     }

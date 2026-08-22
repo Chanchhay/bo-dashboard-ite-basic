@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -669,7 +670,7 @@ export default function DiscountsAndCouponsPage() {
                         </Table>
                     )}
                 </div>
-        )}
+            )}
 
             {/* Coupons Table */}
             {activeTab === "coupons" && (
@@ -1030,20 +1031,18 @@ export default function DiscountsAndCouponsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label htmlFor="dStartsAt">Starts At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="dStartsAt"
-                                    type="datetime-local"
                                     value={dStartsAt}
-                                    onChange={(e) => setDStartsAt(e.target.value)}
+                                    onValueChange={setDStartsAt}
                                 />
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="dEndsAt">Ends At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="dEndsAt"
-                                    type="datetime-local"
                                     value={dEndsAt}
-                                    onChange={(e) => setDEndsAt(e.target.value)}
+                                    onValueChange={setDEndsAt}
                                 />
                             </div>
                         </div>
@@ -1219,20 +1218,18 @@ export default function DiscountsAndCouponsPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="cStarts">Starts At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="cStarts"
-                                    type="datetime-local"
                                     value={cStartsAt}
-                                    onChange={(e) => setCStartsAt(e.target.value)}
+                                    onValueChange={setCStartsAt}
                                 />
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="cEnds">Ends At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="cEnds"
-                                    type="datetime-local"
                                     value={cEndsAt}
-                                    onChange={(e) => setCEndsAt(e.target.value)}
+                                    onValueChange={setCEndsAt}
                                 />
                             </div>
                         </div>
