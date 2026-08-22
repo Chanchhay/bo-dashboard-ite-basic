@@ -623,6 +623,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [updateItem, updateState] = useUpdateInventoryItemMutation();
     const [generateBarcode, generateBarcodeState] =
         useGenerateInventoryBarcodeMutation();
+    const [trackInventory, setTrackInventory] = useState<boolean>(
+        () => initialItem?.trackInventory ?? (initialItem?.itemType ? initialItem.itemType === "PHYSICAL" : true),
+    );
     const [attributes, setAttributes] = useState(() =>
         toAttributeDrafts(initialItem?.attributes),
     );
@@ -1332,7 +1335,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
         const result = inventoryItemSchema.safeParse({
             itemGroupId: String(formData.get("itemGroupId") || ""),
-            unitId: String(formData.get("unitId") || ""),
+            unitId: uomDraft.baseUnitId || String(formData.get("unitId") || ""),
             name: String(formData.get("name") || ""),
             sku: String(formData.get("sku") || ""),
             // No input for this any more — SKU is the code people use. An
@@ -1342,6 +1345,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             badge: String(formData.get("badge") || ""),
             barcode: String(formData.get("barcode") || ""),
             itemType: String(formData.get("itemType") || ""),
+            trackInventory,
             attributes: attributeValues,
             descriptionBlocks: blocks.map(fromBlockDraft),
             lowStockDefault: Number(formData.get("lowStockDefault") || 0),
@@ -1730,6 +1734,21 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                             </SelectContent>
                         </Select>
                     </Field>
+                    <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-3.5">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="trackInventorySwitch" className="text-sm font-semibold text-foreground cursor-pointer">
+                                Track Inventory / Stock
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                                Enable stock tracking, low-stock warnings, and inventory deductions upon checkout.
+                            </p>
+                        </div>
+                        <Switch
+                            id="trackInventorySwitch"
+                            checked={trackInventory}
+                            onCheckedChange={setTrackInventory}
+                        />
+                    </div>
                     <div data-tour="item-form-status">
                         <Field
                             label="Status *"
@@ -2211,6 +2230,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 onDraftChange={(patch) =>
                     setUomDraft((current) => ({ ...current, ...patch }))
                 }
+                trackInventory={trackInventory}
             />
 
             <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
