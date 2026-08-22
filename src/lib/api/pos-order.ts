@@ -24,6 +24,7 @@ export type PosOrderItem = {
     unitPrice: number;
     discountAmount: number;
     lineTotal: number;
+    trackInventory?: boolean | null;
 };
 
 export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";

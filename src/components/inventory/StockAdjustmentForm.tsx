@@ -217,7 +217,9 @@ export function StockAdjustmentForm() {
         );
     }
 
-    const items = itemsQuery.data || [];
+    const items = (itemsQuery.data || []).filter(
+        (item) => item.trackInventory !== false,
+    );
     const selectedItem = items.find((item) => item.id === selectedItemId);
     const addOns = addOnsQuery.data || [];
     const selectedAddOn = addOns.find((addOn) => addOn.id === selectedAddOnId);
@@ -413,6 +415,14 @@ export function StockAdjustmentForm() {
         : qtyValid && !goesNegative;
 
     function handleScannedItem(item: InventoryItem) {
+        if (item.trackInventory === false) {
+            toast({
+                tone: "error",
+                title: "Inventory tracking disabled",
+                description: `"${item.name || "This item"}" does not track inventory.`,
+            });
+            return;
+        }
         setTarget({ kind: "ITEM", id: item.id });
         setAdjustedEntryId("");
         setOptionId("");

@@ -379,6 +379,7 @@ export type InventoryItem = {
     price?: number | null;
     compareAtPrice?: number | null;
     itemType?: StoredItemType;
+    trackInventory?: boolean;
     attributes?: ItemAttribute[];
     /** The colours this item comes in, shared by every size. */
     colors?: ItemColor[];
@@ -455,7 +456,7 @@ const optionalQueryText = (maximum: number, message: string) =>
 
 const optionalQueryUuid = z.preprocess(
     emptyQueryValueToUndefined,
-    z.uuid("Select a valid option.").optional(),
+    z.string().trim().optional(),
 );
 
 const optionalQueryNumber = z.preprocess(
@@ -998,8 +999,8 @@ export type DescriptionBlockInput = z.infer<typeof descriptionBlockSchema>;
 export const inventoryItemSchema = z.object({
     // Both are required: an item that is counted in nothing and filed under
     // nothing cannot be stocked or found again.
-    itemGroupId: z.uuid("Select a category."),
-    unitId: z.uuid("Select a base unit of measure."),
+    itemGroupId: z.string().trim().min(1, "Select a category."),
+    unitId: z.string().trim().min(1, "Select a base unit of measure."),
     name: z
         .string()
         .trim()
@@ -1060,13 +1061,13 @@ export const inventoryItemSchema = z.object({
                 colors.length,
             "Colours must be unique.",
         ),
-    addOnIds: z.array(z.uuid("Select a valid add-on.")).default([]),
+    addOnIds: z.array(z.string().trim().min(1, "Select a valid add-on.")).default([]),
     uomConversions: z
         .array(
             z.object({
-                unitId: z.uuid("Select a valid unit."),
+                unitId: z.string().trim().min(1, "Select a valid unit."),
                 /** The option's id, once it has one. */
-                variantId: z.uuid("Select a valid option.").optional(),
+                variantId: z.string().trim().optional(),
                 /**
                  * The option's name — how a conversion names an option typed
                  * on the same screen, which has no id until the item is saved.
@@ -1088,6 +1089,7 @@ export const inventoryItemSchema = z.object({
         .number()
         .int("Low-stock threshold must be a whole number.")
         .min(0, "Low-stock threshold cannot be negative."),
+    trackInventory: z.boolean().default(true),
     status: z.enum(itemStatuses),
 });
 
@@ -1117,8 +1119,8 @@ export const itemPricingSchema = z.object({
     uomConversions: z
         .array(
             z.object({
-                unitId: z.uuid("Select a valid unit."),
-                variantId: z.uuid("Select a valid option.").optional(),
+                unitId: z.string().trim().min(1, "Select a valid unit."),
+                variantId: z.string().trim().optional(),
                 variantName: z.string().optional(),
                 factor: z
                     .number()
@@ -1141,7 +1143,7 @@ export type ItemPricingInput = z.infer<typeof itemPricingSchema>;
  * one", so two people toggling at once cannot leave it half-applied.
  */
 export const itemAddOnsSchema = z.object({
-    addOnIds: z.array(z.uuid("Select a valid add-on.")),
+    addOnIds: z.array(z.string().trim().min(1, "Select a valid add-on.")),
 });
 
 export type ItemAddOnsInput = z.infer<typeof itemAddOnsSchema>;
@@ -1245,7 +1247,7 @@ export function toOptionPresetRequest(input: OptionPresetInput) {
 }
 
 export const uomConversionSchema = z.object({
-    unitId: z.uuid("Select a valid unit."),
+    unitId: z.string().trim().min(1, "Select a valid unit."),
     factor: z.number().positive("A conversion must be greater than zero."),
 });
 
@@ -1293,7 +1295,7 @@ export const addOnSetSchema = z
             .optional(),
         required: z.boolean(),
         addOnIds: z
-            .array(z.uuid("Select a valid add-on."))
+            .array(z.string().trim().min(1, "Select a valid add-on."))
             .min(1, "Add at least one add-on."),
     })
     .refine(
@@ -1329,10 +1331,10 @@ export const stockEntrySchema = z
     .object({
     // An add-on is counted like an item but never sold on its own, so a
     // movement targets exactly one of the two.
-    itemId: z.uuid("Select an item.").optional(),
-    addOnId: z.uuid("Select an add-on.").optional(),
+    itemId: z.string().trim().optional(),
+    addOnId: z.string().trim().optional(),
     /** Which option of the item moved. Only ever set beside an itemId. */
-    variantId: z.uuid("Select an option.").optional(),
+    variantId: z.string().trim().optional(),
     entryType: z.enum(stockEntryTypes),
     quantityChange: z.number(),
     // Cost belongs to stock arriving and sale price to stock leaving. The API
@@ -1451,6 +1453,7 @@ export function toItemRequest(input: InventoryItemInput) {
         badge: input.badge,
         barcode: input.barcode,
         itemType: input.itemType,
+        trackInventory: input.trackInventory,
         attributes: input.attributes.map(toAttributeRequest),
         descriptionBlocks: input.descriptionBlocks.map(toBlockRequest),
         variants: input.variants,
