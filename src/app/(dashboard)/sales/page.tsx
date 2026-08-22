@@ -26,13 +26,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { printReceipt } from "@/lib/print-receipt";
 
@@ -491,23 +484,23 @@ function Pager({
                     : ""}
             </p>
 
-            <div className="flex items-center gap-2">
-                <span className="text-[13px] text-muted-foreground">Rows</span>
-                <Select
-                    value={String(pageSize)}
-                    onValueChange={(value) => onPageSize(Number(value))}
-                >
-                    <SelectTrigger className="h-8 w-18 rounded-lg border-border bg-card px-2 text-[13px]">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+            <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    Rows
+                    <select
+                        value={pageSize}
+                        onChange={(event) =>
+                            onPageSize(Number(event.target.value))
+                        }
+                        className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
                         {ORDER_PAGE_SIZES.map((size) => (
-                            <SelectItem key={size} value={String(size)}>
+                            <option key={size} value={size}>
                                 {size}
-                            </SelectItem>
+                            </option>
                         ))}
-                    </SelectContent>
-                </Select>
+                    </select>
+                </label>
 
                 <div className="flex items-center gap-1">
                     <button

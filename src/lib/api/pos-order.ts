@@ -235,6 +235,11 @@ export type Sale = {
     orderId: string;
     invoiceNumber: string | null;
     cashierId: string | null;
+    /** Null for a walk-in sale never linked to a customer record. */
+    customerId: string | null;
+    customerName: string | null;
+    customerPhone: string | null;
+    customerEmail: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     subtotal: number;
     discountAmount: number;

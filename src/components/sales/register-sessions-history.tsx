@@ -34,13 +34,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const STATUS_OPTIONS = ["ALL", "OPEN", "CLOSED"] as const;
 type StatusFilter = (typeof STATUS_OPTIONS)[number];
@@ -635,7 +628,8 @@ export function RegisterSessionsHistory() {
                   return (
                     <TableRow
                       key={session.id}
-                      className="border-b border-border/60 dark:border-slate-800/60 hover:bg-muted/40 dark:hover:bg-[#1a2333] transition-colors"
+                      onClick={() => handleOpenDetails(session)}
+                      className="cursor-pointer border-b border-border/60 dark:border-slate-800/60 hover:bg-muted/40 dark:hover:bg-[#1a2333] transition-colors"
                     >
                       {visibleColumns.sessionId && (
                         <TableCell className="font-mono text-xs font-semibold text-foreground dark:text-slate-300">
@@ -742,7 +736,13 @@ export function RegisterSessionsHistory() {
                         <TableCell className="text-right">
                           <button
                             type="button"
-                            onClick={() => handleOpenDetails(session)}
+                            onClick={(event) => {
+                              // The row underneath opens the same modal, so
+                              // this only needs to stop it from also firing
+                              // and doubling the fetch.
+                              event.stopPropagation();
+                              handleOpenDetails(session);
+                            }}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 hover:underline"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -766,28 +766,24 @@ export function RegisterSessionsHistory() {
               : `Showing ${firstRow}–${lastRow} of ${filteredSessions.length}`}
           </p>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-muted-foreground dark:text-slate-400">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-[13px] text-muted-foreground dark:text-slate-400">
               Rows
-            </span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(value) => {
-                setPageSize(Number(value) as (typeof SESSION_PAGE_SIZES)[number]);
-                setPage(0);
-              }}
-            >
-              <SelectTrigger className="h-8 w-18 rounded-lg border-border bg-card px-2 text-[13px] dark:border-slate-800 dark:bg-[#0d121c] dark:text-slate-200">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value) as (typeof SESSION_PAGE_SIZES)[number]);
+                  setPage(0);
+                }}
+                className="h-8 rounded-lg border border-border dark:border-slate-800 bg-card dark:bg-[#0d121c] px-2 text-[13px] text-foreground dark:text-slate-200 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
                 {SESSION_PAGE_SIZES.map((size) => (
-                  <SelectItem key={size} value={String(size)}>
+                  <option key={size} value={size}>
                     {size}
-                  </SelectItem>
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
+              </select>
+            </label>
 
             <div className="flex items-center gap-1">
               <button
@@ -821,8 +817,14 @@ export function RegisterSessionsHistory() {
 
       {/* Session Details / Summary Modal */}
       {selectedSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          onClick={() => setSelectedSession(null)}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100"
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <div className="flex items-center gap-2.5">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, Banknote, Clock } from "lucide-react";
+import { CreditCard, Banknote } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
 import { Order } from "@/types/pos-type";
@@ -17,7 +17,7 @@ import {
   useGetBakongStatusQuery,
 } from "@/services/posOrderApi";
 
-type PaymentMethod = "CASH" | "DIGITAL" | "PAY_LATER";
+type PaymentMethod = "CASH" | "DIGITAL";
 
 export interface PaymentProps {
   open: boolean;
@@ -155,13 +155,6 @@ export function Payment({
       return;
     }
 
-    if (method === "PAY_LATER") {
-      // Nothing is collected now, so there is no amount to key in — the sale
-      // just closes and waits to be settled later.
-      onValidate("PAY_LATER");
-      return;
-    }
-
     void showKhqr();
   }
 
@@ -278,7 +271,7 @@ export function Payment({
                       Payment method
                     </p>
                     <div
-                      className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-3" : "grid-cols-2"}`}
+                      className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}
                     >
                       <button
                         type="button"
@@ -308,26 +301,7 @@ export function Payment({
                           KHQR
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setMethod("PAY_LATER")}
-                        aria-pressed={method === "PAY_LATER"}
-                        className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#6b7280]/30 sm:h-[58px] sm:gap-3 sm:text-base ${
-                          method === "PAY_LATER"
-                            ? "border-[#6b7280] bg-[#6b7280]/5 text-[#374151]"
-                            : "border-[#d9d9d9] text-[#6b7280] hover:bg-[#f5f5f5]"
-                        }`}
-                      >
-                        <Clock className="size-5 shrink-0 sm:size-6" aria-hidden="true" />
-                        Pay later
-                      </button>
                     </div>
-                    {method === "PAY_LATER" && (
-                      <p className="text-xs text-[#6b7280] sm:text-sm">
-                        The sale closes now and stock goes out, but no money is
-                        collected. Settle it later from Sales → Pay Later.
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -346,11 +320,7 @@ export function Payment({
                   disabled={isProcessing}
                   className="h-14 rounded-[25px] bg-primary text-base font-semibold text-white outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary/30 disabled:bg-primary/30 sm:h-[58px] sm:text-xl"
                 >
-                  {isProcessing || isGenerating
-                    ? "Processing..."
-                    : method === "PAY_LATER"
-                      ? "Close sale, pay later"
-                      : "Validate"}
+                  {isProcessing || isGenerating ? "Processing..." : "Validate"}
                 </button>
               </div>
             </div>

@@ -10,10 +10,12 @@ import {
     Globe,
     MessageSquare,
     Printer,
+    Search,
     Send,
     ShoppingBag,
     Store,
     Wallet,
+    X,
 } from "lucide-react";
 
 import { AmountReceived } from "@/components/pos/amount-received";
@@ -25,13 +27,6 @@ import {
     InventoryLoading,
 } from "@/components/inventory/InventoryUi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -71,6 +66,7 @@ const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 10;
 
 type PayLaterColumnKey =
     | "sale"
+    | "customer"
     | "channel"
     | "soldAt"
     | "status"
@@ -79,6 +75,7 @@ type PayLaterColumnKey =
 
 const PAY_LATER_COLUMNS: { key: PayLaterColumnKey; label: string }[] = [
     { key: "sale", label: "Sale" },
+    { key: "customer", label: "Customer" },
     { key: "channel", label: "Channel" },
     { key: "soldAt", label: "Sold at" },
     { key: "status", label: "Status" },
@@ -103,6 +100,7 @@ export function PayLaterList() {
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
+    const [query, setQuery] = useState("");
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(
         DEFAULT_PAGE_SIZE,
@@ -112,6 +110,7 @@ export function PayLaterList() {
         Record<PayLaterColumnKey, boolean>
     >({
         sale: true,
+        customer: true,
         channel: true,
         soldAt: true,
         status: true,
@@ -133,11 +132,30 @@ export function PayLaterList() {
     }
 
     const sales = useMemo(() => salesQuery.data ?? [], [salesQuery.data]);
-    const pageCount = Math.max(Math.ceil(sales.length / pageSize), 1);
+
+    const filteredSales = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return sales;
+
+        return sales.filter((sale) =>
+            [
+                sale.invoiceNumber,
+                sale.customerName,
+                sale.customerPhone,
+                sale.customerEmail,
+            ].some((field) => field?.toLowerCase().includes(q)),
+        );
+    }, [sales, query]);
+
+    const pageCount = Math.max(Math.ceil(filteredSales.length / pageSize), 1);
     const safePage = Math.min(page, pageCount - 1);
     const pagedSales = useMemo(
-        () => sales.slice(safePage * pageSize, safePage * pageSize + pageSize),
-        [sales, safePage, pageSize],
+        () =>
+            filteredSales.slice(
+                safePage * pageSize,
+                safePage * pageSize + pageSize,
+            ),
+        [filteredSales, safePage, pageSize],
     );
 
     async function handleCollect(receivedAmount: number) {
@@ -197,45 +215,72 @@ export function PayLaterList() {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="grid flex-1 grid-cols-2 gap-3 sm:max-w-md">
-                    <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                Outstanding
-                            </span>
-                            <div className="grid size-8 place-items-center rounded-xl bg-warning/10 text-warning">
-                                <Clock className="size-4" />
-                            </div>
+            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Outstanding
+                        </span>
+                        <div className="grid size-8 place-items-center rounded-xl bg-warning/10 text-warning">
+                            <Clock className="size-4" />
                         </div>
-                        <p className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
-                            {sales.length}
-                            <span className="ml-1 text-xs font-medium text-muted-foreground">
-                                sale{sales.length === 1 ? "" : "s"}
-                            </span>
-                        </p>
                     </div>
-
-                    <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                Owed in total
-                            </span>
-                            <div className="grid size-8 place-items-center rounded-xl bg-danger/10 text-danger">
-                                <Wallet className="size-4" />
-                            </div>
-                        </div>
-                        <p className="mt-2 truncate text-xl font-bold text-danger sm:text-2xl">
-                            {format(owedTotal)}
-                        </p>
-                    </div>
+                    <p className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
+                        {sales.length}
+                        <span className="ml-1 text-xs font-medium text-muted-foreground">
+                            sale{sales.length === 1 ? "" : "s"}
+                        </span>
+                    </p>
                 </div>
 
-                <div className="relative inline-block text-left">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Owed in total
+                        </span>
+                        <div className="grid size-8 place-items-center rounded-xl bg-danger/10 text-danger">
+                            <Wallet className="size-4" />
+                        </div>
+                    </div>
+                    <p className="mt-2 truncate text-xl font-bold text-danger sm:text-2xl">
+                        {format(owedTotal)}
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs sm:flex-row sm:items-center">
+                <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(event) => {
+                            setQuery(event.target.value);
+                            setPage(0);
+                        }}
+                        placeholder="Search by invoice or customer"
+                        className="w-full rounded-xl border border-border bg-muted/40 py-2.5 pl-10 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+                    />
+                    {query && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setQuery("");
+                                setPage(0);
+                            }}
+                            aria-label="Clear search"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                            <X className="size-4" />
+                        </button>
+                    )}
+                </div>
+
+                <div className="relative inline-block shrink-0 text-left">
                     <button
                         type="button"
                         onClick={() => setColumnsOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground shadow-xs transition-colors hover:bg-muted"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                     >
                         <Columns3 className="size-4 text-muted-foreground" />
                         Columns
@@ -286,6 +331,9 @@ export function PayLaterList() {
                                 {visibleColumns.sale && (
                                     <TableHead className="min-w-44">Sale</TableHead>
                                 )}
+                                {visibleColumns.customer && (
+                                    <TableHead className="hidden sm:table-cell">Customer</TableHead>
+                                )}
                                 {visibleColumns.channel && (
                                     <TableHead className="hidden sm:table-cell">Channel</TableHead>
                                 )}
@@ -309,7 +357,9 @@ export function PayLaterList() {
                                         colSpan={activeColumnCount || 1}
                                         className="h-32 text-center text-sm text-muted-foreground"
                                     >
-                                        No sales on this page.
+                                        {query
+                                            ? `No sales match "${query}".`
+                                            : "No sales on this page."}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -329,6 +379,31 @@ export function PayLaterList() {
                                                         {sale.invoiceNumber ?? "—"}
                                                     </p>
                                                 </div>
+                                            </TableCell>
+                                        )}
+
+                                        {visibleColumns.customer && (
+                                            <TableCell className="hidden sm:table-cell">
+                                                {sale.customerId ? (
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-medium text-foreground">
+                                                            {sale.customerName ||
+                                                                sale.customerPhone ||
+                                                                sale.customerEmail ||
+                                                                "Unnamed customer"}
+                                                        </p>
+                                                        {sale.customerName &&
+                                                        (sale.customerPhone || sale.customerEmail) ? (
+                                                            <p className="truncate text-xs text-muted-foreground">
+                                                                {sale.customerPhone || sale.customerEmail}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Walk-in
+                                                    </span>
+                                                )}
                                             </TableCell>
                                         )}
 
@@ -382,31 +457,29 @@ export function PayLaterList() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-xs">
                 <p className="text-[13px] text-muted-foreground">
-                    {sales.length === 0
+                    {filteredSales.length === 0
                         ? "No sales"
-                        : `Showing ${safePage * pageSize + 1}–${Math.min(sales.length, safePage * pageSize + pageSize)} of ${sales.length}`}
+                        : `Showing ${safePage * pageSize + 1}–${Math.min(filteredSales.length, safePage * pageSize + pageSize)} of ${filteredSales.length}`}
                 </p>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-[13px] text-muted-foreground">Rows</span>
-                    <Select
-                        value={String(pageSize)}
-                        onValueChange={(value) => {
-                            setPageSize(Number(value) as (typeof PAGE_SIZES)[number]);
-                            setPage(0);
-                        }}
-                    >
-                        <SelectTrigger className="h-8 w-18 rounded-lg border-border bg-card px-2 text-[13px]">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
+                <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                        Rows
+                        <select
+                            value={pageSize}
+                            onChange={(event) => {
+                                setPageSize(Number(event.target.value) as (typeof PAGE_SIZES)[number]);
+                                setPage(0);
+                            }}
+                            className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
                             {PAGE_SIZES.map((size) => (
-                                <SelectItem key={size} value={String(size)}>
+                                <option key={size} value={size}>
                                     {size}
-                                </SelectItem>
+                                </option>
                             ))}
-                        </SelectContent>
-                    </Select>
+                        </select>
+                    </label>
 
                     <div className="flex items-center gap-1">
                         <button
