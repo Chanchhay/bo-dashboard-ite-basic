@@ -18,9 +18,14 @@ import {
     type MovementDetail,
 } from "@/components/inventory/stock/StockMovementDetailDialog";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
-import { stockEntryTypeLabels, type StockEntry } from "@/lib/api/inventory";
+import {
+    entryLotNumber,
+    stockEntryTypeLabels,
+    type StockEntry,
+} from "@/lib/api/inventory";
 import { staffFullName } from "@/lib/api/user-management";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
@@ -346,6 +351,11 @@ export function StockMovementsTab({
                         entry.unitCost !== undefined
                             ? `${formatAmount(entry.unitCost)} / ${unitLabel || "unit"}`
                             : "",
+                        // Movements recorded before lot became a column of its
+                        // own still carry it in the batch blob.
+                        entryLotNumber(entry)
+                            ? `Lot ${entryLotNumber(entry)}`
+                            : "",
                         entry.referenceNumber,
                         entry.reason,
                     ]
@@ -518,7 +528,7 @@ export function StockMovementsTab({
                                     setSearchQuery(e.target.value),
                                 )
                             }
-                            placeholder="Search item, reason, or person..."
+                            placeholder="Search item, lot, reason, or person..."
                             className="pl-10 h-10 text-sm rounded-xl border-border bg-background"
                         />
                     </div>
@@ -560,34 +570,38 @@ export function StockMovementsTab({
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-muted-foreground">From:</span>
-                            <div className="relative flex items-center">
-                                <input
-                                    type="date"
+                            <div className="w-44">
+                                <DatePicker
                                     value={startDate}
-                                    onChange={(e) =>
+                                    // Never later than the other end of the
+                                    // range, which would select nothing.
+                                    max={endDate || undefined}
+                                    placeholder="Any date"
+                                    className="h-9"
+                                    onValueChange={(value) =>
                                         applyFilter(() => {
-                                            setStartDate(e.target.value);
+                                            setStartDate(value);
                                             setDatePreset("CUSTOM");
                                         })
                                     }
-                                    className="h-9 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground transition-all hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                                 />
                             </div>
                         </div>
 
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-muted-foreground">To:</span>
-                            <div className="relative flex items-center">
-                                <input
-                                    type="date"
+                            <div className="w-44">
+                                <DatePicker
                                     value={endDate}
-                                    onChange={(e) =>
+                                    min={startDate || undefined}
+                                    placeholder="Any date"
+                                    className="h-9"
+                                    onValueChange={(value) =>
                                         applyFilter(() => {
-                                            setEndDate(e.target.value);
+                                            setEndDate(value);
                                             setDatePreset("CUSTOM");
                                         })
                                     }
-                                    className="h-9 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground transition-all hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                                 />
                             </div>
                         </div>
