@@ -1,86 +1,66 @@
-import {
-    applySetCookies,
-    parseCookies,
-    parseSetCookieHeader,
-    toCookieOptions,
-} from "better-auth/cookies";
+import { applySetCookies, parseCookies, parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
+import { symmetricDecodeJWT, symmetricEncodeJWT } from "better-auth/crypto";
 
 import { auth } from "@/lib/auth/auth";
 
 /*
- * Keycloak access tokens, refreshed exactly once per generation.
+ * Keycloak access tokens: refreshed here, once per generation.
  *
  * This app runs Better Auth without a database, so the Keycloak tokens live in
- * the `account_data` cookie. `auth.api.getAccessToken()` refreshes them when
- * they are near expiry and writes the rotated pair back as a `Set-Cookie` —
- * which is where two things go wrong on Next.js App Router, and why nothing
- * calls that endpoint directly any more:
+ * the `account_data` cookie rather than a table. That makes the cookie the
+ * only copy, and it is why refreshing is this app's problem rather than the
+ * library's — two things go wrong otherwise:
  *
  * 1. A Server Component cannot set cookies: its response headers are already
- *    committed by the time it renders. Better Auth's `nextCookies()` hook
- *    swallows the failure, so the refresh succeeds against Keycloak and the
- *    browser never hears about it. The next request replays the *same* cookie,
- *    Keycloak sees an already-redeemed refresh token, and every request from
- *    then on fails. See better-auth#7394.
- * 2. Requests are concurrent. A page that fires five `/api/*` calls at once
- *    hands the same refresh token to five exchanges. Keycloak's one-time-use
- *    rule lets one through and — with reuse detection on — can revoke the
- *    whole session for the rest.
+ *    committed by the time it renders. `nextCookies()` swallows the failed
+ *    write, so a refresh that ran during a render succeeds against Keycloak
+ *    and the browser never hears about it. The next request replays the same
+ *    cookie, Keycloak sees an already-redeemed refresh token, and every
+ *    request from then on fails. See better-auth#7394.
+ * 2. Requests are concurrent. A page firing five `/api/*` calls at once hands
+ *    the same refresh token to five exchanges. Keycloak's one-time-use rule
+ *    lets one through, and with reuse detection on it can revoke the session
+ *    for the rest.
  *
- * The answer to both is to make rotation a property of the server rather than
- * of a single request. Every account-cookie value the server has seen maps to
- * a `TokenChain`: the newest tokens that value ultimately led to. A request
- * arriving with a superseded cookie is served from its chain instead of being
- * sent to Keycloak with a spent refresh token, and one in-flight rotation is
- * shared by every caller waiting on it.
+ * Both are answered by making rotation a property of the server rather than of
+ * a single request. Every account-cookie value the server has seen maps to a
+ * `TokenChain` holding the newest tokens that value led to. A request arriving
+ * with a superseded cookie is served from its chain instead of being sent to
+ * Keycloak with a spent refresh token, and one in-flight refresh is shared by
+ * every caller waiting on it. `src/proxy.ts` refreshes ahead of rendering, and
+ * route handlers persist what they are given; the chain is what keeps the two
+ * consistent while a browser catches up.
  *
- * `src/proxy.ts` refreshes ahead of rendering so page navigations never rely
- * on a Server Component being able to persist the result, and route handlers
- * persist what they are given. The chain is what keeps the two consistent
- * while a browser catches up.
+ * The token endpoint is called directly rather than through
+ * `auth.api.getAccessToken()`. That endpoint refreshes only inside the last
+ * five seconds of a token's life — a window this app cannot hit reliably — and
+ * reports every failure as one opaque message, which is no way to run an auth
+ * flow you have to debug. The cookie it reads and writes is the same one, in
+ * the same format, using Better Auth's own encryption helpers.
  */
-
-const PROVIDER_ID = "keycloak";
 
 /**
- * Treat a token as spent this far ahead of its expiry. Covers clock skew
- * between us, Keycloak and the backend, plus the flight time of the request
- * the token is about to be spent on.
+ * Refresh once a token has this little life left. Wide enough that a token
+ * handed out here survives the request it was fetched for, including a slow
+ * render that makes several backend calls in sequence.
  */
-const EXPIRY_SKEW_MS = 5_000;
+const REFRESH_WINDOW_MS = 10_000;
 
-/** Chains to keep before sweeping. Sized for far more concurrent sessions than this app sees. */
+/** Chains to keep before sweeping. Sized well past this app's concurrent sessions. */
 const MAX_TRACKED_CHAINS = 500;
 
 /**
  * How long an abandoned chain (a signed-out user, a replaced login) is kept
- * once its access token has expired. Long enough that a browser still holding
- * an older cookie generation can be answered from it.
+ * once its access token has expired, so a browser still holding an older
+ * cookie generation can be answered from it.
  */
 const STALE_CHAIN_GRACE_MS = 10 * 60 * 1000;
 
-type TokenChain = {
-    /** Request headers carrying the newest account cookie this server knows of. */
-    headers: Headers;
-    /** The account-cookie value those headers carry — the newest generation. */
-    key: string | null;
-    accessToken: string;
-    /** Epoch milliseconds. */
-    expiresAt: number;
-    /** The `Set-Cookie` values that move a browser onto the newest generation. */
-    setCookies: string[];
-    /** In-flight rotation, so concurrent callers redeem one refresh token once. */
-    rotating: Promise<void> | null;
-};
-
-export type ResolvedAccessToken = {
-    accessToken: string;
-    /**
-     * Hand to {@link persistAuthCookies} from anywhere that can still write
-     * response headers. Empty when the browser is already up to date.
-     */
-    setCookies: string[];
-};
+/**
+ * Conservative per-cookie ceiling. Safari's ~4093-byte floor is the lowest in
+ * use; the headroom covers the attributes written alongside the value.
+ */
+const MAX_COOKIE_VALUE = 3_500;
 
 export class KeycloakTokenError extends Error {
     constructor(
@@ -92,15 +72,146 @@ export class KeycloakTokenError extends Error {
     }
 }
 
+export type ResolvedAccessToken = {
+    accessToken: string;
+    /**
+     * Hand to {@link persistAuthCookies} from anywhere that can still write
+     * response headers. Empty when the browser is already up to date.
+     */
+    setCookies: string[];
+};
+
+/** The account cookie's payload, kept whole so nothing is dropped on re-encode. */
+type AccountData = Record<string, unknown> & {
+    accessToken?: string;
+    refreshToken?: string;
+    accessTokenExpiresAt?: string;
+    refreshTokenExpiresAt?: string;
+    idToken?: string;
+};
+
+type CookieAttributes = {
+    maxAge?: number;
+    path?: string;
+    domain?: string;
+    secure?: boolean;
+    httpOnly?: boolean;
+    sameSite?: string | boolean;
+};
+
+type TokenChain = {
+    /** Request headers carrying the newest account cookie this server knows of. */
+    headers: Headers;
+    /** The account-cookie value those headers carry — the newest generation. */
+    key: string;
+    accessToken: string;
+    /** Epoch milliseconds. */
+    expiresAt: number;
+    /** `Set-Cookie` values that move a browser onto the newest generation. */
+    setCookies: string[];
+    /** In-flight refresh, so concurrent callers redeem one refresh token once. */
+    refreshing: Promise<void> | null;
+};
+
 /** Keyed by account-cookie value — every generation that leads to these tokens. */
 const chains = new Map<string, TokenChain>();
 
-/** First exchange for a cookie value, shared while it is in flight. */
+/** First read of a cookie value, shared while it is in flight. */
 const opening = new Map<string, Promise<TokenChain>>();
 
-async function accountCookieName() {
-    const context = await auth.$context;
-    return context.authCookies.accountData.name;
+/*
+ * Everything needed to read and write the account cookie, taken from the live
+ * Better Auth context so the cookie name, encryption secret and lifetime can
+ * never drift from what the library itself would use.
+ */
+let settingsPromise: Promise<{
+    cookieName: string;
+    attributes: CookieAttributes;
+    secretConfig: Parameters<typeof symmetricEncodeJWT>[1];
+}> | null = null;
+
+function authSettings() {
+    settingsPromise ??= (async () => {
+        const context = await auth.$context;
+
+        // Cast because the context narrows `options` to this app's literal
+        // config, where `account` is currently absent — the guard exists for
+        // the day it is not.
+        const account = (
+            context.options as { account?: { encryptOAuthTokens?: boolean } }
+        ).account;
+
+        if (account?.encryptOAuthTokens) {
+            throw new KeycloakTokenError(
+                "account.encryptOAuthTokens is enabled; this module reads the tokens in the clear.",
+                500,
+            );
+        }
+
+        return {
+            cookieName: context.authCookies.accountData.name,
+            attributes: context.authCookies.accountData
+                .attributes as CookieAttributes,
+            secretConfig: context.secretConfig,
+        };
+    })();
+
+    return settingsPromise;
+}
+
+/** Resolved once per process — the realm's token endpoint never moves. */
+let tokenEndpointPromise: Promise<string> | null = null;
+
+function issuerUrl() {
+    const issuer =
+        process.env.KEYCLOAK_ISSUER ||
+        (process.env.NEXT_PUBLIC_KEYCLOAK_URL &&
+        process.env.NEXT_PUBLIC_KEYCLOAK_REALM
+            ? `${process.env.NEXT_PUBLIC_KEYCLOAK_URL.replace(/\/+$/, "")}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM.replace(/^\/+|\/+$/g, "")}`
+            : "");
+
+    return issuer.replace(/\/+$/, "");
+}
+
+function tokenEndpoint() {
+    tokenEndpointPromise ??= (async () => {
+        const issuer = issuerUrl();
+
+        if (!issuer) {
+            throw new KeycloakTokenError(
+                "Keycloak is not configured on the server.",
+                500,
+            );
+        }
+
+        try {
+            const response = await fetch(
+                `${issuer}/.well-known/openid-configuration`,
+                { cache: "no-store" },
+            );
+
+            if (response.ok) {
+                const document = (await response.json()) as {
+                    token_endpoint?: string;
+                };
+
+                if (document.token_endpoint) return document.token_endpoint;
+            }
+        } catch {
+            // Discovery is a convenience. Every realm serves the token
+            // endpoint at the standard path, so an unreachable discovery
+            // document must not be the reason a session cannot be refreshed.
+        }
+
+        return `${issuer}/protocol/openid-connect/token`;
+    })().catch((error) => {
+        // Don't cache a failure: a lookup that lost the network would
+        // otherwise poison every refresh for the life of the process.
+        tokenEndpointPromise = null;
+        throw error;
+    });
+
+    return tokenEndpointPromise;
 }
 
 /**
@@ -132,64 +243,248 @@ function readAccountCookie(headers: Headers, cookieName: string): string | null 
     return chunks.map((chunk) => chunk.value).join("") || null;
 }
 
-function isFresh(chain: TokenChain) {
-    return chain.expiresAt - Date.now() > EXPIRY_SKEW_MS;
+function serializeCookie(
+    name: string,
+    value: string,
+    attributes: CookieAttributes,
+) {
+    const parts = [`${name}=${value}`];
+
+    if (attributes.maxAge !== undefined) parts.push(`Max-Age=${attributes.maxAge}`);
+    if (attributes.path) parts.push(`Path=${attributes.path}`);
+    if (attributes.domain) parts.push(`Domain=${attributes.domain}`);
+    if (attributes.sameSite && typeof attributes.sameSite === "string") {
+        parts.push(
+            `SameSite=${attributes.sameSite[0].toUpperCase()}${attributes.sameSite.slice(1)}`,
+        );
+    }
+    if (attributes.secure) parts.push("Secure");
+    if (attributes.httpOnly) parts.push("HttpOnly");
+
+    return parts.join("; ");
 }
 
-type Exchange = {
-    headers: Headers;
+/**
+ * The `Set-Cookie` values that replace the account cookie, split across
+ * numbered chunks when the encrypted payload outgrows one cookie and expiring
+ * whichever cookies the previous generation used but this one does not.
+ */
+function accountSetCookies(
+    headers: Headers,
+    value: string,
+    { cookieName, attributes }: { cookieName: string; attributes: CookieAttributes },
+) {
+    const written = new Map<string, string>();
+
+    if (value.length <= MAX_COOKIE_VALUE) {
+        written.set(cookieName, value);
+    } else {
+        for (let start = 0, index = 0; start < value.length; start += MAX_COOKIE_VALUE, index++) {
+            written.set(
+                `${cookieName}.${index}`,
+                value.slice(start, start + MAX_COOKIE_VALUE),
+            );
+        }
+    }
+
+    const setCookies = Array.from(written, ([name, chunk]) =>
+        serializeCookie(name, chunk, attributes),
+    );
+
+    // A generation that needed three chunks followed by one that needs two
+    // would otherwise leave `.2` behind, and the stale tail would be read back
+    // as part of the new value.
+    for (const [name] of parseCookies(headers.get("cookie") ?? "")) {
+        if (name !== cookieName && !name.startsWith(`${cookieName}.`)) continue;
+        if (written.has(name)) continue;
+
+        setCookies.push(
+            serializeCookie(name, "", { ...attributes, maxAge: 0 }),
+        );
+    }
+
+    return setCookies;
+}
+
+function toEpoch(value: unknown) {
+    if (!value) return 0;
+
+    const time = new Date(value as string).getTime();
+
+    return Number.isNaN(time) ? 0 : time;
+}
+
+type KeycloakTokens = {
     accessToken: string;
-    expiresAt: number;
-    setCookies: string[];
-    /** The account cookie the exchange produced, when it rotated one. */
-    key: string | null;
+    refreshToken?: string;
+    idToken?: string;
+    accessTokenExpiresAt: number;
+    refreshTokenExpiresAt?: number;
 };
 
 /**
- * One trip through Better Auth: returns the current token, refreshing against
- * Keycloak first when it is close to expiry. `returnHeaders` is what makes the
- * rotated cookie visible to us — the `nextCookies()` hook can only persist it
- * where response headers are still open, which is exactly the case this module
- * cannot assume.
+ * Redeems a refresh token at Keycloak.
+ *
+ * Failures are reported with what Keycloak actually said. `invalid_grant`
+ * means the token was already redeemed or the session has gone — the two
+ * cases worth telling apart when this flow misbehaves.
  */
-async function exchange(
-    headers: Headers,
-    cookieName: string,
-): Promise<Exchange> {
-    const { headers: responseHeaders, response } =
-        await auth.api.getAccessToken({
-            headers,
-            body: { providerId: PROVIDER_ID },
-            returnHeaders: true,
-        });
+async function refreshWithKeycloak(
+    refreshToken: string,
+): Promise<KeycloakTokens> {
+    const clientId =
+        process.env.KEYCLOAK_CLIENT_ID ||
+        process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ||
+        "";
+    const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
 
-    if (!response?.accessToken) {
+    const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: clientId,
+    });
+
+    // Omitted rather than sent empty: this realm's client is public, and
+    // Keycloak rejects a blank secret outright.
+    if (clientSecret) body.set("client_secret", clientSecret);
+
+    const response = await fetch(await tokenEndpoint(), {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            accept: "application/json",
+        },
+        body,
+    });
+
+    const payload = (await response.json().catch(() => null)) as {
+        access_token?: string;
+        refresh_token?: string;
+        id_token?: string;
+        expires_in?: number;
+        refresh_expires_in?: number;
+        error?: string;
+        error_description?: string;
+    } | null;
+
+    if (!response.ok || !payload?.access_token) {
+        const detail = payload?.error
+            ? `${payload.error}${payload.error_description ? `: ${payload.error_description}` : ""}`
+            : `HTTP ${response.status}`;
+
+        console.error(`[keycloak] refresh_token grant rejected — ${detail}`);
+
         throw new KeycloakTokenError(
-            "Keycloak did not return an access token.",
+            `Keycloak refused to refresh the session (${detail}).`,
             401,
         );
     }
 
-    const setCookies = responseHeaders.getSetCookie();
-    const nextHeaders = new Headers(headers);
+    const now = Date.now();
 
-    if (setCookies.length > 0) {
-        applySetCookies(nextHeaders, setCookies);
+    return {
+        accessToken: payload.access_token,
+        refreshToken: payload.refresh_token,
+        idToken: payload.id_token,
+        // A token of unknown age is treated as already due, so the next caller
+        // refreshes rather than trusting it.
+        accessTokenExpiresAt: payload.expires_in
+            ? now + payload.expires_in * 1000
+            : 0,
+        refreshTokenExpiresAt: payload.refresh_expires_in
+            ? now + payload.refresh_expires_in * 1000
+            : undefined,
+    };
+}
+
+type Exchange = {
+    headers: Headers;
+    key: string;
+    accessToken: string;
+    expiresAt: number;
+    setCookies: string[];
+};
+
+/**
+ * Reads the account cookie these headers carry and returns a token that is
+ * good now, refreshing at Keycloak and re-encoding the cookie when it is not.
+ */
+async function exchange(headers: Headers): Promise<Exchange> {
+    const settings = await authSettings();
+    const cookieValue = readAccountCookie(headers, settings.cookieName);
+
+    if (!cookieValue) {
+        throw new KeycloakTokenError("Your session has expired.", 401);
     }
 
-    const expiresAt = response.accessTokenExpiresAt
-        ? new Date(response.accessTokenExpiresAt).getTime()
-        : 0;
+    const account = (await symmetricDecodeJWT(
+        cookieValue,
+        settings.secretConfig,
+        "better-auth-account",
+    )) as AccountData | null;
+
+    if (!account) {
+        throw new KeycloakTokenError("Your session has expired.", 401);
+    }
+
+    const expiresAt = toEpoch(account.accessTokenExpiresAt);
+
+    if (account.accessToken && expiresAt - Date.now() > REFRESH_WINDOW_MS) {
+        return {
+            headers,
+            key: cookieValue,
+            accessToken: account.accessToken,
+            expiresAt,
+            setCookies: [],
+        };
+    }
+
+    if (!account.refreshToken) {
+        throw new KeycloakTokenError("Your session has expired.", 401);
+    }
+
+    const tokens = await refreshWithKeycloak(account.refreshToken);
+
+    const updated: AccountData = {
+        ...account,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken ?? account.refreshToken,
+        accessTokenExpiresAt: new Date(tokens.accessTokenExpiresAt).toISOString(),
+        refreshTokenExpiresAt: tokens.refreshTokenExpiresAt
+            ? new Date(tokens.refreshTokenExpiresAt).toISOString()
+            : account.refreshTokenExpiresAt,
+        idToken: tokens.idToken ?? account.idToken,
+    };
+
+    // `iat`, `exp` and `jti` belong to the envelope being replaced, not to the
+    // account, and re-encoding them would pin the new cookie to the old life.
+    delete updated.iat;
+    delete updated.exp;
+    delete updated.jti;
+
+    const value = await symmetricEncodeJWT(
+        updated,
+        settings.secretConfig,
+        "better-auth-account",
+        settings.attributes.maxAge ?? 604_800,
+    );
+
+    const setCookies = accountSetCookies(headers, value, settings);
+    const nextHeaders = new Headers(headers);
+    applySetCookies(nextHeaders, setCookies);
 
     return {
         headers: nextHeaders,
-        accessToken: response.accessToken,
-        // An expiry we cannot read is treated as spent, so the next caller
-        // refreshes rather than trusting a token of unknown age.
-        expiresAt: Number.isNaN(expiresAt) ? 0 : expiresAt,
+        key: value,
+        accessToken: tokens.accessToken,
+        expiresAt: tokens.accessTokenExpiresAt,
         setCookies,
-        key: readAccountCookie(nextHeaders, cookieName),
     };
+}
+
+function isFresh(chain: TokenChain) {
+    return chain.expiresAt - Date.now() > REFRESH_WINDOW_MS;
 }
 
 function remember(key: string, chain: TokenChain) {
@@ -210,32 +505,28 @@ function remember(key: string, chain: TokenChain) {
     }
 }
 
-async function openChain(
-    key: string,
-    headers: Headers,
-    cookieName: string,
-): Promise<TokenChain> {
+async function openChain(key: string, headers: Headers) {
     const pending = opening.get(key);
 
     if (pending) return pending;
 
     const promise = (async () => {
-        const opened = await exchange(headers, cookieName);
+        const opened = await exchange(headers);
         const chain: TokenChain = {
             headers: opened.headers,
             key: opened.key,
             accessToken: opened.accessToken,
             expiresAt: opened.expiresAt,
             setCookies: opened.setCookies,
-            rotating: null,
+            refreshing: null,
         };
 
         remember(key, chain);
 
         // The generation this produced resolves to the same chain, so a
-        // browser that *did* receive the new cookie lands here rather than
+        // browser that did receive the new cookie lands here rather than
         // opening a second chain that would redeem the token again.
-        if (opened.key && opened.key !== key) remember(opened.key, chain);
+        if (opened.key !== key) remember(opened.key, chain);
 
         return chain;
     })().finally(() => {
@@ -247,51 +538,28 @@ async function openChain(
     return promise;
 }
 
-async function rotate(chain: TokenChain, cookieName: string) {
-    if (!chain.rotating) {
-        chain.rotating = (async () => {
-            const rotated = await exchange(chain.headers, cookieName);
+async function refreshChain(chain: TokenChain) {
+    chain.refreshing ??= (async () => {
+        const refreshed = await exchange(chain.headers);
 
-            chain.headers = rotated.headers;
-            chain.key = rotated.key;
-            chain.accessToken = rotated.accessToken;
-            chain.expiresAt = rotated.expiresAt;
+        chain.headers = refreshed.headers;
+        chain.key = refreshed.key;
+        chain.accessToken = refreshed.accessToken;
+        chain.expiresAt = refreshed.expiresAt;
 
-            // Keep the last cookies we were given when this exchange rotated
-            // nothing: a browser that missed the earlier `Set-Cookie` still
-            // needs it, and only the newest generation is redeemable.
-            if (rotated.setCookies.length > 0) {
-                chain.setCookies = rotated.setCookies;
-            }
+        // Keep the cookies from the last exchange that rotated one: a browser
+        // that missed that `Set-Cookie` still needs it, and only the newest
+        // generation is redeemable.
+        if (refreshed.setCookies.length > 0) {
+            chain.setCookies = refreshed.setCookies;
+        }
 
-            if (rotated.key) remember(rotated.key, chain);
-        })().finally(() => {
-            chain.rotating = null;
-        });
-    }
+        remember(refreshed.key, chain);
+    })().finally(() => {
+        chain.refreshing = null;
+    });
 
-    await chain.rotating;
-}
-
-function asTokenError(error: unknown) {
-    if (error instanceof KeycloakTokenError) return error;
-
-    const status =
-        typeof error === "object" &&
-        error !== null &&
-        "statusCode" in error &&
-        typeof error.statusCode === "number"
-            ? error.statusCode
-            : 401;
-
-    if (status === 401) {
-        return new KeycloakTokenError("Your session has expired.", 401);
-    }
-
-    return new KeycloakTokenError(
-        "Unable to refresh the Keycloak access token.",
-        401,
-    );
+    await chain.refreshing;
 }
 
 /**
@@ -304,37 +572,25 @@ function asTokenError(error: unknown) {
 export async function resolveKeycloakAccessToken(
     requestHeaders: Headers,
 ): Promise<ResolvedAccessToken> {
-    const cookieName = await accountCookieName();
+    const { cookieName } = await authSettings();
     const key = readAccountCookie(requestHeaders, cookieName);
 
-    try {
-        if (!key) {
-            // No account cookie to chain from. Better Auth still knows whether
-            // there is a session, so let it produce the error.
-            const opened = await exchange(requestHeaders, cookieName);
-            return {
-                accessToken: opened.accessToken,
-                setCookies: opened.setCookies,
-            };
-        }
+    if (!key) throw new KeycloakTokenError("Your session has expired.", 401);
 
-        let chain = chains.get(key);
+    let chain = chains.get(key);
 
-        if (!chain) {
-            chain = await openChain(key, requestHeaders, cookieName);
-        } else if (!isFresh(chain)) {
-            await rotate(chain, cookieName);
-        }
-
-        return {
-            accessToken: chain.accessToken,
-            // A caller already on the newest generation needs no cookie; only
-            // one that is behind does.
-            setCookies: key === chain.key ? [] : chain.setCookies,
-        };
-    } catch (error) {
-        throw asTokenError(error);
+    if (!chain) {
+        chain = await openChain(key, requestHeaders);
+    } else if (!isFresh(chain)) {
+        await refreshChain(chain);
     }
+
+    return {
+        accessToken: chain.accessToken,
+        // A caller already on the newest generation needs no cookie; only one
+        // that is behind does.
+        setCookies: key === chain.key ? [] : chain.setCookies,
+    };
 }
 
 /**
@@ -345,13 +601,51 @@ export async function resolveKeycloakAccessToken(
 export async function renewKeycloakAccessToken(
     requestHeaders: Headers,
 ): Promise<ResolvedAccessToken> {
-    const cookieName = await accountCookieName();
+    const { cookieName } = await authSettings();
     const key = readAccountCookie(requestHeaders, cookieName);
     const chain = key ? chains.get(key) : undefined;
 
     if (chain) chain.expiresAt = 0;
 
     return resolveKeycloakAccessToken(requestHeaders);
+}
+
+/**
+ * `Set-Cookie` values that clear every Better Auth cookie this request carries,
+ * chunks included.
+ *
+ * Used when a refresh fails for good. Leaving the session cookie in place would
+ * be worse than useless: the proxy sends a request holding one straight back to
+ * `/dashboard`, so a browser whose tokens are dead would bounce between the
+ * dashboard and the login page instead of signing in again.
+ */
+export async function expiredAuthCookies(requestHeaders: Headers) {
+    const context = await auth.$context;
+    const known = [
+        context.authCookies.sessionToken,
+        context.authCookies.sessionData,
+        context.authCookies.accountData,
+    ];
+
+    const expired: string[] = [];
+
+    for (const [name] of parseCookies(requestHeaders.get("cookie") ?? "")) {
+        const cookie = known.find(
+            (candidate) =>
+                name === candidate.name || name.startsWith(`${candidate.name}.`),
+        );
+
+        if (!cookie) continue;
+
+        expired.push(
+            serializeCookie(name, "", {
+                ...(cookie.attributes as CookieAttributes),
+                maxAge: 0,
+            }),
+        );
+    }
+
+    return expired;
 }
 
 /**
