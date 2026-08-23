@@ -274,7 +274,6 @@ export function DiscountSelectModal({
                             </button>
                         ))}
                     </div>
-                    </div>
                 </DialogHeader>
 
                 <div className="p-5">
