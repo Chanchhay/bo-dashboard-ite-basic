@@ -251,34 +251,33 @@ export function ItemPricingTable({
                     {items.map((item) => {
                         const listed = enabled.has(item.id);
                         const sellable = item.status !== "INACTIVE";
-                        const canPrice = unitCosts.has(item.id);
+                        const canPrice = item.trackInventory === false || unitCosts.has(item.id);
 
                         const summary = isBase
                             ? baseSummary(
-                                  item,
-                                  unitCostFor(item.id),
-                                  addOnCosts,
-                                  drafts,
-                              )
+                                item,
+                                unitCostFor(item.id),
+                                addOnCosts,
+                                drafts,
+                            )
                             : channelSummary(item, overrides, globalRule);
 
                         const detail = isBase
                             ? [
-                                  `${summary.ways} way${summary.ways === 1 ? "" : "s"} to buy it`,
-                                  "addOns" in summary && summary.addOns
-                                      ? `${summary.addOns} add on${summary.addOns === 1 ? "" : "s"}`
-                                      : null,
-                                  canPrice &&
-                                  "unpriced" in summary &&
-                                  summary.unpriced
-                                      ? `${summary.unpriced} not priced yet`
-                                      : null,
-                              ]
-                                  .filter(Boolean)
-                                  .join(" · ")
-                            : `${summary.ways} unit${summary.ways === 1 ? "" : "s"}${
-                                  listed ? "" : " · not sold on this channel"
-                              }`;
+                                `${summary.ways} way${summary.ways === 1 ? "" : "s"} to buy it`,
+                                "addOns" in summary && summary.addOns
+                                    ? `${summary.addOns} add on${summary.addOns === 1 ? "" : "s"}`
+                                    : null,
+                                canPrice &&
+                                    "unpriced" in summary &&
+                                    summary.unpriced
+                                    ? `${summary.unpriced} not priced yet`
+                                    : null,
+                            ]
+                                .filter(Boolean)
+                                .join(" · ")
+                            : `${summary.ways} unit${summary.ways === 1 ? "" : "s"}${listed ? "" : " · not sold on this channel"
+                            }`;
 
                         return (
                             <TableRow key={item.id}>
@@ -288,14 +287,14 @@ export function ItemPricingTable({
                                         detail={detail}
                                         flag={
                                             isBase &&
-                                            "edited" in summary &&
-                                            summary.edited ? (
+                                                "edited" in summary &&
+                                                summary.edited ? (
                                                 <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
                                                     Unsaved
                                                 </span>
                                             ) : !isBase &&
-                                              "changed" in summary &&
-                                              summary.changed ? (
+                                                "changed" in summary &&
+                                                summary.changed ? (
                                                 <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
                                                     {summary.changed} override
                                                     {summary.changed === 1

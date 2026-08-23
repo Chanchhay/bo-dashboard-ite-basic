@@ -319,23 +319,19 @@ export function OptionPresetsTab() {
 
     return (
         <div className="flex flex-col gap-4">
-            <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+            <p data-tour="preset-info-banner" className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
                 A preset is a starting point, not a live link. Applying one
                 copies its values onto the item — editing the preset afterwards
                 does not rewrite items already using it, so a tweak here can
                 never silently change hundreds of items.
             </p>
 
-            <ConfigSection
-                title="Option presets"
-                description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
-                action={
-                    <Button type="button" onClick={openAddForm}>
-                        <Plus className="size-4" />
-                        Add preset
-                    </Button>
-                }
-            >
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
+                <div data-tour="presets-list-container">
+                    <ConfigSection
+                        title="Option presets"
+                        description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
+                    >
                     {presets.length === 0 ? (
                         <ConfigEmpty
                             title="No presets yet"
@@ -436,6 +432,7 @@ export function OptionPresetsTab() {
                         </div>
                     )}
                 </ConfigSection>
+                </div>
 
             <Dialog
                 open={formOpen}
@@ -460,7 +457,38 @@ export function OptionPresetsTab() {
                                 A name and the choices under it.
                             </p>
                         </div>
-                    </DialogHeader>
+                        {isEditing ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Cancel editing"
+                                onClick={resetForm}
+                            >
+                                <X />
+                            </Button>
+                        ) : null}
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-4">
+                        <div data-tour="preset-form-name" className="flex flex-col gap-2">
+                            <Label htmlFor="preset-name">Name *</Label>
+                            <Input
+                                id="preset-name"
+                                value={draft.name}
+                                onChange={(event) =>
+                                    updateDraft({ name: event.target.value })
+                                }
+                                placeholder="Size"
+                                aria-invalid={Boolean(errors.name)}
+                                className={inventoryControlClassName}
+                            />
+                            {errors.name ? (
+                                <p className="text-xs text-danger" role="alert">
+                                    {errors.name}
+                                </p>
+                            ) : null}
+                        </div>
 
                     <div className="mt-6 grid gap-5 md:grid-cols-2">
                             <div className="flex min-w-0 flex-col gap-2">
@@ -652,6 +680,7 @@ export function OptionPresetsTab() {
                     </div>
 
                     <Button
+                        data-tour="preset-form-submit"
                         type="submit"
                         size="lg"
                         disabled={createState.isLoading || updateState.isLoading}

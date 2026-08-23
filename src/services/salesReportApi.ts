@@ -4,6 +4,12 @@ import type {
     PayLaterSale,
 } from "@/lib/api/pay-later";
 import type { DailyChannelRevenue, SalesProfit } from "@/lib/api/sales-report";
+    DailyChannelRevenue,
+    ItemProfitReport,
+    PeriodProfitReport,
+    ReportGranularity,
+    SalesProfit,
+} from "@/lib/api/sales-report";
 
 export const salesReportApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
@@ -19,6 +25,47 @@ export const salesReportApi = baseApi.injectEndpoints({
         >({
             query: ({ from, to }) => ({
                 url: "/sales/profit",
+                params: {
+                    ...(from ? { from } : {}),
+                    ...(to ? { to } : {}),
+                },
+            }),
+            providesTags: ["SalesProfit"],
+        }),
+
+        /**
+         * The accounting statement: takings, cost and profit per period.
+         *
+         * Keyed on range and granularity together, so switching back to a
+         * view already read answers from cache rather than the database.
+         */
+        getPeriodProfit: builder.query<
+            PeriodProfitReport,
+            { from?: string; to?: string; granularity: ReportGranularity }
+        >({
+            query: ({ from, to, granularity }) => ({
+                url: "/sales/profit/periods",
+                params: {
+                    ...(from ? { from } : {}),
+                    ...(to ? { to } : {}),
+                    granularity,
+                },
+            }),
+            providesTags: ["SalesProfit"],
+        }),
+
+        /**
+         * What each item sold over a range, and what was kept on it.
+         *
+         * What the statement cannot say: which items carried a good month,
+         * and which sold well and kept nothing.
+         */
+        getItemProfit: builder.query<
+            ItemProfitReport,
+            { from?: string; to?: string }
+        >({
+            query: ({ from, to }) => ({
+                url: "/sales/profit/items",
                 params: {
                     ...(from ? { from } : {}),
                     ...(to ? { to } : {}),
@@ -71,7 +118,9 @@ export const salesReportApi = baseApi.injectEndpoints({
 
 export const {
     useGetSalesProfitQuery,
-    useGetDailyRevenueByChannelQuery,
     useGetPayLaterSalesQuery,
     useCollectPayLaterPaymentMutation,
+    useGetPeriodProfitQuery,
+    useGetItemProfitQuery,
+    useGetDailyRevenueByChannelQuery,
 } = salesReportApi;

@@ -9,6 +9,7 @@ import {
     ArrowUpRight,
     Calculator,
     Check,
+    ChevronRight,
     LoaderCircle,
     Package,
     PackageOpen,
@@ -17,11 +18,13 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
     StockTargetSelect,
     toStockTargets,
     type StockTargetRef,
 } from "@/components/inventory/stock/StockTargetSelect";
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -118,11 +121,38 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const [batchLot, setBatchLot] = useState("");
     const [batchManufacturedAt, setBatchManufacturedAt] = useState("");
     const [batchExpiresAt, setBatchExpiresAt] = useState("");
+    const [batchReceivedAt, setBatchReceivedAt] = useState("");
+    /**
+     * Whether the batch section is showing.
+     *
+     * Held here rather than left to the browser so a validation error can open
+     * it: dates that contradict each other are refused, and an error on a
+     * field nobody can see is a form that will not submit and will not say
+     * why.
+     */
+    const [batchOpen, setBatchOpen] = useState(false);
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const isStockIn = mode === "in";
+    // Stock cannot have arrived in the future, and nothing is made after it
+    // expires — the pickers say so rather than leaving the API to.
+    const todayIso = new Date().toLocaleDateString("en-CA");
+    // Worth flagging while it can still be corrected: a delivery keyed in with
+    // a date already gone is almost always a typo, and it would otherwise go
+    // straight to the front of the queue and be sold first.
+    const batchAlreadyExpired =
+        Boolean(batchExpiresAt) && batchExpiresAt < todayIso;
+    /*
+     * The earliest day an expiry may name: never in the past, and never
+     * before the batch was made. Stock arriving today cannot already have
+     * gone off, and a date behind us would put it first in the sell queue.
+     */
+    const earliestExpiry =
+        batchManufacturedAt && batchManufacturedAt > todayIso
+            ? batchManufacturedAt
+            : todayIso;
 
     if (itemsQuery.isLoading) {
         return <InventoryLoading label={`Loading stock ${mode} form`} />;
@@ -140,7 +170,9 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         );
     }
 
-    const items = itemsQuery.data || [];
+    const items = (itemsQuery.data || []).filter(
+        (item) => item.trackInventory !== false,
+    );
     const addOns = addOnsQuery.data || [];
     const selectedItemId = target?.kind === "ITEM" ? target.id : "";
     const selectedAddOnId = target?.kind === "ADDON" ? target.id : "";
@@ -217,6 +249,14 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const totalValue = isValidPrice ? baseQty * price : 0;
 
     function handleScannedItem(item: InventoryItem) {
+        if (item.trackInventory === false) {
+            toast({
+                tone: "error",
+                title: "Inventory tracking disabled",
+                description: `"${item.name || "This item"}" does not track inventory.`,
+            });
+            return;
+        }
         setTarget({ kind: "ITEM", id: item.id });
         setScannedItemName(item.name || "Unnamed item");
         setFieldErrors((current) => {
@@ -256,9 +296,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 "Enter what one unit cost. Put 0 if this stock was free.";
         }
 
-        if (!reasonInput.trim()) {
-            errors.reason = "Please enter a reason for this stock change.";
-        }
 
         if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
@@ -273,10 +310,31 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         setFieldErrors({});
 
         const quantityChange = isStockIn ? baseQty : -baseQty;
-        const batchData: Record<string, string> = {};
-        if (batchLot.trim()) batchData.lot = batchLot.trim();
-        if (batchManufacturedAt.trim()) batchData.manufacturedAt = batchManufacturedAt.trim();
-        if (batchExpiresAt.trim()) batchData.expiresAt = batchExpiresAt.trim();
+
+        // These used to go into `batchData`, a free-form blob nothing read —
+        // so an expiry date could be typed in and the batch would still be
+        // sold in arrival order. They are real fields on the batch now, and
+        // the expiry is what the consumption queue is ordered by.
+        const lotNumber = batchLot.trim();
+        const manufacturedAt = batchManufacturedAt.trim();
+        const expiresAt = batchExpiresAt.trim();
+
+        const receivedAt = batchReceivedAt.trim();
+
+        if (manufacturedAt && expiresAt && expiresAt < manufacturedAt) {
+            setFieldErrors({
+                batchExpiresAt: "This batch expires before it was made.",
+            });
+            // The offending field is in the collapsed section on any form the
+            // operator has since tidied away.
+            setBatchOpen(true);
+            toast({
+                tone: "error",
+                title: "Check the batch dates",
+                description: "The expiry date falls before the manufactured date.",
+            });
+            return;
+        }
 
         try {
             await createEntry({
@@ -297,7 +355,17 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 // Kept so the ledger reads "2 sacks", not just the base amount.
                 enteredQuantity: selectedUnit ? qty : undefined,
                 unitId: selectedUnit?.id,
-                batchData,
+                // The API refuses these on the way out: which batch stock left
+                // by is worked out from the queue, never typed.
+                ...(isStockIn
+                    ? {
+                          lotNumber: lotNumber || undefined,
+                          manufacturedAt: manufacturedAt || undefined,
+                          expiresAt: expiresAt || undefined,
+                          receivedAt: receivedAt || undefined,
+                      }
+                    : {}),
+                batchData: {},
                 referenceType: isStockIn ? "STOCK_IN_FORM" : "STOCK_OUT_FORM",
                 referenceId: "",
                 referenceNumber: "",
@@ -334,21 +402,24 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                             : "Record outgoing inventory deductions or removals from your stock."
                     }
                     action={
-                        <Button
-                            variant="outline"
-                            render={<Link href="/inventory/stock" />}
-                            nativeButton={false}
-                            className="h-10 gap-2 rounded-xl"
-                        >
-                            <ArrowLeft className="size-4" />
-                            Back to stock
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TourButton />
+                            <Button
+                                variant="outline"
+                                render={<Link href="/inventory/stock" />}
+                                nativeButton={false}
+                                className="h-10 gap-2 rounded-xl"
+                            >
+                                <ArrowLeft className="size-4" />
+                                Back to stock
+                            </Button>
+                        </div>
                     }
                 />
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
                     {/* Main Form Section */}
-                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7 flex flex-col gap-6">
+                    <section data-tour={isStockIn ? "stock-in-form" : "stock-out-form"} className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7 flex flex-col gap-6">
                         <div className="flex items-center gap-3.5 border-b border-border pb-5">
                             <span
                                 className={`grid size-11 shrink-0 place-items-center rounded-2xl ${
@@ -368,7 +439,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     {isStockIn ? "Stock In Movement" : "Stock Out Movement"}
                                 </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    Select an item, specify quantity, price, and reason for this change.
+                                    Select an item, then say how much and what it cost. A reason is worth adding but not required.
                                 </p>
                             </div>
                         </div>
@@ -380,7 +451,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                         ) : (
                             <div className="grid gap-5 sm:grid-cols-2">
                                 {/* Item Selector */}
-                                <div className="sm:col-span-2">
+                                <div data-tour="stock-item-select" className="sm:col-span-2">
                                     <FormField
                                         label="Item"
                                         name="itemId"
@@ -461,25 +532,102 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                 ) : null}
 
                                 {/* Quantity Input */}
-                                <FormField
-                                    label="Quantity"
-                                    name="quantity"
-                                    required
-                                    hint={
-                                        selectedItemId
-                                            ? `Current stock: ${onHand} ${unitLabel}`
-                                            : "Number of units to adjust."
-                                    }
-                                    error={fieldErrors.quantity}
-                                >
-                                    <div className="flex items-center gap-2">
+                                <div data-tour="stock-quantity-input">
+                                    <FormField
+                                        label="Quantity"
+                                        name="quantity"
+                                        required
+                                        hint={
+                                            selectedItemId
+                                                ? `Current stock: ${onHand} ${unitLabel}`
+                                                : "Number of units to adjust."
+                                        }
+                                        error={fieldErrors.quantity}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                id="quantity"
+                                                name="quantity"
+                                                type="number"
+                                                step="0.01"
+                                                min="0.01"
+                                                value={quantityInput}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "-" || e.key === "e") {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/-/g, "");
+                                                    setQuantityInput(val);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.quantity;
+                                                        return next;
+                                                    });
+                                                }}
+                                                placeholder="e.g. 50"
+                                                className={`${inventoryControlClassName} flex-1`}
+                                            />
+                                            {unitOptions.length > 1 ? (
+                                                <select
+                                                    aria-label="Unit"
+                                                    value={selectedUnit?.id || ""}
+                                                    onChange={(event) =>
+                                                        setEntryUnitId(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-2 text-xs font-semibold text-foreground outline-none"
+                                                >
+                                                    {unitOptions.map((option) => (
+                                                        <option
+                                                            key={option.id}
+                                                            value={option.id}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : selectedItemId ? (
+                                                <span className="text-xs font-semibold text-muted-foreground shrink-0 bg-muted px-2.5 py-2 rounded-lg border border-border">
+                                                    {unitLabel}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        {conversionFactor !== 1 && isValidQty ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                {qty} {selectedUnit?.label} ={" "}
+                                                {baseQty} {unitLabel}
+                                            </p>
+                                        ) : null}
+                                    </FormField>
+                                </div>
+
+                                {/* Cost on the way in, sale price on the way out. */}
+                                <div data-tour="stock-price-input">
+                                    <FormField
+                                        label={
+                                            isStockIn
+                                                ? "Cost per unit"
+                                                : "Sale price per unit"
+                                        }
+                                        name="unitPrice"
+                                        required={isStockIn}
+                                        hint={
+                                            isStockIn
+                                                ? `What one ${selectedItem?.unit?.name || "unit"} was bought for. Stock is valued from this, oldest batch first, and it is what a selling price is set against. Enter 0 if it was free.`
+                                                : `What one ${selectedItem?.unit?.name || "unit"} sold for, if this is a sale made away from the till. Leave empty for waste or damage — the cost is worked out from the batches it came from.`
+                                        }
+                                        error={fieldErrors.unitPrice}
+                                    >
                                         <Input
-                                            id="quantity"
-                                            name="quantity"
+                                            id="unitPrice"
+                                            name="unitPrice"
                                             type="number"
                                             step="0.01"
-                                            min="0.01"
-                                            value={quantityInput}
+                                            min="0"
+                                            value={unitPriceInput}
                                             onKeyDown={(e) => {
                                                 if (e.key === "-" || e.key === "e") {
                                                     e.preventDefault();
@@ -487,102 +635,28 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                             }}
                                             onChange={(e) => {
                                                 const val = e.target.value.replace(/-/g, "");
-                                                setQuantityInput(val);
+                                                setUnitPriceInput(val);
                                                 setFieldErrors((current) => {
                                                     const next = { ...current };
-                                                    delete next.quantity;
+                                                    delete next.unitPrice;
                                                     return next;
                                                 });
                                             }}
-                                            placeholder="e.g. 50"
-                                            className={`${inventoryControlClassName} flex-1`}
+                                            placeholder="0.00"
+                                            className={inventoryControlClassName}
                                         />
-                                        {unitOptions.length > 1 ? (
-                                            <select
-                                                aria-label="Unit"
-                                                value={selectedUnit?.id || ""}
-                                                onChange={(event) =>
-                                                    setEntryUnitId(
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-2 text-xs font-semibold text-foreground outline-none"
-                                            >
-                                                {unitOptions.map((option) => (
-                                                    <option
-                                                        key={option.id}
-                                                        value={option.id}
-                                                    >
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : selectedItemId ? (
-                                            <span className="text-xs font-semibold text-muted-foreground shrink-0 bg-muted px-2.5 py-2 rounded-lg border border-border">
-                                                {unitLabel}
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                    {conversionFactor !== 1 && isValidQty ? (
-                                        <p className="text-xs text-muted-foreground">
-                                            {qty} {selectedUnit?.label} ={" "}
-                                            {baseQty} {unitLabel}
-                                        </p>
-                                    ) : null}
-                                </FormField>
-
-                                {/* Cost on the way in, sale price on the way out. */}
-                                <FormField
-                                    label={
-                                        isStockIn
-                                            ? "Cost per unit"
-                                            : "Sale price per unit"
-                                    }
-                                    name="unitPrice"
-                                    required={isStockIn}
-                                    hint={
-                                        isStockIn
-                                            ? `What one ${selectedItem?.unit?.name || "unit"} was bought for. Stock is valued from this, oldest batch first, and it is what a selling price is set against. Enter 0 if it was free.`
-                                            : `What one ${selectedItem?.unit?.name || "unit"} sold for, if this is a sale made away from the till. Leave empty for waste or damage — the cost is worked out from the batches it came from.`
-                                    }
-                                    error={fieldErrors.unitPrice}
-                                >
-                                    <Input
-                                        id="unitPrice"
-                                        name="unitPrice"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={unitPriceInput}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "-" || e.key === "e") {
-                                                e.preventDefault();
-                                            }
-                                        }}
-                                        onChange={(e) => {
-                                            const val = e.target.value.replace(/-/g, "");
-                                            setUnitPriceInput(val);
-                                            setFieldErrors((current) => {
-                                                const next = { ...current };
-                                                delete next.unitPrice;
-                                                return next;
-                                            });
-                                        }}
-                                        placeholder="0.00"
-                                        className={inventoryControlClassName}
-                                    />
-                                </FormField>
+                                    </FormField>
+                                </div>
 
                                 {/* Reason Input */}
-                                <div className="sm:col-span-2">
+                                <div data-tour="stock-reason-input" className="sm:col-span-2">
                                     <FormField
                                         label="Reason"
                                         name="reason"
-                                        required
                                         hint={
                                             isStockIn
-                                                ? "Enter reason for stock in (e.g. Supplier delivery, Restock, PO-2026-001)"
-                                                : "Enter reason for stock out (e.g. Damaged item, Expired, Waste)"
+                                                ? "Optional. What this delivery was — supplier delivery, restock, PO-2026-001."
+                                                : "Optional, but worth saying: damaged item, expired, waste."
                                         }
                                         error={fieldErrors.reason}
                                     >
@@ -608,72 +682,130 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     </FormField>
                                 </div>
 
-                                {/* Batch Details Card */}
-                                <div className="sm:col-span-2 rounded-xl border border-border bg-transparent p-4 sm:p-5">
-                                    <div className="flex items-start gap-3">
+                                {/* Batch Details Card — receiving only.
+                                    On the way out there is no batch to
+                                    describe: which one the stock leaves by is
+                                    worked out from the queue, soonest to
+                                    expire first, and the API refuses these
+                                    fields there. Showing them would invite an
+                                    operator to pick a lot and be quietly
+                                    ignored. */}
+                                {isStockIn ? (
+                                <details
+                                    data-tour="stock-batch-card"
+                                    open={batchOpen}
+                                    onToggle={(e) =>
+                                        setBatchOpen(e.currentTarget.open)
+                                    }
+                                    className="group sm:col-span-2 rounded-xl border border-border bg-transparent"
+                                >
+                                    <summary className="flex cursor-pointer list-none items-start gap-3 p-4 sm:p-5">
                                         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                                             <PackageOpen className="size-5" />
                                         </span>
-                                        <div>
-                                            <h3 className="font-semibold text-foreground">
-                                                Batch details
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="flex items-center gap-2 font-semibold text-foreground">
+                                                <span>Batch details</span>
+                                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                    Optional
+                                                </span>
                                             </h3>
                                             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                                                Optional. Use these fields when stock is tracked by lot or expiration date. No JSON is required.
+                                                For anything that goes off. Stock with an expiry date is sold before stock without one, soonest first &mdash; so a short-dated delivery leaves ahead of older stock that keeps.
                                             </p>
                                         </div>
-                                    </div>
+                                        <ChevronRight className="mt-2.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                                    </summary>
 
-                                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                                    {/* Two by two: four fields across three
+                                        columns left the last one stranded on a
+                                        row of its own. */}
+                                    <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-2 sm:p-5">
                                         <FormField
                                             label="Batch / lot number"
                                             name="batchLot"
-                                            hint="For example, LOT-01."
+                                            hint="The supplier's reference, for example LOT-01."
                                         >
                                             <Input
                                                 id="batchLot"
                                                 name="batchLot"
                                                 value={batchLot}
+                                                maxLength={80}
                                                 onChange={(e) => setBatchLot(e.target.value)}
                                                 placeholder="LOT-01"
                                                 className={inventoryControlClassName}
+                                            />
+                                        </FormField>
+                                        {/* Expiry leads: it is the one that
+                                            decides when this batch sells. */}
+                                        <FormField
+                                            label="Expiration date"
+                                            name="batchExpiresAt"
+                                            hint={
+                                                batchAlreadyExpired
+                                                    ? "That date has passed. This batch will be first out and flagged as expired."
+                                                    : "Leave empty if this stock does not expire."
+                                            }
+                                            error={fieldErrors.batchExpiresAt}
+                                        >
+                                            <DatePicker
+                                                id="batchExpiresAt"
+                                                value={batchExpiresAt}
+                                                min={earliestExpiry}
+                                                placeholder="Does not expire"
+                                                aria-invalid={Boolean(fieldErrors.batchExpiresAt)}
+                                                onValueChange={(value) => {
+                                                    setBatchExpiresAt(value);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.batchExpiresAt;
+                                                        return next;
+                                                    });
+                                                }}
                                             />
                                         </FormField>
                                         <FormField
                                             label="Manufactured date"
                                             name="batchManufacturedAt"
                                         >
-                                            <Input
+                                            <DatePicker
                                                 id="batchManufacturedAt"
-                                                name="batchManufacturedAt"
-                                                type="date"
                                                 value={batchManufacturedAt}
-                                                onChange={(e) => setBatchManufacturedAt(e.target.value)}
-                                                className={inventoryControlClassName}
+                                                max={batchExpiresAt || todayIso}
+                                                placeholder="Not recorded"
+                                                onValueChange={(value) => {
+                                                    setBatchManufacturedAt(value);
+                                                    setFieldErrors((current) => {
+                                                        const next = { ...current };
+                                                        delete next.batchExpiresAt;
+                                                        return next;
+                                                    });
+                                                }}
                                             />
                                         </FormField>
                                         <FormField
-                                            label="Expiration date"
-                                            name="batchExpiresAt"
+                                            label="Arrived on"
+                                            name="batchReceivedAt"
+                                            hint="Only if you are recording this delivery late. Left empty, it arrived now."
                                         >
-                                            <Input
-                                                id="batchExpiresAt"
-                                                name="batchExpiresAt"
-                                                type="date"
-                                                value={batchExpiresAt}
-                                                onChange={(e) => setBatchExpiresAt(e.target.value)}
-                                                className={inventoryControlClassName}
+                                            <DatePicker
+                                                id="batchReceivedAt"
+                                                value={batchReceivedAt}
+                                                max={todayIso}
+                                                placeholder="Arrived now"
+                                                onValueChange={setBatchReceivedAt}
                                             />
                                         </FormField>
                                     </div>
-                                </div>
+                                </details>
+                                ) : null}
                             </div>
                         )}
                     </section>
 
                     {/* Side Live Summary Panel */}
                     <div className="flex flex-col gap-4 sticky top-6">
-                        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <div data-tour="stock-summary-panel" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-3">
                                 <Calculator className="size-4 text-primary" />
                                 <span>Movement Summary</span>
@@ -742,6 +874,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-2.5">
                             <Button
+                                data-tour="stock-submit-btn"
                                 type="submit"
                                 size="lg"
                                 disabled={createState.isLoading || items.length === 0}

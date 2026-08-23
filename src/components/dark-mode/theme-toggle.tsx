@@ -1,10 +1,10 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 export default function ThemeToggle({
   variant = "menu",
@@ -28,14 +28,14 @@ export default function ThemeToggle({
         aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
         title={isDark ? "Switch to light theme" : "Switch to dark theme"}
         className={cn(
-          "relative grid size-8 place-items-center rounded-lg border-0 bg-transparent text-[#16181c] dark:text-[#f8fafc] outline-none transition-colors hover:bg-black/5 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#00932a]",
+          "relative grid size-10 place-items-center rounded-xl border-0 bg-transparent text-[#16181c] dark:text-[#f8fafc] outline-none transition-colors hover:bg-black/5 dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-primary shrink-0 cursor-pointer",
           className
         )}
       >
         {isDark ? (
-          <Sun className="size-[18px] text-amber-400" aria-hidden="true" />
+          <Sun className="size-5.5 text-amber-400" aria-hidden="true" />
         ) : (
-          <Moon className="size-[18px] text-neutral-600 dark:text-[#94a3b8]" aria-hidden="true" />
+          <Moon className="size-5.5 text-neutral-600 dark:text-[#94a3b8]" aria-hidden="true" />
         )}
       </button>
     );

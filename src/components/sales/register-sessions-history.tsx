@@ -19,12 +19,14 @@ import {
   Receipt,
   FileSpreadsheet,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 
 import { useMoney } from "@/hooks/useMoney";
-import type { RegisterSession } from "@/lib/api/pos-session";
+import type {
+  RegisterSession,
+  RegisterSessionMetrics,
+  RegisterSessionSearch,
+} from "@/lib/api/pos-session";
 import {
   Table,
   TableBody,
@@ -41,8 +43,8 @@ type StatusFilter = (typeof STATUS_OPTIONS)[number];
 const DATE_RANGES = ["Today", "7 days", "30 days", "All time"] as const;
 type DateRange = (typeof DATE_RANGES)[number];
 
-const SESSION_PAGE_SIZES = [10, 25, 50] as const;
-const DEFAULT_SESSION_PAGE_SIZE: (typeof SESSION_PAGE_SIZES)[number] = 10;
+/** Rows per request. Matches the backend's own default page size. */
+const PAGE_SIZE = 20;
 
 export type SessionColumnKey =
   | "sessionId"
@@ -86,6 +88,18 @@ export function RegisterSessionsHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Paging, and the totals the server worked out for the whole filtered set.
+  // Summing the rows on screen would total whichever twenty happened to be
+  // showing, which is not what a total means.
+  const [page, setPage] = useState(0);
+  const [pageMeta, setPageMeta] = useState({ totalElements: 0, totalPages: 1 });
+  const [metrics, setMetrics] = useState<RegisterSessionMetrics>({
+    activeCount: 0,
+    totalOpening: 0,
+    totalCashSales: 0,
+    totalDiscrepancies: 0,
+  });
+
   // Filters & Search
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -97,12 +111,6 @@ export function RegisterSessionsHistory() {
 
   // Date range dropdown state
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-
-  // Pagination state
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<(typeof SESSION_PAGE_SIZES)[number]>(
-    DEFAULT_SESSION_PAGE_SIZE
-  );
 
   // Column visibility state
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
@@ -171,117 +179,88 @@ export function RegisterSessionsHistory() {
     }
   }, []);
 
-  // Fetch dynamic session history data from backend API
-  const fetchSessions = useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
-
-    try {
-      const res = await fetch(`/api/register/sessions?t=${Date.now()}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        throw new Error("Failed to fetch register sessions");
+  // The filters go to the server, not to the rows already on screen. The list
+  // is paged, so filtering here would answer "nothing matches" while the
+  // matches sat on page three.
+  const fetchSessions = useCallback(
+    async (showRefreshing = false) => {
+      if (showRefreshing) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
       }
-      const data: RegisterSession[] = await res.json();
-      setSessions(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to fetch register sessions from server:", err);
-      setSessions([]);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          size: String(PAGE_SIZE),
+          status: statusFilter,
+          range: dateRange,
+          t: String(Date.now()),
+        });
+        if (query.trim()) params.set("search", query.trim());
 
-  // Filter & Sort logic
-  const filteredSessions = useMemo(() => {
-    return sessions
-      .filter((session) => {
-        // Status filter
-        if (statusFilter !== "ALL" && session.status !== statusFilter) {
-          return false;
+        const res = await fetch(`/api/register/sessions?${params}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw new Error("Failed to fetch register sessions");
         }
-
-        // Search query filter
-        if (query.trim()) {
-          const q = query.toLowerCase();
-          const matchesCashier = session.cashierName?.toLowerCase().includes(q);
-          const matchesRegister = session.registerName?.toLowerCase().includes(q);
-          const matchesId = session.id.toString().includes(q);
-          const matchesUser = session.userId?.toLowerCase().includes(q);
-          const matchesRecon = session.reconciliationStatus?.toLowerCase().includes(q);
-          const matchesNote = session.note?.toLowerCase().includes(q);
-
-          if (!matchesCashier && !matchesRegister && !matchesId && !matchesUser && !matchesRecon && !matchesNote) {
-            return false;
-          }
-        }
-
-        // Date range filter
-        if (dateRange !== "All time" && session.openedAt) {
-          const openedDate = new Date(session.openedAt);
-          const now = new Date();
-          if (dateRange === "Today") {
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            if (openedDate < startOfDay) return false;
-          } else if (dateRange === "7 days") {
-            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            if (openedDate < sevenDaysAgo) return false;
-          } else if (dateRange === "30 days") {
-            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            if (openedDate < thirtyDaysAgo) return false;
-          }
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        const timeA = a.openedAt ? new Date(a.openedAt).getTime() : a.id;
-        const timeB = b.openedAt ? new Date(b.openedAt).getTime() : b.id;
-        return timeB - timeA;
-      });
-  }, [sessions, query, statusFilter, dateRange]);
-
-  // A filter change can leave the current page past the end of the new
-  // result set, so it resets back to the first page rather than showing
-  // an empty table the user has to notice and back out of themselves.
-  useEffect(() => {
-    setPage(0);
-  }, [query, statusFilter, dateRange]);
-
-  const pageCount = Math.max(Math.ceil(filteredSessions.length / pageSize), 1);
-  const pagedSessions = useMemo(
-    () => filteredSessions.slice(page * pageSize, page * pageSize + pageSize),
-    [filteredSessions, page, pageSize]
+        const data: RegisterSessionSearch = await res.json();
+        setSessions(data.page?.content ?? []);
+        setPageMeta({
+          totalElements: data.page?.totalElements ?? 0,
+          totalPages: data.page?.totalPages ?? 1,
+        });
+        setMetrics(
+          data.metrics ?? {
+            activeCount: 0,
+            totalOpening: 0,
+            totalCashSales: 0,
+            totalDiscrepancies: 0,
+          },
+        );
+      } catch (err) {
+        console.error("Failed to fetch register sessions from server:", err);
+        setSessions([]);
+        setPageMeta({ totalElements: 0, totalPages: 1 });
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [page, statusFilter, dateRange, query],
   );
-  const firstRow = filteredSessions.length === 0 ? 0 : page * pageSize + 1;
-  const lastRow = Math.min(filteredSessions.length, page * pageSize + pageSize);
 
-  // Aggregate Metrics
-  const metrics = useMemo(() => {
-    const activeCount = sessions.filter((s) => s.status === "OPEN").length;
-    const totalOpening = filteredSessions.reduce((sum, s) => sum + s.openingBalance, 0);
-    const totalSales = filteredSessions.reduce((sum, s) => sum + s.totalCashSales, 0);
-    const totalDiscrepancies = filteredSessions.reduce(
-      (sum, s) => sum + Math.abs(s.differenceAmount || 0),
-      0
-    );
+  // Debounced, because `query` changes on every keystroke and each change is
+  // now a database query rather than a filter over an array already in hand.
+  useEffect(() => {
+    const timer = setTimeout(() => fetchSessions(), query ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [fetchSessions, query]);
 
-    return {
-      activeCount,
-      totalOpening,
-      totalSales,
-      totalDiscrepancies,
-    };
-  }, [sessions, filteredSessions]);
+
+  // Every filter change starts again at the first page — page 3 of one filter
+  // is not page 3 of another — and resets here rather than in an effect, so
+  // the fetch never fires once against the page the reader just left.
+  const applyQuery = (value: string) => {
+    setQuery(value);
+    setPage(0);
+  };
+
+  const applyStatus = (value: StatusFilter) => {
+    setStatusFilter(value);
+    setPage(0);
+  };
+
+  const applyDateRange = (value: DateRange) => {
+    setDateRange(value);
+    setPage(0);
+  };
+
+  // Already filtered and ordered by the server; the rows are shown as they
+  // arrive. Kept under the old name so the table below reads unchanged.
+  const filteredSessions = sessions;
 
   function formatDate(isoStr?: string | null) {
     if (!isoStr) return "—";
@@ -363,7 +342,7 @@ export function RegisterSessionsHistory() {
           </div>
           <div className="mt-3">
             <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
-              {format(metrics.totalSales)}
+              {format(metrics.totalCashSales)}
             </span>
           </div>
         </div>
@@ -392,13 +371,13 @@ export function RegisterSessionsHistory() {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => applyQuery(e.target.value)}
             placeholder="Search "
             className="w-full rounded-xl border border-border bg-muted/40 dark:bg-[#0d121c] dark:border-slate-800 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground dark:text-slate-100 placeholder:text-muted-foreground dark:placeholder:text-slate-500 outline-none transition-colors focus:border-primary"
           />
           {query && (
             <button
-              onClick={() => setQuery("")}
+              onClick={() => applyQuery("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-white"
             >
               <X className="h-4 w-4" />
@@ -413,7 +392,7 @@ export function RegisterSessionsHistory() {
               <button
                 key={st}
                 type="button"
-                onClick={() => setStatusFilter(st)}
+                onClick={() => applyStatus(st)}
                 className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all focus:outline-none ${
                   statusFilter === st
                     ? "bg-white text-slate-900 shadow-sm font-semibold dark:bg-[#1d2739] dark:text-white dark:border dark:border-slate-700"
@@ -454,7 +433,7 @@ export function RegisterSessionsHistory() {
                         key={d}
                         type="button"
                         onClick={() => {
-                          setDateRange(d);
+                          applyDateRange(d);
                           setDateDropdownOpen(false);
                         }}
                         className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${isActive
@@ -535,7 +514,7 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* History Table */}
-      <div className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] shadow-md overflow-hidden">
         <div className="overflow-x-auto min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="bg-muted/50 dark:bg-[#0f1520]">
@@ -620,7 +599,7 @@ export function RegisterSessionsHistory() {
                   </TableCell>
                 </TableRow>
               ) : (
-                pagedSessions.map((session) => {
+                filteredSessions.map((session) => {
                   const diff = session.differenceAmount;
                   const isShortage = diff !== null && diff < 0;
                   const isSurplus = diff !== null && diff > 0;
@@ -628,8 +607,7 @@ export function RegisterSessionsHistory() {
                   return (
                     <TableRow
                       key={session.id}
-                      onClick={() => handleOpenDetails(session)}
-                      className="cursor-pointer border-b border-border/60 dark:border-slate-800/60 hover:bg-muted/40 dark:hover:bg-[#1a2333] transition-colors"
+                      className="border-b border-border/60 dark:border-slate-800/60 hover:bg-muted/40 dark:hover:bg-[#1a2333] transition-colors"
                     >
                       {visibleColumns.sessionId && (
                         <TableCell className="font-mono text-xs font-semibold text-foreground dark:text-slate-300">
@@ -736,13 +714,7 @@ export function RegisterSessionsHistory() {
                         <TableCell className="text-right">
                           <button
                             type="button"
-                            onClick={(event) => {
-                              // The row underneath opens the same modal, so
-                              // this only needs to stop it from also firing
-                              // and doubling the fetch.
-                              event.stopPropagation();
-                              handleOpenDetails(session);
-                            }}
+                            onClick={() => handleOpenDetails(session)}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 hover:underline"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -758,73 +730,48 @@ export function RegisterSessionsHistory() {
           </Table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border dark:border-slate-800 px-4 py-3">
-          <p className="text-[13px] text-muted-foreground dark:text-slate-400">
-            {filteredSessions.length === 0
-              ? "No sessions"
-              : `Showing ${firstRow}–${lastRow} of ${filteredSessions.length}`}
-          </p>
+        {/* Pager. The counts describe the whole filtered history, not the rows
+            on screen, because the filtering happened on the server. */}
+        {pageMeta.totalElements > 0 && (
+          <div className="flex flex-col gap-3 border-t border-border dark:border-slate-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground dark:text-slate-400">
+              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + sessions.length} of{" "}
+              {pageMeta.totalElements}
+            </p>
 
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-[13px] text-muted-foreground dark:text-slate-400">
-              Rows
-              <select
-                value={pageSize}
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value) as (typeof SESSION_PAGE_SIZES)[number]);
-                  setPage(0);
-                }}
-                className="h-8 rounded-lg border border-border dark:border-slate-800 bg-card dark:bg-[#0d121c] px-2 text-[13px] text-foreground dark:text-slate-200 outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {SESSION_PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
-                disabled={page === 0}
                 aria-label="Previous page"
-                className="grid size-8 place-items-center rounded-lg border border-border dark:border-slate-800 text-foreground dark:text-slate-200 outline-none transition-colors hover:bg-muted dark:hover:bg-[#1c2638] focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+                disabled={page <= 0 || isLoading || isRefreshing}
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                className="rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 py-1.5 text-xs font-semibold text-foreground dark:text-slate-200 hover:bg-accent dark:hover:bg-[#1c2638] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <ChevronLeft className="size-4" aria-hidden="true" />
+                Previous
               </button>
-              <span
-                className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground dark:text-slate-400"
-                aria-live="polite"
-              >
-                Page {page + 1} of {pageCount}
+              <span className="text-xs text-muted-foreground dark:text-slate-400">
+                Page {page + 1} of {pageMeta.totalPages}
               </span>
               <button
                 type="button"
-                onClick={() => setPage((prev) => Math.min(pageCount - 1, prev + 1))}
-                disabled={page + 1 >= pageCount}
                 aria-label="Next page"
-                className="grid size-8 place-items-center rounded-lg border border-border dark:border-slate-800 text-foreground dark:text-slate-200 outline-none transition-colors hover:bg-muted dark:hover:bg-[#1c2638] focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
+                disabled={
+                  page >= pageMeta.totalPages - 1 || isLoading || isRefreshing
+                }
+                onClick={() => setPage((current) => current + 1)}
+                className="rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 py-1.5 text-xs font-semibold text-foreground dark:text-slate-200 hover:bg-accent dark:hover:bg-[#1c2638] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <ChevronRight className="size-4" aria-hidden="true" />
+                Next
               </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Session Details / Summary Modal */}
       {selectedSession && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
-          onClick={() => setSelectedSession(null)}
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100"
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <div className="flex items-center gap-2.5">

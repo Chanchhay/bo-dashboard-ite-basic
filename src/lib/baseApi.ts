@@ -54,6 +54,9 @@ export const baseApi = createApi({
         "CustomerDisplay",
         "SalesProfit",
         "PayLaterSales",
+        "SalesDailyRevenue",
+        "RegisterSessions",
+        "FacebookPage",
     ],
     endpoints: () => ({}),
 });

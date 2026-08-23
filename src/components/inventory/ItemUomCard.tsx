@@ -64,6 +64,7 @@ export function ItemUomCard({
     lowStockError,
     draft,
     onDraftChange,
+    trackInventory = true,
 }: {
     /** Units the live API knows about, used for the saved `unitId` field. */
     apiUnits: readonly ApiUnit[];
@@ -82,6 +83,7 @@ export function ItemUomCard({
     lowStockError?: string;
     draft: ItemUomDraft;
     onDraftChange: (patch: Partial<ItemUomDraft>) => void;
+    trackInventory?: boolean;
 }) {
     const { toast } = useToast();
     const units = useMemo(() => apiUnits.map(toConfigUnit), [apiUnits]);
@@ -160,14 +162,16 @@ export function ItemUomCard({
                         Units of measure
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Stock is counted in one unit. Conversions let you buy and
-                        sell it in bigger ones without a second stock number.
+                        {trackInventory
+                            ? "Stock is counted in one unit. Conversions let you buy and sell it in bigger ones without a second stock number."
+                            : "Stock tracking is disabled for this item. Choose a base unit of measure."}
                     </p>
                 </div>
             </div>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-                <div className="flex min-w-0 flex-col gap-2">
+            <div className={`mt-6 grid gap-5 ${trackInventory ? "md:grid-cols-2" : "grid-cols-1"}`}>
+                <div className="flex min-w-0 flex-col gap-2" data-tour="item-form-unit">
+                    <input type="hidden" name="unitId" value={draft.baseUnitId} />
                     <Label
                         htmlFor="unitId"
                         className="text-sm font-semibold text-foreground"
@@ -180,8 +184,6 @@ export function ItemUomCard({
                         onValueChange={(value) =>
                             onDraftChange({
                                 baseUnitId: value || "",
-                                // A different base makes every conversion below
-                                // meaningless, so they go with it.
                                 conversions: [],
                             })
                         }
@@ -205,47 +207,50 @@ export function ItemUomCard({
                     </Select>
                     <p className="text-xs text-muted-foreground">
                         The smallest quantity you sell — a can, a gram, a cup.
-                        All stock is counted in this. Changing it clears the
-                        conversions below.
                     </p>
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-2">
-                    <Label
-                        htmlFor="lowStockDefault"
-                        className="text-sm font-semibold text-foreground"
-                    >
-                        Warn me below
-                    </Label>
-                    <div className="flex items-center gap-2">
-                        <Input
-                            id="lowStockDefault"
-                            name="lowStockDefault"
-                            type="number"
-                            min="0"
-                            step="1"
-                            defaultValue={lowStockDefault}
-                            aria-invalid={Boolean(lowStockError)}
-                            className={`${inventoryControlClassName} flex-1`}
-                        />
-                        <span className="shrink-0 font-mono text-sm text-muted-foreground">
-                            {baseSymbol || "—"}
-                        </span>
+                {trackInventory ? (
+                    <div className="flex min-w-0 flex-col gap-2" data-tour="item-form-low-stock">
+                        <Label
+                            htmlFor="lowStockDefault"
+                            className="text-sm font-semibold text-foreground"
+                        >
+                            Warn me below
+                        </Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="lowStockDefault"
+                                name="lowStockDefault"
+                                type="number"
+                                min="0"
+                                step="1"
+                                defaultValue={lowStockDefault}
+                                aria-invalid={Boolean(lowStockError)}
+                                className={`${inventoryControlClassName} flex-1`}
+                            />
+                            <span className="shrink-0 font-mono text-sm text-muted-foreground">
+                                {baseSymbol || "—"}
+                            </span>
+                        </div>
+                        {lowStockError ? (
+                            <p className="text-xs text-danger" role="alert">
+                                {lowStockError}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                Leave at 0 and this item is only ever flagged once it
+                                hits zero.
+                            </p>
+                        )}
                     </div>
-                    {lowStockError ? (
-                        <p className="text-xs text-danger" role="alert">
-                            {lowStockError}
-                        </p>
-                    ) : (
-                        <p className="text-xs text-muted-foreground">
-                            Leave at 0 and this item is only ever flagged once it
-                            hits zero.
-                        </p>
-                    )}
-                </div>
+                ) : (
+                    <input type="hidden" name="lowStockDefault" value="0" />
+                )}
             </div>
 
-            <div className="mt-5 rounded-xl border border-dashed border-border p-4">
+            {trackInventory ? (
+                <div className="mt-5 rounded-xl border border-dashed border-border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -489,6 +494,7 @@ export function ItemUomCard({
                 ) : null}
 
             </div>
+            ) : null}
 
         </section>
     );

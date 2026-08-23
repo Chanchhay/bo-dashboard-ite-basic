@@ -265,6 +265,7 @@ export function AddOnsTab() {
                 description="Extras piled on top of an item. Defined once here, shared by every item that uses them, and counted in their own right."
                 action={
                     <Button
+                        data-tour="new-addon-btn"
                         type="button"
                         disabled={createState.isLoading}
                         onClick={() => openDialog(null)}
@@ -280,6 +281,7 @@ export function AddOnsTab() {
                         description="Create one to offer toppings and extras on your items."
                         action={
                             <Button
+                                data-tour="new-addon-btn"
                                 type="button"
                                 variant="outline"
                                 onClick={() => openDialog(null)}
@@ -332,10 +334,10 @@ export function AddOnsTab() {
                                                     </p>
                                                 ) : null}
                                             </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {unitName(addOn)}
+                                            <td className="px-5 py-4 font-mono text-xs font-semibold text-muted-foreground">
+                                                {unitSymbol(addOn)}
                                             </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
+                                            <td className="px-5 py-4">
                                                 {formatAmount(
                                                     addOn.usePerOrder ?? 1,
                                                 )}{" "}
@@ -393,6 +395,7 @@ export function AddOnsTab() {
                 description="Groups of add-ons offered together, and how many a customer may pick."
                 action={
                     <Button
+                        data-tour="new-set-btn"
                         type="button"
                         variant="outline"
                         disabled={addOns.length === 0}

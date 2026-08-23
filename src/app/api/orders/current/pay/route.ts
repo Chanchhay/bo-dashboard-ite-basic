@@ -1,6 +1,6 @@
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
-import { payOrderSchema, type Sale } from "@/lib/api/pos-order";
+import { payOrderSchema, type PosOrder, type Sale } from "@/lib/api/pos-order";
 import {
     forgetOrder,
     getCurrentOrder,
@@ -74,6 +74,60 @@ export async function POST(request: Request) {
         const taxAmount = isTaxActive
             ? (result.data.taxAmount !== undefined ? result.data.taxAmount : ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTaxAmount))
             : 0;
+
+        const targetDiscountId = result.data.discountId || order.discountId;
+        const targetDiscountCode = result.data.discountCode || order.discountCode;
+
+        // Sync order discount to Spring Java backend prior to payment validation
+        if (discountAmount > 0 || targetDiscountId || targetDiscountCode) {
+            try {
+                const patchedOrder = await backendRequest<PosOrder>(
+                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            discountAmount,
+                            discountId: targetDiscountId ?? undefined,
+                            discountCode: targetDiscountCode ?? undefined,
+                        }),
+                    }
+                );
+                if (patchedOrder) {
+                    if (patchedOrder.discountAmount !== undefined) order.discountAmount = patchedOrder.discountAmount;
+                    if (patchedOrder.total !== undefined) order.total = patchedOrder.total;
+                }
+            } catch {
+                try {
+                    // Fallback: patch manual discount amount without discountId if target rules failed
+                    const fallbackOrder = await backendRequest<PosOrder>(
+                        ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                        {
+                            method: "PATCH",
+                            body: JSON.stringify({
+                                discountAmount,
+                            }),
+                        }
+                    );
+                    if (fallbackOrder) {
+                        if (fallbackOrder.discountAmount !== undefined) order.discountAmount = fallbackOrder.discountAmount;
+                        if (fallbackOrder.total !== undefined) order.total = fallbackOrder.total;
+                    }
+                } catch {}
+            }
+        } else if ((order.discountAmount ?? 0) > 0) {
+            // If discount was cleared on cart
+            try {
+                await backendRequest<unknown>(
+                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            discountAmount: 0,
+                        }),
+                    }
+                );
+            } catch {}
+        }
 
         const effectiveTotal = Math.max(
             0,

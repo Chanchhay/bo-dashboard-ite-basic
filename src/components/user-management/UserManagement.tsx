@@ -49,6 +49,7 @@ export default function UserManagement({
         <div className="flex flex-col gap-5 pb-4">
             <div
                 role="tablist"
+                data-tour="employees-tabs"
                 aria-label="User management sections"
                 onKeyDown={onKeyDown}
                 className="grid w-full grid-cols-3 gap-1 rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-1 sm:p-1.5 sm:flex sm:w-fit"
@@ -60,6 +61,7 @@ export default function UserManagement({
                     return (
                         <button
                             key={tab.id}
+                            data-tour={`tab-${tab.id}`}
                             ref={(el) => {
                                 tabRefs.current[tab.id] = el;
                             }}

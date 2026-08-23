@@ -14,7 +14,7 @@ export const POS_TABS = [
   { label: "Receipts" },
   // No screens behind these yet. Shown disabled rather than hidden so the
   // shape of the terminal stays honest about what is still coming.
-  { label: "Discount", disabled: true },
+  { label: "Discount" },
   { label: "Modify", disabled: true },
 ] as const;
 
@@ -23,6 +23,7 @@ export type PosTab = (typeof POS_TABS)[number]["label"];
 type PosButtonType = {
   active: PosTab;
   onChange?: (tab: PosTab) => void;
+  activeDiscountLabel?: string | null;
 };
 
 export default function PosButton({ active, onChange }: PosButtonType) {

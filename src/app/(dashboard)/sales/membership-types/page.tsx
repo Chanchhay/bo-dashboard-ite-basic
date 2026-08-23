@@ -13,9 +13,17 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -178,10 +186,22 @@ export default function MembershipTypesPage() {
         }
     };
 
+    const selectedDiscountLabel = useMemo(() => {
+        if (!discountId || discountId === "NONE") return "None (No special discount)";
+        const d = discounts.find((item) => item.id === discountId);
+        if (!d) return "None (No special discount)";
+        const isBuyXGetY = d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y";
+        return isBuyXGetY
+            ? `${d.name} (Buy ${d.buyQuantity ?? "X"} get ${d.getQuantity ?? "Y"})`
+            : d.type === "PERCENTAGE"
+            ? `${d.name} (${d.value}%)`
+            : `${d.name} (${format(d.value)})`;
+    }, [discountId, discounts, format]);
+
     return (
         <div className="space-y-6">
             {/* Header section */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div data-tour="membership-tiers-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
                         Member Types
@@ -190,16 +210,20 @@ export default function MembershipTypesPage() {
                         Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
                     </p>
                 </div>
-                <Button
-                    onClick={openCreateDialog}
-                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
-                >
-                    <Plus className="h-4 w-4" /> Add Member Type
-                </Button>
+                <div className="flex items-center gap-3">
+                    <TourButton />
+                    <Button
+                        data-tour="add-member-type-btn"
+                        onClick={openCreateDialog}
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" /> Add Member Type
+                    </Button>
+                </div>
             </div>
 
             {/* Controls Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-3 gap-2">
+            <div data-tour="member-types-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
                 <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -217,7 +241,7 @@ export default function MembershipTypesPage() {
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isTypesLoading ? (
                     <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" /> Loading member types...
@@ -339,19 +363,32 @@ export default function MembershipTypesPage() {
 
                         <div className="space-y-1.5">
                             <Label htmlFor="discount">Assign Discount Rule</Label>
-                            <select
-                                id="discount"
-                                value={discountId}
-                                onChange={(e) => setDiscountId(e.target.value)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                            <Select
+                                value={discountId || "NONE"}
+                                onValueChange={(val: string | null) => setDiscountId(val && val !== "NONE" ? val : "")}
                             >
-                                <option value="">None (No special discount)</option>
-                                {discounts.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
-                                    </option>
-                                ))}
-                            </select>
+                                <SelectTrigger id="discount" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                    <SelectValue placeholder="Select discount rule...">
+                                        {selectedDiscountLabel}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="NONE">None (No special discount)</SelectItem>
+                                    {discounts.map((d) => {
+                                        const isBuyXGetY = d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y";
+                                        const label = isBuyXGetY
+                                            ? `${d.name} (Buy ${d.buyQuantity ?? "X"} get ${d.getQuantity ?? "Y"})`
+                                            : d.type === "PERCENTAGE"
+                                            ? `${d.name} (${d.value}%)`
+                                            : `${d.name} (${format(d.value)})`;
+                                        return (
+                                            <SelectItem key={d.id} value={d.id}>
+                                                {label}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectContent>
+                            </Select>
                             <p className="text-[11px] text-muted-foreground">
                                 Members holding this type will automatically receive this discount rate at checkout.
                             </p>

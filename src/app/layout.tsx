@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
-import { Google_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/dark-mode/theme-provider";
 import StoreProvider from "./StoreProvider";
 import { NetworkStatusBanner } from "@/components/common/NetworkStatusBanner";
 
-const googleSans = Google_Sans({
+const googleSans = Plus_Jakarta_Sans({
   variable: "--font-google-sans",
   subsets: ["latin"],
   display: "swap",
-  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
   title: "FluxiBiz - Business Owner Dashboard",
   description: "FluxiBiz business operations platform",
 };
+
+import { TourProvider } from "@/lib/tours/TourProvider";
 
 export default function RootLayout({
   children,
@@ -37,7 +38,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <StoreProvider>{children}</StoreProvider>
+          <StoreProvider>
+            <TourProvider>{children}</TourProvider>
+          </StoreProvider>
         </ThemeProvider>
       </body>
     </html>

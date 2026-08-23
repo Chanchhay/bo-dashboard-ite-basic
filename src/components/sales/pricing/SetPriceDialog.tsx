@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, LoaderCircle, PackageSearch } from "lucide-react";
 
@@ -67,12 +68,21 @@ function MarginCell({
     cost,
     price,
     format,
+    isUntracked = false,
 }: {
     cost?: number;
     price?: number;
     format: (value: number) => string;
+    isUntracked?: boolean;
 }) {
     if (cost === undefined) {
+        if (isUntracked) {
+            return (
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    No stock tracking
+                </span>
+            );
+        }
         return (
             <span className="text-xs text-muted-foreground">
                 Not stocked in yet
@@ -94,15 +104,15 @@ function MarginCell({
                         margin < 0
                             ? "bg-danger/10 text-danger"
                             : margin === 0
-                              ? "bg-muted text-muted-foreground"
-                              : "bg-success/10 text-success",
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-success/10 text-success",
                     )}
                 >
                     {margin < 0
                         ? `${format(Math.abs(margin))} under cost`
                         : margin === 0
-                          ? "No profit"
-                          : `Keeps ${format(margin)}`}
+                            ? "No profit"
+                            : `Keeps ${format(margin)}`}
                 </span>
             )}
         </div>
@@ -110,11 +120,12 @@ function MarginCell({
 }
 
 /** The column headings, said once per card rather than once per row. */
-function PriceColumns() {
+function PriceColumns({ isUntracked = false }: { isUntracked?: boolean }) {
     return (
         <div className="flex items-center gap-4 border-b border-border bg-muted/20 px-4 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             <span className="min-w-0 flex-1">What they buy</span>
             <span className="w-36 shrink-0">Selling price</span>
+            {isUntracked ? <span className="w-32 shrink-0">Item cost</span> : null}
             <span className="hidden w-36 shrink-0 sm:block">Your margin</span>
         </div>
     );
@@ -127,22 +138,28 @@ function PriceRow({
     value,
     ariaLabel,
     cost,
+    costValue,
     price,
     format,
     disabled,
     disabledHint,
+    isUntracked = false,
     onChange,
+    onCostChange,
 }: {
     label: string;
     description: string;
     value: string;
     ariaLabel: string;
     cost?: number;
+    costValue?: string;
     price?: number;
     format: (value: number) => string;
     disabled?: boolean;
     disabledHint?: string;
+    isUntracked?: boolean;
     onChange: (value: string) => void;
+    onCostChange?: (value: string) => void;
 }) {
     return (
         <div className="flex flex-wrap items-center gap-4 px-4 py-3">
@@ -163,8 +180,19 @@ function PriceRow({
                 />
             </div>
 
+            {isUntracked ? (
+                <div className="w-32 shrink-0">
+                    <PriceInput
+                        value={costValue ?? ""}
+                        label={`${ariaLabel} cost`}
+                        disabled={false}
+                        onChange={onCostChange || (() => {})}
+                    />
+                </div>
+            ) : null}
+
             <div className="w-36 shrink-0">
-                <MarginCell cost={cost} price={price} format={format} />
+                <MarginCell cost={cost} price={price} format={format} isUntracked={isUntracked} />
             </div>
         </div>
     );
@@ -224,11 +252,37 @@ export function SetPriceDialog({
      * with a unit cost there is nothing to price against, and a number typed
      * here would be a guess dressed up as a decision.
      */
-    // Priceable as soon as any one way of selling it has a cost: an option
-    // received today can be priced while its sisters are still on order.
-    const canPrice = soldAs.some((row) => row.unitCost !== undefined);
+    const isUntracked = item.trackInventory === false;
+    const canPrice = isUntracked || soldAs.some((row) => row.unitCost !== undefined);
     const blockedHint =
         "Record a stock in with a unit cost for this item before pricing it";
+
+    const [costDrafts, setCostDrafts] = useState<Record<string, string>>(() => {
+        if (typeof window === "undefined" || !item?.id) return {};
+        const saved: Record<string, string> = {};
+        for (const row of soldAs) {
+            const val = localStorage.getItem(`untracked_cost_${item.id}_${row.key}`);
+            if (val !== null) saved[row.key] = val;
+        }
+        return saved;
+    });
+
+    const initialCosts = useMemo(() => {
+        if (typeof window === "undefined" || !item?.id) return {};
+        const saved: Record<string, string> = {};
+        for (const row of soldAs) {
+            const val = localStorage.getItem(`untracked_cost_${item.id}_${row.key}`);
+            if (val !== null) saved[row.key] = val;
+        }
+        return saved;
+    }, [item?.id, soldAs]);
+
+    const handleCostChange = (key: string, value: string) => {
+        setCostDrafts((prev: Record<string, string>) => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
 
     const kindCount = new Set(soldAs.map((row) => row.kind)).size;
 
@@ -243,13 +297,13 @@ export function SetPriceDialog({
     const changedRows = !canPrice
         ? []
         : soldAs.filter((row) => {
-              const draft = drafts[row.key];
+            const draft = drafts[row.key];
 
-              return (
-                  draft !== undefined &&
-                  draftAmount(draft, row.saved) !== (row.saved ?? undefined)
-              );
-          });
+            return (
+                draft !== undefined &&
+                draftAmount(draft, row.saved) !== (row.saved ?? undefined)
+            );
+        });
     const changedAddOns = addOns.filter((addOn) => {
         // An add-on is costed on its own, so it is gated on its own stock.
         if (!addOnCosts.has(addOn.id)) return false;
@@ -262,7 +316,15 @@ export function SetPriceDialog({
         );
     });
 
-    const edited = changedRows.length > 0 || changedAddOns.length > 0;
+    const changedCostRows = isUntracked
+        ? soldAs.filter((row) => {
+            const draft = costDrafts[row.key];
+            const initial = initialCosts[row.key] ?? "";
+            return draft !== undefined && draft !== initial;
+        })
+        : [];
+
+    const edited = changedRows.length > 0 || changedAddOns.length > 0 || changedCostRows.length > 0;
     const saving = pricingState.isLoading || addOnState.isLoading;
 
     function valueFor(key: string, saved: number | null | undefined) {
@@ -307,56 +369,56 @@ export function SetPriceDialog({
             ...(basePrice === undefined ? {} : { price: basePrice }),
             ...(options.length
                 ? {
-                      // Saving variants replaces the list, so what this screen
-                      // never edits goes back exactly as it came.
-                      variants: options.map((option) => ({
-                          name: option.name || "",
-                          sku: option.sku || "",
-                          barcode: option.barcode || "",
-                          // The option's own picture is one of those things:
-                          // left out, pricing an item would strip every
-                          // picture its options carry.
-                          imageUrl: option.imageUrl || "",
-                          // So is the pair it stands for: pricing an item must
-                          // not turn Large/Red back into a loose "Large" and
-                          // merge two shelves into one.
-                          optionName: option.optionName || option.name || "",
-                          colorValue: option.colorValue || "",
-                          available: option.available !== false,
-                          price: draftAmount(
-                              drafts[soldAsKey(item.id, "OPTION", option.id)],
-                              option.price,
-                          ),
-                      })),
-                  }
+                    // Saving variants replaces the list, so what this screen
+                    // never edits goes back exactly as it came.
+                    variants: options.map((option) => ({
+                        name: option.name || "",
+                        sku: option.sku || "",
+                        barcode: option.barcode || "",
+                        // The option's own picture is one of those things:
+                        // left out, pricing an item would strip every
+                        // picture its options carry.
+                        imageUrl: option.imageUrl || "",
+                        // So is the pair it stands for: pricing an item must
+                        // not turn Large/Red back into a loose "Large" and
+                        // merge two shelves into one.
+                        optionName: option.optionName || option.name || "",
+                        colorValue: option.colorValue || "",
+                        available: option.available !== false,
+                        price: draftAmount(
+                            drafts[soldAsKey(item.id, "OPTION", option.id)],
+                            option.price,
+                        ),
+                    })),
+                }
                 : {}),
             ...(packs.length
                 ? {
-                      uomConversions: packs.map((conversion) => {
-                          const price = draftAmount(
-                              drafts[
-                                  soldAsKey(
-                                      item.id,
-                                      "PACK",
-                                      conversion.unit?.id,
-                                      conversion.variantId || undefined,
-                                  )
-                              ],
-                              conversion.price,
-                          );
+                    uomConversions: packs.map((conversion) => {
+                        const price = draftAmount(
+                            drafts[
+                            soldAsKey(
+                                item.id,
+                                "PACK",
+                                conversion.unit?.id,
+                                conversion.variantId || undefined,
+                            )
+                            ],
+                            conversion.price,
+                        );
 
-                          return {
-                              unitId: conversion.unit?.id || "",
-                              // Which option it is for is part of what the
-                              // conversion is; sent back or it would be lost.
-                              ...(conversion.variantId
-                                  ? { variantId: conversion.variantId }
-                                  : {}),
-                              factor: conversion.factor ?? 1,
-                              ...(price === undefined ? {} : { price }),
-                          };
-                      }),
-                  }
+                        return {
+                            unitId: conversion.unit?.id || "",
+                            // Which option it is for is part of what the
+                            // conversion is; sent back or it would be lost.
+                            ...(conversion.variantId
+                                ? { variantId: conversion.variantId }
+                                : {}),
+                            factor: conversion.factor ?? 1,
+                            ...(price === undefined ? {} : { price }),
+                        };
+                    }),
+                }
                 : {}),
         };
 
@@ -369,14 +431,23 @@ export function SetPriceDialog({
                 await saveAddOnPrice(addOn);
             }
 
+            if (changedCostRows.length) {
+                for (const row of changedCostRows) {
+                    const val = costDrafts[row.key];
+                    if (val !== undefined && typeof window !== "undefined" && item?.id) {
+                        localStorage.setItem(`untracked_cost_${item.id}_${row.key}`, val);
+                    }
+                }
+            }
+
             toast({
                 tone: "success",
                 title: `${item.name || "Item"} priced`,
                 ...(changedAddOns.length
                     ? {
-                          description:
-                              "Add-on prices apply everywhere they are offered.",
-                      }
+                        description:
+                            "Add-on prices apply everywhere they are offered.",
+                    }
                     : {}),
             });
 
@@ -426,7 +497,7 @@ export function SetPriceDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {canPrice ? null : (
+                {canPrice || item.trackInventory === false ? null : (
                     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-2.5">
                         <PackageSearch className="size-4 shrink-0 text-warning" />
                         <p className="text-xs font-medium text-foreground sm:text-sm">
@@ -474,33 +545,41 @@ export function SetPriceDialog({
                             </div>
                         )}
 
-                        <PriceColumns />
+                        <PriceColumns isUntracked={isUntracked} />
 
                         <div className="divide-y divide-border/60">
-                            {section.rows.map((row) => (
-                                <PriceRow
-                                    key={row.key}
-                                    label={row.label}
-                                    description={row.description}
-                                    value={valueFor(row.key, row.saved)}
-                                    ariaLabel={`${item.name} ${row.label} selling price`}
-                                    cost={row.unitCost}
-                                    price={draftAmount(
-                                        drafts[row.key],
-                                        row.saved,
-                                    )}
-                                    format={format}
-                                    // Per row, not per item: a price is set
-                                    // against what that shelf cost, so an
-                                    // option still on order cannot be priced
-                                    // while its sisters can.
-                                    disabled={row.unitCost === undefined}
-                                    disabledHint={blockedHint}
-                                    onChange={(next) =>
-                                        onDraftChange(row.key, next)
-                                    }
-                                />
-                            ))}
+                            {section.rows.map((row) => {
+                                const costDraft = costDrafts[row.key];
+                                const effectiveCost = isUntracked
+                                    ? (costDraft !== undefined && costDraft !== "" ? parseFloat(costDraft) : (row.unitCost ?? 0))
+                                    : row.unitCost;
+
+                                return (
+                                    <PriceRow
+                                        key={row.key}
+                                        label={row.label}
+                                        description={row.description}
+                                        value={valueFor(row.key, row.saved)}
+                                        ariaLabel={`${item.name} ${row.label} selling price`}
+                                        cost={effectiveCost}
+                                        costValue={costDraft ?? (row.unitCost !== undefined ? String(row.unitCost) : "")}
+                                        price={draftAmount(
+                                            drafts[row.key],
+                                            row.saved,
+                                        )}
+                                        format={format}
+                                        disabled={!isUntracked && row.unitCost === undefined}
+                                        disabledHint={blockedHint}
+                                        isUntracked={isUntracked}
+                                        onChange={(next) =>
+                                            onDraftChange(row.key, next)
+                                        }
+                                        onCostChange={(next) =>
+                                            handleCostChange(row.key, next)
+                                        }
+                                    />
+                                );
+                            })}
                         </div>
                     </section>
                 ))}
