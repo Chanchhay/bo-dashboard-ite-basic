@@ -24,7 +24,7 @@ export interface PaymentProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order;
-  onValidate: (method: PaymentMethod, receivedAmount?: number) => void;
+  onValidate: (method: "CASH" | "DIGITAL" | "PAY_LATER", receivedAmount?: number) => void;
   /** Called when a KHQR settles — the sale already exists by then. */
   onDigitalPaid?: (sale: Sale) => void;
   isProcessing?: boolean;
