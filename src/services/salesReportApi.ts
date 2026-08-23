@@ -3,7 +3,7 @@ import type {
     CollectPayLaterInput,
     PayLaterSale,
 } from "@/lib/api/pay-later";
-import type { DailyChannelRevenue, SalesProfit } from "@/lib/api/sales-report";
+import type {
     DailyChannelRevenue,
     ItemProfitReport,
     PeriodProfitReport,

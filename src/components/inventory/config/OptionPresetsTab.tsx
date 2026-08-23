@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
+import { ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import {
     ConfigEmpty,
@@ -326,12 +326,17 @@ export function OptionPresetsTab() {
                 never silently change hundreds of items.
             </p>
 
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <div data-tour="presets-list-container">
-                    <ConfigSection
-                        title="Option presets"
-                        description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
-                    >
+            <div data-tour="presets-list-container">
+                <ConfigSection
+                    title="Option presets"
+                    description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
+                    action={
+                        <Button type="button" onClick={openAddForm}>
+                            <Plus className="size-4" />
+                            Add preset
+                        </Button>
+                    }
+                >
                     {presets.length === 0 ? (
                         <ConfigEmpty
                             title="No presets yet"
@@ -432,7 +437,7 @@ export function OptionPresetsTab() {
                         </div>
                     )}
                 </ConfigSection>
-                </div>
+            </div>
 
             <Dialog
                 open={formOpen}
@@ -468,30 +473,13 @@ export function OptionPresetsTab() {
                                 <X />
                             </Button>
                         ) : null}
-                    </div>
-
-                    <div className="mt-5 flex flex-col gap-4">
-                        <div data-tour="preset-form-name" className="flex flex-col gap-2">
-                            <Label htmlFor="preset-name">Name *</Label>
-                            <Input
-                                id="preset-name"
-                                value={draft.name}
-                                onChange={(event) =>
-                                    updateDraft({ name: event.target.value })
-                                }
-                                placeholder="Size"
-                                aria-invalid={Boolean(errors.name)}
-                                className={inventoryControlClassName}
-                            />
-                            {errors.name ? (
-                                <p className="text-xs text-danger" role="alert">
-                                    {errors.name}
-                                </p>
-                            ) : null}
-                        </div>
+                    </DialogHeader>
 
                     <div className="mt-6 grid gap-5 md:grid-cols-2">
-                            <div className="flex min-w-0 flex-col gap-2">
+                            <div
+                                data-tour="preset-form-name"
+                                className="flex min-w-0 flex-col gap-2"
+                            >
                                 <Label
                                     htmlFor="preset-name"
                                     className="text-sm font-semibold text-foreground"
