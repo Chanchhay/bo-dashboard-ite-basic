@@ -6,6 +6,7 @@ import { KeyRound, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormSkeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -48,11 +49,7 @@ export function BusinessTelegramBotForm() {
     }
 
     if (isLoading) {
-        return (
-            <p className="p-6 text-sm text-muted-foreground">
-                Loading Telegram settings…
-            </p>
-        );
+        return <FormSkeleton rows={4} />;
     }
 
     return (
@@ -112,7 +109,7 @@ function AccountForm({
 }) {
     const { toast } = useToast();
     const [fields, setFields] = useState<Record<string, string>>({
-        botToken: "", // Token is write-only, we never show it.
+        botToken: "", 
         welcomeMessage: settings?.welcomeMessage ?? "",
         notificationChatId: settings?.notificationChatId ?? "",
     });
@@ -136,7 +133,6 @@ function AccountForm({
                 welcomeMessage: fields.welcomeMessage.trim(),
                 notificationChatId: fields.notificationChatId.trim(),
             });
-            // Clear token field after save since it's write-only
             setFields(prev => ({ ...prev, botToken: "" }));
         } catch (cause) {
             toast({
