@@ -38,19 +38,21 @@ export function toStockTargets(
     onHandById: Record<string, number | undefined> = {},
 ): StockTargetOption[] {
     return [
-        ...items.map((item) => ({
-            kind: "ITEM" as const,
-            id: item.id,
-            name: item.name || "Unnamed item",
-            hint: [
-                item.barcode ? `Barcode: ${item.barcode}` : "",
-                item.sku ? `SKU: ${item.sku}` : "",
-            ]
-                .filter(Boolean)
-                .join(" • "),
-            unitLabel: item.unit?.name || "",
-            onHand: onHandById[item.id],
-        })),
+        ...items
+            .filter((item) => item.trackInventory !== false)
+            .map((item) => ({
+                kind: "ITEM" as const,
+                id: item.id,
+                name: item.name || "Unnamed item",
+                hint: [
+                    item.barcode ? `Barcode: ${item.barcode}` : "",
+                    item.sku ? `SKU: ${item.sku}` : "",
+                ]
+                    .filter(Boolean)
+                    .join(" • "),
+                unitLabel: item.unit?.name || "",
+                onHand: onHandById[item.id],
+            })),
         ...addOns.map((addOn) => ({
             kind: "ADDON" as const,
             id: addOn.id,

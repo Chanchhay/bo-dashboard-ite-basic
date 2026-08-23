@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
-import type { Permission } from "@/lib/permissions";
+import GuidedTour from "@/components/onboarding/GuidedTour";
+import type { GrantedPermissions } from "@/lib/permissions";
 
 export default function AppShell({
     managerName,
@@ -13,11 +14,12 @@ export default function AppShell({
     children,
 }: {
     managerName: string;
-    permissions: Permission[];
+    permissions: GrantedPermissions;
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
     const [navOpen, setNavOpen] = useState(false);
+    const mainRef = useRef<HTMLElement>(null);
 
     // The launcher owns the whole viewport — no sidebar, no top bar. Every
     // other route gets the shell, scoped to whichever app it belongs to.
@@ -26,6 +28,24 @@ export default function AppShell({
     // Following a link inside the mobile drawer should close it.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => setNavOpen(false), [pathname]);
+
+    /*
+     * Start a new page at the top of it.
+     *
+     * Next resets the window's scroll on navigation, but the window is not
+     * what scrolls here — the shell is pinned to the viewport and `main` is
+     * the scroll container, so it keeps whatever offset the last page left
+     * behind. Switching from a long list to another one landed halfway down
+     * the new page with its heading and tabs above the fold, which reads as
+     * the page having lost its header.
+     *
+     * Keyed on the path alone: a query change is the same page filtering or
+     * paginating itself, and yanking the reader to the top there would be its
+     * own bug.
+     */
+    useEffect(() => {
+        mainRef.current?.scrollTo({ top: 0 });
+    }, [pathname]);
 
     // The drawer is a modal surface on small screens: Escape dismisses it and
     // the page behind must not scroll underneath.
@@ -45,7 +65,12 @@ export default function AppShell({
     }, [navOpen]);
 
     if (chromeless) {
-        return <div className="min-h-dvh bg-white dark:bg-[#0f1219] text-foreground">{children}</div>;
+        return (
+            <div className="min-h-dvh bg-white dark:bg-[#0f1219] text-foreground">
+                <GuidedTour />
+                {children}
+            </div>
+        );
     }
 
     return (
@@ -57,6 +82,7 @@ export default function AppShell({
          * viewport.
          */
         <div className="fixed inset-0 overflow-hidden bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
+            <GuidedTour />
             <a
                 href="#main-content"
                 className="sr-only rounded-lg bg-white dark:bg-[#1e2330] px-4 py-2 text-[14px] text-[#16181c] dark:text-[#f8fafc] focus:not-sr-only focus:absolute focus:top-6 focus:left-6 focus:z-50"
@@ -92,6 +118,7 @@ export default function AppShell({
 
                     <main
                         id="main-content"
+                        ref={mainRef}
                         className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 lg:px-8"
                     >
                         {children}

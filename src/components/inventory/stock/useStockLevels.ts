@@ -97,7 +97,10 @@ export function useStockLevels() {
     } | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    const items = useMemo(() => itemsQuery.data || [], [itemsQuery.data]);
+    const items = useMemo(
+        () => (itemsQuery.data || []).filter((item) => item.trackInventory !== false),
+        [itemsQuery.data],
+    );
     const addOns = useMemo(() => addOnsQuery.data || [], [addOnsQuery.data]);
     const entries = useMemo(() => entriesQuery.data || [], [entriesQuery.data]);
     /**
@@ -351,6 +354,12 @@ export function useStockLevels() {
                 unitSalePrice: movement.unitSalePrice,
                 enteredQuantity: movement.enteredQuantity,
                 unitId: movement.enteredUnitId,
+                // The dialog only sets these on the way in, and only for what
+                // was actually filled in. The API refuses them on the way out.
+                lotNumber: movement.lotNumber,
+                manufacturedAt: movement.manufacturedAt,
+                expiresAt: movement.expiresAt,
+                receivedAt: movement.receivedAt,
                 batchData: {},
                 referenceType: "STOCK_OVERVIEW",
                 referenceId: "",

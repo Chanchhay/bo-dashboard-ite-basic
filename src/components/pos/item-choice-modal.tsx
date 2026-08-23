@@ -218,7 +218,7 @@ export function ItemChoiceModal({
      * shortage. Anything else with no count has simply never been received,
      * which is a shortage of everything.
      */
-    const counted = item.itemType !== "SERVICE" && item.itemType !== "DIGITAL";
+    const counted = item.trackInventory !== false && item.itemType !== "SERVICE" && item.itemType !== "DIGITAL";
     const shortOfStock = counted && (onHand ?? 0) < needed;
 
     /**

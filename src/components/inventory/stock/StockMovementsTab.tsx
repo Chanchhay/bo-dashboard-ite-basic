@@ -18,9 +18,14 @@ import {
     type MovementDetail,
 } from "@/components/inventory/stock/StockMovementDetailDialog";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
-import { stockEntryTypeLabels, type StockEntry } from "@/lib/api/inventory";
+import {
+    entryLotNumber,
+    stockEntryTypeLabels,
+    type StockEntry,
+} from "@/lib/api/inventory";
 import { staffFullName } from "@/lib/api/user-management";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
@@ -346,6 +351,11 @@ export function StockMovementsTab({
                         entry.unitCost !== undefined
                             ? `${formatAmount(entry.unitCost)} / ${unitLabel || "unit"}`
                             : "",
+                        // Movements recorded before lot became a column of its
+                        // own still carry it in the batch blob.
+                        entryLotNumber(entry)
+                            ? `Lot ${entryLotNumber(entry)}`
+                            : "",
                         entry.referenceNumber,
                         entry.reason,
                     ]
@@ -472,7 +482,7 @@ export function StockMovementsTab({
             <div className="flex flex-col gap-4 p-4 sm:p-5 border-b border-border bg-card">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     {/* Movement Filter Buttons */}
-                    <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border border-border bg-muted/30">
+                    <div data-tour="movements-filter-chips" className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border border-border bg-muted/30">
                         {filterChips.map((chip) => (
                             <button
                                 key={chip.id}
@@ -508,7 +518,7 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative min-w-60 flex-1 sm:flex-initial">
+                    <div data-tour="movements-search" className="relative min-w-60 flex-1 sm:flex-initial">
                         <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             type="text"
@@ -518,14 +528,14 @@ export function StockMovementsTab({
                                     setSearchQuery(e.target.value),
                                 )
                             }
-                            placeholder="Search item, reason, or person..."
+                            placeholder="Search item, lot, reason, or person..."
                             className="pl-10 h-10 text-sm rounded-xl border-border bg-background"
                         />
                     </div>
                 </div>
 
                 {/* Styled Date Filter Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-sm">
+                <div data-tour="movements-date-filter" className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-sm">
                     {/* Date Presets */}
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5">
@@ -560,34 +570,38 @@ export function StockMovementsTab({
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-muted-foreground">From:</span>
-                            <div className="relative flex items-center">
-                                <input
-                                    type="date"
+                            <div className="w-44">
+                                <DatePicker
                                     value={startDate}
-                                    onChange={(e) =>
+                                    // Never later than the other end of the
+                                    // range, which would select nothing.
+                                    max={endDate || undefined}
+                                    placeholder="Any date"
+                                    className="h-9"
+                                    onValueChange={(value) =>
                                         applyFilter(() => {
-                                            setStartDate(e.target.value);
+                                            setStartDate(value);
                                             setDatePreset("CUSTOM");
                                         })
                                     }
-                                    className="h-9 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground transition-all hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                                 />
                             </div>
                         </div>
 
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-muted-foreground">To:</span>
-                            <div className="relative flex items-center">
-                                <input
-                                    type="date"
+                            <div className="w-44">
+                                <DatePicker
                                     value={endDate}
-                                    onChange={(e) =>
+                                    min={startDate || undefined}
+                                    placeholder="Any date"
+                                    className="h-9"
+                                    onValueChange={(value) =>
                                         applyFilter(() => {
-                                            setEndDate(e.target.value);
+                                            setEndDate(value);
                                             setDatePreset("CUSTOM");
                                         })
                                     }
-                                    className="h-9 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground transition-all hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                                 />
                             </div>
                         </div>
@@ -815,6 +829,7 @@ export function StockMovementsTab({
                                                 row.entry?.addOnId) &&
                                             row.kind !== "ADJUST" ? (
                                                 <Button
+                                                    data-tour="movements-row-adjust"
                                                     variant="outline"
                                                     size="sm"
                                                     nativeButton={false}

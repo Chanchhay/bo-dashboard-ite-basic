@@ -13,6 +13,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
+import { useGetStockEntryQuery } from "@/services/inventoryApi";
 import type { StockEntry } from "@/lib/api/inventory";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
@@ -89,9 +90,45 @@ function Row({
 /** Batch details are a free-form map, so only the keys we know are read out. */
 const batchFieldLabels: Record<string, string> = {
     lot: "Batch / lot number",
+    lotNumber: "Batch / lot number",
     manufacturedAt: "Manufactured",
     expiresAt: "Expires",
 };
+
+/**
+ * The batch this movement recorded, however it was stored.
+ *
+ * Lot and dates are columns on the movement now, because the expiry is what
+ * orders the sell queue and a free-form blob cannot be sorted on. They used to
+ * live in `batchData`, so movements recorded before that change still carry
+ * them there and are read back from it — the ledger is never rewritten, so
+ * both shapes are on screen for as long as the old entries are.
+ */
+function batchRows(entry?: StockEntry) {
+    if (!entry) return [];
+
+    const named: [string, unknown][] = [
+        ["lotNumber", entry.lotNumber],
+        ["expiresAt", entry.expiresAt],
+        ["manufacturedAt", entry.manufacturedAt],
+    ];
+    const stored = Object.entries(entry.batchData || {}).filter(
+        // Whatever the blob knows that the columns do not. A key present in
+        // both would otherwise print the same fact twice.
+        ([key]) =>
+            !named.some(
+                ([namedKey, value]) =>
+                    value != null &&
+                    value !== "" &&
+                    (namedKey === key ||
+                        (namedKey === "lotNumber" && key === "lot")),
+            ),
+    );
+
+    return [...named, ...stored].filter(
+        ([, value]) => value !== null && value !== undefined && value !== "",
+    );
+}
 
 export function StockMovementDetailDialog({
     open,
@@ -103,19 +140,40 @@ export function StockMovementDetailDialog({
     movement: MovementDetail | null;
 }) {
     const { format: formatMoney } = useMoney();
+    /*
+     * The movement again, on its own, for the batches it drew from.
+     *
+     * The list this dialog opens from does not carry them — reading them per
+     * row would be a query per row to answer something only the opened
+     * movement is asking. So it is asked for here, and only while open.
+     */
+    const entryId = movement?.entry?.id;
+    const detailQuery = useGetStockEntryQuery(entryId ?? "", {
+        skip: !open || !entryId,
+    });
 
     if (!movement) return null;
 
     const entry = movement.entry;
     const unitCost = entry?.unitCost;
-    // What this movement was worth: the cost of one unit times how many moved.
+    /*
+     * What this movement was worth.
+     *
+     * On the way out that is `costOfGoods`, summed from the batches actually
+     * emptied — never the unit cost multiplied back up. An outgoing movement's
+     * unit cost is already an average rounded to the penny, so re-multiplying
+     * it disagrees with the real total: six units drawn from a $1.00 batch and
+     * a $2.00 one cost $7.00, but the $1.17 average times six reads $7.02. Two
+     * numbers for one fact, and the wrong one is the bigger.
+     */
+    const costOfGoods = entry?.costOfGoods ?? undefined;
     const movementValue =
-        unitCost === undefined
-            ? undefined
-            : unitCost * Math.abs(movement.change);
-    const batchEntries = Object.entries(entry?.batchData || {}).filter(
-        ([, value]) => value !== null && value !== undefined && value !== "",
-    );
+        costOfGoods ??
+        (unitCost == null ? undefined : unitCost * Math.abs(movement.change));
+    // The row's own copy renders immediately; the fetched one is the same
+    // movement with the breakdown on it.
+    const consumedBatches = detailQuery.data?.consumedBatches ?? [];
+    const batchEntries = batchRows(entry);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -242,15 +300,33 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
 
-                        {unitCost !== undefined ? (
-                            <Row label="Unit cost">
+                        {unitCost != null ? (
+                            <Row
+                                label={
+                                    costOfGoods === undefined
+                                        ? "Unit cost"
+                                        : "Cost per unit"
+                                }
+                            >
                                 {formatMoney(unitCost)} /{" "}
                                 {movement.unitLabel || "unit"}
+                                {consumedBatches.length > 1 ? (
+                                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                        averaged across{" "}
+                                        {consumedBatches.length} batches
+                                    </span>
+                                ) : null}
                             </Row>
                         ) : null}
 
                         {movementValue !== undefined ? (
-                            <Row label="Value of this movement">
+                            <Row
+                                label={
+                                    costOfGoods === undefined
+                                        ? "Value of this movement"
+                                        : "Cost of what left"
+                                }
+                            >
                                 {formatMoney(movementValue)}
                             </Row>
                         ) : null}
@@ -264,13 +340,12 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
 
-                        {entry?.costOfGoods !== undefined ? (
-                            <Row label="Cost of what left">
-                                {formatMoney(entry.costOfGoods)}
-                            </Row>
-                        ) : null}
-
-                        {entry?.unitSalePrice !== undefined ? (
+                        {/* Only a stock-out sold away from the till carries a
+                            sale price. A sale rung up at the till keeps what
+                            the customer paid on the order, not here, so this
+                            row would otherwise sit on every receipt showing a
+                            dash. */}
+                        {entry?.unitSalePrice != null ? (
                             <Row label="Sold at">
                                 {formatMoney(entry.unitSalePrice)} per unit
                             </Row>
@@ -307,6 +382,77 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
                     </dl>
+
+                    {/*
+                      * The working behind the cost.
+                      *
+                      * A movement's cost is one number, and on its own it is
+                      * not explicable: a sale spanning two deliveries is
+                      * costed at neither price paid, and dividing by the
+                      * quantity gives an average matching no batch on the
+                      * shelf. These are the rows it was actually summed from.
+                      */}
+                    {consumedBatches.length > 0 ? (
+                        <div className="mt-4 rounded-xl border border-border">
+                            <p className="border-b border-border px-4 py-2.5 text-xs font-semibold text-foreground">
+                                Taken from {consumedBatches.length} batch
+                                {consumedBatches.length === 1 ? "" : "es"},
+                                oldest first
+                            </p>
+
+                            <ul className="divide-y divide-border">
+                                {consumedBatches.map((batch) => (
+                                    <li
+                                        key={batch.batchId}
+                                        className="flex items-baseline justify-between gap-4 px-4 py-2.5"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-sm text-foreground tabular-nums">
+                                                {formatAmount(batch.quantity)}{" "}
+                                                <span className="text-muted-foreground">
+                                                    {movement.unitLabel ||
+                                                        "unit"}
+                                                </span>{" "}
+                                                at{" "}
+                                                {formatMoney(batch.unitCost)}
+                                            </p>
+                                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                {[
+                                                    batch.lotNumber
+                                                        ? `Lot ${batch.lotNumber}`
+                                                        : null,
+                                                    batch.receivedAt
+                                                        ? `in ${new Date(batch.receivedAt).toLocaleDateString("en-GB")}`
+                                                        : null,
+                                                    batch.expiresAt
+                                                        ? `expires ${new Date(batch.expiresAt).toLocaleDateString("en-GB")}`
+                                                        : null,
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(" · ") ||
+                                                    "Batch recorded before lot tracking"}
+                                            </p>
+                                        </div>
+
+                                        <span className="shrink-0 text-sm font-semibold text-foreground tabular-nums">
+                                            {formatMoney(batch.cost)}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            {movementValue !== undefined ? (
+                                <p className="flex items-baseline justify-between gap-4 border-t border-border bg-muted/40 px-4 py-2.5 text-sm">
+                                    <span className="text-muted-foreground">
+                                        Total
+                                    </span>
+                                    <span className="font-semibold text-foreground tabular-nums">
+                                        {formatMoney(movementValue)}
+                                    </span>
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
 
                     <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
                         <SlidersHorizontal className="mt-0.5 size-3.5 shrink-0" />

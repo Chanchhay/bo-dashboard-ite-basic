@@ -24,7 +24,10 @@ export type PosOrderItem = {
     unitPrice: number;
     discountAmount: number;
     lineTotal: number;
+    trackInventory?: boolean | null;
 };
+
+export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
 
 /** The cart. A `PENDING` order the cashier is still building. */
 export type PosOrder = {
@@ -36,6 +39,11 @@ export type PosOrder = {
     status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
     subtotal: number;
     discountAmount: number;
+    discountId?: string | null;
+    discountCode?: string | null;
+    taxRate?: number | null;
+    taxAmount?: number | null;
+    taxInclusionType?: TaxInclusionType | null;
     total: number;
     currency: string;
     /** The second currency this order was priced against, frozen at creation. */
@@ -172,6 +180,13 @@ export const payOrderSchema = z.object({
     /** Cash tendered. Absent for digital, where there is nothing to hand over. */
     receivedAmount: z.coerce.number().nonnegative().optional(),
     note: z.string().trim().max(200).optional(),
+    isTaxActive: z.boolean().optional(),
+    isTaxInclusive: z.boolean().optional(),
+    taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional(),
+    taxRate: z.coerce.number().optional(),
+    taxAmount: z.coerce.number().optional(),
+    discountId: z.string().optional(),
+    discountCode: z.string().optional(),
 });
 
 export type PayOrderInput = z.infer<typeof payOrderSchema>;
@@ -182,8 +197,8 @@ export const setOrderCustomerSchema = z.object({
 
 export const setOrderDiscountSchema = z.object({
     discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
-    discountId: z.string().optional(),
-    discountCode: z.string().optional(),
+    discountId: z.string().nullable().optional(),
+    discountCode: z.string().nullable().optional(),
 });
 
 export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;
@@ -222,6 +237,9 @@ export type Sale = {
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     subtotal: number;
     discountAmount: number;
+    taxRate?: number | null;
+    taxAmount?: number | null;
+    taxInclusionType?: TaxInclusionType | null;
     totalAmount: number;
     paidAmount: number;
     /** What to hand back. Calculated by the backend, never re-derived here. */

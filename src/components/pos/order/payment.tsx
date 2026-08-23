@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, Banknote } from "lucide-react";
+import { CreditCard, Banknote, Crown, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
 import { Order } from "@/types/pos-type";
@@ -11,10 +11,12 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { Khqr, Sale } from "@/lib/api/pos-order";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 import {
   useGenerateKhqrMutation,
   useGetBakongStatusQuery,
 } from "@/services/posOrderApi";
+import { useGetCustomersQuery } from "@/services/customerApi";
 
 type PaymentMethod = "CASH" | "DIGITAL";
 
@@ -44,7 +46,13 @@ export function Payment({
   const { toast } = useToast();
  
   const { data: bakong } = useGetBakongStatusQuery();
+  const { data: customers = [] } = useGetCustomersQuery();
   const [generateKhqr, { isLoading: isGenerating }] = useGenerateKhqrMutation();
+
+  const attachedCustomer = useMemo(() => {
+    if (!order.customer_id) return null;
+    return customers.find((c) => c.id === order.customer_id) ?? null;
+  }, [customers, order.customer_id]);
 
   const canTakeDigital = Boolean(bakong?.configured && bakong?.active);
 
@@ -64,6 +72,21 @@ export function Payment({
   const discount = parseFloat(order.discount_amount);
   const total = parseFloat(order.total);
   const totalSecondary = secondaryFor(total, order);
+
+  const activeTax = useMemo(() => getActiveDefaultTax(), [open]);
+  const isTaxActive = activeTax?.isActive ?? false;
+  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
+
+  const effectiveTaxRate = isTaxActive ? (activeTax?.taxRate ?? 0) : 0;
+  const afterDiscount = Math.max(0, subtotal - discount);
+
+  const taxAmount = isTaxActive
+    ? (isTaxInclusive
+        ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+        : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+    : 0;
+
+  const taxName = activeTax?.taxName ?? "VAT";
 
   const storedDiscountRule = useMemo(() => {
     if (!order.id || typeof window === "undefined") return null;
@@ -183,6 +206,34 @@ export function Payment({
               <div className="grid min-h-0 grid-cols-1 gap-7 overflow-y-auto overscroll-contain px-4 pb-5 pt-3 sm:grid-cols-2 sm:gap-12 sm:px-8 sm:pb-8 sm:pt-8">
                 {/* Left: order summary */}
                 <div className="flex min-w-0 flex-col">
+                  {attachedCustomer && (
+                    <div className="mb-3.5 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {(attachedCustomer.globalCustomer?.fullName || "C").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="text-xs font-bold text-gray-900 truncate">
+                              {attachedCustomer.globalCustomer?.fullName || "Customer"}
+                            </span>
+                            {attachedCustomer.membershipType && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                <Crown className="h-2.5 w-2.5" />
+                                {attachedCustomer.membershipType.typeName}
+                              </span>
+                            )}
+                          </div>
+                          {attachedCustomer.globalCustomer?.phoneNumber && (
+                            <p className="text-[11px] text-gray-500 truncate">
+                              {attachedCustomer.globalCustomer.phoneNumber}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <h3 className="text-sm font-bold tracking-[0.04em] text-[#020409] sm:text-lg">
                     ORDER SUMMARY
                   </h3>
@@ -219,6 +270,16 @@ export function Payment({
                       </span>
                       <span>-{format(discount, order.currency)}</span>
                     </div>
+                    {isTaxActive && !isTaxInclusive && taxAmount > 0 && (
+                      <div className="flex justify-between text-[#00501a]">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          +
+                          {taxName.includes("VAT") ? "VAT" : taxName}
+                          {effectiveTaxRate > 0 ? ` (${effectiveTaxRate}%)` : ""}
+                        </span>
+                        <span className="font-semibold">+{format(taxAmount, order.currency)}</span>
+                      </div>
+                    )}
                     <div className="mt-3 flex justify-between border-t border-[#1e293b] pt-4 font-semibold">
                       <span>To Pay</span>
                       <span className="text-primary">{format(total, order.currency)}</span>
@@ -244,7 +305,7 @@ export function Payment({
                     <p className="text-sm font-semibold text-[#020409] sm:text-lg">
                       Payment Method
                     </p>
-                    <div className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
+                    <div data-tour="pos-payment-method" className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
                       <button
                         type="button"
                         onClick={() => setMethod("CASH")}

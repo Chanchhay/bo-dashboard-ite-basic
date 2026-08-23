@@ -38,6 +38,7 @@ export interface CustomerDisplayPayload {
   subtotal: number;
   discountAmount: number;
   tax: number;
+  taxRate?: number | null;
   total: number;
   currency: string;
   invoiceNumber?: string | null;

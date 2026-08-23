@@ -59,6 +59,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 autoComplete="new-password"
                 className={`${fieldClassName} pr-11`}
                 aria-invalid={invalid}
+                placeholder="Enter password"
             />
             <Button
                 type="button"
@@ -286,6 +287,7 @@ export default function StaffTab() {
                                             id="username"
                                             name="username"
                                             autoComplete="off"
+                                            placeholder="john_doe"
                                             className={fieldClassName}
                                             aria-invalid={Boolean(
                                                 fieldErrors.username,
@@ -302,6 +304,7 @@ export default function StaffTab() {
                                             name="email"
                                             type="email"
                                             autoComplete="off"
+                                            placeholder="john.doe@example.com"
                                             className={fieldClassName}
                                             aria-invalid={Boolean(
                                                 fieldErrors.email,
@@ -312,7 +315,6 @@ export default function StaffTab() {
                                         label="Password"
                                         htmlFor="password"
                                         error={fieldErrors.password}
-                                        hint="At least 6 characters."
                                     >
                                         <PasswordInput
                                             invalid={Boolean(
@@ -331,6 +333,7 @@ export default function StaffTab() {
                                 <input
                                     id="firstName"
                                     name="firstName"
+                                    placeholder="John"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.firstName
@@ -350,6 +353,7 @@ export default function StaffTab() {
                                 <input
                                     id="lastName"
                                     name="lastName"
+                                    placeholder="Doe"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.lastName
@@ -368,6 +372,7 @@ export default function StaffTab() {
                                     id="phoneNumber"
                                     name="phoneNumber"
                                     inputMode="tel"
+                                    placeholder="+855 12 345 678"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.phoneNumber
@@ -387,7 +392,7 @@ export default function StaffTab() {
                                 <SelectField
                                     id="gender"
                                     name="gender"
-                                    placeholder="Select a gender"
+                                    placeholder="Select gender"
                                     invalid={Boolean(fieldErrors.gender)}
                                     defaultValue={
                                         editor.mode === "edit"
@@ -455,13 +460,14 @@ export default function StaffTab() {
                 </Panel>
             )}
 
-            <Panel>
+            <Panel data-tour="user-list">
                 <PanelHeader
                     title="Users"
                     description="People who can sign in to this business."
                     action={
                         <Button
                             type="button"
+                            data-tour="add-user"
                             onClick={() => {
                                 setEditor({ mode: "create" });
                                 setFieldErrors({});
@@ -474,7 +480,7 @@ export default function StaffTab() {
                     }
                 />
 
-                <div className="relative mt-6 sm:w-72">
+                <div data-tour="staff-search" className="relative mt-6 sm:w-72">
                     <Search
                         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
@@ -487,7 +493,7 @@ export default function StaffTab() {
                         type="search"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search by name, email or phone"
+                        placeholder="Search by name, email, or phone..."
                         className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
                 </div>

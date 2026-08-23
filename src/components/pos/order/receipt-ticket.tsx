@@ -5,7 +5,9 @@ import { Building2 } from "lucide-react";
 
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrencyConfiguration } from "@/lib/api/currency";
-import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
+import type { PosOrder, PosOrderItem, PosReceipt, Sale } from "@/lib/api/pos-order";
+import type { TaxConfig } from "@/lib/api/tax";
+import { getActiveDefaultTax } from "@/lib/tax-store";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import {
   findCurrency,
@@ -23,6 +25,7 @@ interface ReceiptTicketProps {
   /** Present immediately after payment; historical sale lookup is not exposed. */
   sale?: Sale | null;
   currencies?: BusinessCurrencyConfiguration;
+  taxConfig?: TaxConfig | null;
   className?: string;
 }
 
@@ -35,12 +38,101 @@ function businessInitials(name: string) {
     .join("");
 }
 
+function computeItemDiscountFromRule(
+  item: PosOrderItem,
+  orderItems: PosOrderItem[],
+  rule: any
+): number {
+  if (item.discountAmount && item.discountAmount > 0) {
+    return item.discountAmount;
+  }
+  if (!rule) return 0;
+
+  // Check minimum conditions
+  if (rule.minOrderAmount && rule.minOrderAmount > 0) {
+    const subtotal = orderItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+    if (subtotal < rule.minOrderAmount) return 0;
+  }
+
+  if (rule.minQuantity && rule.minQuantity > 0) {
+    const totalQty = orderItems.reduce((sum, i) => sum + i.quantity, 0);
+    if (totalQty < rule.minQuantity) return 0;
+  }
+
+  let isEligible = true;
+  if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+    const targetIds = new Set(rule.targetItemIds || []);
+    if (targetIds.size > 0 && (!item.itemId || !targetIds.has(item.itemId))) {
+      isEligible = false;
+    }
+  }
+
+  if (!isEligible) return 0;
+
+  const lineSubtotal = item.unitPrice * item.quantity;
+  if (lineSubtotal <= 0) return 0;
+
+  const targetIds = (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM")
+    ? new Set(rule.targetItemIds || [])
+    : null;
+
+  // Handle Buy X Get Y discount scope calculation
+  if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+    const eligibleUnits: { itemId: string; unitPrice: number }[] = [];
+    for (const orderItem of orderItems) {
+      if (!targetIds || targetIds.has(orderItem.itemId)) {
+        for (let q = 0; q < orderItem.quantity; q++) {
+          eligibleUnits.push({ itemId: orderItem.itemId, unitPrice: orderItem.unitPrice });
+        }
+      }
+    }
+
+    eligibleUnits.sort((a, b) => a.unitPrice - b.unitPrice);
+
+    const freeCount = Math.floor(eligibleUnits.length / (rule.buyQuantity + rule.getQuantity)) * rule.getQuantity;
+    if (freeCount <= 0) return 0;
+
+    const freeUnits = eligibleUnits.slice(0, freeCount);
+    const itemFreeQty = freeUnits.filter((u) => u.itemId === item.itemId).length;
+    return itemFreeQty * item.unitPrice;
+  }
+
+  const eligibleSubtotal = orderItems.reduce((sum, i) => {
+    if (!targetIds || targetIds.has(i.itemId)) {
+      return sum + i.unitPrice * i.quantity;
+    }
+    return sum;
+  }, 0);
+
+  if (eligibleSubtotal <= 0) return 0;
+
+  let disc = 0;
+  if (rule.type === "PERCENTAGE") {
+    disc = (lineSubtotal * rule.value) / 100;
+    if (rule.maxDiscountAmount) {
+      const totalPercentageDisc = (eligibleSubtotal * rule.value) / 100;
+      if (totalPercentageDisc > rule.maxDiscountAmount) {
+        disc = (lineSubtotal / eligibleSubtotal) * rule.maxDiscountAmount;
+      }
+    }
+  } else if (rule.type === "FINAL_PRICE") {
+    const targetAmount = Math.max(0, eligibleSubtotal - rule.value);
+    disc = (lineSubtotal / eligibleSubtotal) * targetAmount;
+  } else {
+    const totalDisc = Math.min(eligibleSubtotal, rule.value);
+    disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+  }
+
+  return Math.min(lineSubtotal, Math.max(0, parseFloat(disc.toFixed(2))));
+}
+
 export function ReceiptTicket({
   business,
   order,
   receipt,
   sale,
   currencies,
+  taxConfig,
   className,
 }: ReceiptTicketProps) {
   const { data: customers = [] } = useGetCustomersQuery();
@@ -55,18 +147,131 @@ export function ReceiptTicket({
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const subtotal = sale?.subtotal ?? order.subtotal;
   const discount = sale?.discountAmount ?? order.discountAmount;
-  const total = Math.max(0, subtotal - discount);
+  const afterDiscount = Math.max(0, subtotal - discount);
+
+  const activeTaxConfig = useMemo(() => {
+    if (taxConfig !== undefined) return taxConfig;
+    if (typeof window === "undefined") return null;
+    return getActiveDefaultTax();
+  }, [taxConfig]);
+
+  const isHistoricalSale = Boolean(sale || (order && order.status === "PAID"));
+
+  const storedTaxRule = useMemo(() => {
+    const id = sale?.orderId || order?.id;
+    if (!id || typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(`pos_order_tax_rule_${id}`);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }, [sale?.orderId, order?.id]);
+
+  let isTaxActive = false;
+  let isTaxInclusive = false;
+  let effectiveTaxRate = 0;
+  let taxAmount = 0;
+
+  const recordTaxInclusionType = sale?.taxInclusionType || order?.taxInclusionType;
+
+  if (taxConfig !== undefined && taxConfig !== null) {
+    // Explicit preview mode override (e.g. Tax Settings preview card)
+    isTaxActive = taxConfig.isActive ?? false;
+    isTaxInclusive = taxConfig.isTaxInclusive ?? false;
+    effectiveTaxRate = isTaxActive ? (taxConfig.taxRate ?? 0) : 0;
+    taxAmount = isTaxActive
+      ? (isTaxInclusive
+          ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+          : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+      : 0;
+  } else if (recordTaxInclusionType) {
+    // Direct from Spring backend API (OrderResponse / SaleResponse)
+    isTaxActive = (sale?.taxAmount && sale.taxAmount > 0) || (order?.taxAmount && order.taxAmount > 0) || (activeTaxConfig?.isActive ?? false);
+    isTaxInclusive = recordTaxInclusionType === "INCLUSIVE";
+    effectiveTaxRate = (sale?.taxRate || order?.taxRate) && (sale?.taxRate || order?.taxRate)! > 0
+      ? (sale?.taxRate || order?.taxRate)!
+      : (activeTaxConfig?.taxRate ?? 10);
+    taxAmount = (sale?.taxAmount && sale.taxAmount > 0)
+      ? sale.taxAmount
+      : (order?.taxAmount && order.taxAmount > 0)
+        ? order.taxAmount
+        : (isTaxInclusive
+            ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+            : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)));
+  } else if (storedTaxRule !== null) {
+    // Historical frozen tax rule snapshot
+    isTaxActive = storedTaxRule.isTaxActive ?? false;
+    isTaxInclusive = storedTaxRule.taxInclusionType
+      ? storedTaxRule.taxInclusionType === "INCLUSIVE"
+      : (storedTaxRule.isTaxInclusive ?? false);
+    effectiveTaxRate = storedTaxRule.taxRate ?? 0;
+    taxAmount = storedTaxRule.taxAmount ?? 0;
+  } else {
+    // Check live store default tax settings
+    const liveTaxActive = activeTaxConfig?.isActive ?? false;
+    const liveTaxInclusive = activeTaxConfig?.isTaxInclusive ?? false;
+    const liveTaxRate = activeTaxConfig?.taxRate ?? 10;
+
+    if (isHistoricalSale && sale) {
+      const saleTaxAmt = sale.taxAmount ?? 0;
+      const saleTaxRate = sale.taxRate ?? 0;
+
+      if (sale.totalAmount > afterDiscount + 0.01) {
+        isTaxActive = true;
+        isTaxInclusive = false;
+        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
+        taxAmount = saleTaxAmt > 0 ? saleTaxAmt : parseFloat((sale.totalAmount - afterDiscount).toFixed(2));
+      } else if (saleTaxAmt > 0 || saleTaxRate > 0) {
+        isTaxActive = true;
+        isTaxInclusive = true;
+        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
+        taxAmount = saleTaxAmt;
+      } else {
+        isTaxActive = false;
+        isTaxInclusive = false;
+        effectiveTaxRate = 0;
+        taxAmount = 0;
+      }
+    } else {
+      // Current open cart
+      isTaxActive = liveTaxActive;
+      isTaxInclusive = liveTaxInclusive;
+      effectiveTaxRate = isTaxActive
+        ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : liveTaxRate)
+        : 0;
+
+      const calculatedTax = isTaxActive
+        ? (isTaxInclusive
+            ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+            : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+        : 0;
+
+      taxAmount = isTaxActive
+        ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
+        : 0;
+    }
+  }
+
+  const effectiveTaxName = activeTaxConfig?.taxName ?? "VAT";
+  const effectiveShowTax = isTaxActive;
+
+  const total = (isHistoricalSale && sale?.totalAmount && sale.totalAmount > 0)
+    ? sale.totalAmount
+    : (isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + taxAmount));
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
   const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
 
   const storedRule = useMemo(() => {
-    if (!order?.id || typeof window === "undefined") return null;
+    const id = sale?.orderId || sale?.id || order?.id;
+    if (!id || typeof window === "undefined") return null;
     try {
-      const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
+      const raw =
+        localStorage.getItem(`pos_order_discount_rule_${id}`) ||
+        localStorage.getItem(`pos_cart_discount_${id}`);
       if (raw) return JSON.parse(raw);
     } catch {}
     return null;
-  }, [order?.id]);
+  }, [sale?.orderId, sale?.id, order?.id]);
 
   const discountLabel = useMemo(() => {
     if (storedRule?.label) return storedRule.label;
@@ -81,11 +286,21 @@ export function ReceiptTicket({
   const displayTotal =
     getRecordedSecondaryAmount(total, record, currencies) ??
     getSecondaryAmount(total, currencyCode, currencies);
-  const location = [business.address, business.cityOrProvince]
+  const locationStr = [business.address, business.cityOrProvince]
     .filter(Boolean)
     .join(", ");
-  const documentTitle = receipt?.vatNumber ? "Tax invoice" : "Receipt";
-  const documentTitleKhmer = receipt?.vatNumber ? "វិក្កយបត្រ" : "បង្កាន់ដៃ";
+  const statusStr = String(order.status || "");
+  const isUnpaid = statusStr === "PENDING" || statusStr === "PARKED" || statusStr === "DRAFT" || (!sale && !receipt && statusStr !== "PAID");
+  const documentTitle = isUnpaid
+    ? "UNPAID ORDER TICKET"
+    : receipt?.vatNumber
+    ? "Tax invoice"
+    : "Receipt";
+  const documentTitleKhmer = isUnpaid
+    ? "វិក្កយបត្រ (មិនទាន់ទូទាត់)"
+    : receipt?.vatNumber
+    ? "វិក្កយបត្រ"
+    : "បង្កាន់ដៃ";
 
   return (
     <article
@@ -113,9 +328,9 @@ export function ReceiptTicket({
         <h1 className="mt-[13px] text-[22px] font-bold leading-[1.45] tracking-[0.44px] text-[#006b26]">
           {businessName}
         </h1>
-        {location && (
+        {locationStr && (
           <p className="mt-[7px] max-w-full text-[13px] leading-[1.5] text-[#3d4a3c]">
-            {location}
+            {locationStr}
           </p>
         )}
         {business.phoneNumber && (
@@ -177,8 +392,12 @@ export function ReceiptTicket({
 
         {order.items.map((item) => {
           const grossAmount = item.unitPrice * item.quantity;
-          const itemDisc = item.discountAmount ?? 0;
-          const netAmount = item.lineTotal ?? (grossAmount - itemDisc);
+          let itemDisc = item.discountAmount ?? 0;
+          if (itemDisc <= 0 && storedRule) {
+            itemDisc = computeItemDiscountFromRule(item, order.items, storedRule);
+          }
+          const netAmount = Math.max(0, grossAmount - itemDisc);
+          const itemDiscPercent = grossAmount > 0 && itemDisc > 0 ? Math.round((itemDisc / grossAmount) * 100) : 0;
 
           return (
             <div
@@ -214,18 +433,37 @@ export function ReceiptTicket({
                 ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
+                  {itemDisc > 0 && (storedRule?.buyQuantity && storedRule?.getQuantity) ? (
+                    <span className="ml-1.5 font-bold text-[#006b26]">
+                      (FREE ITEM)
+                    </span>
+                  ) : itemDiscPercent > 0 && storedRule?.type === "PERCENTAGE" ? (
+                    <span className="ml-1.5 font-bold text-[#006b26]">
+                      ({itemDiscPercent}% OFF)
+                    </span>
+                  ) : itemDisc > 0 ? (
+                    <span className="ml-1.5 font-bold text-[#006b26]">
+                      (-{formatMoney(itemDisc, currency)})
+                    </span>
+                  ) : null}
                 </p>
-                {itemDisc > 0 && (
-                  <p className="font-mono text-[11px] font-medium text-[#d14341]">
-                    Disc: -{formatMoney(itemDisc, currency)}
-                  </p>
-                )}
               </div>
               <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
                 {item.quantity}
               </span>
               <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
-                {formatMoney(netAmount, currency)}
+                {itemDisc > 0 ? (
+                  <div className="flex flex-col items-end leading-tight">
+                    <span className="text-[11px] font-normal text-gray-400 line-through">
+                      {formatMoney(grossAmount, currency)}
+                    </span>
+                    <span className="font-bold text-[#006b26]">
+                      {formatMoney(netAmount, currency)}
+                    </span>
+                  </div>
+                ) : (
+                  formatMoney(grossAmount, currency)
+                )}
               </span>
             </div>
           );
@@ -254,11 +492,35 @@ export function ReceiptTicket({
             </dd>
           </div>
         )}
+
+        {effectiveShowTax && !isTaxInclusive && taxAmount > 0 && (
+          <div className="flex justify-between gap-4 text-[#52605b] text-xs">
+            <dt>Amount Excl. Tax / សរុបមិនទាន់គិតអាករ</dt>
+            <dd className="font-mono font-medium">
+              {formatMoney(afterDiscount, currency)}
+            </dd>
+          </div>
+        )}
+
+        {effectiveShowTax && !isTaxInclusive && taxAmount > 0 && (
+          <div className="flex justify-between gap-4 font-medium text-[#006b26]">
+            <dt className="flex items-center gap-1">
+              +
+              {effectiveTaxName.includes("VAT") ? "VAT" : (effectiveTaxName.split("(")[0]?.trim() || effectiveTaxName)}
+              {effectiveTaxRate > 0 ? ` (${effectiveTaxRate}%)` : ""} / អាករ
+            </dt>
+            <dd className="font-mono font-bold">
+              +{formatMoney(taxAmount, currency)}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">
         <div className="flex items-center justify-between gap-4">
-          <dt className="text-sm font-bold uppercase">Total</dt>
+          <dt className="text-sm font-bold uppercase">
+            Total {!isTaxInclusive && effectiveShowTax && taxAmount > 0 ? "(Incl. Tax)" : ""} / សរុប{!isTaxInclusive && effectiveShowTax && taxAmount > 0 ? "រួមអាករ" : ""}
+          </dt>
           <dd className="font-mono text-xl font-bold leading-none">
             {formatMoney(total, currency)}
           </dd>
@@ -275,22 +537,30 @@ export function ReceiptTicket({
         )}
       </dl>
 
+      {isTaxActive && isTaxInclusive && (
+        <p className="mt-2 text-center text-[11px] font-medium text-[#3d4a3c] italic">
+          * Product prices include {effectiveTaxName.includes("VAT") ? "VAT" : effectiveTaxName} {effectiveTaxRate > 0 ? `(${effectiveTaxRate}%)` : ""} · តម្លៃរួមបញ្ចូលអាកររួចជាស្រេច
+        </p>
+      )}
+
       <dl className="space-y-1 border-b border-dashed border-[#9aa79a] py-2.5 text-[13px] leading-[1.45] text-[#3d4a3c]">
         <div className="flex justify-between gap-4">
           <dt>
-            Paid
-            {sale
+            {isUnpaid ? "Status / ស្ថានភាព" : "Paid"}
+            {!isUnpaid && sale
               ? ` · ${sale.paymentMethod === "CASH" ? "Cash" : "Digital"}`
               : ""}
           </dt>
-          <dd className="font-mono text-[#0e140e]">
-            {formatMoney(
-              sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
-              currency,
-            )}
+          <dd className={cn("font-mono", isUnpaid ? "font-bold text-amber-600" : "text-[#0e140e]")}>
+            {isUnpaid
+              ? "UNPAID / មិនទាន់ទូទាត់"
+              : formatMoney(
+                  sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
+                  currency,
+                )}
           </dd>
         </div>
-        {sale?.paymentMethod === "CASH" && (
+        {!isUnpaid && sale?.paymentMethod === "CASH" && (
           <div className="flex justify-between gap-4">
             <dt>Change / អាប់</dt>
             <dd className="font-mono text-[#0e140e]">

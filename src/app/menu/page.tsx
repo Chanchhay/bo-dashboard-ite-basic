@@ -145,7 +145,7 @@ function StaticMenuContent() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
       {/* Fixed Header Navbar */}
       <div className="shrink-0 w-full z-40">
         <MenuNavbar
@@ -155,9 +155,9 @@ function StaticMenuContent() {
         />
       </div>
 
-      {/* App Body Container: Fixed Height, non-scrollable outer page */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6 overflow-hidden flex gap-8 items-start">
-        {/* Fixed Left Sidebar Category Filter */}
+      {/* Responsive App Body Container */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-4 sm:py-6 md:overflow-hidden flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+        {/* Desktop Fixed Left Sidebar Category Filter */}
         <div className="hidden md:block w-56 lg:w-64 shrink-0 h-full overflow-y-auto pr-1 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <CategoryFilter
             categories={businessOwnerCategories}
@@ -213,23 +213,26 @@ function StaticMenuContent() {
           />
         </div>
 
-        {/* Main Product Display Area: Only Product Grid Scrolls */}
-        <div className="flex-1 h-full min-w-0 flex flex-col space-y-4">
-          {/* Fixed Title Header */}
-          <div className="shrink-0 flex items-center justify-between border-b border-gray-200/80 dark:border-gray-800/80 pb-4">
-            <h2 className="text-xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+        {/* Main Product Display Area */}
+        <div className="flex-1 w-full md:h-full min-w-0 flex flex-col space-y-4">
+          {/* Title Header */}
+          <div className="shrink-0 flex items-center justify-between border-b border-gray-200/80 dark:border-gray-800/80 pb-3 sm:pb-4">
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
               {selectedMainCategory === "All"
                 ? "All Products"
                 : selectedSubCategory !== "All"
                 ? `${selectedMainCategory} › ${selectedSubCategory}`
                 : selectedMainCategory}
             </h2>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+            </span>
           </div>
 
-          {/* Scrollable Product Menu Grid Area ONLY */}
-          <div className="flex-1 overflow-y-auto pr-1 pb-16 scroll-smooth rounded-2xl [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
+          {/* Scrollable Product Menu Grid Area */}
+          <div className="flex-1 md:overflow-y-auto pr-0 sm:pr-1 pb-16 scroll-smooth rounded-2xl [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
             {isLoading ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 sm:gap-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                   <MenuCardSkeleton key={n} />
                 ))}
@@ -251,14 +254,14 @@ function StaticMenuContent() {
                       setQuickFilter("all");
                       setSortBy("default");
                     }}
-                    className="mt-4 rounded-xl bg-[#00932a] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#00932a]/90 transition-all cursor-pointer"
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary/90 transition-all cursor-pointer"
                   >
                     Reset All Filters
                   </button>
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 sm:gap-5 pt-1">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5 pt-1">
                 {filteredItems.map((item) => (
                   <MenuCard
                     key={item.id}

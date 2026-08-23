@@ -1,6 +1,6 @@
 "use client";
 
-import { Layers } from "lucide-react";
+import { AlertTriangle, Layers } from "lucide-react";
 
 import {
     getApiErrorMessage,
@@ -30,9 +30,14 @@ import { useGetItemStockBatchesQuery } from "@/services/inventoryApi";
  * The deliveries behind one item, in the order they will be sold.
  *
  * Stock is not one number at one price. Each delivery keeps the price it
- * arrived at, and a sale eats the oldest one first — so an item can be sitting
+ * arrived at, and a sale eats them in date order — so an item can be sitting
  * on two batches bought months apart at different money, and what the next
  * sale costs depends which of them it comes out of.
+ *
+ * The order is by expiry first, and only then by age: a short-dated delivery
+ * that arrived this morning leaves before stock that has sat here a fortnight
+ * and keeps for another year. That is why the position is spelled out rather
+ * than left to be read off the dates — the top row is not always the oldest.
  *
  * Without this the margin on a receipt is a number the shop has to take on
  * trust. With it, the next sale's cost is the top row.
@@ -65,6 +70,19 @@ export function StockBatchesDialog({
     );
     const unitWord = (unitName || "unit").toLowerCase();
 
+    // Expired stock still sells — a till stopped mid-sale over a date nobody
+    // got round to writing off is worse than a flag. So this screen is where
+    // the shop finds out there is something to write off.
+    const expiredBatches = batches.filter((batch) => batch.expired);
+    const expiredQuantity = expiredBatches.reduce(
+        (sum, batch) => sum + (batch.quantityRemaining ?? 0),
+        0,
+    );
+    const expiredValue = expiredBatches.reduce(
+        (sum, batch) => sum + (batch.remainingValue ?? 0),
+        0,
+    );
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl gap-4">
@@ -75,8 +93,9 @@ export function StockBatchesDialog({
                     </DialogTitle>
                     <DialogDescription>
                         Each delivery keeps the price it arrived at, and a sale
-                        takes the oldest first. The next sale comes out of the
-                        top row.
+                        takes whichever expires soonest — then the oldest of
+                        what never expires. The next sale comes out of the top
+                        row.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -109,7 +128,8 @@ export function StockBatchesDialog({
                                         <TableHead className="w-16">
                                             Next
                                         </TableHead>
-                                        <TableHead>Received</TableHead>
+                                        <TableHead>Batch</TableHead>
+                                        <TableHead>Expires</TableHead>
                                         <TableHead className="text-right">
                                             Cost each
                                         </TableHead>
@@ -141,19 +161,61 @@ export function StockBatchesDialog({
 
                                             <TableCell>
                                                 <p className="text-sm font-medium text-foreground">
-                                                    {batch.receivedAt
-                                                        ? new Date(
-                                                              batch.receivedAt,
-                                                          ).toLocaleDateString(
-                                                              "en-GB",
-                                                          )
-                                                        : "—"}
+                                                    {batch.lotNumber ||
+                                                        (batch.receivedAt
+                                                            ? new Date(
+                                                                  batch.receivedAt,
+                                                              ).toLocaleDateString(
+                                                                  "en-GB",
+                                                              )
+                                                            : "—")}
                                                 </p>
-                                                {batch.variantName ? (
-                                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                                        {batch.variantName}
-                                                    </p>
-                                                ) : null}
+                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                    {[
+                                                        batch.variantName,
+                                                        // Once a lot is named
+                                                        // it takes the line
+                                                        // above, so the date
+                                                        // it came in moves
+                                                        // down here rather
+                                                        // than disappearing.
+                                                        batch.lotNumber &&
+                                                        batch.receivedAt
+                                                            ? `in ${new Date(
+                                                                  batch.receivedAt,
+                                                              ).toLocaleDateString(
+                                                                  "en-GB",
+                                                              )}`
+                                                            : null,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(" · ")}
+                                                </p>
+                                            </TableCell>
+
+                                            <TableCell>
+                                                {batch.expiresAt ? (
+                                                    <span
+                                                        className={
+                                                            batch.expired
+                                                                ? "inline-flex items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger"
+                                                                : "text-sm text-foreground tabular-nums"
+                                                        }
+                                                    >
+                                                        {batch.expired ? (
+                                                            <AlertTriangle className="size-3" />
+                                                        ) : null}
+                                                        {new Date(
+                                                            batch.expiresAt,
+                                                        ).toLocaleDateString(
+                                                            "en-GB",
+                                                        )}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Does not expire
+                                                    </span>
+                                                )}
                                             </TableCell>
 
                                             <TableCell className="text-right text-sm font-semibold text-foreground tabular-nums">
@@ -180,6 +242,25 @@ export function StockBatchesDialog({
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {expiredBatches.length > 0 ? (
+                            <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3">
+                                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
+                                <div>
+                                    <p className="text-sm font-semibold text-danger">
+                                        {formatAmount(expiredQuantity)}{" "}
+                                        {unitWord}
+                                        {expiredQuantity === 1 ? "" : "s"} past
+                                        their date, worth{" "}
+                                        {format(expiredValue)}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-danger/90">
+                                        Still counted and still sellable.
+                                        Record a stock out to write them off.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : null}
 
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/40 px-4 py-3">
                             <p className="text-sm text-muted-foreground">
