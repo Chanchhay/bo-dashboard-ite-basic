@@ -161,12 +161,9 @@ function getBusinessTypes(
     return businessTypes;
 }
 
-// This form's styling is the app-wide reference; both names stay as local
-// aliases so the rest of the file reads unchanged.
 const inputClassName = controlClassName;
 const textareaClassName = sharedTextareaClassName;
 
-/** A picker plus the "staged until you save" wording both images share. */
 function StagedImageField({
     staged,
     rules,
@@ -180,7 +177,6 @@ function StagedImageField({
     rules: ImageUploadRules;
     disabled: boolean;
     label: string;
-    /** Names the image in the buttons: "Logo", "Cover". */
     noun: string;
     preview: ReactNode;
     previewShape?: "circle" | "rect";
@@ -262,8 +258,6 @@ function BusinessProfileEditor({
         isUploadingThumbnail ||
         isDeletingThumbnail;
     const formRef = useRef<HTMLFormElement>(null);
-    // Both images stage their pick and their removal until the form is saved,
-    // so a cancelled edit never touches what is stored.
     const logo = useStagedImage(businessLogoRules, business.logo || "");
     const thumbnail = useStagedImage(
         businessThumbnailRules,
@@ -311,8 +305,6 @@ function BusinessProfileEditor({
         let imageChanged = false;
 
         try {
-            // Both images live behind their own endpoints, so they go first and
-            // the profile update below refreshes the cached business for all.
             if (logo.file) {
                 await uploadBusinessLogo(logo.file).unwrap();
                 imageChanged = true;
@@ -339,8 +331,6 @@ function BusinessProfileEditor({
             });
         } catch (error) {
             if (imageChanged) {
-                // An image already changed on the server; pull the business
-                // back so the form is not left showing a stale picture.
                 dispatch(businessApi.util.invalidateTags(["Business"]));
             }
 
@@ -375,12 +365,13 @@ function BusinessProfileEditor({
                         preview={
                             <span className="flex size-24 sm:size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8] dark:bg-[#252a38]">
                                 {logo.preview ? (
-                                    // The API supplies this URL dynamically and the local preview uses a blob URL.
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
+                                    
+                                    <Image
                                         src={logo.preview}
                                         alt="Business logo preview"
                                         className="size-full object-cover"
+                                        width={128}
+                                        height={128}
                                     />
                                 ) : (
                                     <Camera className="size-7 sm:size-9 text-primary" />

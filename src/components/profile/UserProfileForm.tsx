@@ -421,7 +421,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
                 <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <h2 className="text-base font-bold text-[#161d16] dark:text-[#f8fafc]">
-                        Account information
+                        Account Information
                     </h2>
                     <p className="mt-1 text-sm text-[#6b7569] dark:text-[#94a3b8]">
                         These details are managed by your account provider.
@@ -468,7 +468,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                     <Field
-                        label="First name"
+                        label="First Name"
                         name="firstName"
                         error={fieldErrors.firstName}
                     >
@@ -487,7 +487,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     </Field>
 
                     <Field
-                        label="Last name"
+                        label="Last Name"
                         name="lastName"
                         error={fieldErrors.lastName}
                     >
@@ -506,7 +506,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     </Field>
 
                     <Field
-                        label="Phone number"
+                        label="Phone Number"
                         name="phoneNumber"
                         error={fieldErrors.phoneNumber}
                     >

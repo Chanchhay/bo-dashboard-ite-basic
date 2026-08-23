@@ -252,37 +252,27 @@ export function DiscountSelectModal({
                     </div>
 
                     {/* Mode Tabs */}
-                    <div className="flex gap-1.5 pt-3">
-                        <button
-                            type="button"
-                            onClick={() => setTab("ACTIVE")}
-                            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === "ACTIVE"
-                                ? "bg-primary text-white shadow-sm"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                }`}
-                        >
-                            Promotions ({activeDiscounts.length})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setTab("CUSTOM")}
-                            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === "CUSTOM"
-                                ? "bg-primary text-white shadow-sm"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                }`}
-                        >
-                            Custom % / $
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setTab("COUPON")}
-                            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${tab === "COUPON"
-                                ? "bg-primary text-white shadow-sm"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                }`}
-                        >
-                            Coupon Code
-                        </button>
+                    <div className="grid grid-cols-3 gap-1.5 pt-3">
+                        {(
+                            [
+                                { key: "ACTIVE", icon: Tag, label: `Promotions (${activeDiscounts.length})` },
+                                { key: "CUSTOM", icon: Percent, label: "Custom / $" },
+                                { key: "COUPON", icon: Ticket, label: "Coupon Code" },
+                            ] as const
+                        ).map(({ key, icon: Icon, label }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setTab(key)}
+                                className={`h-9 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden transition-all ${tab === key
+                                        ? "bg-primary text-white shadow-sm"
+                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    }`}
+                            >
+                                <Icon className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{label}</span>
+                            </button>
+                        ))}
                     </div>
                 </DialogHeader>
 
@@ -483,37 +473,27 @@ export function DiscountSelectModal({
 
                     {tab === "CUSTOM" && (
                         <form onSubmit={handleApplyCustom} className="space-y-4">
-                            <div className="flex gap-1.5">
-                                <button
-                                    type="button"
-                                    onClick={() => setCustomType("PERCENTAGE")}
-                                    className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "PERCENTAGE"
-                                        ? "border-primary bg-primary/10 text-primary shadow-xs"
-                                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                                        }`}
-                                >
-                                    <Percent className="h-3.5 w-3.5" /> % OFF
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setCustomType("FIXED")}
-                                    className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "FIXED"
-                                        ? "border-primary bg-primary/10 text-primary shadow-xs"
-                                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                                        }`}
-                                >
-                                    <DollarSign className="h-3.5 w-3.5" /> $ OFF
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setCustomType("FINAL_PRICE")}
-                                    className={`flex-1 h-10 rounded-xl border font-bold text-[11px] flex items-center justify-center gap-1 transition-all ${customType === "FINAL_PRICE"
-                                        ? "border-primary bg-primary/10 text-primary shadow-xs"
-                                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                                        }`}
-                                >
-                                    <Tag className="h-3.5 w-3.5" /> Price After Discount
-                                </button>
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {(
+                                    [
+                                        { type: "PERCENTAGE", icon: Percent, label: "% Off" },
+                                        { type: "FIXED", icon: DollarSign, label: "Amount Off" },
+                                        { type: "FINAL_PRICE", icon: Tag, label: "Final Price" },
+                                    ] as const
+                                ).map(({ type, icon: Icon, label }) => (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => setCustomType(type)}
+                                        className={`h-14 rounded-xl border font-bold text-[11px] flex flex-col items-center justify-center gap-1 transition-all ${customType === type
+                                                ? "border-primary bg-primary/10 text-primary shadow-xs"
+                                                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                            }`}
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                        {label}
+                                    </button>
+                                ))}
                             </div>
 
                             <div className="space-y-1.5">

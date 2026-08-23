@@ -281,7 +281,7 @@ export function Payment({
                       </div>
                     )}
                     <div className="mt-3 flex justify-between border-t border-[#1e293b] pt-4 font-semibold">
-                      <span>To pay</span>
+                      <span>To Pay</span>
                       <span className="text-primary">{format(total, order.currency)}</span>
                     </div>
                   </div>
@@ -290,7 +290,7 @@ export function Payment({
                 {/* Right: total + payment method */}
                 <div className="flex min-w-0 flex-col gap-7 sm:gap-8">
                   <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-[18px] bg-[#f5f5f5] p-6 text-center sm:min-h-36 sm:p-8">
-                    <p className="text-sm text-[#020409] sm:text-lg">To pay</p>
+                    <p className="text-sm text-[#020409] sm:text-lg">To Pay</p>
                     <p className="text-4xl font-semibold leading-none text-primary sm:text-[40px]">
                       {format(total, order.currency)}
                     </p>
@@ -303,7 +303,7 @@ export function Payment({
 
                   <div className="flex w-full flex-col gap-3 sm:gap-4">
                     <p className="text-sm font-semibold text-[#020409] sm:text-lg">
-                      Payment method
+                      Payment Method
                     </p>
                     <div data-tour="pos-payment-method" className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
                       <button
