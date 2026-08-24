@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import { auth } from "@/lib/auth/auth";
 import {
     KeycloakTokenError,
     persistAuthCookies,
@@ -21,6 +22,12 @@ export class BackendApiError extends Error {
     constructor(
         message: string,
         readonly status: number,
+        /**
+         * The sign-in itself is over — not merely this request refused. The
+         * browser is told so it can restart OAuth rather than offer a retry
+         * that cannot succeed.
+         */
+        readonly sessionExpired = false,
     ) {
         super(message);
         this.name = "BackendApiError";
@@ -48,6 +55,16 @@ function getApiBaseUrl() {
 async function getKeycloakAccessToken(renew = false) {
     const requestHeaders = await headers();
 
+    // The account cookie holds the Keycloak tokens, but the session cookie is
+    // what says this browser is still signed in. Both are written and expired
+    // together, so a live account cookie without a session means a sign-out
+    // this request must not be allowed to outlive.
+    const session = await auth.api.getSession({ headers: requestHeaders });
+
+    if (!session) {
+        throw new BackendApiError("Your session has expired.", 401, true);
+    }
+
     try {
         const { accessToken, setCookies } = renew
             ? await renewKeycloakAccessToken(requestHeaders)
@@ -58,7 +75,11 @@ async function getKeycloakAccessToken(renew = false) {
         return accessToken;
     } catch (error) {
         if (error instanceof KeycloakTokenError) {
-            throw new BackendApiError(error.message, error.status);
+            throw new BackendApiError(
+                error.message,
+                error.status,
+                error.status === 401,
+            );
         }
 
         throw new BackendApiError(
@@ -170,7 +191,9 @@ export async function backendRequest<T>(
 export function backendErrorResponse(error: unknown) {
     if (error instanceof BackendApiError) {
         return Response.json(
-            { message: error.message },
+            error.sessionExpired
+                ? { message: error.message, sessionExpired: true }
+                : { message: error.message },
             { status: error.status },
         );
     }

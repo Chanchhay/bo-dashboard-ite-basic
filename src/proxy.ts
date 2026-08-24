@@ -6,7 +6,11 @@ import {
 } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
-import { resolveKeycloakAccessToken } from "@/lib/auth/keycloak-token";
+import {
+    KeycloakTokenError,
+    expiredAuthCookies,
+    resolveKeycloakAccessToken,
+} from "@/lib/auth/keycloak-token";
 
 const protectedRoutes = [
     "/apps",
@@ -32,6 +36,33 @@ const authRoutes = ["/login", "/callback"];
  * forwarded request headers, so the render that follows reads the fresh token
  * rather than the one it arrived with.
  */
+function withCookies(response: NextResponse, setCookies: string[]) {
+    for (const value of setCookies) {
+        for (const [name, attributes] of parseSetCookieHeader(value)) {
+            response.cookies.set(
+                name,
+                attributes.value,
+                toCookieOptions(attributes),
+            );
+        }
+    }
+
+    return response;
+}
+
+/**
+ * Refreshes the Keycloak tokens before the request reaches a page.
+ *
+ * This is the only place in a page request that can still write cookies: by
+ * the time a Server Component renders, the response headers are committed and
+ * a rotated refresh token would be silently dropped — leaving the browser to
+ * replay a token Keycloak has already retired. See better-auth#7394 and the
+ * notes in `@/lib/auth/keycloak-token`.
+ *
+ * The new cookie goes onto the response for the browser *and* onto the
+ * forwarded request headers, so the render that follows reads the fresh token
+ * rather than the one it arrived with.
+ */
 async function refreshedResponse(request: NextRequest) {
     try {
         const { setCookies } = await resolveKeycloakAccessToken(request.headers);
@@ -41,25 +72,30 @@ async function refreshedResponse(request: NextRequest) {
         const requestHeaders = new Headers(request.headers);
         applySetCookies(requestHeaders, setCookies);
 
-        const response = NextResponse.next({
-            request: { headers: requestHeaders },
-        });
-
-        for (const value of setCookies) {
-            for (const [name, attributes] of parseSetCookieHeader(value)) {
-                response.cookies.set(
-                    name,
-                    attributes.value,
-                    toCookieOptions(attributes),
-                );
-            }
+        return withCookies(
+            NextResponse.next({ request: { headers: requestHeaders } }),
+            setCookies,
+        );
+    } catch (error) {
+        /*
+         * A session Keycloak will not renew is over, and there is nothing
+         * behind this page without it. Clearing the cookies and sending the
+         * browser to `/login` restarts OAuth, which signs the user back in
+         * without a prompt while their Keycloak SSO session is still alive —
+         * far better than rendering a page of failed panels.
+         */
+        if (error instanceof KeycloakTokenError && error.status === 401) {
+            return withCookies(
+                NextResponse.redirect(new URL("/login", request.url)),
+                await expiredAuthCookies(request.headers),
+            );
         }
 
-        return response;
-    } catch {
-        // A refresh that cannot be completed is not a reason to refuse the
-        // page. The request goes through and the route handler or the page's
-        // own error state reports it, which is where the user can act on it.
+        /*
+         * Anything else — Keycloak unreachable, discovery down — is this
+         * server's problem, not a reason to sign someone out. The request goes
+         * through and the page's own error state reports it.
+         */
         return NextResponse.next();
     }
 }
