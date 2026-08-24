@@ -55,10 +55,6 @@ export async function PUT(request: Request) {
         const desired = result.data;
         const businessId = await getBusinessId();
 
-        // One atomic call: the backend owns the ordering and rebasing, so a
-        // failure here leaves the configuration untouched rather than half
-        // applied. The currency list is the desired end state — codes left out
-        // of it are removed.
         const updated = await backendRequest<BusinessCurrencyConfiguration>(
             `${currencyPath(businessId)}/configuration`,
             {

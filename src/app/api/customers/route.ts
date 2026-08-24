@@ -1,36 +1,44 @@
 import { NextRequest } from "next/server";
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
+import { pageQueryParams, toPageResult } from "@/lib/api/pagination";
 import type { CustomerResponse } from "@/lib/api/customer";
 
-export async function GET() {
-    try {
-        const businessId = await getCurrentBusinessId();
-        const customers = await backendRequest<CustomerResponse[]>(
-            `/api/v1/businesses/${businessId}/customers`,
-        );
+export async function GET(request: NextRequest) {
+  try {
+    const businessId = await getCurrentBusinessId();
+    const searchParams = new URL(request.url).searchParams;
+    const params = pageQueryParams(searchParams);
 
-        return Response.json(customers);
-    } catch (error) {
-        return backendErrorResponse(error);
-    }
+    const page = await backendRequest<{
+      content: CustomerResponse[];
+      number: number;
+      size: number;
+      totalElements: number;
+      totalPages: number;
+    }>(`/api/v1/businesses/${businessId}/customers?${params.toString()}`);
+
+    return Response.json(toPageResult(page));
+  } catch (error) {
+    return backendErrorResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
-    try {
-        const businessId = await getCurrentBusinessId();
-        const body = await request.json();
+  try {
+    const businessId = await getCurrentBusinessId();
+    const body = await request.json();
 
-        const customer = await backendRequest<CustomerResponse>(
-            `/api/v1/businesses/${businessId}/customers`,
-            {
-                method: "POST",
-                body: JSON.stringify(body),
-            },
-        );
+    const customer = await backendRequest<CustomerResponse>(
+      `/api/v1/businesses/${businessId}/customers`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
 
-        return Response.json(customer, { status: 201 });
-    } catch (error) {
-        return backendErrorResponse(error);
-    }
+    return Response.json(customer, { status: 201 });
+  } catch (error) {
+    return backendErrorResponse(error);
+  }
 }

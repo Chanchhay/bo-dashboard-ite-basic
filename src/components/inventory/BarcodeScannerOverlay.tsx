@@ -15,16 +15,6 @@ import { useBarcodeKeyboard } from "@/hooks/useBarcodeKeyboard";
 import { type InventoryItem } from "@/lib/api/inventory";
 import { useLazyFindInventoryItemByBarcodeQuery } from "@/services/inventoryApi";
 
-/*
- * The scan surface. Opening it arms the keyboard (see `useBarcodeKeyboard`) —
- * there is no field to keep focused, because a scanner just types. The screen
- * dims to say so: while this is up, keystrokes belong to the scanner and to
- * nothing else behind it.
- *
- * Typing the code by hand still works, and still ends with Enter; the digits
- * appear under the beam as they arrive so a half-read scan is visible rather
- * than silent.
- */
 
 type BarcodeScannerOverlayProps = {
     open: boolean;
@@ -105,8 +95,6 @@ export function BarcodeScannerOverlay({
         [findItem, onItemFound, onOpenChange, toast],
     );
 
-    // The keyboard stays armed while scanning, and stands down once a result is
-    // on screen so the buttons in it can be used normally.
     const listening = open && !foundItem && !findState.isFetching;
     const { buffer } = useBarcodeKeyboard({
         enabled: listening,
@@ -127,8 +115,6 @@ export function BarcodeScannerOverlay({
         };
     }, [open]);
 
-    // Escape is handled by the keyboard hook while listening; once a result is
-    // showing, it still has to close the overlay.
     useEffect(() => {
         if (!open || listening) {
             return;
@@ -144,8 +130,6 @@ export function BarcodeScannerOverlay({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [open, listening, close]);
 
-    // `open` only ever flips after a click, so there is no server render of
-    // this subtree to mismatch — the document check just keeps SSR safe.
     if (!open || typeof document === "undefined") {
         return null;
     }

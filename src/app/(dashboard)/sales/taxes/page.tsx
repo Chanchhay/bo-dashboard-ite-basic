@@ -247,7 +247,7 @@ export default function TaxesPage() {
         {/* Main Settings Form */}
         <form onSubmit={handleSave} className="lg:col-span-7 space-y-6">
           {/* Card 1: Status Options */}
-          <div className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
+          <div data-tour="tax-status-toggle" className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
             <div className="border-b pb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Tax Status</h2>
@@ -310,7 +310,7 @@ export default function TaxesPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Tax Name */}
-              <div className="space-y-2">
+              <div data-tour="tax-name-input" className="space-y-2">
                 <Label htmlFor="taxName" className="font-medium text-foreground">
                   Tax Label / Name <span className="text-destructive">*</span>
                 </Label>
@@ -328,7 +328,7 @@ export default function TaxesPage() {
               </div>
 
               {/* Tax Type */}
-              <div className="space-y-2">
+              <div data-tour="tax-type-select" className="space-y-2">
                 <Label htmlFor="taxType" className="font-medium text-foreground">
                   Calculation Type
                 </Label>
@@ -351,7 +351,7 @@ export default function TaxesPage() {
 
               {/* Tax Rate or Fixed Amount */}
               {taxType === "PERCENTAGE" ? (
-                <div className="space-y-2 sm:col-span-2">
+                <div data-tour="tax-rate-input" className="space-y-2 sm:col-span-2">
                   <Label htmlFor="taxRate" className="font-medium text-foreground">
                     Tax Rate Percentage (%)
                   </Label>
@@ -374,7 +374,7 @@ export default function TaxesPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2 sm:col-span-2">
+                <div data-tour="tax-rate-input" className="space-y-2 sm:col-span-2">
                   <Label htmlFor="taxAmount" className="font-medium text-foreground">
                     Fixed Tax Amount ($)
                   </Label>
@@ -398,7 +398,7 @@ export default function TaxesPage() {
               )}
 
               {/* Tax Pricing Mode (Exclusive vs Inclusive) */}
-              <div className="space-y-2 sm:col-span-2 pt-2 border-t">
+              <div data-tour="tax-mode-selection" className="space-y-2 sm:col-span-2 pt-2 border-t">
                 <Label className="font-medium text-foreground">Tax Pricing Mode</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div
@@ -462,7 +462,7 @@ export default function TaxesPage() {
           </div>
 
           {/* Save Button Action Bar */}
-          <div className="flex justify-end pt-2">
+          <div data-tour="tax-save-btn" className="flex justify-end pt-2">
             <Button type="submit" disabled={!isDirty || isSubmitting} className="min-w-[160px] gap-2">
               {isSubmitting ? (
                 <>
@@ -480,7 +480,7 @@ export default function TaxesPage() {
         </form>
 
         {/* Authentic Receipt Ticket Preview Panel */}
-        <div className="lg:col-span-5 space-y-4">
+        <div data-tour="tax-receipt-preview" className="lg:col-span-5 space-y-4">
           <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-6">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">

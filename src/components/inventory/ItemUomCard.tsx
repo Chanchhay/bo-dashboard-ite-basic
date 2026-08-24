@@ -24,7 +24,6 @@ import {
     type UomConversion,
 } from "@/lib/inventory-config/units";
 
-/** The card reads units by symbol; the API answers with one on every unit. */
 function toConfigUnit(unit: ApiUnit): Unit {
     return {
         id: unit.id,
@@ -37,7 +36,6 @@ function toConfigUnit(unit: ApiUnit): Unit {
 }
 
 export type ItemUomDraft = {
-    /** Empty until picked. Stock and thresholds are all expressed in this. */
     baseUnitId: string;
     conversions: UomConversion[];
 };
@@ -47,16 +45,6 @@ export const emptyUomDraft: ItemUomDraft = {
     conversions: [],
 };
 
-/**
- * Units of measure for one item, following the CartonCloud model: a **base unit
- * of measure** — the smallest sellable, pickable quantity — plus conversions
- * declared against it.
- *
- * Conversions live here rather than on the unit because they are only true of
- * this item: a sack of rice and a sack of flour are both sacks and do not weigh
- * the same. It also means packaging needs no separate concept — "sold by the
- * bottle, holds 750 ml" is just a conversion on an item based in millilitres.
- */
 export function ItemUomCard({
     apiUnits,
     options = [],
@@ -66,18 +54,7 @@ export function ItemUomCard({
     onDraftChange,
     trackInventory = true,
 }: {
-    /** Units the live API knows about, used for the saved `unitId` field. */
     apiUnits: readonly ApiUnit[];
-    /**
-     * The options this item is sold in, saved or still being typed.
-     *
-     * A larger unit belongs to one of them: a shop that sells Large by the
-     * case need not sell Small that way, and the two need not hold the same
-     * number. Empty when the item is sold as itself.
-     *
-     * The `id` is whatever the form calls the option row, not necessarily a
-     * saved option's id — the two are set up together and saved in one go.
-     */
     options?: readonly { id: string; name: string }[];
     lowStockDefault: number;
     lowStockError?: string;
@@ -137,7 +114,6 @@ export function ItemUomCard({
         setErrors({});
     }
 
-    /** Fixes the inverted factor people type: 1/6 becomes 6. */
     function swapConversionDraft() {
         const factor = Number(conversionDraft.factor);
 
@@ -274,9 +250,6 @@ export function ItemUomCard({
                     <ul className="mt-4 flex flex-col gap-2">
                         {draft.conversions.map((conversion) => {
                             const unit = findUnit(units, conversion.unitId);
-                            // Known to this item's options, not merely set: an
-                            // option that has since been removed or renamed
-                            // leaves the conversion pointing at nothing.
                             const chosen = options.find(
                                 (option) => option.id === conversion.variantId,
                             );
@@ -348,8 +321,6 @@ export function ItemUomCard({
                             : "sm:grid-cols-[1fr_1fr_auto]"
                     }`}
                 >
-                    {/* Which option this unit is for. A case of Large is not a
-                        case of Small, so it is chosen where it is defined. */}
                     {options.length ? (
                         <div className="flex min-w-0 flex-col gap-2">
                             <Label

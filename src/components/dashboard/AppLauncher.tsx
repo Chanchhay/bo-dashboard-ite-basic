@@ -15,7 +15,6 @@ import BrandLogo from "@/components/brand/BrandLogo";
 
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 
-/** How long the icon grows before the route actually changes. */
 const OPEN_MS = 620;
 
 type Opening = {
@@ -159,11 +158,6 @@ function AppTile({
     );
 }
 
-/*
- * A pure `transform: scale()` on a circle seeded at the icon's own position.
- * Growing the real rectangle instead would mean animating width/height, which
- * relayouts every frame; scaling a fixed-size layer stays on the compositor.
- */
 function AppOpen({ section, cx, cy, size }: Opening) {
     const [grown, setGrown] = useState(false);
     const Icon = section.icon;
@@ -174,7 +168,6 @@ function AppOpen({ section, cx, cy, size }: Opening) {
         return () => cancelAnimationFrame(raf);
     }, []);
 
-    // Reach the furthest corner from wherever the icon happens to sit.
     const reach = Math.hypot(
         Math.max(cx, window.innerWidth - cx),
         Math.max(cy, window.innerHeight - cy),

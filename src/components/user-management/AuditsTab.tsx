@@ -1,5 +1,6 @@
 "use client";
 
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Lock, Search } from "lucide-react";
 
@@ -20,8 +21,6 @@ import {
     humanizeEnum,
 } from "@/lib/api/user-management";
 import { useGetAuditLogsQuery } from "@/services/userManagementApi";
-
-const PAGE_SIZE = 20;
 
 /** A select can't carry an empty value, so "no filter" needs a sentinel. */
 const ALL = "__all";
@@ -47,9 +46,10 @@ export default function AuditsTab({
     const [targetType, setTargetType] = useState("");
     const [keyword, setKeyword] = useState("");
     const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
     const auditQuery = useGetAuditLogsQuery(
-        { actionType, targetType, keyword, page, size: PAGE_SIZE },
+    { actionType, targetType, keyword, page, size: pageSize },
         { skip: !canReadAudits },
     );
 
@@ -106,9 +106,7 @@ export default function AuditsTab({
                         id="audit-keyword"
                         type="search"
                         value={keyword}
-                        onChange={(event) =>
-                            resetTo(() => setKeyword(event.target.value))
-                        }
+            onChange={(event) => resetTo(() => setKeyword(event.target.value))}
                         placeholder="Search by actor or target"
                         className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
@@ -122,9 +120,7 @@ export default function AuditsTab({
                         id="audit-action"
                         value={actionType || ALL}
                         onValueChange={(next) =>
-                            resetTo(() =>
-                                setActionType(next === ALL ? "" : next),
-                            )
+              resetTo(() => setActionType(next === ALL ? "" : next))
                         }
                         options={[
                             { value: ALL, label: "All actions" },
@@ -144,9 +140,7 @@ export default function AuditsTab({
                         id="audit-target"
                         value={targetType || ALL}
                         onValueChange={(next) =>
-                            resetTo(() =>
-                                setTargetType(next === ALL ? "" : next),
-                            )
+              resetTo(() => setTargetType(next === ALL ? "" : next))
                         }
                         options={[
                             { value: ALL, label: "All targets" },
@@ -187,34 +181,19 @@ export default function AuditsTab({
                             </caption>
                             <thead>
                                 <tr className="border-b border-border text-[12px] text-muted-foreground">
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         When
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Actor
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Action
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Target
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 font-medium"
-                                    >
+                  <th scope="col" className="py-3 font-medium">
                                         Change
                                     </th>
                                 </tr>
@@ -229,9 +208,7 @@ export default function AuditsTab({
                                             {formatTimestamp(log.createdAt)}
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-foreground">
-                                            {log.actorUsername ||
-                                                log.actorId ||
-                                                "—"}
+                      {log.actorUsername || log.actorId || "—"}
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-foreground">
                                             {humanizeEnum(log.actionType)}
@@ -243,8 +220,7 @@ export default function AuditsTab({
                                             </p>
                                         </td>
                                         <td className="py-4 text-[13px] text-muted-foreground">
-                                            {log.previousState ||
-                                            log.newState ? (
+                      {log.previousState || log.newState ? (
                                                 <span>
                                                     {log.previousState || "—"}
                                                     {" → "}
@@ -266,40 +242,18 @@ export default function AuditsTab({
                         aria-label="Audit pages"
                         className="mt-5 flex flex-wrap items-center justify-between gap-3"
                     >
-                        <p className="text-[13px] text-muted-foreground">
-                            Page {page + 1} of {Math.max(totalPages, 1)} ·{" "}
-                            {totalElements} entr
-                            {totalElements === 1 ? "y" : "ies"}
-                        </p>
-
-                        <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                onClick={() => setPage((value) => value - 1)}
-                                disabled={page === 0}
-                                variant="outline"
-                                size="sm"
-                            >
-                                <ChevronLeft
-                                    className="size-4"
-                                    aria-hidden="true"
+            <PaginationBar
+              page={page}
+              size={pageSize}
+              totalElements={totalElements}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              onSizeChange={setPageSize}
+              isLoading={auditQuery.isFetching}
+              itemLabel="entry"
+              itemLabelPlural="entries"
+              className="mt-5 rounded-xl border border-border"
                                 />
-                                Previous
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={() => setPage((value) => value + 1)}
-                                disabled={page + 1 >= totalPages}
-                                variant="outline"
-                                size="sm"
-                            >
-                                Next
-                                <ChevronRight
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                            </Button>
-                        </div>
                     </nav>
                 </>
             )}

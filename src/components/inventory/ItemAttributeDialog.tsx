@@ -36,20 +36,9 @@ import { cn } from "@/lib/utils";
 export type AttributeValueDraft = {
     value: string;
     label: string;
-    /**
-     * Retired, and carried rather than edited: no field on this dialog writes
-     * it, but a value saved under the old colour attribute has a hex here and
-     * dropping it would discard the shop's swatches on the next save.
-     */
     colorHex?: string;
     available: boolean;
 };
-
-/**
- * The stored types rather than the offered ones: the pickers below list only
- * what a shop may choose now, but an attribute already saved under a retired
- * type still has to open, show, and save.
- */
 export type AttributeDraft = {
     id: string;
     name: string;
@@ -69,15 +58,6 @@ const placementOptions = itemAttributePlacements.map((placement) => ({
     label: itemAttributePlacementLabels[placement].label,
 }));
 
-/**
- * The offered choices, plus the retired one this attribute is already on.
- *
- * A retired choice is listed only by the attribute still using it, and only
- * until the shop picks something else: the dropdown reads its trigger label
- * out of the options it was given, so leaving it out entirely would open an
- * old colour attribute showing a blank type. Listing it for everyone would
- * un-retire it.
- */
 function withCurrent<T extends string>(
     options: SelectOption[],
     current: T,
@@ -103,7 +83,6 @@ function emptyDraft(): AttributeDraft {
     };
 }
 
-/** Placements that show one value, so the editor collapses to a single row. */
 function isSingleValue(placement: StoredItemAttributePlacement) {
     return placement === "HIGHLIGHT" || placement === "SPECIFICATION";
 }
@@ -133,11 +112,6 @@ function valueCopy(
     };
 }
 
-/**
- * Add or edit one item attribute. `placement` is what makes this one editor
- * cover three parts of the storefront — a selectable option, a perk tile under
- * Add to Cart, or a specification tile — so the fields below reshape around it.
- */
 export function ItemAttributeDialog({
     open,
     onOpenChange,
@@ -147,21 +121,13 @@ export function ItemAttributeDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Omitted when adding. */
     initialAttribute?: AttributeDraft;
-    /** Lower-cased names already used by other attributes. */
     existingNames: string[];
     onSubmit: (attribute: AttributeDraft) => void;
 }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg">
-                {/*
-                 * Keyed so the fields re-initialise from the attribute being
-                 * edited: the draft lives in mount-time state rather than being
-                 * synced by an effect, so a cancelled edit cannot leak into the
-                 * next one.
-                 */}
                 <AttributeForm
                     key={initialAttribute?.id || "new"}
                     initialAttribute={initialAttribute}
@@ -188,8 +154,6 @@ function AttributeForm({
     const draft = initialAttribute || emptyDraft();
     const isEditing = Boolean(initialAttribute);
     const [name, setName] = useState(draft.name);
-    // Stored rather than offered: an attribute saved under a retired type
-    // opens showing that type, and only changes if the shop picks another.
     const [type, setType] = useState<StoredItemAttributeType>(draft.type);
     const [placement, setPlacement] = useState<StoredItemAttributePlacement>(
         draft.placement,
@@ -239,8 +203,6 @@ function AttributeForm({
 
     function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
-        // The dialog is portaled but still a React child of the item form —
-        // without this, submitting here would submit the item too.
         event.stopPropagation();
 
         const trimmedName = name.trim();

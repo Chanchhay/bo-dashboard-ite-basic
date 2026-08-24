@@ -93,19 +93,12 @@ export function AddOnDialog({
     );
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // The dialog stays mounted between openings so it keeps its close
-    // animation, which means the draft has to be reseeded each time it opens
-    // rather than initialised once. Done during render rather than in an effect
-    // — this is the "adjust state when a prop changes" pattern, and it avoids
-    // the extra commit an effect would cost.
     const [seededFor, setSeededFor] = useState<string | null>(null);
     const seedKey = open ? (addOn?.id ?? "new") : null;
 
     if (seedKey !== seededFor) {
         setSeededFor(seedKey);
 
-        // Only reseed on the way in. Resetting on close would visibly rewrite
-        // the fields mid-animation.
         if (open) {
             setDraft(toDraft(addOn, fallbackUnitId));
             setErrors({});
@@ -251,8 +244,6 @@ export function AddOnDialog({
                                 onValueChange={(value) =>
                                     updateDraft({
                                         baseUnitId: value || "",
-                                        // A new base makes the conversions below
-                                        // meaningless, so they go with it.
                                         conversions: [],
                                     })
                                 }

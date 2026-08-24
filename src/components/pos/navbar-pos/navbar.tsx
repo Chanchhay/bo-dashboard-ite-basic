@@ -125,6 +125,7 @@ export function Navbar({
 
         <button
           type="button"
+          data-tour="pos-open-register"
           onClick={() => router.push(POS_ROUTES.closeRegister)}
           title="Close register"
           className="flex h-8 sm:h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary px-2.5 sm:px-3 text-xs sm:text-sm font-semibold text-primary outline-none transition-colors hover:bg-primary hover:text-white focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -341,6 +342,7 @@ function CategorySelect({
       onValueChange={(value) => onCategoryChange(String(value ?? "ALL"))}
     >
       <SelectTrigger
+        data-tour="pos-category-select"
         aria-label="Filter by category"
         className={
           mobile

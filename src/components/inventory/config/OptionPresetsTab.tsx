@@ -37,7 +37,6 @@ import {
     useUpdateOptionPresetMutation,
 } from "@/services/inventoryApi";
 
-/** The screen's own shape: values as typed lines, never partial. */
 type OptionPreset = {
     id: string;
     name: string;
@@ -64,7 +63,6 @@ function toScreenPreset(preset: ApiOptionPreset): OptionPreset {
 type DraftValue = {
     value: string;
     colorHex: string;
-    /** The picture this choice puts on the storefront gallery. */
     imageUrl: string;
 };
 
@@ -72,14 +70,6 @@ type PresetDraft = {
     name: string;
     type: OptionPreset["type"];
     required: boolean;
-    /**
-     * One row per choice.
-     *
-     * This was a textarea where a colour had to be typed as `Black #161d16`.
-     * Nobody knows what `#161d16` looks like, the format was undiscoverable,
-     * and a typo silently dropped the swatch — the parser simply read the whole
-     * line as a name. A row with a swatch to click cannot go wrong that way.
-     */
     values: DraftValue[];
 };
 
@@ -110,7 +100,6 @@ function toDraft(preset: OptionPreset): PresetDraft {
     };
 }
 
-/** Blank rows are how an empty editor looks, not a choice the shop meant. */
 function usedValues(rows: DraftValue[]) {
     return rows
         .map((row) => ({
@@ -153,7 +142,6 @@ export function OptionPresetsTab() {
         });
     }
 
-    /** A patch, or a function of the row for a decision that depends on it. */
     function updateValue(
         index: number,
         patch: Partial<DraftValue> | ((current: DraftValue) => Partial<DraftValue>),
@@ -283,8 +271,6 @@ export function OptionPresetsTab() {
         if (!deleteTarget) return;
 
         try {
-            // Nothing depends on a preset once applied — its values were
-            // copied onto the item — so deleting one is always safe.
             await deletePreset(deleteTarget.id).unwrap();
             if (editingId === deleteTarget.id) resetForm();
             toast({ tone: "success", title: `${deleteTarget.name} deleted` });
@@ -394,9 +380,6 @@ export function OptionPresetsTab() {
                                                 ))}
                                             </div>
 
-                                            {/* A preset is copied onto an item,
-                                                not linked to it, so there is no
-                                                list of items to count. */}
                                             <p className="mt-2 text-xs text-muted-foreground">
                                                 {preset.values.length}{" "}
                                                 {preset.values.length === 1

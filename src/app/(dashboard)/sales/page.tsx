@@ -249,7 +249,6 @@ export default function SalesOrdersPage() {
 
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
-    // Cached on the filters alone, so turning a page never recounts the range.
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
     const orders = useMemo(() => data?.content ?? [], [data]);
@@ -299,7 +298,6 @@ export default function SalesOrdersPage() {
     const firstRow = totalElements === 0 ? 0 : page * pageSize + 1;
     const lastRow = Math.min(page * pageSize + orders.length, totalElements);
 
-    /** Any filter change starts the list from the first page again. */
     function applyFilter<T>(set: (next: T) => void) {
         return (next: T) => {
             set(next);
@@ -475,8 +473,6 @@ export default function SalesOrdersPage() {
                             </div>
                         )}
 
-                        {/* The pager stays put even when a search empties the
-                            page, so the way back to the rest is never hidden. */}
                         <Pager
                             page={page}
                             pageCount={pageCount}
@@ -536,13 +532,6 @@ export default function SalesOrdersPage() {
     );
 }
 
-/**
- * Where in the range the table is, and how to move through it.
- *
- * Page numbers stay out of it: an owner looking for a sale reaches for the
- * date filter, not page 14. Position, a step either way, and how many rows at
- * a time is the whole of what this needs to say.
- */
 function Pager({
     page,
     pageCount,
@@ -562,7 +551,6 @@ function Pager({
     last: number;
     total: number;
     busy: boolean;
-    /** Rows the search hid on this page, so the count is not a mystery. */
     filtered: number;
     onPage: (next: number) => void;
     onPageSize: (next: number) => void;
@@ -627,7 +615,6 @@ function Pager({
     );
 }
 
-/** Invoice, order name and item names — what an owner would type looking for a sale. */
 function matchesSearch(order: PosOrder, search: string) {
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
