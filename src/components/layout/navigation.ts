@@ -22,11 +22,6 @@ import { POS_ROUTES } from "@/lib/pos-routes";
 
 type NavItemBase = {
   label: string;
-  /**
-   * The Keycloak permission this entry needs, or several of which any one
-   * suffices. Omit to make the page available to everyone who can see the
-   * section.
-   */
   permission?: PermissionRule;
 };
 
@@ -67,10 +62,6 @@ export type NavSection = {
   href?: string;
   exact?: boolean;
   children?: NavLeaf[];
-  /**
-   * Omit to make the section available to everyone. Otherwise list what its
-   * pages need: a section opens if the user can reach anything inside it.
-   */
   permission?: PermissionRule;
   /** A separate app launched from this section's sidebar. */
   launch?: NavLaunch;
@@ -278,7 +269,7 @@ export const NAVIGATION: NavSection[] = [
     icon: Bell,
     href: "/notifications",
     app: {
-      label: "Notifications",
+      label: "Notification Management",
       fill: "linear-gradient(155deg, #0e8a1e 0%, #46ca22 100%)",
       ink: "#ffffff",
     },
@@ -357,7 +348,7 @@ export const NAVIGATION: NavSection[] = [
     icon: Settings,
     href: "/settings",
     app: {
-      label: "Account",
+      label: "Account Setting",
       // hint: "Your preferences",
       fill: "#e8e8e8",
       ink: "#00932a",

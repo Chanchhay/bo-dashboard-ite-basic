@@ -295,7 +295,7 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div data-tour="sessions-header-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
@@ -365,7 +365,7 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* Filters and Search Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-3.5 sm:p-4 shadow-xs dark:border-slate-800/80 dark:bg-[#151c28]">
+      <div data-tour="sessions-search-bar" className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-3.5 sm:p-4 shadow-xs dark:border-slate-800/80 dark:bg-[#151c28]">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-slate-500" />
           <input
@@ -442,7 +442,7 @@ export function RegisterSessionsHistory() {
                           }`}
                       >
                         {d}
-                        {isActive && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                        {isActive && <Check className="h-3 w-3 stroke-[3]" />}
                       </button>
                     );
                   })}
@@ -452,7 +452,7 @@ export function RegisterSessionsHistory() {
           </div>
 
           {/* Column Picker Dropdown */}
-          <div className="relative inline-block text-left">
+          <div data-tour="sessions-column-picker" className="relative inline-block text-left">
             <button
               type="button"
               onClick={() => setColumnsDropdownOpen((prev) => !prev)}
@@ -514,7 +514,7 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* History Table */}
-      <div className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] shadow-md overflow-hidden">
+      <div data-tour="sessions-table-container" className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] shadow-md overflow-hidden">
         <div className="overflow-x-auto min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="bg-muted/50 dark:bg-[#0f1520]">
