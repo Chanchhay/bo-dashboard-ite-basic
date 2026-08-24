@@ -1,5 +1,6 @@
 "use client";
 
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 
@@ -29,7 +30,7 @@ import {
     useCreateStaffMutation,
     useDeleteStaffMutation,
     useGetBusinessRolesQuery,
-    useGetStaffQuery,
+  useGetStaffPageQuery,
     useUpdateStaffMutation,
     useUpdateStaffStatusMutation,
 } from "@/services/userManagementApi";
@@ -59,6 +60,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 autoComplete="new-password"
                 className={`${fieldClassName} pr-11`}
                 aria-invalid={invalid}
+                placeholder="Enter password"
             />
             <Button
                 type="button"
@@ -79,7 +81,12 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
 
 export default function StaffTab() {
     const { toast } = useToast();
-    const staffQuery = useGetStaffQuery();
+  const [staffPage, setStaffPage] = useState(0);
+  const [staffPageSize, setStaffPageSize] = useState(10);
+  const staffQuery = useGetStaffPageQuery({
+    page: staffPage,
+    size: staffPageSize,
+  });
     const rolesQuery = useGetBusinessRolesQuery();
     const [createStaff, createState] = useCreateStaffMutation();
     const [updateStaff, updateState] = useUpdateStaffMutation();
@@ -99,20 +106,21 @@ export default function StaffTab() {
 
     const members = useMemo(() => {
         const term = search.trim().toLowerCase();
-        const all = staffQuery.data || [];
+    const all = staffQuery.data?.content || [];
         if (!term) return all;
 
-        return all.filter((member) =>
-            [
-                staffFullName(member),
-                member.email,
-                member.username,
-                member.phoneNumber,
-            ]
+    return all.filter((member: Staff) =>
+      [staffFullName(member), member.email, member.username, member.phoneNumber]
                 .filter(Boolean)
                 .some((value) => value!.toLowerCase().includes(term)),
         );
     }, [staffQuery.data, search]);
+
+  const staffCurrentPage = staffQuery.data?.page?.number ?? staffPage;
+  const staffTotalPages =
+    staffQuery.data?.page?.totalPages ?? (members.length ? 1 : 0);
+  const staffTotalElements =
+    staffQuery.data?.page?.totalElements ?? members.length;
 
     const closeEditor = () => {
         setEditor(null);
@@ -186,10 +194,7 @@ export default function StaffTab() {
             toast({
                 tone: "error",
                 title: "Save failed",
-                description: getApiErrorMessage(
-                    error,
-                    "Unable to save the user.",
-                ),
+        description: getApiErrorMessage(error, "Unable to save the user."),
             });
         }
     }
@@ -200,8 +205,7 @@ export default function StaffTab() {
         try {
             await updateStatus({ userId: member.id, status: next }).unwrap();
             toast({
-                title:
-                    next === "ACTIVE" ? "User activated" : "User deactivated",
+        title: next === "ACTIVE" ? "User activated" : "User deactivated",
                 description: staffFullName(member),
             });
         } catch (error) {
@@ -230,10 +234,7 @@ export default function StaffTab() {
             toast({
                 tone: "error",
                 title: "Remove failed",
-                description: getApiErrorMessage(
-                    error,
-                    "Unable to remove the user.",
-                ),
+        description: getApiErrorMessage(error, "Unable to remove the user."),
             });
             setDeleteTarget(null);
         }
@@ -286,10 +287,9 @@ export default function StaffTab() {
                                             id="username"
                                             name="username"
                                             autoComplete="off"
+                                            placeholder="john_doe"
                                             className={fieldClassName}
-                                            aria-invalid={Boolean(
-                                                fieldErrors.username,
-                                            )}
+                      aria-invalid={Boolean(fieldErrors.username)}
                                         />
                                     </FormField>
                                     <FormField
@@ -302,23 +302,17 @@ export default function StaffTab() {
                                             name="email"
                                             type="email"
                                             autoComplete="off"
+                                            placeholder="john.doe@example.com"
                                             className={fieldClassName}
-                                            aria-invalid={Boolean(
-                                                fieldErrors.email,
-                                            )}
+                      aria-invalid={Boolean(fieldErrors.email)}
                                         />
                                     </FormField>
                                     <FormField
                                         label="Password"
                                         htmlFor="password"
                                         error={fieldErrors.password}
-                                        hint="At least 6 characters."
                                     >
-                                        <PasswordInput
-                                            invalid={Boolean(
-                                                fieldErrors.password,
-                                            )}
-                                        />
+                    <PasswordInput invalid={Boolean(fieldErrors.password)} />
                                     </FormField>
                                 </>
                             )}
@@ -331,15 +325,12 @@ export default function StaffTab() {
                                 <input
                                     id="firstName"
                                     name="firstName"
+                                    placeholder="John"
                                     defaultValue={
-                                        editor.mode === "edit"
-                                            ? editor.staff.firstName
-                                            : undefined
+                    editor.mode === "edit" ? editor.staff.firstName : undefined
                                     }
                                     className={fieldClassName}
-                                    aria-invalid={Boolean(
-                                        fieldErrors.firstName,
-                                    )}
+                  aria-invalid={Boolean(fieldErrors.firstName)}
                                 />
                             </FormField>
                             <FormField
@@ -350,10 +341,9 @@ export default function StaffTab() {
                                 <input
                                     id="lastName"
                                     name="lastName"
+                                    placeholder="Doe"
                                     defaultValue={
-                                        editor.mode === "edit"
-                                            ? editor.staff.lastName
-                                            : undefined
+                    editor.mode === "edit" ? editor.staff.lastName : undefined
                                     }
                                     className={fieldClassName}
                                     aria-invalid={Boolean(fieldErrors.lastName)}
@@ -368,15 +358,14 @@ export default function StaffTab() {
                                     id="phoneNumber"
                                     name="phoneNumber"
                                     inputMode="tel"
+                                    placeholder="+855 12 345 678"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.phoneNumber
                                             : undefined
                                     }
                                     className={fieldClassName}
-                                    aria-invalid={Boolean(
-                                        fieldErrors.phoneNumber,
-                                    )}
+                  aria-invalid={Boolean(fieldErrors.phoneNumber)}
                                 />
                             </FormField>
                             <FormField
@@ -387,7 +376,7 @@ export default function StaffTab() {
                                 <SelectField
                                     id="gender"
                                     name="gender"
-                                    placeholder="Select a gender"
+                                    placeholder="Select gender"
                                     invalid={Boolean(fieldErrors.gender)}
                                     defaultValue={
                                         editor.mode === "edit"
@@ -396,9 +385,7 @@ export default function StaffTab() {
                                     }
                                     options={genders.map((gender) => ({
                                         value: gender,
-                                        label:
-                                            gender.charAt(0) +
-                                            gender.slice(1).toLowerCase(),
+                    label: gender.charAt(0) + gender.slice(1).toLowerCase(),
                                     }))}
                                 />
                             </FormField>
@@ -432,22 +419,14 @@ export default function StaffTab() {
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <Button
-                                type="submit"
-                                disabled={saving}
-
-                            >
+              <Button type="submit" disabled={saving}>
                                 {saving
                                     ? "Saving…"
                                     : editor.mode === "create"
                                       ? "Create user"
                                       : "Save changes"}
                             </Button>
-                            <Button
-                                type="button"
-                                onClick={closeEditor}
-                                variant="outline"
-                            >
+              <Button type="button" onClick={closeEditor} variant="outline">
                                 Cancel
                             </Button>
                         </div>
@@ -455,13 +434,14 @@ export default function StaffTab() {
                 </Panel>
             )}
 
-            <Panel>
+            <Panel data-tour="user-list">
                 <PanelHeader
                     title="Users"
                     description="People who can sign in to this business."
                     action={
                         <Button
                             type="button"
+                            data-tour="add-user"
                             onClick={() => {
                                 setEditor({ mode: "create" });
                                 setFieldErrors({});
@@ -474,7 +454,7 @@ export default function StaffTab() {
                     }
                 />
 
-                <div className="relative mt-6 sm:w-72">
+                <div data-tour="staff-search" className="relative mt-6 sm:w-72">
                     <Search
                         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
@@ -487,7 +467,7 @@ export default function StaffTab() {
                         type="search"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search by name, email or phone"
+                        placeholder="Search by name, email, or phone..."
                         className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
                 </div>
@@ -514,45 +494,28 @@ export default function StaffTab() {
                 ) : (
                     <div className="mt-5 overflow-x-auto">
                         <table className="w-full min-w-[720px] border-collapse text-left">
-                            <caption className="sr-only">
-                                Users in this business
-                            </caption>
+              <caption className="sr-only">Users in this business</caption>
                             <thead>
                                 <tr className="border-b border-border text-[12px] text-muted-foreground">
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Name
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Contact
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Role
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 pr-4 font-medium"
-                                    >
+                  <th scope="col" className="py-3 pr-4 font-medium">
                                         Status
                                     </th>
-                                    <th
-                                        scope="col"
-                                        className="py-3 text-right font-medium"
-                                    >
+                  <th scope="col" className="py-3 text-right font-medium">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {members.map((member) => (
+                {members.map((member: Staff) => (
                                     <tr
                                         key={member.id}
                                         className="border-b border-border last:border-0"
@@ -575,25 +538,17 @@ export default function StaffTab() {
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-muted-foreground">
                                             {member.roleId
-                                                ? roleNames.get(
-                                                      member.roleId,
-                                                  ) || member.roleId
+                        ? roleNames.get(member.roleId) || member.roleId
                                                 : "No role"}
                                         </td>
                                         <td className="py-4 pr-4">
-                                            <StatusPill
-                                                active={
-                                                    member.status === "ACTIVE"
-                                                }
-                                            />
+                      <StatusPill active={member.status === "ACTIVE"} />
                                         </td>
                                         <td className="py-4">
                                             <div className="flex justify-end gap-1">
                                                 <Button
                                                     type="button"
-                                                    onClick={() =>
-                                                        toggleStatus(member)
-                                                    }
+                          onClick={() => toggleStatus(member)}
                                                     variant="ghost"
                                                     size="sm"
                                                 >
@@ -614,23 +569,16 @@ export default function StaffTab() {
                                                     variant="ghost"
                                                     size="icon-sm"
                                                 >
-                                                    <Pencil
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
+                          <Pencil className="size-4" aria-hidden="true" />
                                                 </Button>
                                                 <Button
                                                     type="button"
-                                                    onClick={() =>
-                                                        setDeleteTarget(member)
-                                                    }
+                          onClick={() => setDeleteTarget(member)}
                                                     aria-label={`Remove ${staffFullName(member)}`}
                                                     variant="ghost"
                                                     size="sm"
                                                     className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
-                                                    disabled={
-                                                        deleteState.isLoading
-                                                    }
+                          disabled={deleteState.isLoading}
                                                 >
                                                     <Trash2
                                                         className="size-4 text-brand-red"
@@ -645,6 +593,19 @@ export default function StaffTab() {
                         </table>
                     </div>
                 )}
+
+        {staffTotalPages > 0 && (
+          <PaginationBar
+            page={staffCurrentPage}
+            size={staffPageSize}
+            totalElements={staffTotalElements}
+            totalPages={staffTotalPages}
+            onPageChange={setStaffPage}
+            onSizeChange={setStaffPageSize}
+            isLoading={staffQuery.isFetching}
+            itemLabel="user"
+          />
+        )}
             </Panel>
 
             <DestructiveConfirmDialog
@@ -652,7 +613,11 @@ export default function StaffTab() {
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
                 }}
-                title={deleteTarget ? `Delete ${staffFullName(deleteTarget)}?` : "Delete staff member?"}
+        title={
+          deleteTarget
+            ? `Delete ${staffFullName(deleteTarget)}?`
+            : "Delete staff member?"
+        }
                 description={
                     deleteTarget ? (
                         <>

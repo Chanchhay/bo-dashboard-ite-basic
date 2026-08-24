@@ -10,12 +10,11 @@ import {
     type NavSection,
 } from "@/components/layout/navigation";
 import UserMenu from "@/components/layout/UserMenu";
-import type { Permission } from "@/lib/permissions";
+import type { GrantedPermissions } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 
-/** How long the icon grows before the route actually changes. */
 const OPEN_MS = 620;
 
 type Opening = {
@@ -30,7 +29,7 @@ export default function AppLauncher({
     permissions,
 }: {
     managerName: string;
-    permissions: Permission[];
+    permissions: GrantedPermissions;
 }) {
     const router = useRouter();
     const [opening, setOpening] = useState<Opening | null>(null);
@@ -57,15 +56,22 @@ export default function AppLauncher({
                     <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-8 w-auto shrink-0" />
                 </Link>
 
-                <div className="flex items-center gap-4 sm:gap-6">
-                    <ThemeToggle variant="icon" className="hidden sm:grid" />
-                    <NotificationMenu />
-                    <UserMenu name={managerName} />
+                <div className="flex items-center gap-3 sm:gap-5">
+                    <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">
+                        <ThemeToggle variant="icon" className="hidden sm:grid" />
+                        <div data-tour="notifications" className="inline-flex h-10 items-center justify-center">
+                            <NotificationMenu />
+                        </div>
+                    </div>
+
+                    <div data-tour="user-menu" className="inline-flex h-10 sm:h-11 items-center justify-center">
+                        <UserMenu name={managerName} />
+                    </div>
                 </div>
             </header>
 
             <main className="mx-auto w-full max-w-[1180px] px-5 py-8 lg:px-8 lg:py-12">
-                <header className="mb-8 sm:mb-10">
+                <header className="mb-8 sm:mb-10" data-tour="apps-welcome">
                     <h1 className="text-[32px] leading-tight text-[#161d16] dark:text-[#f8fafc]">
                         <span className="font-semibold">Hello,</span>{" "}
                         {managerName.split(" ")[0]}
@@ -76,9 +82,9 @@ export default function AppLauncher({
                 </header>
 
                 {apps.length > 0 ? (
-                    <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-4">
+                    <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-4" data-tour="apps-grid">
                         {apps.map((section) => (
-                            <li key={section.id}>
+                            <li key={section.id} data-tour={`app-tile-${section.id}`}>
                                 <AppTile
                                     section={section}
                                     onOpen={setOpening}
@@ -152,11 +158,6 @@ function AppTile({
     );
 }
 
-/*
- * A pure `transform: scale()` on a circle seeded at the icon's own position.
- * Growing the real rectangle instead would mean animating width/height, which
- * relayouts every frame; scaling a fixed-size layer stays on the compositor.
- */
 function AppOpen({ section, cx, cy, size }: Opening) {
     const [grown, setGrown] = useState(false);
     const Icon = section.icon;
@@ -167,7 +168,6 @@ function AppOpen({ section, cx, cy, size }: Opening) {
         return () => cancelAnimationFrame(raf);
     }, []);
 
-    // Reach the furthest corner from wherever the icon happens to sit.
     const reach = Math.hypot(
         Math.max(cx, window.innerWidth - cx),
         Math.max(cy, window.innerHeight - cy),

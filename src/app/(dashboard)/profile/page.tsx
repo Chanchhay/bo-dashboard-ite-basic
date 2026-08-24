@@ -13,8 +13,6 @@ export default async function UserProfilePage() {
         redirect("/login");
     }
 
-    // Navigation, the page title and the account menu come from the app shell,
-    // so this page only owns its own content.
     return (
         <div className="pb-4">
             <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">

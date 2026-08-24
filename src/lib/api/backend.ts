@@ -1,6 +1,12 @@
 import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth/auth";
+import {
+    KeycloakTokenError,
+    persistAuthCookies,
+    renewKeycloakAccessToken,
+    resolveKeycloakAccessToken,
+} from "@/lib/auth/keycloak-token";
 
 type ApiErrorDetail = {
     field?: string;
@@ -16,6 +22,12 @@ export class BackendApiError extends Error {
     constructor(
         message: string,
         readonly status: number,
+        /**
+         * The sign-in itself is over — not merely this request refused. The
+         * browser is told so it can restart OAuth rather than offer a retry
+         * that cannot succeed.
+         */
+        readonly sessionExpired = false,
     ) {
         super(message);
         this.name = "BackendApiError";
@@ -35,31 +47,39 @@ function getApiBaseUrl() {
     return baseUrl;
 }
 
-async function getKeycloakAccessToken() {
+/**
+ * A usable Keycloak access token, refreshed when needed and persisted here so
+ * the browser converges on the rotated cookie. All rotation lives in
+ * `@/lib/auth/keycloak-token`; nothing in this file may refresh on its own.
+ */
+async function getKeycloakAccessToken(renew = false) {
     const requestHeaders = await headers();
+
+    // The account cookie holds the Keycloak tokens, but the session cookie is
+    // what says this browser is still signed in. Both are written and expired
+    // together, so a live account cookie without a session means a sign-out
+    // this request must not be allowed to outlive.
     const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session) {
-        throw new BackendApiError("Your session has expired.", 401);
+        throw new BackendApiError("Your session has expired.", 401, true);
     }
 
     try {
-        const tokens = await auth.api.getAccessToken({
-            headers: requestHeaders,
-            body: { providerId: "keycloak" },
-        });
+        const { accessToken, setCookies } = renew
+            ? await renewKeycloakAccessToken(requestHeaders)
+            : await resolveKeycloakAccessToken(requestHeaders);
 
-        if (!tokens.accessToken) {
-            throw new BackendApiError(
-                "Unable to get a Keycloak access token.",
-                401,
-            );
-        }
+        await persistAuthCookies(setCookies);
 
-        return tokens?.accessToken;
+        return accessToken;
     } catch (error) {
-        if (error instanceof BackendApiError) {
-            throw error;
+        if (error instanceof KeycloakTokenError) {
+            throw new BackendApiError(
+                error.message,
+                error.status,
+                error.status === 401,
+            );
         }
 
         throw new BackendApiError(
@@ -67,6 +87,22 @@ async function getKeycloakAccessToken() {
             401,
         );
     }
+}
+
+/**
+ * Whether the request can be sent a second time. A 401 means the backend
+ * rejected the token before reading the body, so replaying is safe — but only
+ * for a body we can hand to `fetch` twice. A stream is consumed by the first
+ * attempt and cannot be.
+ */
+function isReplayable(body: RequestInit["body"]) {
+    return (
+        body === undefined ||
+        body === null ||
+        typeof body === "string" ||
+        body instanceof FormData ||
+        body instanceof URLSearchParams
+    );
 }
 
 async function readErrorMessage(response: Response) {
@@ -91,14 +127,11 @@ export async function backendResponse(
     path: string,
     init?: RequestInit,
 ) {
-    const accessToken = await getKeycloakAccessToken();
     const requestHeaders = new Headers(init?.headers);
 
     if (!requestHeaders.has("Accept")) {
         requestHeaders.set("Accept", "application/json");
     }
-
-    requestHeaders.set("Authorization", `Bearer ${accessToken}`);
 
     // `FormData` bodies must keep the boundary `fetch` generates for them.
     if (
@@ -108,11 +141,27 @@ export async function backendResponse(
         requestHeaders.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
-        ...init,
-        cache: "no-store",
-        headers: requestHeaders,
-    });
+    const send = async (accessToken: string) => {
+        requestHeaders.set("Authorization", `Bearer ${accessToken}`);
+
+        return fetch(`${getApiBaseUrl()}${path}`, {
+            ...init,
+            cache: "no-store",
+            headers: requestHeaders,
+        });
+    };
+
+    let response = await send(await getKeycloakAccessToken());
+
+    /*
+     * The backend is the only party that can tell us a token it was given is
+     * no longer good. Access tokens are short enough that one can expire
+     * between being resolved and being read, so a 401 earns a forced refresh
+     * and one replay rather than an error the user has to click through.
+     */
+    if (response.status === 401 && isReplayable(init?.body)) {
+        response = await send(await getKeycloakAccessToken(true));
+    }
 
     if (!response.ok) {
         const message = await readErrorMessage(response);
@@ -142,7 +191,9 @@ export async function backendRequest<T>(
 export function backendErrorResponse(error: unknown) {
     if (error instanceof BackendApiError) {
         return Response.json(
-            { message: error.message },
+            error.sessionExpired
+                ? { message: error.message, sessionExpired: true }
+                : { message: error.message },
             { status: error.status },
         );
     }

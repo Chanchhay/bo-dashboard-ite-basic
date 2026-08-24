@@ -1,22 +1,17 @@
 import type { Metadata } from "next";
-import { Google_Sans } from "next/font/google";
-
 import "./globals.css";
 import { ThemeProvider } from "@/components/dark-mode/theme-provider";
 import StoreProvider from "./StoreProvider";
 import { NetworkStatusBanner } from "@/components/common/NetworkStatusBanner";
 
-const googleSans = Google_Sans({
-  variable: "--font-google-sans",
-  subsets: ["latin"],
-  display: "swap",
-  adjustFontFallback: false,
-});
+
 
 export const metadata: Metadata = {
   title: "FluxiBiz - Business Owner Dashboard",
   description: "FluxiBiz business operations platform",
 };
+
+import { TourProvider } from "@/lib/tours/TourProvider";
 
 export default function RootLayout({
   children,
@@ -27,8 +22,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${googleSans.variable} h-full antialiased`}
-    >
+      className="h-full font-sans antialiased">
       <body className="min-h-full flex flex-col">
         <NetworkStatusBanner />
         <ThemeProvider
@@ -37,7 +31,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <StoreProvider>{children}</StoreProvider>
+          <StoreProvider>
+            <TourProvider>{children}</TourProvider>
+          </StoreProvider>
         </ThemeProvider>
       </body>
     </html>

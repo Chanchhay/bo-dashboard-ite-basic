@@ -29,14 +29,11 @@ function StaticMenuContent() {
   const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc">("default");
   const router = useRouter();
 
-  // Fetch POS sales channel published items
   const { data: channelItems = [], isLoading: isItemsLoading } = useGetChannelItemsQuery("POS");
-  // Fetch Item Groups & Subcategories strictly from /inventory/config/groups
   const { data: itemGroups = [], isLoading: isGroupsLoading } = useGetItemGroupsQuery();
 
   const isLoading = isItemsLoading || isGroupsLoading;
 
-  // Map POS channel items strictly from backend API
   const items = useMemo<MenuItemEntry[]>(() => {
     return channelItems.map((entry) => {
       const raw = entry.item as unknown as InventoryItem;
@@ -53,14 +50,12 @@ function StaticMenuContent() {
     });
   }, [channelItems]);
 
-  // Extract Categories strictly from /inventory/config/groups (Item Groups)
   const businessOwnerCategories = useMemo<string[]>(() => {
     return itemGroups
       .map((g) => g.name || "")
       .filter((name) => name.trim().length > 0);
   }, [itemGroups]);
 
-  // Extract Subcategories strictly from /inventory/config/groups (Item Sub-groups)
   const businessOwnerSubcategories = useMemo<string[]>(() => {
     const set = new Set<string>();
 
@@ -84,7 +79,6 @@ function StaticMenuContent() {
     return Array.from(set);
   }, [itemGroups, selectedMainCategory]);
 
-  // Filter items strictly by configured Categories & Subcategories
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -92,7 +86,6 @@ function StaticMenuContent() {
       const catName = item.category.toLowerCase();
       const itemName = item.name.toLowerCase();
 
-      // Main Category Match (Item Groups configured in /inventory/config/groups)
       const mainSel = selectedMainCategory.toLowerCase();
       const matchMainCategory =
         mainSel === "all" ||
@@ -101,7 +94,6 @@ function StaticMenuContent() {
         catName.includes(mainSel) ||
         mainSel.includes(catName);
 
-      // Subcategory Match
       const subSel = selectedSubCategory.toLowerCase();
       const matchSubCategory =
         subSel === "all" ||
@@ -110,7 +102,6 @@ function StaticMenuContent() {
         catName.includes(subSel) ||
         itemName.includes(subSel);
 
-      // Quick Filter Match
       let matchQuick = true;
       if (quickFilter === "popular") {
         matchQuick = item.price > 0 && item.price < 4.5;
@@ -118,7 +109,6 @@ function StaticMenuContent() {
         matchQuick = item.price <= 3.0;
       }
 
-      // Search Match
       const matchSearch =
         !q ||
         itemName.includes(q) ||
@@ -130,7 +120,6 @@ function StaticMenuContent() {
       return matchMainCategory && matchSubCategory && matchQuick && matchSearch;
     });
 
-    // Sorting
     if (sortBy === "price-asc") {
       list = [...list].sort((a, b) => a.price - b.price);
     } else if (sortBy === "price-desc") {
@@ -146,7 +135,6 @@ function StaticMenuContent() {
 
   return (
     <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
-      {/* Fixed Header Navbar */}
       <div className="shrink-0 w-full z-40">
         <MenuNavbar
           searchQuery={searchQuery}
@@ -155,9 +143,7 @@ function StaticMenuContent() {
         />
       </div>
 
-      {/* Responsive App Body Container */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-4 sm:py-6 md:overflow-hidden flex flex-col md:flex-row gap-6 md:gap-8 items-start">
-        {/* Desktop Fixed Left Sidebar Category Filter */}
         <div className="hidden md:block w-56 lg:w-64 shrink-0 h-full overflow-y-auto pr-1 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <CategoryFilter
             categories={businessOwnerCategories}
@@ -185,7 +171,6 @@ function StaticMenuContent() {
           />
         </div>
 
-        {/* Mobile Filter Drawer Trigger (Mobile Only) */}
         <div className="md:hidden shrink-0 w-full">
           <CategoryFilter
             categories={businessOwnerCategories}
@@ -213,9 +198,7 @@ function StaticMenuContent() {
           />
         </div>
 
-        {/* Main Product Display Area */}
         <div className="flex-1 w-full md:h-full min-w-0 flex flex-col space-y-4">
-          {/* Title Header */}
           <div className="shrink-0 flex items-center justify-between border-b border-gray-200/80 dark:border-gray-800/80 pb-3 sm:pb-4">
             <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
               {selectedMainCategory === "All"
@@ -229,7 +212,6 @@ function StaticMenuContent() {
             </span>
           </div>
 
-          {/* Scrollable Product Menu Grid Area */}
           <div className="flex-1 md:overflow-y-auto pr-0 sm:pr-1 pb-16 scroll-smooth rounded-2xl [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
             {isLoading ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5">
@@ -254,7 +236,7 @@ function StaticMenuContent() {
                       setQuickFilter("all");
                       setSortBy("default");
                     }}
-                    className="mt-4 rounded-xl bg-[#00932a] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#00932a]/90 transition-all cursor-pointer"
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary/90 transition-all cursor-pointer"
                   >
                     Reset All Filters
                   </button>

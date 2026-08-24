@@ -198,7 +198,7 @@ export function ReceiptsList({
         </p>
       </header>
 
-      <div className="mt-6 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:mt-8 lg:grid-cols-3 lg:gap-6">
+      <div data-tour="receipts-kpi-summary" className="mt-6 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:mt-8 lg:grid-cols-3 lg:gap-6">
         <SummaryCard
           label="Total"
           value={
@@ -227,7 +227,7 @@ export function ReceiptsList({
         />
       </div>
 
-      <div className="mt-4 flex w-full items-center gap-2 overflow-x-auto scrollbar-none py-1 sm:gap-3 lg:mt-[26px]">
+      <div data-tour="receipts-filter-bar" className="mt-4 flex w-full items-center gap-2 overflow-x-auto scrollbar-none py-1 sm:gap-3 lg:mt-[26px]">
         <DateRangeFilter
           from={formatFilterDate(dateRange.from)}
           to={formatFilterDate(dateRange.to)}

@@ -28,13 +28,13 @@ export default function SearchBar({
         <button
           type="button"
           onClick={() => onChange?.("")}
-          className="absolute right-3 p-0.5 rounded-full text-gray-400 hover:text-[#00932a] dark:text-gray-400 dark:hover:text-[#00932a] hover:bg-[#00932a]/10 transition-colors"
+          className="absolute right-3 p-0.5 rounded-full text-gray-400 hover:text-primary dark:text-gray-400 dark:hover:text-primary hover:bg-primary/10 transition-colors"
           aria-label="Clear search"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       ) : (
-        <SearchIcon className="absolute right-3.5 h-4 w-4 text-[#00932a] dark:text-[#00932a] pointer-events-none transition-colors" />
+        <SearchIcon className="absolute right-3.5 h-4 w-4 text-primary dark:text-primary pointer-events-none transition-colors" />
       )}
     </div>
   );

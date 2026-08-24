@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { SalesChannelsChart } from "@/components/menu/SalesChannelsChart";
 import { backendRequest } from "@/lib/api/backend";
 import {
@@ -36,8 +37,6 @@ async function loadOverview(): Promise<Overview> {
 
         return { items: items ?? [], stock: stock ?? [] };
     } catch {
-        // A dashboard that throws is worse than one that says it can't reach
-        // the API — the rest of the shell stays usable either way.
         return {
             items: [],
             stock: [],
@@ -59,8 +58,6 @@ function compact(value: number) {
 export default async function DashboardPage() {
     const { items, stock, error } = await loadOverview();
 
-    // An item sold in options reports one balance per option, so what it holds
-    // is their sum rather than whichever row happens to come last.
     const quantityByItem = stock.reduce((totals, entry) => {
         const id = entry.itemId;
         if (!id) return totals;
@@ -93,34 +90,42 @@ export default async function DashboardPage() {
 
     return (
         <div className="flex flex-col gap-5 pb-4">
-                {error && (
-                    <p
-                        role="status"
-                        className="flex items-start gap-2.5 rounded-2xl border border-[#f0d9a8] bg-[#fff9ec] px-4 py-3 text-[14px] text-[#8a5f00]"
-                    >
-                        <TriangleAlert
-                            className="mt-0.5 size-4 shrink-0"
-                            aria-hidden="true"
-                        />
-                        {error}
-                    </p>
-                )}
+            <div className="flex items-center justify-between gap-4">
+                <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
+                    Monitor live store metrics, inventory balances, channel revenue, and profit margins.
+                </p>
+                <TourButton />
+            </div>
 
-                <section
-                    aria-labelledby="overview-heading"
-                    className="rounded-[24px] bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 lg:p-7 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+            {error && (
+                <p
+                    role="status"
+                    className="flex items-start gap-2.5 rounded-2xl border border-[#f0d9a8] bg-[#fff9ec] px-4 py-3 text-[14px] text-[#8a5f00]"
                 >
-                    <h2
-                        id="overview-heading"
-                        className="text-[17px] font-semibold text-[#16181c] dark:text-[#f8fafc]"
-                    >
-                        Overview
-                    </h2>
-                    <p className="mt-1 text-[14px] text-[#8a8f89] dark:text-[#94a3b8]">
-                        Live figures from your inventory.
-                    </p>
+                    <TriangleAlert
+                        className="mt-0.5 size-4 shrink-0"
+                        aria-hidden="true"
+                    />
+                    {error}
+                </p>
+            )}
 
-                    <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
+            <section
+                data-tour="dashboard-overview"
+                aria-labelledby="overview-heading"
+                className="rounded-[24px] bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 lg:p-7 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+            >
+                <h2
+                    id="overview-heading"
+                    className="text-[17px] font-semibold text-[#16181c] dark:text-[#f8fafc]"
+                >
+                    Overview
+                </h2>
+                <p className="mt-1 text-[14px] text-[#8a8f89] dark:text-[#94a3b8]">
+                    Live figures from your inventory.
+                </p>
+
+                <div data-tour="dashboard-stats" className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
                         <Stat
                             icon={Package}
                             label="Items"
@@ -133,7 +138,7 @@ export default async function DashboardPage() {
                             value={compact(activeItems)}
                             note={
                                 items.length > 0
-                                    ? `of ${compact(items.length)} total`
+                                    ? `Of ${compact(items.length)} total`
                                     : "Published"
                             }
                         />
@@ -157,10 +162,10 @@ export default async function DashboardPage() {
                     </div>
                 </section>
 
-                {/* Sales Channel Actions & Performance Chart */}
                 <SalesChannelsChart />
 
                 <section
+                    data-tour="dashboard-stock-on-hand"
                     aria-labelledby="stock-heading"
                     className="rounded-[24px] bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-6 lg:p-7 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
                 >
@@ -247,7 +252,7 @@ function Stat({
                     className={
                         alert
                             ? "grid size-9 sm:size-11 place-items-center rounded-xl bg-[#fff4d6] dark:bg-[#d14341]/20 text-[#8a5f00] dark:text-[#f87171]"
-                            : "grid size-9 sm:size-11 place-items-center rounded-xl bg-primary/10 dark:bg-[#00932a]/20 text-primary"
+                            : "grid size-9 sm:size-11 place-items-center rounded-xl bg-primary/10 dark:bg-primary/20 text-primary"
                     }
                 >
                     <Icon className="size-4 sm:size-5" />
@@ -274,7 +279,7 @@ function EmptyState({ hasItems }: { hasItems: boolean }) {
         <div className="mt-7 rounded-2xl bg-[#f7f7f6] dark:bg-[#151821] border border-transparent dark:border-[#242937] px-6 py-10 text-center">
             <span
                 aria-hidden="true"
-                className="mx-auto grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-[#00932a]/20 text-primary"
+                className="mx-auto grid size-12 place-items-center rounded-full bg-primary/10 dark:bg-primary/20 text-primary"
             >
                 <Boxes className="size-5" />
             </span>
@@ -288,7 +293,6 @@ function EmptyState({ hasItems }: { hasItems: boolean }) {
             </p>
             <Link
                 href={hasItems ? "/inventory/stock/adjust" : "/inventory/new"}
-                /* A link that acts as a button borrows the same variants. */
                 className={buttonVariants({ className: "mt-5" })}
             >
                 <Plus className="size-4" aria-hidden="true" />

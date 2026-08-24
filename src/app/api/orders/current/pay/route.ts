@@ -1,6 +1,6 @@
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
-import { payOrderSchema, type Sale } from "@/lib/api/pos-order";
+import { payOrderSchema, type PosOrder, type Sale } from "@/lib/api/pos-order";
 import {
     forgetOrder,
     getCurrentOrder,
@@ -75,6 +75,60 @@ export async function POST(request: Request) {
             ? (result.data.taxAmount !== undefined ? result.data.taxAmount : ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTaxAmount))
             : 0;
 
+        const targetDiscountId = result.data.discountId || order.discountId;
+        const targetDiscountCode = result.data.discountCode || order.discountCode;
+
+        // Sync order discount to Spring Java backend prior to payment validation
+        if (discountAmount > 0 || targetDiscountId || targetDiscountCode) {
+            try {
+                const patchedOrder = await backendRequest<PosOrder>(
+                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            discountAmount,
+                            discountId: targetDiscountId ?? undefined,
+                            discountCode: targetDiscountCode ?? undefined,
+                        }),
+                    }
+                );
+                if (patchedOrder) {
+                    if (patchedOrder.discountAmount !== undefined) order.discountAmount = patchedOrder.discountAmount;
+                    if (patchedOrder.total !== undefined) order.total = patchedOrder.total;
+                }
+            } catch {
+                try {
+                    // Fallback: patch manual discount amount without discountId if target rules failed
+                    const fallbackOrder = await backendRequest<PosOrder>(
+                        ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                        {
+                            method: "PATCH",
+                            body: JSON.stringify({
+                                discountAmount,
+                            }),
+                        }
+                    );
+                    if (fallbackOrder) {
+                        if (fallbackOrder.discountAmount !== undefined) order.discountAmount = fallbackOrder.discountAmount;
+                        if (fallbackOrder.total !== undefined) order.total = fallbackOrder.total;
+                    }
+                } catch {}
+            }
+        } else if ((order.discountAmount ?? 0) > 0) {
+            // If discount was cleared on cart
+            try {
+                await backendRequest<unknown>(
+                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+                    {
+                        method: "PATCH",
+                        body: JSON.stringify({
+                            discountAmount: 0,
+                        }),
+                    }
+                );
+            } catch {}
+        }
+
         const effectiveTotal = Math.max(
             0,
             parseFloat(
@@ -83,6 +137,7 @@ export async function POST(request: Request) {
         );
 
         const userReceived = result.data.receivedAmount;
+        const isPayLater = result.data.paymentMethod === "PAY_LATER";
 
         // Check if cash tendered covers effective discounted total
         if (result.data.paymentMethod === "CASH" && userReceived !== undefined) {
@@ -98,7 +153,9 @@ export async function POST(request: Request) {
             }
         }
 
-        const paidVal = userReceived ?? effectiveTotal;
+        // Pay later collects nothing right now — whatever the client sent is
+        // ignored, so a stray value can never be mistaken for cash in hand.
+        const paidVal = isPayLater ? 0 : (userReceived ?? effectiveTotal);
 
         // Sync order discount to Spring Java backend prior to payment
         if (discountAmount > 0) {
@@ -138,8 +195,12 @@ export async function POST(request: Request) {
         // Forget active cart cookie
         await forgetOrder();
 
-        // Ensure sale returned to frontend accurately reflects discount & effective total
-        const changeVal = Math.max(0, parseFloat((paidVal - effectiveTotal).toFixed(2)));
+        // Ensure sale returned to frontend accurately reflects discount & effective total.
+        // Pay later is left negative on purpose — that's the amount still owed,
+        // not a change to hand back, so it must not be clamped to zero.
+        const changeVal = isPayLater
+            ? parseFloat((paidVal - effectiveTotal).toFixed(2))
+            : Math.max(0, parseFloat((paidVal - effectiveTotal).toFixed(2)));
 
         const formattedSale: Sale = {
             ...sale,

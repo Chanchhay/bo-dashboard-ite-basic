@@ -42,11 +42,6 @@ import {
     useUpdateUnitMutation,
 } from "@/services/inventoryApi";
 
-/**
- * The screen models a unit the way the config vocabulary does — a symbol and
- * what it measures. The API answers with the same fields, plus the ownership
- * flag that decides whether it can be edited here at all.
- */
 function toConfigUnit(unit: ApiUnit): Unit {
     return {
         id: unit.id,
@@ -88,10 +83,6 @@ export function UnitsTab() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
-    /**
-     * One category open at a time: the list is a reference people scan for a
-     * single unit, so three groups expanded at once is mostly scrolling.
-     */
     const [openCategory, setOpenCategory] = useState<UnitCategory | null>(
         unitCategories[0],
     );
@@ -155,7 +146,6 @@ export function UnitsTab() {
                 ? await updateUnit({ unitId: editingId, body }).unwrap()
                 : await createUnit(body).unwrap();
 
-            // A unit saved into a collapsed group would vanish on save.
             setOpenCategory(body.category);
             toast({
                 tone: "success",
@@ -184,7 +174,6 @@ export function UnitsTab() {
             toast({ tone: "success", title: `${deleteTarget.name} deleted` });
             setDeleteTarget(null);
         } catch (error) {
-            // Anything still measured in it blocks the delete server-side.
             toast({
                 tone: "error",
                 title: "Unit not deleted",
@@ -214,7 +203,7 @@ export function UnitsTab() {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 sm:px-5">
+            <div data-tour="units-info-banner" className="rounded-2xl border border-border bg-muted/40 px-4 py-3 sm:px-5">
                 <div className="flex items-start gap-3">
                     <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
@@ -227,10 +216,11 @@ export function UnitsTab() {
             </div>
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <ConfigSection
-                    title="Units"
-                    description="Grouped by what they measure. Built-in units can be used but not changed."
-                >
+                <div data-tour="units-category-list">
+                    <ConfigSection
+                        title="Units"
+                        description="Grouped by what they measure. Built-in units can be used but not changed."
+                    >
                     <div className="divide-y divide-border">
                         {unitsByCategory(units).map(
                             ({ category, units: categoryUnits }) => {
@@ -343,6 +333,7 @@ export function UnitsTab() {
                         )}
                     </div>
                 </ConfigSection>
+                </div>
 
                 <form
                     onSubmit={handleSubmit}
@@ -372,7 +363,7 @@ export function UnitsTab() {
                     </div>
 
                     <div className="mt-5 flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="unit-form-name">
                             <Label htmlFor="unit-name">Name *</Label>
                             <Input
                                 id="unit-name"
@@ -391,7 +382,7 @@ export function UnitsTab() {
                             ) : null}
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="unit-form-symbol">
                             <Label htmlFor="unit-symbol">Short symbol *</Label>
                             <Input
                                 id="unit-symbol"
@@ -399,7 +390,7 @@ export function UnitsTab() {
                                 onChange={(event) =>
                                     updateDraft({ symbol: event.target.value })
                                 }
-                                placeholder="sack"
+                                placeholder="Sack"
                                 aria-invalid={Boolean(errors.symbol)}
                                 className={`${inventoryControlClassName} font-mono`}
                             />
@@ -414,7 +405,7 @@ export function UnitsTab() {
                             )}
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="unit-form-base-toggle">
                             <Label htmlFor="unit-category">
                                 What it measures *
                             </Label>

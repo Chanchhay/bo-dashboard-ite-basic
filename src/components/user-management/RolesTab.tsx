@@ -1,5 +1,6 @@
 "use client";
 
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
@@ -27,7 +28,7 @@ import {
 import {
     useCreateBusinessRoleMutation,
     useDeleteBusinessRoleMutation,
-    useGetBusinessRolesQuery,
+  useGetBusinessRolesPageQuery,
     useGetStaffQuery,
     useUpdateBusinessRoleMutation,
 } from "@/services/userManagementApi";
@@ -36,7 +37,12 @@ type Editor = { mode: "create" } | { mode: "edit"; role: BusinessRole } | null;
 
 export default function RolesTab() {
     const { toast } = useToast();
-    const rolesQuery = useGetBusinessRolesQuery();
+  const [rolesPage, setRolesPage] = useState(0);
+  const [rolesPageSize, setRolesPageSize] = useState(10);
+  const rolesQuery = useGetBusinessRolesPageQuery({
+    page: rolesPage,
+    size: rolesPageSize,
+  });
     const staffQuery = useGetStaffQuery();
     const [createRole, createState] = useCreateBusinessRoleMutation();
     const [updateRole, updateState] = useUpdateBusinessRoleMutation();
@@ -47,7 +53,12 @@ export default function RolesTab() {
     const [nameError, setNameError] = useState<string | undefined>();
     const [deleteTarget, setDeleteTarget] = useState<BusinessRole | null>(null);
 
-    const roles = rolesQuery.data || [];
+  const roles = rolesQuery.data?.content || [];
+  const rolesCurrentPage = rolesQuery.data?.page?.number ?? rolesPage;
+  const rolesTotalPages =
+    rolesQuery.data?.page?.totalPages ?? (roles.length ? 1 : 0);
+  const rolesTotalElements =
+    rolesQuery.data?.page?.totalElements ?? roles.length;
 
     // How many people each role touches — deleting one is not reversible.
     const assignedCounts = useMemo(() => {
@@ -141,10 +152,7 @@ export default function RolesTab() {
             toast({
                 tone: "error",
                 title: "Save failed",
-                description: getApiErrorMessage(
-                    error,
-                    "Unable to save the role.",
-                ),
+        description: getApiErrorMessage(error, "Unable to save the role."),
             });
         }
     }
@@ -163,10 +171,7 @@ export default function RolesTab() {
             toast({
                 tone: "error",
                 title: "Delete failed",
-                description: getApiErrorMessage(
-                    error,
-                    "Unable to delete the role.",
-                ),
+        description: getApiErrorMessage(error, "Unable to delete the role."),
             });
             setDeleteTarget(null);
         }
@@ -204,18 +209,13 @@ export default function RolesTab() {
                         className="mt-6 flex flex-col gap-6"
                     >
                         <div className="max-w-sm">
-                            <FormField
-                                label="Role name"
-                                htmlFor="name"
-                                error={nameError}
-                            >
+              <FormField label="Role name" htmlFor="name" error={nameError}>
                                 <input
                                     id="name"
                                     name="name"
+                                    placeholder="Store Manager, Cashier, etc."
                                     defaultValue={
-                                        editor.mode === "edit"
-                                            ? editor.role.name
-                                            : undefined
+                    editor.mode === "edit" ? editor.role.name : undefined
                                     }
                                     className={fieldClassName}
                                     aria-invalid={Boolean(nameError)}
@@ -236,9 +236,7 @@ export default function RolesTab() {
                                     const values = group.permissions.map(
                                         (permission) => permission.value,
                                     );
-                                    const allOn = values.every((value) =>
-                                        selected.has(value),
-                                    );
+                  const allOn = values.every((value) => selected.has(value));
 
                                     return (
                                         <fieldset
@@ -253,41 +251,27 @@ export default function RolesTab() {
                                                 type="button"
                                                 size="xs"
                                                 variant={allOn ? "outline" : "default"}
-                                                onClick={() =>
-                                                    toggleGroup(values, allOn)
-                                                }
+                        onClick={() => toggleGroup(values, allOn)}
                                                 className="mb-3.5 rounded-lg text-[12px] font-medium transition-all"
                                             >
-                                                {allOn
-                                                    ? "Clear all"
-                                                    : "Select all"}
+                        {allOn ? "Clear all" : "Select all"}
                                             </Button>
 
                                             <div className="flex flex-wrap gap-x-5 gap-y-2.5">
-                                                {group.permissions.map(
-                                                    (permission) => (
+                        {group.permissions.map((permission) => (
                                                         <label
-                                                            key={
-                                                                permission.value
-                                                            }
+                            key={permission.value}
                                                             className="flex items-center gap-2 text-[14px] font-medium text-[#424841] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] cursor-pointer select-none transition-colors"
                                                         >
                                                             <input
                                                                 type="checkbox"
-                                                                checked={selected.has(
-                                                                    permission.value,
-                                                                )}
-                                                                onChange={() =>
-                                                                    toggle(
-                                                                        permission.value,
-                                                                    )
-                                                                }
+                              checked={selected.has(permission.value)}
+                              onChange={() => toggle(permission.value)}
                                                                 className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-success cursor-pointer"
                                                             />
                                                             {permission.label}
                                                         </label>
-                                                    ),
-                                                )}
+                        ))}
                                             </div>
                                         </fieldset>
                                     );
@@ -296,22 +280,14 @@ export default function RolesTab() {
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <Button
-                                type="submit"
-                                disabled={saving}
-
-                            >
+              <Button type="submit" disabled={saving}>
                                 {saving
                                     ? "Saving…"
                                     : editor.mode === "create"
                                       ? "Create role"
                                       : "Save changes"}
                             </Button>
-                            <Button
-                                type="button"
-                                onClick={closeEditor}
-                                variant="outline"
-                            >
+              <Button type="button" onClick={closeEditor} variant="outline">
                                 Cancel
                             </Button>
                         </div>
@@ -319,13 +295,14 @@ export default function RolesTab() {
                 </Panel>
             )}
 
-            <Panel>
+            <Panel data-tour="roles-list">
                 <PanelHeader
                     title="Roles & permissions"
                     description="A role is a named set of permissions you assign to users."
                     action={
                         <Button
                             type="button"
+                            data-tour="add-role"
                             onClick={() => openEditor({ mode: "create" })}
                             className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
                         >
@@ -352,13 +329,14 @@ export default function RolesTab() {
                     />
                 ) : (
                     <ul className="mt-6 flex flex-col gap-3">
-                        {roles.map((role) => {
+                        {roles.map((role: BusinessRole, index: number) => {
                             const permissions = role.permissions || [];
                             const assigned = assignedCounts.get(role.id) || 0;
 
                             return (
                                 <li
                                     key={role.id}
+                                    data-tour={index === 0 ? "role-card" : undefined}
                                     className="rounded-2xl border border-[#e2e2de] dark:border-[#242937] bg-white/50 dark:bg-[#151821] p-5 shadow-xs dark:shadow-[0_4px_14px_rgba(0,0,0,0.2)]"
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -368,9 +346,7 @@ export default function RolesTab() {
                                             </p>
                                             <p className="mt-0.5 text-[13px] text-[#8a8f89] dark:text-[#94a3b8]">
                                                 {permissions.length} permission
-                                                {permissions.length === 1
-                                                    ? ""
-                                                    : "s"}
+                        {permissions.length === 1 ? "" : "s"}
                                                 {" · "}
                                                 {assigned} user
                                                 {assigned === 1 ? "" : "s"}
@@ -390,10 +366,7 @@ export default function RolesTab() {
                                                 variant="ghost"
                                                     size="icon-sm"
                                             >
-                                                <Pencil
-                                                    className="size-4"
-                                                    aria-hidden="true"
-                                                />
+                        <Pencil className="size-4" aria-hidden="true" />
                                             </Button>
                                             <Button
                                                 type="button"
@@ -414,14 +387,12 @@ export default function RolesTab() {
 
                                     {permissions.length > 0 && (
                                         <ul className="mt-4 flex flex-wrap gap-1.5">
-                                            {permissions.map((permission) => (
+                      {permissions.map((permission: string) => (
                                                 <li
                                                     key={permission}
                                                     className="rounded-lg bg-[#f2f3f1] dark:bg-[#252a38] border border-transparent dark:border-[#2a3042] px-2.5 py-1 text-[12px] font-medium text-[#5c6660] dark:text-[#cbd5e1]"
                                                 >
-                                                    {describePermission(
-                                                        permission,
-                                                    )}
+                          {describePermission(permission)}
                                                 </li>
                                             ))}
                                         </ul>
@@ -431,6 +402,19 @@ export default function RolesTab() {
                         })}
                     </ul>
                 )}
+
+        {rolesTotalPages > 0 && (
+          <PaginationBar
+            page={rolesCurrentPage}
+            size={rolesPageSize}
+            totalElements={rolesTotalElements}
+            totalPages={rolesTotalPages}
+            onPageChange={setRolesPage}
+            onSizeChange={setRolesPageSize}
+            isLoading={rolesQuery.isFetching}
+            itemLabel="role"
+          />
+        )}
             </Panel>
 
             <DestructiveConfirmDialog
@@ -438,7 +422,11 @@ export default function RolesTab() {
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
                 }}
-                title={deleteTarget ? `Delete ${deleteTarget.name || "role"}?` : "Delete role?"}
+        title={
+          deleteTarget
+            ? `Delete ${deleteTarget.name || "role"}?`
+            : "Delete role?"
+        }
                 description={
                     deleteTarget ? (
                         <>
@@ -446,7 +434,10 @@ export default function RolesTab() {
                             <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
                                 {deleteTarget.name || "this role"}
                             </strong>
-                            ? {assignedCounts.get(deleteTarget.id) ? `${assignedCounts.get(deleteTarget.id)} user(s) assigned to this role will lose it. ` : ""}
+              ?{" "}
+              {assignedCounts.get(deleteTarget.id)
+                ? `${assignedCounts.get(deleteTarget.id)} user(s) assigned to this role will lose it. `
+                : ""}
                             This action cannot be undone.
                         </>
                     ) : (

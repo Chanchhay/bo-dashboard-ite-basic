@@ -403,6 +403,17 @@ export const inventoryApi = baseApi.injectEndpoints({
             query: () => "/inventory/stock-entries",
             providesTags: ["InventoryStockEntries"],
         }),
+        /**
+         * One movement, with the batches it drew from.
+         *
+         * The list leaves that breakdown out, so a screen wanting to explain a
+         * movement's cost has to ask for the movement on its own.
+         */
+        getStockEntry: builder.query<StockEntry, string>({
+            query: (stockEntryId) =>
+                `/inventory/stock-entries/${encodeURIComponent(stockEntryId)}`,
+            providesTags: ["InventoryStockEntries"],
+        }),
         updateItemAddOns: builder.mutation<
             InventoryItem,
             { itemId: string; addOnIds: string[] }
@@ -497,6 +508,7 @@ export const {
     useDeleteUnitMutation,
     useGetCurrentStockQuery,
     useGetItemStockBatchesQuery,
+    useGetStockEntryQuery,
     useGetItemChannelStockQuery,
     useSaveItemChannelStockMutation,
     useGetStockEntriesQuery,

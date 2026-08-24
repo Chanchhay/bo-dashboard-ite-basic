@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { LoaderCircle, CheckCircle2, AlertCircle, Link2, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { FormSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
@@ -25,7 +26,6 @@ export function BusinessFacebookPageForm() {
     const isConnected = data?.connected;
     const pageName = data?.pageName;
 
-    // ត្រួតពិនិត្យពេល Facebook OAuth Redirect ត្រឡប់មកវិញជាមួយ Result Query
     useEffect(() => {
         const result = searchParams.get("facebook");
         if (result === "facebook_connected") {
@@ -49,7 +49,6 @@ export function BusinessFacebookPageForm() {
         try {
             const res = await fetchConnectUrl().unwrap();
             if (res.url) {
-                // Redirect អ្នកប្រើប្រាស់ទៅកាន់ Facebook OAuth Page
                 window.location.href = res.url;
             }
         } catch (cause) {
@@ -80,16 +79,11 @@ export function BusinessFacebookPageForm() {
     }
 
     if (isLoading) {
-        return (
-            <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
-                Loading Facebook settings…
-            </div>
-        );
+        return <FormSkeleton rows={2} />;
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div data-tour="facebook-connect-panel" className="flex flex-col gap-6">
             <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-start gap-4">

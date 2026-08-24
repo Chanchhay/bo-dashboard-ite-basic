@@ -49,10 +49,8 @@ export default function PublicMenuClient({
     return `https://fluxibiz.store/store/${slug}`;
   }, [storeDetail]);
 
-  // Fetch Item Groups from API if available
   const { data: itemGroups = [] } = useGetItemGroupsQuery();
 
-  // Map store items strictly
   const items = useMemo<MenuItemEntry[]>(() => {
     return storeItems.map((raw) => {
       const thumbnail = itemThumbnail(raw);
@@ -68,7 +66,6 @@ export default function PublicMenuClient({
     });
   }, [storeItems]);
 
-  // Extract Categories from storeItems & itemGroups
   const categories = useMemo(() => {
     const set = new Set<string>();
     itemGroups.forEach((g) => {
@@ -82,7 +79,6 @@ export default function PublicMenuClient({
     return Array.from(set);
   }, [itemGroups, items]);
 
-  // Extract Subcategories from storeItems & itemGroups
   const subCategories = useMemo(() => {
     const set = new Set<string>();
     if (selectedMainCategory !== "All" && selectedMainCategory !== "All Dishes") {
@@ -104,14 +100,12 @@ export default function PublicMenuClient({
     return Array.from(set);
   }, [itemGroups, selectedMainCategory]);
 
-  // Filter items by main category, subcategory & search query
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return items.filter((item) => {
       const catName = item.category.toLowerCase();
       const itemName = item.name.toLowerCase();
 
-      // Main Category Match
       const mainSel = selectedMainCategory.toLowerCase();
       const matchMainCategory =
         mainSel === "all" ||
@@ -120,7 +114,6 @@ export default function PublicMenuClient({
         catName.includes(mainSel) ||
         mainSel.includes(catName);
 
-      // Subcategory Match
       const subSel = selectedSubCategory.toLowerCase();
       const matchSubCategory =
         subSel === "all" ||
@@ -129,7 +122,6 @@ export default function PublicMenuClient({
         catName.includes(subSel) ||
         itemName.includes(subSel);
 
-      // Search Match
       const matchSearch =
         !q ||
         itemName.includes(q) ||
@@ -144,7 +136,6 @@ export default function PublicMenuClient({
 
   return (
     <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
-      {/* 1. Public Menu Header / Banner */}
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
         <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
           <div className="flex items-center justify-between gap-3 sm:gap-4">
@@ -176,12 +167,11 @@ export default function PublicMenuClient({
             </div>
 
             <div className="flex items-center gap-2.5">
-              {/* Only One Order Now Button in Public Menu Banner */}
               <a
                 href={orderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#00932a] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#00932a]/20 hover:bg-[#00932a]/90 active:scale-95 transition-all cursor-pointer shrink-0"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shrink-0"
               >
                 <ShoppingBag className="size-4" />
                 <span>Order Now</span>
@@ -197,9 +187,7 @@ export default function PublicMenuClient({
         </div>
       </div>
 
-      {/* 2. Main App Body Container matching /menu UI */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-4 sm:py-6 md:overflow-hidden flex flex-col md:flex-row gap-6 md:gap-8 items-start">
-        {/* Desktop Fixed Left Sidebar Checkbox Filter */}
         <div className="hidden md:block w-56 lg:w-64 shrink-0 h-full overflow-y-auto pr-1 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <CategoryFilter
             categories={categories}
@@ -223,7 +211,6 @@ export default function PublicMenuClient({
           />
         </div>
 
-        {/* Mobile Filter Drawer */}
         <div className="md:hidden shrink-0 w-full">
           <CategoryFilter
             categories={categories}
@@ -247,9 +234,7 @@ export default function PublicMenuClient({
           />
         </div>
 
-        {/* Right Area: Title Header + Scrollable Product Card Grid */}
         <div className="flex-1 w-full md:h-full min-w-0 flex flex-col space-y-4">
-          {/* Title Header */}
           <div className="shrink-0 flex items-center justify-between border-b border-gray-200/80 dark:border-gray-800/80 pb-3 sm:pb-4">
             <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
               {selectedMainCategory === "All"
@@ -263,7 +248,6 @@ export default function PublicMenuClient({
             </span>
           </div>
 
-          {/* Scrollable Product Menu Grid */}
           <div className="flex-1 md:overflow-y-auto pr-0 sm:pr-1 pb-16 scroll-smooth rounded-2xl [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-700">
             {filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 dark:border-gray-800 bg-white dark:bg-[#1a1e29] py-16 text-center shadow-2xs">
@@ -280,7 +264,7 @@ export default function PublicMenuClient({
                       setSelectedMainCategory("All");
                       setSelectedSubCategory("All");
                     }}
-                    className="mt-4 rounded-xl bg-[#00932a] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#00932a]/90 transition-all cursor-pointer"
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary/90 transition-all cursor-pointer"
                   >
                     Reset Filters
                   </button>
@@ -308,7 +292,6 @@ export default function PublicMenuClient({
         </div>
       </main>
 
-      {/* Item Preview Modal Dialog for Public Menu */}
       <ItemPreviewDialog
         open={previewItem !== null}
         onOpenChange={(open) => !open && setPreviewItem(null)}

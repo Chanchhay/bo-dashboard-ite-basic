@@ -42,6 +42,7 @@ import {
     type BusinessProfileInput,
     type BusinessSubCategory,
 } from "@/lib/api/business";
+import { hasApiErrorMessage } from "@/lib/api-error";
 import type { ImageUploadRules } from "@/lib/api/image-upload";
 import {
     businessApi,
@@ -177,12 +178,9 @@ function getBusinessTypes(
     return businessTypes;
 }
 
-// This form's styling is the app-wide reference; both names stay as local
-// aliases so the rest of the file reads unchanged.
 const inputClassName = controlClassName;
 const textareaClassName = sharedTextareaClassName;
 
-/** A picker plus the "staged until you save" wording both images share. */
 function StagedImageField({
     staged,
     rules,
@@ -196,7 +194,6 @@ function StagedImageField({
     rules: ImageUploadRules;
     disabled: boolean;
     label: string;
-    /** Names the image in the buttons: "Logo", "Cover". */
     noun: string;
     preview: ReactNode;
     previewShape?: "circle" | "rect";
@@ -278,8 +275,6 @@ function BusinessProfileEditor({
         isUploadingThumbnail ||
         isDeletingThumbnail;
     const formRef = useRef<HTMLFormElement>(null);
-    // Both images stage their pick and their removal until the form is saved,
-    // so a cancelled edit never touches what is stored.
     const logo = useStagedImage(businessLogoRules, business.logo || "");
     const thumbnail = useStagedImage(
         businessThumbnailRules,
@@ -413,8 +408,6 @@ function BusinessProfileEditor({
         let imageChanged = false;
 
         try {
-            // Both images live behind their own endpoints, so they go first and
-            // the profile update below refreshes the cached business for all.
             if (logo.file) {
                 await uploadBusinessLogo(logo.file).unwrap();
                 imageChanged = true;
@@ -441,8 +434,6 @@ function BusinessProfileEditor({
             });
         } catch (error) {
             if (imageChanged) {
-                // An image already changed on the server; pull the business
-                // back so the form is not left showing a stale picture.
                 dispatch(businessApi.util.invalidateTags(["Business"]));
             }
 
@@ -462,10 +453,11 @@ function BusinessProfileEditor({
             ref={formRef}
             onSubmit={handleSubmit}
             noValidate
+            data-tour="business-profile-form"
             className="flex min-h-0 flex-col gap-4 sm:gap-5 rounded-xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-4 sm:p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
         >
             <div className="grid gap-6 xl:gap-[30px] xl:grid-cols-[303px_minmax(0,1fr)]">
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4" data-tour="profile-logo">
                     <StagedImageField
                         staged={logo}
                         rules={businessLogoRules}
@@ -476,12 +468,13 @@ function BusinessProfileEditor({
                         preview={
                             <span className="flex size-24 sm:size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8] dark:bg-[#252a38]">
                                 {logo.preview ? (
-                                    // The API supplies this URL dynamically and the local preview uses a blob URL.
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
+                                    
+                                    <Image
                                         src={logo.preview}
                                         alt="Business logo preview"
                                         className="size-full object-cover"
+                                        width={128}
+                                        height={128}
                                     />
                                 ) : (
                                     <Camera className="size-7 sm:size-9 text-primary" />
@@ -495,60 +488,63 @@ function BusinessProfileEditor({
                     <SectionTitle>Business Identity</SectionTitle>
 
                     <div className="mt-5 grid gap-x-4 gap-y-5 md:grid-cols-2">
-                        <Field
-                            label="Legal Name"
-                            name="name"
-                            error={fieldErrors.name}
-                        >
-                            <Input
-                                id="name"
+                        <div data-tour="profile-name">
+                            <Field
+                                label="Legal Name"
                                 name="name"
-                                defaultValue={business.name || ""}
-                                maxLength={200}
-                                aria-invalid={Boolean(fieldErrors.name)}
-                                className={inputClassName}
-                            />
-                        </Field>
-
-                        <Field
-                            label="Business Type"
-                            name="categoryId"
-                            error={fieldErrors.categoryId}
-                        >
-                            <Select
-                                name="categoryId"
-                                defaultValue={business.category?.id || ""}
-                                /* Without this the trigger shows the raw id. */
-                                items={Object.fromEntries(
-                                    businessTypes.map((businessType) => [
-                                        businessType.id,
-                                        businessType.name,
-                                    ]),
-                                )}
+                                error={fieldErrors.name}
                             >
-                                <SelectTrigger
-                                    id="categoryId"
-                                    aria-invalid={Boolean(
-                                        fieldErrors.categoryId,
-                                    )}
-                                    className={`${inputClassName} w-full`}
-                                >
-                                    <SelectValue placeholder="Select business type" />
-                                </SelectTrigger>
-                                <SelectContent align="start">
-                                    {businessTypes.map((businessType) => (
-                                        <SelectItem
-                                            key={businessType.id}
-                                            value={businessType.id || ""}
-                                        >
-                                            {businessType.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </Field>
+                                <Input
+                                    id="name"
+                                    name="name"
+                                    defaultValue={business.name || ""}
+                                    maxLength={200}
+                                    aria-invalid={Boolean(fieldErrors.name)}
+                                    className={inputClassName}
+                                />
+                            </Field>
+                        </div>
 
-                        <div className="md:col-span-2">
+                        <div data-tour="profile-category">
+                            <Field
+                                label="Business Type"
+                                name="categoryId"
+                                error={fieldErrors.categoryId}
+                            >
+                                <Select
+                                    name="categoryId"
+                                    defaultValue={business.category?.id || ""}
+                                    items={Object.fromEntries(
+                                        businessTypes.map((businessType) => [
+                                            businessType.id,
+                                            businessType.name,
+                                        ]),
+                                    )}
+                                >
+                                    <SelectTrigger
+                                        id="categoryId"
+                                        aria-invalid={Boolean(
+                                            fieldErrors.categoryId,
+                                        )}
+                                        className={`${inputClassName} w-full`}
+                                    >
+                                        <SelectValue placeholder="Select business type" />
+                                    </SelectTrigger>
+                                    <SelectContent align="start">
+                                        {businessTypes.map((businessType) => (
+                                            <SelectItem
+                                                key={businessType.id}
+                                                value={businessType.id || ""}
+                                            >
+                                                {businessType.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                        </div>
+
+                        <div className="md:col-span-2" data-tour="profile-about">
                             <Field
                                 label="Public Description"
                                 name="about"
@@ -574,21 +570,23 @@ function BusinessProfileEditor({
 
                 <div className="grid gap-5 lg:gap-10 lg:grid-cols-2">
                     <div className="flex flex-col gap-3">
-                        <Field
-                            label="Email Address"
-                            name="email"
-                            error={fieldErrors.email}
-                        >
-                            <Input
-                                id="email"
+                        <div data-tour="profile-email">
+                            <Field
+                                label="Email Address"
                                 name="email"
-                                type="email"
-                                defaultValue={business.email || ""}
-                                maxLength={255}
-                                aria-invalid={Boolean(fieldErrors.email)}
-                                className={`${inputClassName} text-[#6b7280]`}
-                            />
-                        </Field>
+                                error={fieldErrors.email}
+                            >
+                                <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    defaultValue={business.email || ""}
+                                    maxLength={255}
+                                    aria-invalid={Boolean(fieldErrors.email)}
+                                    className={`${inputClassName} text-[#6b7280]`}
+                                />
+                            </Field>
+                        </div>
 
                         <Field
                             label="Website"
@@ -607,23 +605,25 @@ function BusinessProfileEditor({
                             />
                         </Field>
 
-                        <Field
-                            label="Phone Number"
-                            name="phoneNumber"
-                            error={fieldErrors.phoneNumber}
-                        >
-                            <Input
-                                id="phoneNumber"
+                        <div data-tour="profile-phone">
+                            <Field
+                                label="Phone Number"
                                 name="phoneNumber"
-                                type="tel"
-                                defaultValue={business.phoneNumber || ""}
-                                maxLength={30}
-                                aria-invalid={Boolean(
-                                    fieldErrors.phoneNumber,
-                                )}
-                                className={`${inputClassName} text-[#6b7280]`}
-                            />
-                        </Field>
+                                error={fieldErrors.phoneNumber}
+                            >
+                                <Input
+                                    id="phoneNumber"
+                                    name="phoneNumber"
+                                    type="tel"
+                                    defaultValue={business.phoneNumber || ""}
+                                    maxLength={30}
+                                    aria-invalid={Boolean(
+                                        fieldErrors.phoneNumber,
+                                    )}
+                                    className={`${inputClassName} text-[#6b7280]`}
+                                />
+                            </Field>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-3">
@@ -691,7 +691,7 @@ function BusinessProfileEditor({
             </section>
 
             <div className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto">
+                <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto" data-tour="profile-save">
                     <Button
                         type="button"
                         onClick={handleCancel}
@@ -718,9 +718,11 @@ function BusinessProfileEditor({
 
 function ProfileQueryError({
     message,
+    answered,
     onRetry,
 }: {
     message: string;
+    answered: boolean;
     onRetry: () => void;
 }) {
     return (
@@ -730,10 +732,12 @@ function ProfileQueryError({
         >
             <h2 className="text-lg font-bold">Unable to load business profile</h2>
             <p className="mt-2 text-sm text-[#636b74]">{message}</p>
-            <p className="mt-4 text-sm text-[#636b74]">
-                Check the server&apos;s <code>API_BASE_URL</code> value and the
-                backend availability, then try again.
-            </p>
+            {!answered && (
+                <p className="mt-4 text-sm text-[#636b74]">
+                    Check the server&apos;s <code>API_BASE_URL</code> value and
+                    the backend availability, then try again.
+                </p>
+            )}
             <Button
                 type="button"
                 onClick={onRetry}
@@ -762,6 +766,7 @@ export default function BusinessProfileForm() {
                     businessQuery.error,
                     "The business API could not be reached.",
                 )}
+                answered={hasApiErrorMessage(businessQuery.error)}
                 onRetry={() => {
                     void businessQuery.refetch();
                     void categoriesQuery.refetch();

@@ -13,7 +13,7 @@ import {
     type NavLaunch,
     type NavSection,
 } from "@/components/layout/navigation";
-import type { Permission } from "@/lib/permissions";
+import type { GrantedPermissions } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
 
 export default function Sidebar({
@@ -23,7 +23,7 @@ export default function Sidebar({
 }: {
     open: boolean;
     onClose: () => void;
-    permissions: Permission[];
+    permissions: GrantedPermissions;
 }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -32,12 +32,6 @@ export default function Sidebar({
         : pathname;
 
     const allowed = visibleSections(permissions);
-    // The shell belongs to the app you opened, so the sidebar shows that app's
-    // own pages and nothing else. Routes that sit outside any app (your
-    // profile, for instance) get just the way back.
-    //
-    // Resolved against `allowed` rather than the raw navigation, so a page the
-    // user can't reach never appears in the scoped list either.
     const current = allowed.find((section) =>
         isSectionActive(section, pathname),
     );
@@ -45,7 +39,6 @@ export default function Sidebar({
 
     return (
         <>
-            {/* Scrim only exists for the mobile drawer. */}
             <div
                 onClick={onClose}
                 aria-hidden="true"
@@ -60,9 +53,6 @@ export default function Sidebar({
             <div
                 className={cn(
                     "fixed inset-y-0 left-0 z-40 flex w-[268px] flex-col bg-shell",
-                    /* `visibility` keeps the closed drawer out of the tab order
-                       instead of leaving focusable links parked off-screen. It
-                       transitions discretely, so the slide-out still plays. */
                     "transition-[transform,visibility] duration-200 ease-out",
                     "lg:visible lg:sticky lg:top-0 lg:z-auto lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:bg-transparent",
                     open ? "translate-x-0" : "invisible -translate-x-full",
@@ -95,13 +85,14 @@ export default function Sidebar({
                     <Link
                         href="/apps"
                         onClick={onClose}
+                        data-tour="apps-nav"
                         className="mb-4 flex items-center gap-2 rounded-xl px-3 py-2.5 text-[14px] text-[#5c6660] dark:text-[#94a3b8] outline-none transition-colors hover:bg-black/[.04] dark:hover:bg-white/[.06] hover:text-[#16181c] dark:hover:text-[#f8fafc] focus-visible:ring-2 focus-visible:ring-primary"
                     >
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         All apps
                     </Link>
 
-                    <ul className="flex flex-col gap-1">
+                    <ul className="flex flex-col gap-1" data-tour="sidebar-nav">
                         {sections.map((section) => (
                             <li key={section.id}>
                                 <SectionItem
@@ -115,8 +106,6 @@ export default function Sidebar({
                     </ul>
                 </nav>
 
-                {/* Pinned rather than scrolled with the nav: leaving for another
-                    app is always available, and never mistaken for a page. */}
                 {current?.launch && (
                     <LaunchButton launch={current.launch} onNavigate={onClose} />
                 )}
@@ -135,7 +124,7 @@ function LaunchButton({
     const Icon = launch.icon;
 
     return (
-        <div className="border-t border-[#e2e2de] dark:border-[#242937] px-4 pt-4 pb-6">
+        <div data-tour="pos-launch" className="border-t border-[#e2e2de] dark:border-[#242937] px-4 pt-4 pb-6">
             <Link
                 href={launch.href}
                 onClick={onNavigate}
@@ -168,6 +157,7 @@ function SectionItem({
     if (!section.children) {
         return (
             <Link
+                data-tour={`sidebar-section-${section.id}`}
                 href={section.href ?? "#"}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
@@ -191,10 +181,7 @@ function SectionItem({
     }
 
     return (
-        <>
-            {/* Not a control — inside an app there is nothing to collapse into.
-                Named as the launcher names it, so the tile you clicked and the
-                app you land in agree. */}
+        <div data-tour={`sidebar-section-${section.id}`} className="flex flex-col">
             <p className={cn(rowClass, "font-medium text-[#16181c] dark:text-[#f8fafc]")}>
                 <Icon
                     className="size-[18px] shrink-0 text-primary"
@@ -204,16 +191,15 @@ function SectionItem({
             </p>
 
             <ul
-                /* The rail is the only thing tying children to their parent,
-                   so it sits on the list rather than each row. */
                 className="mt-1 ml-[26px] flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-3"
             >
                 {section.children.map((leaf) => {
                     const leafActive = isLeafActive(leaf, fullPath);
 
                     if (isNavGroup(leaf)) {
+                        const groupKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
                         return (
-                            <li key={leaf.label}>
+                            <li key={leaf.label} data-tour={`sidebar-group-${groupKey}`}>
                                 <details
                                     className="group/pos"
                                     open={leafActive || undefined}
@@ -241,8 +227,9 @@ function SectionItem({
                                                 child,
                                                 fullPath,
                                             );
+                                            const childKey = child.label.toLowerCase().replace(/\s+/g, "-");
                                             return (
-                                                <li key={child.href}>
+                                                <li key={child.href} data-tour={`sidebar-link-${childKey}`}>
                                                     <Link
                                                         href={child.href}
                                                         onClick={onNavigate}
@@ -271,8 +258,9 @@ function SectionItem({
                         );
                     }
 
+                    const leafKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
                     return (
-                        <li key={leaf.href}>
+                        <li key={leaf.href} data-tour={`sidebar-link-${leafKey}`}>
                             <Link
                                 href={leaf.href}
                                 onClick={onNavigate}
@@ -295,6 +283,6 @@ function SectionItem({
                     );
                 })}
             </ul>
-        </>
+        </div>
     );
 }

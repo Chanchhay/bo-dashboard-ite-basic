@@ -26,18 +26,6 @@ function initialsOf(name: string) {
   );
 }
 
-/**
- * The avatar chip in the header, and the account actions behind it.
- *
- * The name and picture come from the user-profile query rather than the
- * session, so editing the profile updates this chip in the same tick; the
- * session name from the server stays as the fallback until the query lands.
- *
- * Signing out has to be a POST — it ends the session and hands the browser to
- * Keycloak — so it goes through a real form rather than a link. The form lives
- * outside the popup because clicking an item closes the menu, and a form
- * unmounted mid-click never submits.
- */
 export default function UserMenu({
     name,
     compact = false,
@@ -68,7 +56,7 @@ export default function UserMenu({
             <Menu>
                 <MenuTrigger
                     aria-label={`Account menu for ${profileName}`}
-                    className={`flex items-center justify-center rounded-full border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] outline-none transition-colors hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] focus-visible:ring-2 focus-visible:ring-[#00932a] data-popup-open:bg-[#f7f7f6] dark:data-popup-open:bg-[#252a38] ${
+                    className={`flex items-center justify-center rounded-full border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] outline-none transition-colors hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] focus-visible:ring-2 focus-visible:ring-primary data-popup-open:bg-[#f7f7f6] dark:data-popup-open:bg-[#252a38] ${
                         compact
                             ? "size-10 p-1"
                             : "size-10 p-1 sm:h-11 sm:w-auto sm:py-1.5 sm:pl-1.5 sm:pr-4 sm:gap-2.5"
@@ -76,10 +64,9 @@ export default function UserMenu({
                 >
                     <span
                         aria-hidden="true"
-                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[#00932a] text-[13px] font-medium text-white"
+                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-[13px] font-medium text-white"
                     >
                         {picture ? (
-                            // The profile picture URL is supplied by the API.
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={picture}

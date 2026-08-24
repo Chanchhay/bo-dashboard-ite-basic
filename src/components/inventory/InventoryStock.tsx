@@ -11,6 +11,7 @@ import {
 
 import { useMoney } from "@/hooks/useMoney";
 
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     getApiErrorMessage,
     InventoryError,
@@ -60,13 +61,6 @@ function MetricCard({
     );
 }
 
-/**
- * Stock at a glance: what every item holds, and what that is worth.
- *
- * Add-ons and the movements ledger are pages of their own in the sidebar. They
- * answer different questions — what an item offers, and what happened — and
- * neither is read alongside these totals.
- */
 export function InventoryStock() {
     const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
@@ -92,7 +86,6 @@ export function InventoryStock() {
         retry,
     } = useStockLevels();
 
-    /** The item whose deliveries are being looked at, if any. */
     const [batchesForItemId, setBatchesForItemId] = useState<string | null>(
         null,
     );
@@ -110,13 +103,6 @@ export function InventoryStock() {
     const countState = (state: StockState) =>
         itemRows.filter((row) => row.state === state).length;
 
-    /**
-     * What the shop's stock is worth: every open batch at the price it was
-     * bought at, worked out by the API from the batches themselves.
-     *
-     * Add-ons count too — a tub of pearls was paid for like anything else, and
-     * they are stocked from this screen.
-     */
     const stockValue = [...itemRows, ...addOnRows]
         .map((row) => row.value ?? 0)
         .reduce((total, value) => total + value, 0);
@@ -154,7 +140,6 @@ export function InventoryStock() {
         state: row.state,
         valueAtCost: row.value,
         pendingChange: row.pendingChange,
-        // Each option counts its own stock; the item's figure is their sum.
         options: row.options.map((option) => ({
             ...option,
             unitLabel: row.item.unit?.name || "",
@@ -169,14 +154,6 @@ export function InventoryStock() {
         })),
     }));
 
-    /**
-     * Add-ons no item offers.
-     *
-     * An add-on is stocked from under the item that offers it, which leaves
-     * one that nothing offers with nowhere to be counted. It still holds
-     * stock somebody paid for, so it is listed on its own rather than being
-     * dropped off the screen.
-     */
     const looseAddOnRows: StockLevelRow[] = addOnRows
         .filter(
             (row) =>
@@ -201,13 +178,14 @@ export function InventoryStock() {
         }));
 
     return (
-        <div className="flex flex-col gap-6">
+        <div data-tour="inventory-stock-overview" className="flex flex-col gap-6">
             <InventoryPageHeader
                 title="Stock"
                 description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."
+                action={<TourButton />}
             />
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div data-tour="stock-metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                     label="Tracked"
                     value={String(items.length + addOns.length)}
@@ -248,7 +226,7 @@ export function InventoryStock() {
                             Counted in each item&apos;s base unit.
                         </p>
                     </div>
-                    <div className="relative w-full sm:max-w-xs">
+                    <div data-tour="stock-search" className="relative w-full sm:max-w-xs">
                         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={stockSearch}

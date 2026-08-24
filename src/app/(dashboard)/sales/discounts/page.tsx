@@ -9,14 +9,13 @@ import {
     Edit2,
     Trash2,
     Calendar,
-    Layers,
-    Percent,
-    DollarSign,
     Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,6 +38,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
 import type {
     CouponResponse,
+    CouponStatus,
     CreateCouponInput,
     CreateDiscountInput,
     DiscountResponse,
@@ -46,6 +46,7 @@ import type {
     DiscountScope,
     DiscountType,
     OrderChannel,
+    RecordStatus,
 } from "@/lib/api/discount";
 import {
     useActivateCouponMutation,
@@ -64,12 +65,26 @@ import {
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
+import { SelectField } from "@/components/ui/select-field";
+
+function formatDateTimeForInput(dateStr?: string | null): string {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 export default function DiscountsAndCouponsPage() {
     const { format, base } = useMoney();
     const baseSymbol = base?.symbol ?? base?.code ?? "";
     const [activeTab, setActiveTab] = useState<"discounts" | "coupons">("discounts");
     const [searchQuery, setSearchQuery] = useState("");
+    const [discountFilter, setDiscountFilter] = useState<"ALL" | "AUTO" | "COUPON">("ALL");
 
     // --- Column Visibility States ---
     const [discountCols, setDiscountCols] = useState([
@@ -141,7 +156,7 @@ export default function DiscountsAndCouponsPage() {
     const [dType, setDType] = useState<DiscountType>("PERCENTAGE");
     const [dRuleType, setDRuleType] = useState<DiscountRuleType>("NO_CONDITION");
     const [dValue, setDValue] = useState("");
-    const [dScope, setDScope] = useState<DiscountScope>("ORDER");
+    const [dScope, setDScope] = useState<DiscountScope>("ALL_ITEMS");
     const [dMinOrderAmount, setDMinOrderAmount] = useState("");
     const [dMaxDiscountAmount, setDMaxDiscountAmount] = useState("");
     const [dBuyQty, setDBuyQty] = useState("");
@@ -150,6 +165,7 @@ export default function DiscountsAndCouponsPage() {
     const [dStartsAt, setDStartsAt] = useState("");
     const [dEndsAt, setDEndsAt] = useState("");
     const [dRequiresCoupon, setDRequiresCoupon] = useState(false);
+    const [dStatus, setDStatus] = useState<RecordStatus>("ACTIVE");
     const [dChannels, setDChannels] = useState<OrderChannel[]>(["POS", "WEB"]);
     const [dSelectedItems, setDSelectedItems] = useState<string[]>([]);
 
@@ -165,22 +181,29 @@ export default function DiscountsAndCouponsPage() {
     const [cMinPurchase, setCMinPurchase] = useState("");
     const [cStartsAt, setCStartsAt] = useState("");
     const [cEndsAt, setCEndsAt] = useState("");
+    const [cStatus, setCStatus] = useState<CouponStatus>("ACTIVE");
 
     // --- Delete confirmation ---
     const [deletingItem, setDeletingItem] = useState<{ id: string; type: "discount" | "coupon"; name: string } | null>(null);
 
     // --- Filtered Data ---
     const filteredDiscounts = useMemo(() => {
-        if (!searchQuery.trim()) return discounts;
+        let list = discounts;
+        if (discountFilter === "AUTO") {
+            list = list.filter((d) => !d.requiresCoupon);
+        } else if (discountFilter === "COUPON") {
+            list = list.filter((d) => d.requiresCoupon);
+        }
+        if (!searchQuery.trim()) return list;
         const q = searchQuery.toLowerCase();
-        return discounts.filter(
+        return list.filter(
             (d) =>
                 d.name.toLowerCase().includes(q) ||
                 (d.description && d.description.toLowerCase().includes(q)) ||
                 d.type.toLowerCase().includes(q) ||
                 d.scope.toLowerCase().includes(q)
         );
-    }, [discounts, searchQuery]);
+    }, [discounts, discountFilter, searchQuery]);
 
     const filteredCoupons = useMemo(() => {
         if (!searchQuery.trim()) return coupons;
@@ -192,6 +215,10 @@ export default function DiscountsAndCouponsPage() {
         );
     }, [coupons, searchQuery]);
 
+    const couponEligibleDiscounts = useMemo(() => {
+        return discounts.filter((d) => d.requiresCoupon || d.id === cDiscountId);
+    }, [discounts, cDiscountId]);
+
     // --- Open Create/Edit Handlers ---
     const openCreateDiscount = () => {
         setEditingDiscount(null);
@@ -201,15 +228,16 @@ export default function DiscountsAndCouponsPage() {
         setDType("PERCENTAGE");
         setDRuleType("NO_CONDITION");
         setDValue("10");
-        setDScope("ORDER");
+        setDScope("ALL_ITEMS");
         setDMinOrderAmount("");
         setDMaxDiscountAmount("");
         setDBuyQty("");
         setDGetQty("");
         setDMinQty("");
-        setDStartsAt(new Date().toISOString().slice(0, 16));
-        setDEndsAt(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
+        setDStartsAt(formatDateTimeForInput(new Date().toISOString()));
+        setDEndsAt(formatDateTimeForInput(new Date(Date.now() + 30 * 86400000).toISOString()));
         setDRequiresCoupon(false);
+        setDStatus("ACTIVE");
         setDChannels(["POS", "WEB"]);
         setDSelectedItems([]);
         setIsDiscountDialogOpen(true);
@@ -222,16 +250,17 @@ export default function DiscountsAndCouponsPage() {
         setDDescription(d.description || "");
         setDType(d.type);
         setDRuleType(d.ruleType);
-        setDValue(String(d.value));
+        setDValue(d.value !== undefined && d.value !== null ? String(d.value) : "0");
         setDScope(d.scope);
         setDMinOrderAmount(d.minOrderAmount ? String(d.minOrderAmount) : "");
         setDMaxDiscountAmount(d.maxDiscountAmount ? String(d.maxDiscountAmount) : "");
         setDBuyQty(d.buyQuantity ? String(d.buyQuantity) : "");
         setDGetQty(d.getQuantity ? String(d.getQuantity) : "");
         setDMinQty(d.minQuantity ? String(d.minQuantity) : "");
-        setDStartsAt(d.startsAt ? new Date(d.startsAt).toISOString().slice(0, 16) : "");
-        setDEndsAt(d.endsAt ? new Date(d.endsAt).toISOString().slice(0, 16) : "");
+        setDStartsAt(formatDateTimeForInput(d.startsAt));
+        setDEndsAt(formatDateTimeForInput(d.endsAt));
         setDRequiresCoupon(d.requiresCoupon ?? false);
+        setDStatus(d.status || "ACTIVE");
         setDChannels(d.applicableChannels || ["POS", "WEB"]);
         setDSelectedItems(d.targets?.filter((t) => t.targetType === "ITEM").map((t) => t.targetId) || []);
         setIsDiscountDialogOpen(true);
@@ -243,38 +272,50 @@ export default function DiscountsAndCouponsPage() {
             setDiscountFormError("Discount name is required.");
             return;
         }
-        if (!dValue || Number(dValue) <= 0) {
-            setDiscountFormError("A valid positive discount value is required.");
-            return;
+
+        if (dRuleType === "BUY_X_GET_Y") {
+            if (!dBuyQty || Number(dBuyQty) <= 0 || !dGetQty || Number(dGetQty) <= 0) {
+                setDiscountFormError("Please enter valid Buy Quantity (X) and Get Quantity (Y).");
+                return;
+            }
+        } else {
+            if (!dValue || Number(dValue) <= 0) {
+                setDiscountFormError("A valid positive discount value is required.");
+                return;
+            }
         }
+
         if (!dStartsAt || !dEndsAt) {
             setDiscountFormError("Start and End dates are required.");
             return;
         }
 
-        const scopePayload: DiscountScope =
-            dScope === "ITEM" || dScope === "SPECIFIC_ITEMS"
-                ? "SPECIFIC_ITEMS"
-                : "ALL_ITEMS";
+        const isSpecificScope = dScope === "ITEM" || dScope === "SPECIFIC_ITEMS";
+        if (isSpecificScope && dSelectedItems.length === 0) {
+            setDiscountFormError("Please select at least one product when scope is set to Specific Products.");
+            return;
+        }
+
+        const scopePayload: DiscountScope = isSpecificScope ? "SPECIFIC_ITEMS" : "ALL_ITEMS";
 
         const payload: CreateDiscountInput = {
             name: dName.trim(),
             description: dDescription.trim() || undefined,
-            type: dType,
+            type: dType || "FIXED_AMOUNT",
             ruleType: dRuleType,
-            value: Number(dValue),
+            value: dRuleType === "BUY_X_GET_Y" ? 1 : (Number(dValue) || 1),
             scope: scopePayload,
             minOrderAmount: dMinOrderAmount ? Number(dMinOrderAmount) : undefined,
             maxDiscountAmount: dMaxDiscountAmount ? Number(dMaxDiscountAmount) : undefined,
-            buyQuantity: dBuyQty ? Number(dBuyQty) : undefined,
-            getQuantity: dGetQty ? Number(dGetQty) : undefined,
-            minQuantity: dMinQty ? Number(dMinQty) : undefined,
+            buyQuantity: dBuyQty ? Math.floor(Math.abs(Number(dBuyQty))) : undefined,
+            getQuantity: dGetQty ? Math.floor(Math.abs(Number(dGetQty))) : undefined,
+            minQuantity: dMinQty ? Math.floor(Math.abs(Number(dMinQty))) : undefined,
             requiresCoupon: dRequiresCoupon,
             startsAt: new Date(dStartsAt).toISOString(),
             endsAt: new Date(dEndsAt).toISOString(),
-            status: editingDiscount ? editingDiscount.status : "ACTIVE",
+            status: dStatus,
             applicableChannels: dChannels,
-            targetItemIds: (dScope === "ITEM" || dScope === "SPECIFIC_ITEMS") ? dSelectedItems : undefined,
+            targetItemIds: isSpecificScope ? dSelectedItems : [],
         };
 
         try {
@@ -293,13 +334,15 @@ export default function DiscountsAndCouponsPage() {
     const openCreateCoupon = () => {
         setEditingCoupon(null);
         setCouponFormError("");
-        setCDiscountId(discounts[0]?.id || "");
+        const eligible = discounts.filter((d) => d.requiresCoupon);
+        setCDiscountId(eligible[0]?.id || "");
         setCCode(`SAVE${Math.floor(100 + Math.random() * 900)}`);
         setCUsageLimit("100");
         setCUsageLimitCustomer("1");
         setCMinPurchase("0");
-        setCStartsAt(new Date().toISOString().slice(0, 16));
-        setCEndsAt(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16));
+        setCStartsAt(formatDateTimeForInput(new Date().toISOString()));
+        setCEndsAt(formatDateTimeForInput(new Date(Date.now() + 30 * 86400000).toISOString()));
+        setCStatus("ACTIVE");
         setIsCouponDialogOpen(true);
     };
 
@@ -311,8 +354,9 @@ export default function DiscountsAndCouponsPage() {
         setCUsageLimit(c.usageLimit ? String(c.usageLimit) : "");
         setCUsageLimitCustomer(c.usageLimitPerCustomer ? String(c.usageLimitPerCustomer) : "");
         setCMinPurchase(c.minPurchaseAmount ? String(c.minPurchaseAmount) : "");
-        setCStartsAt(c.startsAt ? new Date(c.startsAt).toISOString().slice(0, 16) : "");
-        setCEndsAt(c.endsAt ? new Date(c.endsAt).toISOString().slice(0, 16) : "");
+        setCStartsAt(formatDateTimeForInput(c.startsAt));
+        setCEndsAt(formatDateTimeForInput(c.endsAt));
+        setCStatus(c.status || "ACTIVE");
         setIsCouponDialogOpen(true);
     };
 
@@ -320,6 +364,13 @@ export default function DiscountsAndCouponsPage() {
         setCouponFormError("");
         if (!cDiscountId) {
             setCouponFormError("Please select a discount rule to link.");
+            return;
+        }
+        const targetDisc = discounts.find((d) => d.id === cDiscountId);
+        if (targetDisc && !targetDisc.requiresCoupon) {
+            setCouponFormError(
+                `"${targetDisc.name}" does not have "Requires Coupon Code" enabled. Please edit the discount rule and check "Requires Coupon Code" first.`
+            );
             return;
         }
         if (!cCode.trim()) {
@@ -339,7 +390,7 @@ export default function DiscountsAndCouponsPage() {
             minPurchaseAmount: cMinPurchase ? Number(cMinPurchase) : undefined,
             startsAt: new Date(cStartsAt).toISOString(),
             endsAt: new Date(cEndsAt).toISOString(),
-            status: editingCoupon ? editingCoupon.status : "ACTIVE",
+            status: cStatus,
         };
 
         try {
@@ -416,7 +467,7 @@ export default function DiscountsAndCouponsPage() {
     return (
         <div className="space-y-6">
             {/* Header section */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div data-tour="discounts-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
                         Discounts & Coupons
@@ -425,18 +476,22 @@ export default function DiscountsAndCouponsPage() {
                         Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
                     </p>
                 </div>
-                <Button
-                    onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
-                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
-                >
-                    <Plus className="h-4 w-4" />
-                    {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <TourButton />
+                    <Button
+                        data-tour="create-discount-btn"
+                        onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" />
+                        {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
+                    </Button>
+                </div>
             </div>
 
             {/* Navigation Tabs & Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border pb-3">
-                <div className="flex items-center space-x-2">
+                <div data-tour="discounts-tabs" className="flex items-center space-x-2">
                     <button
                         onClick={() => setActiveTab("discounts")}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -461,7 +516,7 @@ export default function DiscountsAndCouponsPage() {
                     </button>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <div data-tour="discounts-search-bar" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -481,7 +536,7 @@ export default function DiscountsAndCouponsPage() {
 
             {/* Discounts Table */}
             {activeTab === "discounts" && (
-                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
                         <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                             <Loader2 className="h-5 w-5 animate-spin" /> Loading discount rules...
@@ -521,7 +576,9 @@ export default function DiscountsAndCouponsPage() {
                                         {isDiscColVisible("typeValue") && (
                                             <TableCell>
                                                 <div className="inline-flex items-center gap-1 font-bold text-primary">
-                                                    {d.type === "PERCENTAGE"
+                                                    {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                        ? `Buy ${d.buyQuantity ?? "X"} Get ${d.getQuantity ?? "Y"}`
+                                                        : d.type === "PERCENTAGE"
                                                         ? `${d.value}%`
                                                         : format(d.value)}
                                                 </div>
@@ -571,35 +628,38 @@ export default function DiscountsAndCouponsPage() {
                                         )}
                                         {isDiscColVisible("status") && (
                                             <TableCell>
-                                                <button
-                                                    onClick={() => handleToggleDiscountStatus(d)}
-                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                <span
+                                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                                                         d.status === "ACTIVE"
-                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                            ? "bg-primary/10 text-primary border border-primary/20"
+                                                            : "bg-muted text-muted-foreground border border-border"
                                                     }`}
                                                 >
                                                     {d.status === "ACTIVE" ? "Active" : "Inactive"}
-                                                </button>
+                                                </span>
                                             </TableCell>
                                         )}
-                                        <TableCell className="text-right space-x-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openEditDiscount(d)}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeletingItem({ id: d.id, type: "discount", name: d.name })}
-                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                        <TableCell className="text-right whitespace-nowrap">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => openEditDiscount(d)}
+                                                    className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                    title="Edit Discount"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setDeletingItem({ id: d.id, type: "discount", name: d.name })}
+                                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                    title="Delete Discount"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -680,35 +740,58 @@ export default function DiscountsAndCouponsPage() {
                                         )}
                                         {isCoupColVisible("status") && (
                                             <TableCell>
-                                                <button
-                                                    onClick={() => handleToggleCouponStatus(c)}
-                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
-                                                        c.status === "ACTIVE"
-                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                                    }`}
-                                                >
-                                                    {c.status === "ACTIVE" ? "Active" : "Inactive"}
-                                                </button>
+                                                {(() => {
+                                                    if (c.status === "INACTIVE") {
+                                                        return (
+                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                                                Inactive
+                                                            </span>
+                                                        );
+                                                    }
+                                                    const now = new Date();
+                                                    if (c.endsAt && new Date(c.endsAt) < now) {
+                                                        return (
+                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                                                Expired
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (c.usageLimit != null && (c.usedCount ?? 0) >= c.usageLimit) {
+                                                        return (
+                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                                                Used Up
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                                            Active
+                                                        </span>
+                                                    );
+                                                })()}
                                             </TableCell>
                                         )}
-                                        <TableCell className="text-right space-x-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openEditCoupon(c)}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeletingItem({ id: c.id, type: "coupon", name: c.code })}
-                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                        <TableCell className="text-right whitespace-nowrap">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => openEditCoupon(c)}
+                                                    className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                    title="Edit Coupon"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setDeletingItem({ id: c.id, type: "coupon", name: c.code })}
+                                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                    title="Delete Coupon"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -720,89 +803,133 @@ export default function DiscountsAndCouponsPage() {
 
             {/* --- CREATE / EDIT DISCOUNT DIALOG --- */}
             <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold">
-                            {editingDiscount ? "Edit Discount Rule" : "Create New Discount Rule"}
-                        </DialogTitle>
-                    </DialogHeader>
+                <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <div className="p-6 pb-4 border-b border-border shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-lg font-bold">
+                                {editingDiscount ? "Edit Discount Rule" : "Create New Discount Rule"}
+                            </DialogTitle>
+                        </DialogHeader>
 
-                    {discountFormError && (
-                        <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
-                            {discountFormError}
-                        </div>
-                    )}
-
-                    <div className="space-y-4 py-2">
-                        {/* Name & Description */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="dName">Discount Name *</Label>
-                                <Input
-                                    id="dName"
-                                    value={dName}
-                                    onChange={(e) => setDName(e.target.value)}
-                                    placeholder="e.g. Summer Special 15%"
-                                />
+                        {discountFormError && (
+                            <div className="mt-3 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+                                {discountFormError}
                             </div>
+                        )}
+                    </div>
 
-                            <div className="space-y-1.5">
-                                <Label htmlFor="dType">Discount Calculation Type *</Label>
-                                <select
-                                    id="dType"
-                                    value={dType}
-                                    onChange={(e) => setDType(e.target.value as DiscountType)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                >
-                                    <option value="PERCENTAGE">Percentage (%)</option>
-                                    <option value="FIXED_AMOUNT">Fixed Amount ({baseSymbol})</option>
-                                </select>
-                            </div>
-                        </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                        {/* Name, Type & Description */}
+                        {dRuleType !== "BUY_X_GET_Y" ? (
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="dName">Discount Name *</Label>
+                                        <Input
+                                            id="dName"
+                                            value={dName}
+                                            onChange={(e) => setDName(e.target.value)}
+                                            placeholder="e.g. Summer Special 15%"
+                                        />
+                                    </div>
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="dDesc">Description</Label>
-                            <Textarea
-                                id="dDesc"
-                                value={dDescription}
-                                onChange={(e) => setDDescription(e.target.value)}
-                                placeholder="Describe the discount promotion..."
-                                rows={2}
-                            />
-                        </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="dType">Discount Calculation Type *</Label>
+                                        <SelectField
+                                            id="dType"
+                                            value={dType}
+                                            onValueChange={(val) => setDType(val as DiscountType)}
+                                            options={[
+                                                { value: "PERCENTAGE", label: "Percentage (%)" },
+                                                { value: "FIXED_AMOUNT", label: `Fixed Amount (${baseSymbol})` },
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
 
-                        {/* Value & Scope */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="dValue">
-                                    Discount Value ({dType === "PERCENTAGE" ? "%" : baseSymbol}) *
-                                </Label>
-                                <Input
-                                    id="dValue"
-                                    type="number"
-                                    step="0.01"
-                                    value={dValue}
-                                    onChange={(e) => setDValue(e.target.value)}
-                                    placeholder="15"
-                                />
-                            </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="dDesc">Description</Label>
+                                    <Textarea
+                                        id="dDesc"
+                                        value={dDescription}
+                                        onChange={(e) => setDDescription(e.target.value)}
+                                        placeholder="Describe the discount promotion..."
+                                        rows={2}
+                                    />
+                                </div>
 
-                            <div className="space-y-1.5">
-                                <Label htmlFor="dScope">Scope *</Label>
-                                <select
-                                    id="dScope"
-                                    value={dScope}
-                                    onChange={(e) => setDScope(e.target.value as DiscountScope)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                >
-                                    <option value="ORDER">Entire Order</option>
-                                    <option value="ITEM">Specific Products</option>
-                                </select>
-                            </div>
-                        </div>
+                                {/* Value & Scope */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="dValue">
+                                            Discount Value ({dType === "PERCENTAGE" ? "%" : baseSymbol}) *
+                                        </Label>
+                                        <Input
+                                            id="dValue"
+                                            type="number"
+                                            step="0.01"
+                                            value={dValue}
+                                            onChange={(e) => setDValue(e.target.value)}
+                                            placeholder="15"
+                                        />
+                                    </div>
 
-                        {/* Specific Items Selection when scope = ITEM */}
-                        {dScope === "ITEM" && (
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="dScope">Scope *</Label>
+                                        <SelectField
+                                            id="dScope"
+                                            value={dScope === "ITEM" || dScope === "SPECIFIC_ITEMS" ? "SPECIFIC_ITEMS" : "ALL_ITEMS"}
+                                            onValueChange={(val) => setDScope(val as DiscountScope)}
+                                            options={[
+                                                { value: "ALL_ITEMS", label: "Entire Order" },
+                                                { value: "SPECIFIC_ITEMS", label: "Specific Products" },
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="dName">Discount Name *</Label>
+                                        <Input
+                                            id="dName"
+                                            value={dName}
+                                            onChange={(e) => setDName(e.target.value)}
+                                            placeholder="e.g. Buy 2 Get 1 Free Promo"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="dScope">Scope *</Label>
+                                        <SelectField
+                                            id="dScope"
+                                            value={dScope === "ITEM" || dScope === "SPECIFIC_ITEMS" ? "SPECIFIC_ITEMS" : "ALL_ITEMS"}
+                                            onValueChange={(val) => setDScope(val as DiscountScope)}
+                                            options={[
+                                                { value: "ALL_ITEMS", label: "Entire Order" },
+                                                { value: "SPECIFIC_ITEMS", label: "Specific Products" },
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="dDesc">Description</Label>
+                                    <Textarea
+                                        id="dDesc"
+                                        value={dDescription}
+                                        onChange={(e) => setDDescription(e.target.value)}
+                                        placeholder="Describe the promo rules..."
+                                        rows={2}
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Specific Items Selection when scope = SPECIFIC_ITEMS */}
+                        {(dScope === "ITEM" || dScope === "SPECIFIC_ITEMS") && (
                             <div className="space-y-1.5 border border-border p-3 rounded-lg bg-muted/20">
                                 <Label>Target Products</Label>
                                 <p className="text-xs text-muted-foreground mb-2">Select items this discount applies to:</p>
@@ -826,17 +953,17 @@ export default function DiscountsAndCouponsPage() {
                         {/* Rule Conditions */}
                         <div className="space-y-2 border border-border p-3 rounded-lg bg-muted/10">
                             <Label htmlFor="dRuleType">Condition Rule Type</Label>
-                            <select
+                            <SelectField
                                 id="dRuleType"
                                 value={dRuleType}
-                                onChange={(e) => setDRuleType(e.target.value as DiscountRuleType)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                            >
-                                <option value="NO_CONDITION">No Minimum Condition</option>
-                                <option value="MIN_ORDER_AMOUNT">Minimum Order Amount</option>
-                                <option value="MIN_QUANTITY">Minimum Quantity</option>
-                                <option value="BUY_X_GET_Y">Buy X Get Y Free</option>
-                            </select>
+                                onValueChange={(val) => setDRuleType(val as DiscountRuleType)}
+                                options={[
+                                    { value: "NO_CONDITION", label: "No Minimum Condition" },
+                                    { value: "MIN_ORDER_AMOUNT", label: "Minimum Order Amount" },
+                                    { value: "MIN_QUANTITY", label: "Minimum Quantity" },
+                                    { value: "BUY_X_GET_Y", label: "Buy X Get Y Free" },
+                                ]}
+                            />
 
                             {dRuleType === "MIN_ORDER_AMOUNT" && (
                                 <div className="pt-2">
@@ -858,8 +985,10 @@ export default function DiscountsAndCouponsPage() {
                                     <Input
                                         id="dMinQty"
                                         type="number"
+                                        step="1"
+                                        min="1"
                                         value={dMinQty}
-                                        onChange={(e) => setDMinQty(e.target.value)}
+                                        onChange={(e) => setDMinQty(e.target.value.replace(/[^0-9]/g, ""))}
                                         placeholder="3"
                                     />
                                 </div>
@@ -872,8 +1001,10 @@ export default function DiscountsAndCouponsPage() {
                                         <Input
                                             id="dBuyQty"
                                             type="number"
+                                            step="1"
+                                            min="1"
                                             value={dBuyQty}
-                                            onChange={(e) => setDBuyQty(e.target.value)}
+                                            onChange={(e) => setDBuyQty(e.target.value.replace(/[^0-9]/g, ""))}
                                             placeholder="2"
                                         />
                                     </div>
@@ -882,8 +1013,10 @@ export default function DiscountsAndCouponsPage() {
                                         <Input
                                             id="dGetQty"
                                             type="number"
+                                            step="1"
+                                            min="1"
                                             value={dGetQty}
-                                            onChange={(e) => setDGetQty(e.target.value)}
+                                            onChange={(e) => setDGetQty(e.target.value.replace(/[^0-9]/g, ""))}
                                             placeholder="1"
                                         />
                                     </div>
@@ -895,22 +1028,45 @@ export default function DiscountsAndCouponsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label htmlFor="dStartsAt">Starts At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="dStartsAt"
-                                    type="datetime-local"
                                     value={dStartsAt}
-                                    onChange={(e) => setDStartsAt(e.target.value)}
+                                    onValueChange={setDStartsAt}
                                 />
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="dEndsAt">Ends At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="dEndsAt"
-                                    type="datetime-local"
                                     value={dEndsAt}
-                                    onChange={(e) => setDEndsAt(e.target.value)}
+                                    onValueChange={setDEndsAt}
                                 />
                             </div>
+                        </div>
+
+                        {/* Status Toggle Switch */}
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
+                            <div>
+                                <Label className="text-sm font-semibold">Discount Rule Status</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {dStatus === "ACTIVE"
+                                        ? "Active — discount rule is enabled and will apply to orders"
+                                        : "Inactive — discount rule is disabled"}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setDStatus(dStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
+                                    dStatus === "ACTIVE" ? "bg-primary" : "bg-muted-foreground/40"
+                                }`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                                        dStatus === "ACTIVE" ? "translate-x-5" : "translate-x-0"
+                                    }`}
+                                />
+                            </button>
                         </div>
 
                         {/* Applicable Channels */}
@@ -949,55 +1105,65 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveDiscount}
-                            disabled={isCreatingDiscount || isUpdatingDiscount}
-                            className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                            {(isCreatingDiscount || isUpdatingDiscount) && (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            )}
-                            Save Discount
-                        </Button>
-                    </DialogFooter>
+                    <div className="p-4 sm:px-6 border-t border-border shrink-0 bg-card">
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveDiscount}
+                                disabled={isCreatingDiscount || isUpdatingDiscount}
+                                className="bg-primary hover:bg-primary/90 text-white"
+                            >
+                                {(isCreatingDiscount || isUpdatingDiscount) && (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                )}
+                                Save Discount
+                            </Button>
+                        </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 
             {/* --- CREATE / EDIT COUPON DIALOG --- */}
             <Dialog open={isCouponDialogOpen} onOpenChange={setIsCouponDialogOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold">
-                            {editingCoupon ? "Edit Coupon Code" : "Create New Coupon Code"}
-                        </DialogTitle>
-                    </DialogHeader>
+                <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <div className="p-6 pb-4 border-b border-border shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-lg font-bold">
+                                {editingCoupon ? "Edit Coupon Code" : "Create New Coupon Code"}
+                            </DialogTitle>
+                        </DialogHeader>
 
-                    {couponFormError && (
-                        <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
-                            {couponFormError}
-                        </div>
-                    )}
+                        {couponFormError && (
+                            <div className="mt-3 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+                                {couponFormError}
+                            </div>
+                        )}
+                    </div>
 
-                    <div className="space-y-4 py-2">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="cDiscount">Linked Discount Rule *</Label>
-                            <select
+                            <SelectField
                                 id="cDiscount"
                                 value={cDiscountId}
-                                onChange={(e) => setCDiscountId(e.target.value)}
-                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                            >
-                                <option value="">Select a Discount Rule...</option>
-                                {discounts.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.name} ({d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={(val) => setCDiscountId(val)}
+                                placeholder={
+                                    couponEligibleDiscounts.length > 0
+                                        ? "Select a Coupon-enabled Discount Rule..."
+                                        : "No Coupon-enabled Discount Rules"
+                                }
+                                options={couponEligibleDiscounts.map((d) => ({
+                                    value: d.id,
+                                    label: `${d.name} (${d.type === "PERCENTAGE" ? `${d.value}%` : format(d.value)})`,
+                                }))}
+                            />
+                            {couponEligibleDiscounts.length === 0 && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                    No discounts with "Requires Coupon Code" enabled found. Please create or edit a discount rule and check "Requires Coupon Code to apply at checkout" first.
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-1.5">
@@ -1049,40 +1215,64 @@ export default function DiscountsAndCouponsPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="cStarts">Starts At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="cStarts"
-                                    type="datetime-local"
                                     value={cStartsAt}
-                                    onChange={(e) => setCStartsAt(e.target.value)}
+                                    onValueChange={setCStartsAt}
                                 />
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="cEnds">Ends At *</Label>
-                                <Input
+                                <DateTimePicker
                                     id="cEnds"
-                                    type="datetime-local"
                                     value={cEndsAt}
-                                    onChange={(e) => setCEndsAt(e.target.value)}
+                                    onValueChange={setCEndsAt}
                                 />
                             </div>
                         </div>
+                        {/* Status Toggle Switch */}
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
+                            <div>
+                                <Label className="text-sm font-semibold">Coupon Status</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {cStatus === "ACTIVE"
+                                        ? "Active — coupon code can be redeemed"
+                                        : "Inactive — coupon code is disabled"}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setCStatus(cStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary ${
+                                    cStatus === "ACTIVE" ? "bg-primary" : "bg-muted-foreground/40"
+                                }`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                                        cStatus === "ACTIVE" ? "translate-x-5" : "translate-x-0"
+                                    }`}
+                                />
+                            </button>
+                        </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveCoupon}
-                            disabled={isCreatingCoupon || isUpdatingCoupon}
-                            className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                            {(isCreatingCoupon || isUpdatingCoupon) && (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            )}
-                            Save Coupon
-                        </Button>
-                    </DialogFooter>
+                    <div className="p-4 sm:px-6 border-t border-border shrink-0 bg-card">
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveCoupon}
+                                disabled={isCreatingCoupon || isUpdatingCoupon}
+                                className="bg-primary hover:bg-primary/90 text-white"
+                            >
+                                {(isCreatingCoupon || isUpdatingCoupon) && (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                )}
+                                Save Coupon
+                            </Button>
+                        </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 

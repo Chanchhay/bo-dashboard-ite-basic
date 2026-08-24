@@ -1,5 +1,6 @@
 "use client";
 
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useMemo, useState } from "react";
 import {
     Plus,
@@ -9,14 +10,23 @@ import {
     Trash2,
     Loader2,
     Mail,
-    Phone,
     MapPin,
     Crown,
+    Filter,
 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -41,12 +51,24 @@ import {
     useCreateCustomerMutation,
     useDeactivateCustomerMutation,
     useDeleteCustomerMutation,
-    useGetCustomersQuery,
+  useGetCustomersPageQuery,
     useUpdateCustomerMutation,
 } from "@/services/customerApi";
 import { useGetMembershipTypesQuery } from "@/services/membershipTypeApi";
 import { useGetSalesChannelsQuery } from "@/services/salesChannelApi";
 import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
+
+const formatLocalPhone = (phoneStr?: string | null): string => {
+    if (!phoneStr) return "";
+    let cleaned = phoneStr.trim();
+    let digits = cleaned.replace(/\D/g, "");
+    if (digits.startsWith("855") && digits.length >= 10) {
+        digits = "0" + digits.slice(3);
+    } else if (!digits.startsWith("0") && (digits.length === 8 || digits.length === 9)) {
+        digits = "0" + digits;
+    }
+    return digits || cleaned;
+};
 
 export default function CustomerManagement() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -69,7 +91,7 @@ export default function CustomerManagement() {
 
     const toggleCol = (id: string) => {
         setCustomerCols((prev) =>
-            prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+      prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c)),
         );
     };
 
@@ -78,11 +100,18 @@ export default function CustomerManagement() {
     };
 
     // RTK Query Hooks
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
     const {
-        data: customers = [],
+    data,
         isLoading: isCustomersLoading,
+    isFetching: isCustomersFetching,
         refetch,
-    } = useGetCustomersQuery();
+  } = useGetCustomersPageQuery({ page, size: pageSize });
+  const customers = data?.content ?? [];
+  const currentPage = data?.page?.number ?? page;
+  const totalPages = data?.page?.totalPages ?? (customers.length ? 1 : 0);
+  const totalElements = data?.page?.totalElements ?? customers.length;
     const { data: membershipTypes = [] } = useGetMembershipTypesQuery();
     const { data: salesChannels = [] } = useGetSalesChannelsQuery();
 
@@ -115,24 +144,50 @@ export default function CustomerManagement() {
     const [deletingCustomer, setDeletingCustomer] =
         useState<CustomerResponse | null>(null);
 
+    // Channel Filter state
+    const [selectedChannelFilter, setSelectedChannelFilter] = useState<string>("ALL");
+
     const filteredCustomers = useMemo(() => {
-        if (!searchQuery.trim()) return customers;
-        const q = searchQuery.toLowerCase();
         return customers.filter((c) => {
+            // 1. Channel Filter
+            if (selectedChannelFilter !== "ALL") {
+                if (selectedChannelFilter === "NONE") {
+                    if (c.salesChannel) return false;
+                } else {
+                    if (c.salesChannel?.id !== selectedChannelFilter) return false;
+                }
+            }
+
+            // 2. Search Query Filter
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.trim().toLowerCase();
+
+            const rawPhone = c.globalCustomer?.phoneNumber || "";
+            const formattedPhone = formatLocalPhone(rawPhone).toLowerCase();
+            const rawPhoneLower = rawPhone.toLowerCase();
+
+            // Phone search match starting from 0 (e.g. 092...) or containing query
+            const isPhoneMatch =
+                formattedPhone.startsWith(q) ||
+                formattedPhone.includes(q) ||
+                rawPhoneLower.includes(q);
+
+            if (isPhoneMatch) return true;
+
             const name = c.globalCustomer?.fullName?.toLowerCase() || "";
             const mail = c.globalCustomer?.email?.toLowerCase() || "";
-            const phone = c.globalCustomer?.phoneNumber?.toLowerCase() || "";
             const addr = c.address?.toLowerCase() || "";
             const tier = c.membershipType?.typeName?.toLowerCase() || "";
+            const channel = c.salesChannel?.name?.toLowerCase() || "";
             return (
                 name.includes(q) ||
                 mail.includes(q) ||
-                phone.includes(q) ||
                 addr.includes(q) ||
-                tier.includes(q)
+                tier.includes(q) ||
+                channel.includes(q)
             );
         });
-    }, [customers, searchQuery]);
+    }, [customers, searchQuery, selectedChannelFilter]);
 
     const openCreateDialog = () => {
         setEditingCustomer(null);
@@ -142,7 +197,10 @@ export default function CustomerManagement() {
         setPhoneNumber("");
         setAddress("");
         setMembershipTypeId("");
-        setSalesChannelId("");
+        const posChannel = salesChannels.find(
+            (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
+        );
+        setSalesChannelId(posChannel?.id || salesChannels[0]?.id || "");
         setTotalSpend("");
         setActive(true);
         setIsDialogOpen(true);
@@ -170,13 +228,18 @@ export default function CustomerManagement() {
         }
 
         try {
+            const posChannel = salesChannels.find(
+                (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
+            );
+            const effectiveChannelId = salesChannelId || posChannel?.id || salesChannels[0]?.id || undefined;
+
             const payload = {
                 fullName: fullName.trim() || undefined,
                 email: email.trim() || undefined,
                 phoneNumber: phoneNumber.trim() || undefined,
                 address: address.trim() || undefined,
                 membershipTypeId: membershipTypeId || undefined,
-                salesChannelId: salesChannelId || undefined,
+                salesChannelId: effectiveChannelId,
                 totalSpend:
                     totalSpend !== "" && !isNaN(Number(totalSpend))
                         ? Number(totalSpend)
@@ -223,6 +286,39 @@ export default function CustomerManagement() {
         }
     };
 
+    const posSalesChannels = useMemo(() => {
+        const filtered = salesChannels.filter((sc) => {
+            const name = sc.name?.toUpperCase() || "";
+            const code = sc.code?.toUpperCase() || "";
+            if (name.includes("ONLINE") || code.includes("ONLINE") || name.includes("WEB") || code.includes("WEB") || name.includes("APP")) {
+                return false;
+            }
+            return (
+                name.includes("POS") ||
+                code.includes("POS") ||
+                name.includes("POINT OF SALE") ||
+                name.includes("SHOP") ||
+                name.includes("DIRECT") ||
+                name.includes("IN-STORE")
+            );
+        });
+        return filtered.length > 0 ? filtered : salesChannels.filter((sc) => !sc.name?.toUpperCase().includes("ONLINE"));
+    }, [salesChannels]);
+
+    const selectedMembershipTypeLabel = useMemo(() => {
+        if (!membershipTypeId || membershipTypeId === "NONE") return "None (Regular)";
+        const found = membershipTypes.find((t) => t.id === membershipTypeId);
+        return found ? found.typeName : "None (Regular)";
+    }, [membershipTypeId, membershipTypes]);
+
+    const selectedSalesChannelLabel = useMemo(() => {
+        if (!salesChannelId || salesChannelId === "NONE") {
+            return posSalesChannels[0]?.name || "POS / Direct";
+        }
+        const found = salesChannels.find((sc) => sc.id === salesChannelId);
+        return found ? found.name : posSalesChannels[0]?.name || "POS / Direct";
+    }, [salesChannelId, salesChannels, posSalesChannels]);
+
     return (
         <div className="space-y-6">
             {/* Header Section */}
@@ -232,10 +328,12 @@ export default function CustomerManagement() {
                         Customers
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage your customer database, assign membership types, track total spending, and edit profile details.
+            Manage your customer database, assign membership types, track total
+            spending, and edit profile details.
                     </p>
                 </div>
                 <Button
+                    data-tour="add-customer-btn"
                     onClick={openCreateDialog}
                     className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
                 >
@@ -244,7 +342,7 @@ export default function CustomerManagement() {
             </div>
 
             {/* Controls Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-3 gap-2">
+            <div data-tour="customers-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
                 <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -254,15 +352,10 @@ export default function CustomerManagement() {
                         className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                     />
                 </div>
-                <ColumnSelectDropdown
-                    columns={customerCols}
-                    onToggleColumn={toggleCol}
-                    onResetDefaults={resetCols}
-                />
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isCustomersLoading ? (
                     <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" /> Loading customers...
@@ -270,8 +363,13 @@ export default function CustomerManagement() {
                 ) : filteredCustomers.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Users className="h-8 w-8 mx-auto opacity-40" />
-                        <p className="font-medium text-base text-foreground">No customers found</p>
-                        <p className="text-xs">Add new customers to track their sales history and membership rewards.</p>
+            <p className="font-medium text-base text-foreground">
+              No customers found
+            </p>
+            <p className="text-xs">
+              Add new customers to track their sales history and membership
+              rewards.
+            </p>
                     </div>
                 ) : (
                     <Table>
@@ -280,24 +378,18 @@ export default function CustomerManagement() {
                                 {isColVisible("customerInfo") && (
                                     <TableHead>Customer</TableHead>
                                 )}
-                                {isColVisible("phoneNumber") && (
-                                    <TableHead>Phone</TableHead>
-                                )}
+                {isColVisible("phoneNumber") && <TableHead>Phone</TableHead>}
                                 {isColVisible("membershipType") && (
                                     <TableHead>Membership Type</TableHead>
                                 )}
                                 {isColVisible("salesChannel") && (
                                     <TableHead>Sales Channel</TableHead>
                                 )}
-                                {isColVisible("address") && (
-                                    <TableHead>Address</TableHead>
-                                )}
+                {isColVisible("address") && <TableHead>Address</TableHead>}
                                 {isColVisible("totalSpend") && (
                                     <TableHead>Total Spend</TableHead>
                                 )}
-                                {isColVisible("status") && (
-                                    <TableHead>Status</TableHead>
-                                )}
+                {isColVisible("status") && <TableHead>Status</TableHead>}
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -306,7 +398,7 @@ export default function CustomerManagement() {
                                 const displayName =
                                     c.globalCustomer?.fullName || "Unnamed Customer";
                                 const displayEmail = c.globalCustomer?.email;
-                                const displayPhone = c.globalCustomer?.phoneNumber;
+                                const displayPhone = formatLocalPhone(c.globalCustomer?.phoneNumber);
 
                                 return (
                                     <TableRow
@@ -315,21 +407,16 @@ export default function CustomerManagement() {
                                     >
                                         {isColVisible("customerInfo") && (
                                             <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary font-bold text-sm">
-                                                        {displayName.charAt(0).toUpperCase()}
+                                                <div>
+                                                    <div className="font-bold text-foreground text-sm">
+                                                        {displayName}
                                                     </div>
-                                                    <div>
-                                                        <div className="font-bold text-foreground text-sm">
-                                                            {displayName}
+                                                    {displayEmail && (
+                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                            <Mail className="h-3 w-3" />
+                                                            {displayEmail}
                                                         </div>
-                                                        {displayEmail && (
-                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                                <Mail className="h-3 w-3" />
-                                                                {displayEmail}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         )}
@@ -376,7 +463,10 @@ export default function CustomerManagement() {
                                         {isColVisible("address") && (
                                             <TableCell>
                                                 {c.address ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground max-w-[180px] truncate" title={c.address}>
+                          <span
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground max-w-[180px] truncate"
+                            title={c.address}
+                          >
                                                         <MapPin className="h-3 w-3 shrink-0" />
                                                         {c.address}
                                                     </span>
@@ -421,9 +511,9 @@ export default function CustomerManagement() {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => setDeletingCustomer(c)}
-                                                className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                                             >
-                                                <Trash2 className="size-4 text-brand-red" />
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -433,6 +523,20 @@ export default function CustomerManagement() {
                     </Table>
                 )}
             </div>
+
+      {/* --- PAGINATION --- */}
+      {totalPages > 0 && (
+        <PaginationBar
+          page={currentPage}
+          size={pageSize}
+          totalElements={totalElements}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onSizeChange={setPageSize}
+          isLoading={isCustomersFetching}
+          itemLabel="customer"
+        />
+      )}
 
             {/* --- CREATE / EDIT CUSTOMER DIALOG --- */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -478,7 +582,7 @@ export default function CustomerManagement() {
                                     id="phoneNumber"
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
-                                    placeholder="+855 12 345 678"
+                                    placeholder="012 345 678"
                                 />
                             </div>
                         </div>
@@ -496,36 +600,54 @@ export default function CustomerManagement() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="membershipType">Membership Type</Label>
-                                <select
-                                    id="membershipType"
-                                    value={membershipTypeId}
-                                    onChange={(e) => setMembershipTypeId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                <Select
+                                    value={membershipTypeId || "NONE"}
+                                    onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
                                 >
-                                    <option value="">None (Regular)</option>
-                                    {membershipTypes.map((t) => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.typeName}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger id="membershipType" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                        <SelectValue placeholder="Select type...">
+                                            {selectedMembershipTypeLabel}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">None (Regular)</SelectItem>
+                                        {membershipTypes.map((t) => (
+                                            <SelectItem key={t.id} value={t.id}>
+                                                {t.typeName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="salesChannel">Sales Channel</Label>
-                                <select
-                                    id="salesChannel"
-                                    value={salesChannelId}
-                                    onChange={(e) => setSalesChannelId(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                >
-                                    <option value="">None / Direct</option>
-                                    {salesChannels.map((sc) => (
-                                        <option key={sc.id} value={sc.id}>
-                                            {sc.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                {posSalesChannels.length <= 1 ? (
+                                    <Input
+                                        readOnly
+                                        disabled
+                                        value={posSalesChannels[0]?.name || "Point of Sale"}
+                                        className="h-10 rounded-md border border-input bg-muted/60 px-3 text-sm text-muted-foreground font-medium cursor-not-allowed"
+                                    />
+                                ) : (
+                                    <Select
+                                        value={salesChannelId || posSalesChannels[0]?.id || "NONE"}
+                                        onValueChange={(val: string | null) => setSalesChannelId(val && val !== "NONE" ? val : "")}
+                                    >
+                                        <SelectTrigger id="salesChannel" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                            <SelectValue placeholder="Select channel...">
+                                                {selectedSalesChannelLabel}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {posSalesChannels.map((sc) => (
+                                                <SelectItem key={sc.id} value={sc.id}>
+                                                    {sc.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                         </div>
 
@@ -539,7 +661,7 @@ export default function CustomerManagement() {
                                 value={totalSpend}
                                 onChange={(e) =>
                                     setTotalSpend(
-                                        e.target.value === "" ? "" : parseFloat(e.target.value)
+                    e.target.value === "" ? "" : parseFloat(e.target.value),
                                     )
                                 }
                                 placeholder="0.00"
@@ -554,7 +676,10 @@ export default function CustomerManagement() {
                                 onChange={(e) => setActive(e.target.checked)}
                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                             />
-                            <Label htmlFor="active" className="cursor-pointer text-sm font-medium">
+              <Label
+                htmlFor="active"
+                className="cursor-pointer text-sm font-medium"
+              >
                                 Active Customer
                             </Label>
                         </div>

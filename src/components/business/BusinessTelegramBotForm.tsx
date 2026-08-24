@@ -6,6 +6,7 @@ import { KeyRound, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormSkeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -48,16 +49,12 @@ export function BusinessTelegramBotForm() {
     }
 
     if (isLoading) {
-        return (
-            <p className="p-6 text-sm text-muted-foreground">
-                Loading Telegram settings…
-            </p>
-        );
+        return <FormSkeleton rows={4} />;
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-border bg-card p-5">
+        <div data-tour="business-telegram-form" className="flex flex-col gap-6">
+            <section data-tour="telegram-toggle" className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-base font-semibold text-foreground">
@@ -112,7 +109,7 @@ function AccountForm({
 }) {
     const { toast } = useToast();
     const [fields, setFields] = useState<Record<string, string>>({
-        botToken: "", // Token is write-only, we never show it.
+        botToken: "", 
         welcomeMessage: settings?.welcomeMessage ?? "",
         notificationChatId: settings?.notificationChatId ?? "",
     });
@@ -136,7 +133,6 @@ function AccountForm({
                 welcomeMessage: fields.welcomeMessage.trim(),
                 notificationChatId: fields.notificationChatId.trim(),
             });
-            // Clear token field after save since it's write-only
             setFields(prev => ({ ...prev, botToken: "" }));
         } catch (cause) {
             toast({
@@ -162,7 +158,7 @@ function AccountForm({
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
-                    <div className="space-y-1.5 md:col-span-2">
+                    <div data-tour="telegram-token" className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="botToken">
                             {isConfigured ? "Update Bot Token" : "Bot Token"}
                         </Label>
@@ -180,7 +176,7 @@ function AccountForm({
                         </p>
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-2">
+                    <div data-tour="telegram-chat-id" className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="notificationChatId">
                             Notification Chat ID (Optional)
                         </Label>
@@ -197,7 +193,7 @@ function AccountForm({
                         </p>
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-2">
+                    <div data-tour="telegram-welcome" className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="welcomeMessage">
                             Welcome Message (Optional)
                         </Label>
@@ -214,7 +210,7 @@ function AccountForm({
                 </div>
 
                 <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
-                    <Button type="submit" disabled={isSaving}>
+                    <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
                         {isSaving && (
                             <LoaderCircle
                                 className="-ml-1 mr-2 size-4 animate-spin"

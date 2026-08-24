@@ -1,282 +1,231 @@
-/* @import "tailwindcss";
-
-:root {
-    --background: #ffffff;
-    --primary: #00932a;
-    --secondary: #feb90d;
-    --accent: #d14341;
-    --description: #e8e8e8;
-    --text: #161d16;
-    --input: #bccab8;
-    --foreground: #161d16;
-}
-
-html,
-body {
-  height: 100%;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  display: none;
-}
-
-@theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-primary: var(--primary);
-    --color-secondary: var(--secondary);
-    --color-accent: var(--accent);
-    --color-description: var(--description);
-    --color-text: var(--text);
-    --color-input: var(--input); */
-
-    /* `--font-google-sans` is injected by next/font in app/layout.tsx. */
-    /* --font-sans: var(--font-google-sans);
-    --font-googlesans: var(--font-google-sans);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-google-sans), sans-serif;
-} */
-
-
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: "Google Sans";
+  src: url("/font/GoogleSans-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Google Sans KH";
+  src: url("/font/GoogleSans-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-    --radius: 0.625rem;
-
-    /* your brand colors — use as bg-brand-green, text-brand-red, etc.
-     *
-     * `--brand-red` is the *filled* red: it holds the same value in both themes
-     * because white text sits on it (bg-brand-red text-white), and lightening
-     * it would drop that pairing from ~4.5:1 to ~2.5:1. For red *text*,
-     * borders, icons and /5–/20 tints use `--danger` instead — it brightens in
-     * dark, where #d14341 only reaches ~3.6:1 against the card. */
-    --brand-green: #00932a;
-    --brand-yellow: #feb90d;
-    --brand-red: #d14341;
-    --description: #e8e8e8;
-    --text: #030712;
-
-    /* shadcn semantic tokens */
-    --background: #f5f5f5;
-    --foreground: #030712;
-    --card: #ffffff;
-    --card-foreground: #030712;
-    --popover: #ffffff;
-    --popover-foreground: #030712;
-    --primary: #00932a;
-    --primary-foreground: #ffffff;
-    --secondary: #f0f0f0;
-    --secondary-foreground: #030712;
-    --muted: #f0f0f0;
-    --muted-foreground: #6b7280;
-    --accent: #f0f0f0;
-    --accent-foreground: #030712;
-    --destructive: #d14341;
-    --destructive-foreground: #ffffff;
-    --border: #e4e4e7;
-    --input: #d9d9d9;
-    --ring: #00932a;
-
-    /* The app-shell panel: the surface between the page background and the
-       content cards, shared by AppShell and the Sidebar drawer. */
-    --shell: #f7f7f6;
-
-    /* Status colors. Tuned for legibility on light surfaces; pair with a
-       /10 alpha background (e.g. `bg-success/10 text-success`). */
-    --success: #00932a;
-    --warning: #9a6900;
-    --danger: #d14341;
+  --font-google-sans: "Google Sans", "Google Sans KH", system-ui, -apple-system, sans-serif;
+  --font-body: var(--font-google-sans);
+  --font-display: var(--font-google-sans);
+  --radius: 0.625rem;
+  --brand-green: #00932a;
+  --brand-yellow: #feb90d;
+  --brand-red: #d14341;
+  --description: #e8e8e8;
+  --text: #030712;
+  --background: #f5f5f5;
+  --foreground: #030712;
+  --card: #ffffff;
+  --card-foreground: #030712;
+  --popover: #ffffff;
+  --popover-foreground: #030712;
+  --primary: #00932a;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #030712;
+  --muted: #f0f0f0;
+  --muted-foreground: #6b7280;
+  --accent: #f0f0f0;
+  --accent-foreground: #030712;
+  --destructive: #d14341;
+  --destructive-foreground: #ffffff;
+  --border: #e4e4e7;
+  --input: #d9d9d9;
+  --ring: #00932a;
+  --shell: #f7f7f6;
+  --success: #00932a;
+  --warning: #9a6900;
+  --danger: #d14341;
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
 }
 
 .dark {
-    --background: #0f1219;
-    --foreground: #f8fafc;
-    --card: #1a1e29;
-    --card-foreground: #f8fafc;
-    --popover: #1e2330;
-    --popover-foreground: #f8fafc;
-    --primary: #00932a;
-    --primary-foreground: #ffffff;
-    --secondary: #252a38;
-    --secondary-foreground: #f8fafc;
-    --muted: #252a38;
-    --muted-foreground: #94a3b8;
-    --accent: #252a38;
-    --accent-foreground: #f8fafc;
-    --destructive: #d14341;
-    --destructive-foreground: #ffffff;
-    --border: #262c3b;
-    --input: #262c3b;
-    --ring: #00932a;
-
-    /* Sits between --background (#0f1219) and --card (#1a1e29) so the shell
-       reads as raised off the page without competing with the cards on it. */
-    --shell: #151821;
-
-    /* Brightened so they stay readable on the dark card surface — the light
-       values sit at roughly 2.6:1 against #1a1e29. Success stays on the brand
-       green in both themes so it never reads as a second, different green. */
-    --success: var(--primary);
-    --warning: #fbbf24;
-    --danger: #f87171;
+  --background: #0f1219;
+  --foreground: #f8fafc;
+  --card: #1a1e29;
+  --card-foreground: #f8fafc;
+  --popover: #1e2330;
+  --popover-foreground: #f8fafc;
+  --primary: #00932a;
+  --primary-foreground: #ffffff;
+  --secondary: #252a38;
+  --secondary-foreground: #f8fafc;
+  --muted: #252a38;
+  --muted-foreground: #94a3b8;
+  --accent: #252a38;
+  --accent-foreground: #f8fafc;
+  --destructive: #d14341;
+  --destructive-foreground: #ffffff;
+  --border: #262c3b;
+  --input: #262c3b;
+  --ring: #00932a;
+  --shell: #151821;
+  --success: var(--primary);
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
 }
-
-/* The barcode scanner overlay. It is a deliberate single-look surface: the
-   scrim stays dark in both themes so the beam reads as a beam and the room
-   dims the way it does behind a real scanner. Declared once, outside the
-   light/dark blocks, because it does not follow the theme. */
 :root {
-    --scanner-scrim: #17170fdb;
-    --scanner-ink: #ffffff;
-    --scanner-beam: #ffffff;
+  --scanner-scrim: #17170fdb;
+  --scanner-ink: #ffffff;
+  --scanner-beam: #ffffff;
 }
 
 @theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-card: var(--card);
-    --color-card-foreground: var(--card-foreground);
-    --color-popover: var(--popover);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-secondary: var(--secondary);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-muted: var(--muted);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-accent: var(--accent);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-destructive: var(--destructive);
-    --color-destructive-foreground: var(--destructive-foreground);
-    --color-border: var(--border);
-    --color-input: var(--input);
-    --color-ring: var(--ring);
+  --font-sans: var(--font-google-sans);
+  --font-heading: var(--font-google-sans);
+  --font-display: var(--font-google-sans);
+  --font-mono: var(--font-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-    --color-shell: var(--shell);
+  --color-shell: var(--shell);
 
-    --color-success: var(--success);
-    --color-warning: var(--warning);
-    --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
 
-    --color-scanner-scrim: var(--scanner-scrim);
-    --color-scanner-ink: var(--scanner-ink);
-    --color-scanner-beam: var(--scanner-beam);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
 
-    --color-brand-green: var(--brand-green);
-    --color-brand-yellow: var(--brand-yellow);
-    --color-brand-red: var(--brand-red);
-    --color-description: var(--description);
-    --color-text: var(--text);
+  --color-scanner-scrim: var(--scanner-scrim);
+  --color-scanner-ink: var(--scanner-ink);
+  --color-scanner-beam: var(--scanner-beam);
 
-    --radius-sm: calc(var(--radius) - 4px);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) + 4px);
+  --color-brand-green: var(--brand-green);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-red: var(--brand-red);
+  --color-description: var(--description);
+  --color-text: var(--text);
 
-    /* `--font-google-sans` is injected by next/font in app/layout.tsx. */
-    --font-sans: var(--font-google-sans);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 @layer base {
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-        font-family: var(--font-google-sans), sans-serif;
-    }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-google-sans);
+  }
 }
 
 @keyframes toastSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(16px) scale(0.96);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes shimmer {
-    100% {
-        transform: translateX(100%);
-    }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .animate-toast-in {
-    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Barcode scanner overlay: a beam sweeping across a rank of bars. The bars
-   stagger their own widths so the rank never looks frozen while the beam is
-   between passes. */
 @keyframes scannerBeam {
-    0% {
-        transform: translateX(-115%);
-    }
-    100% {
-        transform: translateX(115%);
-    }
+  0% {
+    transform: translateX(-115%);
+  }
+  100% {
+    transform: translateX(115%);
+  }
 }
 
 @keyframes scannerBar {
-    0%,
-    100% {
-        transform: scaleX(0.45);
-        opacity: 0.5;
-    }
-    50% {
-        transform: scaleX(1);
-        opacity: 1;
-    }
+  0%,
+  100% {
+    transform: scaleX(0.45);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
 }
 
 @keyframes scannerPulse {
-    0%,
-    100% {
-        opacity: 0.55;
-    }
-    50% {
-        opacity: 1;
-    }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .animate-scanner-beam {
-    animation: scannerBeam 1.9s cubic-bezier(0.55, 0, 0.45, 1) infinite;
+  animation: scannerBeam 1.9s cubic-bezier(0.55, 0, 0.45, 1) infinite;
 }
 
 .animate-scanner-bar {
-    animation: scannerBar 1.9s ease-in-out infinite;
-    transform-origin: left center;
+  animation: scannerBar 1.9s ease-in-out infinite;
+  transform-origin: left center;
 }
 
 .animate-scanner-pulse {
-    animation: scannerPulse 1.9s ease-in-out infinite;
+  animation: scannerPulse 1.9s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .animate-scanner-beam,
-    .animate-scanner-bar {
-        animation: scannerPulse 2.4s ease-in-out infinite;
-        transform: none;
-    }
+  .animate-scanner-beam,
+  .animate-scanner-bar {
+    animation: scannerPulse 2.4s ease-in-out infinite;
+    transform: none;
+  }
 }
 
 /* Hide scrollbars globally across WebKit, Blink, Firefox, and IE/Edge */
@@ -285,8 +234,8 @@ body {
 *::after,
 html,
 body {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 ::-webkit-scrollbar,

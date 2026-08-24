@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, Banknote } from "lucide-react";
+import { CreditCard, Banknote, Crown, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
 import { Order } from "@/types/pos-type";
@@ -16,6 +16,7 @@ import {
   useGenerateKhqrMutation,
   useGetBakongStatusQuery,
 } from "@/services/posOrderApi";
+import { useGetCustomersQuery } from "@/services/customerApi";
 
 type PaymentMethod = "CASH" | "DIGITAL";
 
@@ -23,7 +24,7 @@ export interface PaymentProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order;
-  onValidate: (method: PaymentMethod, receivedAmount?: number) => void;
+  onValidate: (method: "CASH" | "DIGITAL" | "PAY_LATER", receivedAmount?: number) => void;
   /** Called when a KHQR settles — the sale already exists by then. */
   onDigitalPaid?: (sale: Sale) => void;
   isProcessing?: boolean;
@@ -45,7 +46,13 @@ export function Payment({
   const { toast } = useToast();
  
   const { data: bakong } = useGetBakongStatusQuery();
+  const { data: customers = [] } = useGetCustomersQuery();
   const [generateKhqr, { isLoading: isGenerating }] = useGenerateKhqrMutation();
+
+  const attachedCustomer = useMemo(() => {
+    if (!order.customer_id) return null;
+    return customers.find((c) => c.id === order.customer_id) ?? null;
+  }, [customers, order.customer_id]);
 
   const canTakeDigital = Boolean(bakong?.configured && bakong?.active);
 
@@ -199,6 +206,34 @@ export function Payment({
               <div className="grid min-h-0 grid-cols-1 gap-7 overflow-y-auto overscroll-contain px-4 pb-5 pt-3 sm:grid-cols-2 sm:gap-12 sm:px-8 sm:pb-8 sm:pt-8">
                 {/* Left: order summary */}
                 <div className="flex min-w-0 flex-col">
+                  {attachedCustomer && (
+                    <div className="mb-3.5 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {(attachedCustomer.globalCustomer?.fullName || "C").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="text-xs font-bold text-gray-900 truncate">
+                              {attachedCustomer.globalCustomer?.fullName || "Customer"}
+                            </span>
+                            {attachedCustomer.membershipType && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                <Crown className="h-2.5 w-2.5" />
+                                {attachedCustomer.membershipType.typeName}
+                              </span>
+                            )}
+                          </div>
+                          {attachedCustomer.globalCustomer?.phoneNumber && (
+                            <p className="text-[11px] text-gray-500 truncate">
+                              {attachedCustomer.globalCustomer.phoneNumber}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <h3 className="text-sm font-bold tracking-[0.04em] text-[#020409] sm:text-lg">
                     ORDER SUMMARY
                   </h3>
@@ -246,7 +281,7 @@ export function Payment({
                       </div>
                     )}
                     <div className="mt-3 flex justify-between border-t border-[#1e293b] pt-4 font-semibold">
-                      <span>To pay</span>
+                      <span>To Pay</span>
                       <span className="text-primary">{format(total, order.currency)}</span>
                     </div>
                   </div>
@@ -255,7 +290,7 @@ export function Payment({
                 {/* Right: total + payment method */}
                 <div className="flex min-w-0 flex-col gap-7 sm:gap-8">
                   <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-[18px] bg-[#f5f5f5] p-6 text-center sm:min-h-36 sm:p-8">
-                    <p className="text-sm text-[#020409] sm:text-lg">To pay</p>
+                    <p className="text-sm text-[#020409] sm:text-lg">To Pay</p>
                     <p className="text-4xl font-semibold leading-none text-primary sm:text-[40px]">
                       {format(total, order.currency)}
                     </p>
@@ -268,9 +303,9 @@ export function Payment({
 
                   <div className="flex w-full flex-col gap-3 sm:gap-4">
                     <p className="text-sm font-semibold text-[#020409] sm:text-lg">
-                      Payment method
+                      Payment Method
                     </p>
-                    <div className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
+                    <div data-tour="pos-payment-method" className={`grid gap-3 sm:gap-4 ${canTakeDigital ? "grid-cols-2" : "grid-cols-1"}`}>
                       <button
                         type="button"
                         onClick={() => setMethod("CASH")}

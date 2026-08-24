@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
+import { FormSkeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
     bakongSettingsSchema,
@@ -36,13 +37,6 @@ const BLANK: Fields = {
     storeLabel: "",
 };
 
-/**
- * Where a merchant connects their Bakong account so the till can take KHQR.
- *
- * The API token is write-only: the backend only ever reports whether one
- * exists. Nothing here renders a masked stand-in, because a row of dots that
- * isn't the real secret invites someone to "confirm" a token they cannot see.
- */
 export function BusinessPaymentsForm() {
     const { toast } = useToast();
     const { data, isLoading } = useGetBakongSettingsQuery();
@@ -89,16 +83,12 @@ export function BusinessPaymentsForm() {
     }
 
     if (isLoading) {
-        return (
-            <p className="p-6 text-sm text-muted-foreground">
-                Loading payment settings…
-            </p>
-        );
+        return <FormSkeleton rows={4} />;
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-border bg-card p-5">
+        <div data-tour="business-payments-form" className="flex flex-col gap-6">
+            <section data-tour="payments-toggle" className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-base font-semibold text-foreground">
@@ -120,9 +110,6 @@ export function BusinessPaymentsForm() {
                 </div>
 
                 {data?.configured && !hasToken && (
-                    /* Generating a code and confirming payment are different
-                       credentials. Without the token a QR can appear and never
-                       settle, which looks like the customer's fault. */
                     <p className="mt-4 flex items-start gap-2 rounded-xl bg-warning/15 px-3 py-2 text-sm text-warning">
                         <KeyRound
                             className="mt-0.5 size-4 shrink-0"
@@ -152,13 +139,6 @@ export function BusinessPaymentsForm() {
     );
 }
 
-/**
- * The editable half.
- *
- * Split out and keyed on the saved record so its initial state comes from
- * props: React resets it by remounting when the settings change, which is
- * cheaper and less error-prone than mirroring server data with an effect.
- */
 function AccountForm({
     settings,
     hasToken,
@@ -202,8 +182,6 @@ function AccountForm({
 
         const candidate = {
             ...(fields as unknown as BakongSettingsInput),
-            // Left out entirely unless the merchant typed a new one, so saving
-            // the form never silently clears a working token.
             apiToken: apiToken.trim() || undefined,
         };
 
@@ -247,7 +225,7 @@ function AccountForm({
                     scan.
                 </p>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div data-tour="payments-account" className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Account type" error={errors.accountType}>
                         <SelectField
                             value={fields.accountType}
@@ -319,7 +297,7 @@ function AccountForm({
                     </Field>
                 </div>
 
-                <div className="mt-5 border-t border-border pt-5">
+                <div data-tour="payments-token" className="mt-5 border-t border-border pt-5">
                     <Label>API token</Label>
                     <p className="mt-1 text-sm text-muted-foreground">
                         From Bakong Open API. Used to confirm that a payment
@@ -369,7 +347,7 @@ function AccountForm({
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-3 border-t border-border pt-5">
-                    <Button type="submit" disabled={isSaving}>
+                    <Button type="submit" data-tour="payments-save" disabled={isSaving}>
                         {isSaving && (
                             <LoaderCircle
                                 className="size-4 animate-spin"
@@ -379,9 +357,9 @@ function AccountForm({
                         Save
                     </Button>
 
-                    {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
+                        data-tour="payments-test"
                         variant="outline"
                         onClick={onPreview}
                         disabled={!canPreview || isPreviewing}
@@ -405,10 +383,6 @@ function PreviewCard({ khqr }: { khqr: Khqr }) {
                         this is only to confirm the details are accepted.
                     </p>
                     {khqr.qrImage ? (
-                        /* A data URI from the backend, not an external fetch.
-                           Kept on a white plate in both themes — a QR with a
-                           transparent background is unscannable on the dark
-                           card, and scanners expect a light quiet zone. */
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={khqr.qrImage}
