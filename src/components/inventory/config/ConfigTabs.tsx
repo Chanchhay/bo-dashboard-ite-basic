@@ -16,10 +16,6 @@ export const configTabs = [
 
 export type ConfigTabId = (typeof configTabs)[number]["id"];
 
-/**
- * Sub-tabs, not routes: switching between the building blocks is a move inside
- * one screen, so it shouldn't cost a navigation or a scroll position.
- */
 export function ConfigTabs({
     value,
     onChange,

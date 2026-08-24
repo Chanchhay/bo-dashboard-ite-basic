@@ -1,5 +1,6 @@
 import type { MembershipTypeResponse } from "./membership-type";
 import type { SalesChannel } from "./sales-channels";
+import type { PageResult } from "./pagination";
 
 export type GlobalCustomerResponse = {
     id: string;
@@ -22,6 +23,8 @@ export type CustomerResponse = {
     createdDate?: string;
     lastModifiedDate?: string;
 };
+
+export type CustomerPage = PageResult<CustomerResponse>;
 
 export type CreateCustomerInput = {
     keycloakUserId?: string;

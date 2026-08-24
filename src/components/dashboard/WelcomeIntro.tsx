@@ -6,12 +6,6 @@ const ZOOM_MS = 1900;
 const LIFT_AT = 1300;
 const UNMOUNT_AT = 2100;
 
-/*
- * Per-keyframe easing: a quick settle in, a slow drift, then an accelerating
- * exit. Only `transform`/`opacity` animate on the veil itself — the blur is a
- * static backdrop-filter that fades with the layer, so nothing repaints the
- * page underneath frame by frame.
- */
 const KEYFRAMES = `
 @keyframes iposWelcomeIn {
   0%   { opacity: 0; transform: scale(.9);   filter: blur(8px);
@@ -30,10 +24,6 @@ const KEYFRAMES = `
 }
 `;
 
-/**
- * Plays once per sign-in. The login page arms a cookie, the dashboard reads it
- * server-side, and this clears the cookie so refreshes stay silent.
- */
 export default function WelcomeIntro() {
     const [lifted, setLifted] = useState(false);
     const [mounted, setMounted] = useState(true);

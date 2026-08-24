@@ -41,12 +41,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useGetPeriodProfitQuery } from "@/services/salesReportApi";
 
-/**
- * Money, with a loss carrying its own sign rather than only a colour.
- *
- * Red and green are the two a red-green colourblind reader cannot tell apart,
- * so the sign does the work and the colour is a second opinion.
- */
 function Money({
     amount,
     format,
@@ -75,13 +69,6 @@ function Money({
     );
 }
 
-/**
- * The rows as a spreadsheet would hold them.
- *
- * Raw numbers, not the formatted strings on screen: a currency symbol and a
- * thousands separator are the two things that stop a column adding up once it
- * is opened somewhere else.
- */
 function toCsv(periods: PeriodProfit[], granularity: ReportGranularity) {
     const header = [
         "Period",
@@ -112,8 +99,6 @@ function toCsv(periods: PeriodProfit[], granularity: ReportGranularity) {
     return [header, ...rows]
         .map((row) =>
             row
-                // Only what needs quoting gets quoted, so a plain number stays
-                // one to whatever opens the file.
                 .map((cell) => {
                     const value = String(cell);
 
@@ -126,19 +111,8 @@ function toCsv(periods: PeriodProfit[], granularity: ReportGranularity) {
         .join("\n");
 }
 
-/**
- * The accounting statement: what the shop took, what it cost, what it kept.
- *
- * One row per period rather than per sale, because the question this answers
- * is how a month went, not what happened at 14:32 on the Tuesday. The totals
- * come from the database over the whole range — a figure summed from a page of
- * orders quietly under-reports the moment a shop has a good year.
- */
 export function ProfitByPeriod() {
     const { format } = useMoney();
-    // The export is a browser-only affordance — it builds a Blob and clicks a
-    // link — and its disabled state depends on data only the client has. Both
-    // reasons say the same thing: it does not belong in the server's HTML.
     const mounted = useMounted();
     const [range, setRange] = useState<ProfitRange>("MONTH");
     const [granularity, setGranularity] = useState<ReportGranularity>("DAY");
@@ -155,9 +129,6 @@ export function ProfitByPeriod() {
 
     function downloadCsv() {
         if (!total) return;
-
-        // The total travels with the rows: a statement handed to somebody else
-        // should not need them to re-add it.
         const csv = toCsv([...periods, total], granularity);
         const url = URL.createObjectURL(
             new Blob([csv], { type: "text/csv;charset=utf-8" }),
@@ -269,8 +240,6 @@ export function ProfitByPeriod() {
                 </div>
             ) : (
                 <>
-                    {/* Wide by nature — a statement has a lot of columns, and
-                        squeezing them is worse than letting them scroll. */}
                     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
                         <Table>
                             <TableHeader>
@@ -432,10 +401,6 @@ export function ProfitByPeriod() {
                 </>
             )}
 
-            {/* Beneath the statement, on the same range: the statement says
-                the month made money, this says which items made it. It reads
-                the range from here rather than owning a second selector, so
-                the two tables can never be showing different periods. */}
             <div className="mt-4 border-t border-border pt-6">
                 <ProfitByItem
                     {...(start ? { from: toLocalDateTime(start) } : {})}

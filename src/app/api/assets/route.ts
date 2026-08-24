@@ -5,14 +5,6 @@ import {
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { blockImageRules, type UploadedAsset } from "@/lib/api/inventory";
 
-/**
- * Uploads one loose image and answers with its URL.
- *
- * Every other upload in the app belongs to something — a logo, an avatar, an
- * item's gallery. A picture inside a description block belongs to none of them:
- * it lives in the block's JSON, so it needs a plain "store this, hand me back a
- * URL" call.
- */
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();

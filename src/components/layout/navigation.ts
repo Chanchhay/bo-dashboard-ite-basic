@@ -28,11 +28,11 @@ type NavItemBase = {
 export type NavLink = NavItemBase & {
   href: string;
   icon?: LucideIcon;
-  /** Match the pathname exactly instead of by prefix. */
+
   exact?: boolean;
-  /** Extra routes that should keep this entry highlighted. */
+ 
   alsoActiveOn?: RegExp[];
-  /** Optional count pill. Only ever set from real data. */
+
   badge?: number;
 };
 
@@ -42,11 +42,6 @@ export type NavGroup = NavItemBase & {
 
 export type NavLeaf = NavLink | NavGroup;
 
-/**
- * A separate app this section can hand off to, pinned to the foot of the
- * sidebar. Not a nav row: it leaves the dashboard shell entirely, so it reads
- * as launching something rather than moving between pages.
- */
 export type NavLaunch = {
   label: string;
   href: string;
@@ -58,31 +53,23 @@ export type NavSection = {
   id: string;
   label: string;
   icon: LucideIcon;
-  /** A section either links somewhere itself, or expands to children. */
+
   href?: string;
   exact?: boolean;
   children?: NavLeaf[];
   permission?: PermissionRule;
-  /** A separate app launched from this section's sidebar. */
+
   launch?: NavLaunch;
-  /** Launcher presentation. Sections without this never appear as an app. */
+
   app?: {
     label: string;
-    // hint: string;
-    /** Badge fill; `ink` is the icon drawn on it. */
+   
     fill: string;
     ink: string;
   };
 };
 
-/**
- * Gates name Keycloak permissions directly — the same names the access token
- * carries and the role editor lists. A few screens have no permission of their
- * own yet because the backend does not guard their endpoints (Facebook, add-ons
- * and option presets, and the sales configuration pages); those borrow the
- * nearest real permission, noted where it happens, and should be given their
- * own once the backend defines one.
- */
+
 export const NAVIGATION: NavSection[] = [
   {
     id: "business",
@@ -96,7 +83,6 @@ export const NAVIGATION: NavSection[] = [
     ],
     app: {
       label: "Business Management",
-      // hint: "Profile & currency",
       fill: "linear-gradient(155deg, #46ca22 0%, #0e8a1e 71.64%)",
       ink: "#ffffff",
     },
@@ -124,7 +110,6 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Facebook Page",
         href: "/business/facebook",
-        // No Keycloak permission of its own; treated as business settings.
         permission: "business:read",
       },
     ],
@@ -137,7 +122,6 @@ export const NAVIGATION: NavSection[] = [
     permission: ["member:read", "role:read"],
     app: {
       label: "User Management",
-      // hint: "Staff & roles",
       fill: "linear-gradient(-40.5deg, #08832b 20.11%, #48d321 82.16%)",
       ink: "#ffffff",
     },
@@ -155,7 +139,6 @@ export const NAVIGATION: NavSection[] = [
     ],
     app: {
       label: "Inventory Management",
-      // hint: "Catalog, categories & stock",
       fill: "linear-gradient(-42.95deg, #0e7e2e 5.06%, #42d00e 80.71%)",
       ink: "#ffffff",
     },
@@ -179,9 +162,6 @@ export const NAVIGATION: NavSection[] = [
             alsoActiveOn: [/^\/inventory\/stock\/overview$/],
           },
           {
-            // Add-ons are stocked from the overview, under the item
-            // that offers them. The ledger is its own page: it
-            // answers what happened, not what is left.
             label: "Movements",
             href: "/inventory/stock/movements",
             permission: "stock:read",
@@ -204,9 +184,6 @@ export const NAVIGATION: NavSection[] = [
         ],
       },
       {
-        // Units, conversions, item groups, add-ons and option presets —
-        // the building blocks items are assembled from. Categories used
-        // to live at `/inventory/categories`, which now redirects to groups.
         label: "Item config",
         permission: ["unit:read", "item-group:read", "item:read"],
         children: [
@@ -225,7 +202,6 @@ export const NAVIGATION: NavSection[] = [
           {
             label: "Add-ons",
             href: "/inventory/config/add-ons",
-            // Add-ons ride on items; no permission of their own yet.
             permission: "item:read",
           },
           {
@@ -250,15 +226,12 @@ export const NAVIGATION: NavSection[] = [
         exact: true,
       },
       {
-        // Revenue against what the stock cost, per channel. The one
-        // question the stat cards elsewhere cannot answer.
         label: "Profit",
         href: "/analytics",
       },
     ],
     app: {
       label: "Overview Dashboard",
-      // hint: "Live figures & analytics",
       fill: "linear-gradient(-42.73deg, #008000 14.44%, #36f928 91.63%)",
       ink: "#ffffff",
     },
@@ -281,22 +254,17 @@ export const NAVIGATION: NavSection[] = [
     permission: ["order:read", "order:create", "item:read"],
     app: {
       label: "Sale Management",
-      // hint: "Orders & point of sale",
+    
       fill: "#e8e8e8",
       ink: "#00932a",
     },
     children: [
       {
         label: "Orders",
-        href: "/sales",
-        exact: true,
-        permission: "order:read",
+        href: "/sales/orders",
       },
       {
-        // Base prices, what each channel charges instead, and where
-        // each item sells — one screen, where it used to be three.
-        // Sits above Customers because it is the thing most owners
-        // open Sale Management to do.
+        
         label: "Item & Pricing",
         href: "/sales/pricing",
         permission: "item:read",
@@ -304,8 +272,7 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Customers",
         href: "/sales/customers",
-        // Customers, discounts, member types and taxes are sales
-        // configuration the backend does not guard separately yet.
+    
         permission: "order:read",
       },
       {
@@ -324,17 +291,13 @@ export const NAVIGATION: NavSection[] = [
         permission: "order:read",
       },
       {
-        // Who was on the till, and whether the drawer counted true.
-        // Beside the terminal that opens and closes those drawers
-        // rather than with the reports: it is read at the end of a
-        // shift, not for the trend.
+       
         label: "Register Sessions",
         href: "/sales/sessions",
         permission: "order:create",
       },
+             
     ],
-    // The terminal is its own fullscreen app, so it gets a launch button
-    // rather than a nav row that pretends to stay inside the dashboard.
     launch: {
       label: "Open Point of Sale",
       href: POS_ROUTES.openRegister,
@@ -356,7 +319,6 @@ export const NAVIGATION: NavSection[] = [
   },
 ];
 
-/** Icons for leaf routes that need one outside the sidebar. */
 export const LEAF_ICONS = {
   categories: FolderTree,
   stock: Warehouse,
@@ -364,7 +326,7 @@ export const LEAF_ICONS = {
   currency: Coins,
 };
 
-/** Sections the user may reach, with unreachable child pages stripped out. */
+
 export function visibleSections(permissions: GrantedPermissions) {
   return NAVIGATION.filter((section) => can(permissions, section.permission))
     .map((section) =>
@@ -395,12 +357,10 @@ export function visibleSections(permissions: GrantedPermissions) {
     .filter((section) => !section.children || section.children.length > 0);
 }
 
-/** The apps shown in the launcher, in navigation order. */
 export function launcherApps(permissions: GrantedPermissions) {
   return visibleSections(permissions).filter((section) => section.app);
 }
 
-/** Where an app tile takes you — its own route, or its first child page. */
 export function sectionEntryHref(section: NavSection) {
   const firstChild = section.children?.[0];
 
@@ -444,24 +404,16 @@ export function isSectionActive(section: NavSection, pathname: string) {
     : pathname === section.href || pathname.startsWith(`${section.href}/`);
 }
 
-/** The section that owns a route — what "app" you are currently inside. */
 export function findSectionByPath(pathname: string) {
   return NAVIGATION.find((section) => isSectionActive(section, pathname));
 }
 
-/** What the top bar says: the app you are in, and the page inside it. */
 export type PageTitle = {
-  /** Renders semibold — the app you launched, named as it is in the launcher. */
   app: string;
-  /** Renders regular after a separator. Absent on an app's entry page. */
   page?: string;
 };
 
-/**
- * Title for the top bar. The app name carries through every page of an app, so
- * the heading always answers "which app am I in" before "which page" — and it
- * matches the tile you clicked in the launcher.
- */
+
 export function getPageTitle(pathname: string): PageTitle {
   for (const section of NAVIGATION) {
     const app = section.app?.label ?? section.label;
@@ -482,7 +434,6 @@ export function getPageTitle(pathname: string): PageTitle {
         };
       }
 
-      // An app's entry page is the app — no need to say it twice.
       return sectionEntryHref(section) === leaf.href
         ? { app }
         : { app, page: leaf.label };

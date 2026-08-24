@@ -9,14 +9,16 @@ export interface PublishCustomerDisplayInput {
 
 export const customerDisplayApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    publishCustomerDisplay: builder.mutation<void, PublishCustomerDisplayInput>({
-      query: ({ businessId, terminalId, payload }) => ({
-        url: `/businesses/${businessId}/customer-display/${terminalId}/publish`,
-        method: "POST",
-        body: payload,
-      }),
-      invalidatesTags: ["CustomerDisplay"],
-    }),
+    publishCustomerDisplay: builder.mutation<void, PublishCustomerDisplayInput>(
+      {
+        query: ({ businessId, terminalId, payload }) => ({
+          url: `/businesses/${businessId}/customer-display/${terminalId}/publish`,
+          method: "POST",
+          body: payload,
+        }),
+        invalidatesTags: ["CustomerDisplay"],
+      },
+    ),
   }),
 });
 

@@ -102,19 +102,11 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const stockQuery = useGetCurrentStockQuery();
     const [createEntry, createState] = useCreateStockEntryMutation();
 
-    // An add-on is counted exactly like an item, so both are recorded here.
     const [target, setTarget] = useState<StockTargetRef | null>(
         paramItemId ? { kind: "ITEM", id: paramItemId } : null,
     );
-    /**
-     * Which option is being moved.
-     *
-     * An option counts its own stock, so an item sold in options is stocked
-     * through one of them — the API refuses a movement that names none.
-     */
     const [optionId, setOptionId] = useState("");
     const [quantityInput, setQuantityInput] = useState("");
-    /** Empty means the item's base unit. */
     const [entryUnitId, setEntryUnitId] = useState("");
     const [unitPriceInput, setUnitPriceInput] = useState("");
     const [reasonInput, setReasonInput] = useState("");
@@ -122,33 +114,15 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const [batchManufacturedAt, setBatchManufacturedAt] = useState("");
     const [batchExpiresAt, setBatchExpiresAt] = useState("");
     const [batchReceivedAt, setBatchReceivedAt] = useState("");
-    /**
-     * Whether the batch section is showing.
-     *
-     * Held here rather than left to the browser so a validation error can open
-     * it: dates that contradict each other are refused, and an error on a
-     * field nobody can see is a form that will not submit and will not say
-     * why.
-     */
     const [batchOpen, setBatchOpen] = useState(false);
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannedItemName, setScannedItemName] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const isStockIn = mode === "in";
-    // Stock cannot have arrived in the future, and nothing is made after it
-    // expires — the pickers say so rather than leaving the API to.
     const todayIso = new Date().toLocaleDateString("en-CA");
-    // Worth flagging while it can still be corrected: a delivery keyed in with
-    // a date already gone is almost always a typo, and it would otherwise go
-    // straight to the front of the queue and be sold first.
     const batchAlreadyExpired =
         Boolean(batchExpiresAt) && batchExpiresAt < todayIso;
-    /*
-     * The earliest day an expiry may name: never in the past, and never
-     * before the batch was made. Stock arriving today cannot already have
-     * gone off, and a date behind us would put it first in the sell queue.
-     */
     const earliestExpiry =
         batchManufacturedAt && batchManufacturedAt > todayIso
             ? batchManufacturedAt
@@ -180,13 +154,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
     const selectedAddOn = addOns.find((addOn) => addOn.id === selectedAddOnId);
     const unitLabel =
         selectedItem?.unit?.name || selectedAddOn?.baseUnit?.name || "units";
-    /**
-     * What each item and add-on holds in total.
-     *
-     * An item sold in options has one summary per option, so they are summed:
-     * keying by item id alone would keep only the last one and read it as the
-     * item's whole stock.
-     */
     const onHandByTargetId = (stockQuery.data || []).reduce<
         Record<string, number>
     >((totals, summary) => {
@@ -196,19 +163,10 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         return totals;
     }, {});
     const targets = toStockTargets(items, addOns, onHandByTargetId);
-    /**
-     * Stock is counted in the item's base unit, but it rarely arrives in one:
-     * a delivery is two sacks, not fifty thousand grams. The item's own
-     * conversions are what make the larger units selectable here.
-     */
     const unitOptions = selectedAddOn
         ? toEntryUnits(selectedAddOn.baseUnit, selectedAddOn.uomConversions || [])
         : toEntryUnits(
               selectedItem?.unit,
-              // Narrowed to the option being moved: the same larger unit can
-              // be defined for several options and hold a different amount in
-              // each, so a list built from all of them offers it more than
-              // once and cannot say which one it means.
               conversionsForOption(selectedItem?.uomConversions || [], optionId),
           );
     const selectedUnit =
@@ -223,10 +181,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
             name: variant.name || "",
         }));
 
-    /**
-     * What is on hand where this movement lands: the chosen option's balance,
-     * or the target's own when no option is in play.
-     */
     const onHand = optionId
         ? ((stockQuery.data || []).find(
               (summary) =>
@@ -237,7 +191,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
     const qty = Number(quantityInput);
     const isValidQty = quantityInput.trim() !== "" && Number.isFinite(qty) && qty > 0;
-    // What actually moves on the shelf, once the chosen unit is unpacked.
     const baseQty = isValidQty
         ? Math.round(qty * conversionFactor * 1000) / 1000
         : 0;
@@ -273,9 +226,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         if (!target) {
             errors.itemId = "Please select an item or add-on.";
         }
-
-        // An option counts its own stock, so the API refuses a movement on an
-        // item sold in options that does not say which one.
         if (itemOptions.length && !optionId) {
             errors.variantId = "Please choose which option this is for.";
         }
@@ -287,10 +237,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
         if (unitPriceInput.trim() !== "" && (!Number.isFinite(price) || price < 0)) {
             errors.unitPrice = "Unit price cannot be negative.";
         }
-
-        // Stock arriving has to say what it cost: the shelf's value, every
-        // sale's cost and every selling price are all set against it. Zero is
-        // a fine answer for free stock — saying nothing is not.
         if (isStockIn && unitPriceInput.trim() === "") {
             errors.unitPrice =
                 "Enter what one unit cost. Put 0 if this stock was free.";
@@ -311,10 +257,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
 
         const quantityChange = isStockIn ? baseQty : -baseQty;
 
-        // These used to go into `batchData`, a free-form blob nothing read —
-        // so an expiry date could be typed in and the batch would still be
-        // sold in arrival order. They are real fields on the batch now, and
-        // the expiry is what the consumption queue is ordered by.
         const lotNumber = batchLot.trim();
         const manufacturedAt = batchManufacturedAt.trim();
         const expiresAt = batchExpiresAt.trim();
@@ -325,8 +267,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
             setFieldErrors({
                 batchExpiresAt: "This batch expires before it was made.",
             });
-            // The offending field is in the collapsed section on any form the
-            // operator has since tidied away.
             setBatchOpen(true);
             toast({
                 tone: "error",
@@ -346,17 +286,11 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                       }),
                 entryType: isStockIn ? "STOCK_IN" : "STOCK_OUT",
                 quantityChange,
-                // Cost on the way in, sale price on the way out. The API
-                // refuses the wrong one, because a sale price stored as cost
-                // used to become the item's cost for everything after it.
                 unitCost: isStockIn && isValidPrice ? price : undefined,
                 unitSalePrice:
                     !isStockIn && isValidPrice ? price : undefined,
-                // Kept so the ledger reads "2 sacks", not just the base amount.
                 enteredQuantity: selectedUnit ? qty : undefined,
                 unitId: selectedUnit?.id,
-                // The API refuses these on the way out: which batch stock left
-                // by is worked out from the queue, never typed.
                 ...(isStockIn
                     ? {
                           lotNumber: lotNumber || undefined,
@@ -450,7 +384,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                             </div>
                         ) : (
                             <div className="grid gap-5 sm:grid-cols-2">
-                                {/* Item Selector */}
                                 <div data-tour="stock-item-select" className="sm:col-span-2">
                                     <FormField
                                         label="Item"
@@ -494,9 +427,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                         </div>
                                     </FormField>
                                 </div>
-
-                                {/* Which option, when the item has any. Each
-                                    counts its own stock, so one must be named. */}
                                 {itemOptions.length ? (
                                     <div className="sm:col-span-2">
                                         <FormField
@@ -604,7 +534,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     </FormField>
                                 </div>
 
-                                {/* Cost on the way in, sale price on the way out. */}
                                 <div data-tour="stock-price-input">
                                     <FormField
                                         label={
@@ -648,7 +577,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     </FormField>
                                 </div>
 
-                                {/* Reason Input */}
                                 <div data-tour="stock-reason-input" className="sm:col-span-2">
                                     <FormField
                                         label="Reason"
@@ -682,14 +610,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     </FormField>
                                 </div>
 
-                                {/* Batch Details Card — receiving only.
-                                    On the way out there is no batch to
-                                    describe: which one the stock leaves by is
-                                    worked out from the queue, soonest to
-                                    expire first, and the API refuses these
-                                    fields there. Showing them would invite an
-                                    operator to pick a lot and be quietly
-                                    ignored. */}
                                 {isStockIn ? (
                                 <details
                                     data-tour="stock-batch-card"
@@ -717,9 +637,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                         <ChevronRight className="mt-2.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
                                     </summary>
 
-                                    {/* Two by two: four fields across three
-                                        columns left the last one stranded on a
-                                        row of its own. */}
                                     <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-2 sm:p-5">
                                         <FormField
                                             label="Batch / lot number"
@@ -736,8 +653,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                                 className={inventoryControlClassName}
                                             />
                                         </FormField>
-                                        {/* Expiry leads: it is the one that
-                                            decides when this batch sells. */}
                                         <FormField
                                             label="Expiration date"
                                             name="batchExpiresAt"
@@ -803,7 +718,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                         )}
                     </section>
 
-                    {/* Side Live Summary Panel */}
                     <div className="flex flex-col gap-4 sticky top-6">
                         <div data-tour="stock-summary-panel" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-3">
@@ -871,7 +785,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex flex-col gap-2.5">
                             <Button
                                 data-tour="stock-submit-btn"
