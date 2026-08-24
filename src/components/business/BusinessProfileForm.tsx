@@ -3,14 +3,17 @@
 import {
     useRef,
     useState,
+    type FocusEvent,
     type FormEvent,
     type ReactNode,
 } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { Camera, Image as ImageIcon } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import type { LocationValue } from "@/components/business/LocationMapPicker";
 import {
     controlClassName,
     textareaClassName as sharedTextareaClassName,
@@ -52,6 +55,20 @@ import {
     useUploadBusinessThumbnailMutation,
 } from "@/services/businessApi";
 import { useAppDispatch } from "@/store/hooks";
+
+// Leaflet touches `window` at module load, so this can only ever run client-side.
+const LocationMapPicker = dynamic(
+    () =>
+        import("@/components/business/LocationMapPicker").then(
+            (mod) => mod.LocationMapPicker,
+        ),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="h-72 w-full animate-pulse rounded-xl bg-muted" />
+        ),
+    },
+);
 
 const asset = (name: string) => `/business-profile-assets/${name}`;
 
@@ -264,12 +281,93 @@ function BusinessProfileEditor({
         business.thumbnail || "",
     );
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+    // The map picker holds its own React state, so a native form.reset()
+    // can't touch it — bumping this key remounts it, re-reading `initial`.
+    const [locationResetKey, setLocationResetKey] = useState(0);
+    // Set once "Use this link" resolves; overrides `business`'s saved
+    // location as the picker's `initial` until cancelled or saved over.
+    const [locationOverride, setLocationOverride] = useState<LocationValue | null>(
+        null,
+    );
+    const [isLinkingLocation, setIsLinkingLocation] = useState(false);
+    // Guards against re-detecting on every blur when the field hasn't
+    // actually changed since the last successful (or failed) attempt.
+    const lastDetectedLinkRef = useRef<string | null>(business.googleMap || null);
+    // The Address field is an uncontrolled defaultValue like the rest of the
+    // form; this forces it to remount with a new one once detection resolves
+    // — the same trick as `locationResetKey`, for the same reason (a plain
+    // ref-set wouldn't survive a re-render, and there's no controlled state
+    // to push into otherwise).
+    const [detectedAddress, setDetectedAddress] = useState<string | null>(null);
 
     function handleCancel() {
         formRef.current?.reset();
         logo.reset();
         thumbnail.reset();
         setFieldErrors({});
+        setLocationOverride(null);
+        setDetectedAddress(null);
+        setLocationResetKey((key) => key + 1);
+    }
+
+    /** Fires on blur — no button to click, the business just pastes the link and moves on. */
+    async function autoDetectLocationFromLink(
+        event: FocusEvent<HTMLTextAreaElement>,
+    ) {
+        const link = event.currentTarget.value.trim();
+        if (!link || link === lastDetectedLinkRef.current) {
+            return;
+        }
+        lastDetectedLinkRef.current = link;
+
+        setIsLinkingLocation(true);
+        try {
+            const response = await fetch(
+                `/api/geocode/from-link?url=${encodeURIComponent(link)}`,
+            );
+            const data = await response.json();
+
+            if (!response.ok) {
+                toast({
+                    tone: "error",
+                    title: "Couldn't read that Google Maps link",
+                    description:
+                        getApiErrorMessage(
+                            { data },
+                            "Search or drag the pin on the map below instead.",
+                        ),
+                });
+                return;
+            }
+
+            setLocationOverride({
+                lat: data.lat,
+                lng: data.lon,
+                provinceName: data.address?.provinceName ?? "",
+                districtName: data.address?.districtName ?? "",
+                communeName: data.address?.communeName ?? "",
+            });
+            setLocationResetKey((key) => key + 1);
+            if (data.label) {
+                // The address field validates at 255 characters; Nominatim's
+                // full display_name can run longer than that.
+                setDetectedAddress((data.label as string).slice(0, 255));
+            }
+            toast({
+                tone: "success",
+                title: "Location found",
+                description:
+                    "Check the pin on the map below, and the Address/Province/District/Commune fields, and adjust anything that's off.",
+            });
+        } catch {
+            toast({
+                tone: "error",
+                title: "Couldn't read that link",
+                description: "Check your connection and try again.",
+            });
+        } finally {
+            setIsLinkingLocation(false);
+        }
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -285,6 +383,11 @@ function BusinessProfileEditor({
             phoneNumber: String(formData.get("phoneNumber") || ""),
             address: String(formData.get("address") || ""),
             googleMap: String(formData.get("googleMap") || ""),
+            provinceName: String(formData.get("provinceName") || ""),
+            districtName: String(formData.get("districtName") || ""),
+            communeName: String(formData.get("communeName") || ""),
+            latitude: String(formData.get("latitude") || ""),
+            longitude: String(formData.get("longitude") || ""),
             openTime: String(formData.get("openTime") || ""),
             closeTime: String(formData.get("closeTime") || ""),
             isClosed: formData.get("isClosed") === "true",
@@ -524,23 +627,22 @@ function BusinessProfileEditor({
                     </div>
 
                     <div className="flex flex-col gap-3">
-                        <div data-tour="profile-address">
-                            <Field
-                                label="Physical Address"
+                        <Field
+                            label="Physical Address"
+                            name="address"
+                            error={fieldErrors.address}
+                        >
+                            <Textarea
+                                key={detectedAddress ?? "saved"}
+                                id="address"
                                 name="address"
-                                error={fieldErrors.address}
-                            >
-                                <Textarea
-                                    id="address"
-                                    name="address"
-                                    defaultValue={business.address || ""}
-                                    maxLength={255}
-                                    rows={2}
-                                    aria-invalid={Boolean(fieldErrors.address)}
-                                    className={`${textareaClassName} min-h-[88px] text-[#6b7280]`}
-                                />
-                            </Field>
-                        </div>
+                                defaultValue={detectedAddress ?? business.address ?? ""}
+                                maxLength={255}
+                                rows={2}
+                                aria-invalid={Boolean(fieldErrors.address)}
+                                className={`${textareaClassName} min-h-[88px] text-[#6b7280]`}
+                            />
+                        </Field>
 
                         <Field
                             label="Google Map"
@@ -554,11 +656,38 @@ function BusinessProfileEditor({
                                 maxLength={255}
                                 rows={2}
                                 aria-invalid={Boolean(fieldErrors.googleMap)}
+                                onBlur={autoDetectLocationFromLink}
                                 className={`${textareaClassName} min-h-[90px] text-[#6b7280] underline`}
                             />
+                            {isLinkingLocation && (
+                                <p className="pl-1 text-xs text-muted-foreground">
+                                    Reading the location from that link…
+                                </p>
+                            )}
                         </Field>
                     </div>
                 </div>
+            </section>
+
+            <section className="flex flex-col gap-4 rounded-2xl pt-2 pb-0 sm:pt-3 sm:pb-0">
+                <SectionTitle>Location</SectionTitle>
+                <LocationMapPicker
+                    key={locationResetKey}
+                    initial={
+                        locationOverride ?? {
+                            lat: business.latitude ?? null,
+                            lng: business.longitude ?? null,
+                            provinceName: business.provinceName ?? "",
+                            districtName: business.districtName ?? "",
+                            communeName: business.communeName ?? "",
+                        }
+                    }
+                    onChange={() => {
+                        // The picker's own inputs carry `name=` attributes and
+                        // feed the surrounding <form>'s FormData directly —
+                        // nothing else needs to track the live value.
+                    }}
+                />
             </section>
 
             <div className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center sm:justify-between">
@@ -661,6 +790,11 @@ export default function BusinessProfileForm() {
         business.phoneNumber,
         business.address,
         business.googleMap,
+        business.provinceName,
+        business.districtName,
+        business.communeName,
+        business.latitude,
+        business.longitude,
         business.logo,
     ].join("|");
 
