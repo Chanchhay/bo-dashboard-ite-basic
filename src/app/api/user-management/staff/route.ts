@@ -3,20 +3,28 @@ import {
     getCurrentBusinessId,
     validationErrorResponse,
 } from "@/lib/api/business-backend";
+import { pageQueryParams, toPageResult } from "@/lib/api/pagination";
 import {
     createStaffSchema,
     toStaffRequest,
     type Staff,
 } from "@/lib/api/user-management";
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const businessId = await getCurrentBusinessId();
-        const staff = await backendRequest<Staff[]>(
-            `/api/v1/businesses/${businessId}/staff`,
-        );
+        const searchParams = new URL(request.url).searchParams;
+        const params = pageQueryParams(searchParams);
 
-        return Response.json(staff);
+        const page = await backendRequest<{
+            content: Staff[];
+            number: number;
+            size: number;
+            totalElements: number;
+            totalPages: number;
+        }>(`/api/v1/businesses/${businessId}/staff?${params.toString()}`);
+
+        return Response.json(toPageResult(page));
     } catch (error) {
         return backendErrorResponse(error);
     }

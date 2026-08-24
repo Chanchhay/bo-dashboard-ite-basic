@@ -1,36 +1,44 @@
 import { NextRequest } from "next/server";
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
+import { pageQueryParams, toPageResult } from "@/lib/api/pagination";
 import type { DiscountResponse } from "@/lib/api/discount";
 
-export async function GET() {
-    try {
-        const businessId = await getCurrentBusinessId();
-        const discounts = await backendRequest<DiscountResponse[]>(
-            `/api/v1/businesses/${businessId}/discounts`,
-        );
+export async function GET(request: NextRequest) {
+  try {
+    const businessId = await getCurrentBusinessId();
+    const searchParams = new URL(request.url).searchParams;
+    const params = pageQueryParams(searchParams);
 
-        return Response.json(discounts);
-    } catch (error) {
-        return backendErrorResponse(error);
-    }
+    const page = await backendRequest<{
+      content: DiscountResponse[];
+      number: number;
+      size: number;
+      totalElements: number;
+      totalPages: number;
+    }>(`/api/v1/businesses/${businessId}/discounts?${params.toString()}`);
+
+    return Response.json(toPageResult(page));
+  } catch (error) {
+    return backendErrorResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
-    try {
-        const businessId = await getCurrentBusinessId();
-        const body = await request.json();
+  try {
+    const businessId = await getCurrentBusinessId();
+    const body = await request.json();
 
-        const discount = await backendRequest<DiscountResponse>(
-            `/api/v1/businesses/${businessId}/discounts`,
-            {
-                method: "POST",
-                body: JSON.stringify(body),
-            },
-        );
+    const discount = await backendRequest<DiscountResponse>(
+      `/api/v1/businesses/${businessId}/discounts`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
 
-        return Response.json(discount, { status: 201 });
-    } catch (error) {
-        return backendErrorResponse(error);
-    }
+    return Response.json(discount, { status: 201 });
+  } catch (error) {
+    return backendErrorResponse(error);
+  }
 }
