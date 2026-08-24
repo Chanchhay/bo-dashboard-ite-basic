@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import { Lock } from "lucide-react";
 
-/** Shared chrome for the Item Config tabs, so the five read as one screen. */
 export function ConfigSection({
     title,
     description,
@@ -30,7 +29,6 @@ export function ConfigSection({
     );
 }
 
-/** Marks a row the business may use but never change. */
 export function SystemBadge() {
     return (
         <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
@@ -60,10 +58,6 @@ export function ConfigEmpty({
     );
 }
 
-/**
- * The banner every config tab carries while this is a static mock, so nobody
- * files a bug about edits not surviving a refresh.
- */
 export function StaticPreviewNotice() {
     return null;
 }

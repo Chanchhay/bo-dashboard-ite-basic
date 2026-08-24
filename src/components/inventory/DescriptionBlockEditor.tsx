@@ -40,17 +40,12 @@ export type BlockDraft = {
     id: string;
     type: DescriptionBlockType;
     text: string;
-    /** One bullet per line while editing; split on save. */
     items: string;
-    /** The stored image, once its upload has come back. */
     url: string;
     caption: string;
     columns: { id: string; blocks: BlockDraft[] }[];
-    // Transient, never sent: the picture is uploaded on pick, and these carry
-    // the local preview and outcome until `url` is filled in.
     previewUrl?: string;
     uploading?: boolean;
-    /** The storage key of a picture uploaded here, so it can be cleaned up. */
     assetKey?: string;
 };
 
@@ -88,12 +83,6 @@ export function emptyBlock(type: DescriptionBlockType): BlockDraft {
                 : [],
     };
 }
-
-/**
- * Editor for the storefront description layout. Blocks render in order; a
- * `COLUMNS` block holds two side-by-side stacks and is the only nesting the
- * API allows, so column contents offer leaf types only.
- */
 export function DescriptionBlockEditor({
     blocks,
     onChange,
@@ -101,8 +90,6 @@ export function DescriptionBlockEditor({
     blocks: BlockDraft[];
     onChange: (blocks: BlockDraft[]) => void;
 }) {
-    // Patched by id, not position: a block image finishes uploading after the
-    // pick, and by then the block may have moved or a sibling may be gone.
     function update(id: string, patch: Partial<BlockDraft>) {
         onChange(
             blocks.map((block) =>
@@ -361,11 +348,6 @@ function BlockFields({
     );
 }
 
-/**
- * The picture inside a description block. It uploads the moment it is picked —
- * the block stores a URL, so there is nothing to send with the item save — and
- * shows the local file until that URL comes back.
- */
 function BlockImageField({
     block,
     onChange,
@@ -378,12 +360,6 @@ function BlockImageField({
     const { create, release } = useObjectUrls();
     const { toast } = useToast();
     const preview = block.previewUrl || block.url;
-
-    /**
-     * Drops a picture this editor uploaded and the block no longer points at.
-     * Only pictures picked in this session have a key to delete; ones loaded
-     * with the item are left to the server, since the block may not be saved.
-     */
     function discardUploaded(key: string | undefined) {
         if (key) {
             void deleteAsset(key);
@@ -460,9 +436,6 @@ function BlockImageField({
             preview={
                 <span className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg bg-[#f0f1f0] dark:bg-[#252a38]">
                     {preview ? (
-                        // Uploaded images come back as URLs; a pick previews as
-                        // a blob until then.
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={preview}
                             alt=""

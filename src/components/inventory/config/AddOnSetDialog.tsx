@@ -65,7 +65,6 @@ export function AddOnSetDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Absent when creating. */
     set?: AddOnSet;
     addOns: readonly AddOn[];
     busy?: boolean;
@@ -75,8 +74,6 @@ export function AddOnSetDialog({
     const [draft, setDraft] = useState<SetDraft>(() => toDraft(set));
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Reseeded on the way in rather than in an effect, so a cancelled edit
-    // cannot leak into the next one.
     const [seededFor, setSeededFor] = useState<string | null>(null);
     const seedKey = open ? (set?.id ?? "new") : null;
 
@@ -121,7 +118,6 @@ export function AddOnSetDialog({
             if (!Number.isInteger(maxChoices) || maxChoices < 1) {
                 found.maxChoices = "Set how many may be picked.";
             } else if (maxChoices > draft.addOnIds.length) {
-                // "Pick up to 5 of these 3" tells a customer nothing.
                 found.maxChoices =
                     "The limit cannot exceed how many add-ons are in the set.";
             }

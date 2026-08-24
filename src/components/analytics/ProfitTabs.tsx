@@ -6,15 +6,6 @@ import { ProfitByChannel } from "@/components/analytics/ProfitByChannel";
 import { ProfitByPeriod } from "@/components/analytics/ProfitByPeriod";
 import { cn } from "@/lib/utils";
 
-/**
- * The two questions this page answers, kept apart.
- *
- * "How did the month go" and "which channel is worth running" are read at
- * different times and carry different columns, and stacking both tables would
- * make each one harder to find than either is alone. The statement leads:
- * a shop opening this page is usually closing a period, not comparing
- * channels.
- */
 const tabs = {
     PERIODS: "Statement",
     CHANNELS: "By channel",

@@ -84,14 +84,14 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
     <div className="flex min-h-full flex-col px-4 pb-6 pt-5 sm:px-6 sm:pt-6 min-[1025px]:px-8 min-[1025px]:pt-7">
       <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-primary sm:text-[28px]">
+          <h1 data-tour="orders-header-title" className="text-2xl font-extrabold text-primary sm:text-[28px]">
             Orders
           </h1>
           <p className="mt-0.5 text-sm text-gray-500">
             Manage your active transactions
           </p>
         </div>
-        <div className="flex items-center gap-1.5 self-start rounded-lg border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary min-[480px]:self-auto">
+        <div data-tour="orders-open-count" className="flex items-center gap-1.5 self-start rounded-lg border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary min-[480px]:self-auto">
           <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
           {data?.page.totalElements ?? orders.length} OPEN{" "}
           {(data?.page.totalElements ?? orders.length) === 1 ? "ORDER" : "ORDERS"}

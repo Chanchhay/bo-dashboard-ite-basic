@@ -14,17 +14,6 @@ export type SelectOption = {
     label: React.ReactNode;
 };
 
-/**
- * The app's one select control. Use this rather than assembling
- * `Select`/`SelectTrigger`/`SelectItem` by hand, or a native `<select>` — it
- * keeps every dropdown the same widget, and it derives the `items` map from
- * `options` so the trigger always shows the label. Building the parts by hand
- * is what let ids leak into the trigger, because Base UI renders the raw value
- * unless `items` is supplied.
- *
- * Uncontrolled inside a form: pass `name` (+ optional `defaultValue`) and read
- * it back with `FormData`. Controlled: pass `value` and `onValueChange`.
- */
 export function SelectField({
     id,
     name,

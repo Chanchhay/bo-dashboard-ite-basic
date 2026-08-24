@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PageResult } from "./pagination";
 
 /* ------------------------------ Staff ------------------------------- */
 export const staffStatuses = ["ACTIVE", "INACTIVE"] as const;
@@ -15,6 +16,8 @@ export type Staff = {
     status?: StaffStatus;
     roleId?: string;
 };
+
+export type StaffPage = PageResult<Staff>;
 
 export const genders = ["MALE", "FEMALE", "OTHER", "UNSPECIFIED"] as const;
 
@@ -77,6 +80,8 @@ export type BusinessRole = {
     name?: string;
     permissions?: string[];
 };
+
+export type BusinessRolePage = PageResult<BusinessRole>;
 
 export const businessRoleSchema = z.object({
     name: requiredText(150, "Role name is required."),

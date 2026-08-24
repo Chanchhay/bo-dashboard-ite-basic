@@ -61,13 +61,6 @@ function MetricCard({
     );
 }
 
-/**
- * Stock at a glance: what every item holds, and what that is worth.
- *
- * Add-ons and the movements ledger are pages of their own in the sidebar. They
- * answer different questions — what an item offers, and what happened — and
- * neither is read alongside these totals.
- */
 export function InventoryStock() {
     const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
@@ -93,7 +86,6 @@ export function InventoryStock() {
         retry,
     } = useStockLevels();
 
-    /** The item whose deliveries are being looked at, if any. */
     const [batchesForItemId, setBatchesForItemId] = useState<string | null>(
         null,
     );
@@ -111,13 +103,6 @@ export function InventoryStock() {
     const countState = (state: StockState) =>
         itemRows.filter((row) => row.state === state).length;
 
-    /**
-     * What the shop's stock is worth: every open batch at the price it was
-     * bought at, worked out by the API from the batches themselves.
-     *
-     * Add-ons count too — a tub of pearls was paid for like anything else, and
-     * they are stocked from this screen.
-     */
     const stockValue = [...itemRows, ...addOnRows]
         .map((row) => row.value ?? 0)
         .reduce((total, value) => total + value, 0);
@@ -155,7 +140,6 @@ export function InventoryStock() {
         state: row.state,
         valueAtCost: row.value,
         pendingChange: row.pendingChange,
-        // Each option counts its own stock; the item's figure is their sum.
         options: row.options.map((option) => ({
             ...option,
             unitLabel: row.item.unit?.name || "",
@@ -170,14 +154,6 @@ export function InventoryStock() {
         })),
     }));
 
-    /**
-     * Add-ons no item offers.
-     *
-     * An add-on is stocked from under the item that offers it, which leaves
-     * one that nothing offers with nowhere to be counted. It still holds
-     * stock somebody paid for, so it is listed on its own rather than being
-     * dropped off the screen.
-     */
     const looseAddOnRows: StockLevelRow[] = addOnRows
         .filter(
             (row) =>

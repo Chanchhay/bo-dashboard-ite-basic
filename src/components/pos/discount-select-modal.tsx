@@ -252,7 +252,7 @@ export function DiscountSelectModal({
                     </div>
 
                     {/* Mode Tabs */}
-                    <div className="grid grid-cols-3 gap-1.5 pt-3">
+                    <div data-tour="discount-modal-tabs" className="grid grid-cols-3 gap-1.5 pt-3">
                         {(
                             [
                                 { key: "ACTIVE", icon: Tag, label: `Promotions (${activeDiscounts.length})` },

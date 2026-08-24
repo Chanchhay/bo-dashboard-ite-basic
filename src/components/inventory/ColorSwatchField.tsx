@@ -16,14 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-/**
- * A starting palette, so setting up a colour is picking one rather than
- * knowing what `#3a3a3c` looks like.
- *
- * These hex codes are product data, not styling — they are the colours a shop
- * sells things in, and they have to render the same in either theme. That is
- * why they are literal here and not semantic tokens.
- */
 export const SWATCH_PALETTE: { name: string; hex: string }[] = [
     { name: "Black", hex: "#1c1c1e" },
     { name: "Charcoal", hex: "#3a3a3c" },
@@ -47,7 +39,6 @@ export const SWATCH_PALETTE: { name: string; hex: string }[] = [
     { name: "Pink", hex: "#e88bb0" },
 ];
 
-/** The palette name for a hex, so a picked swatch can label itself. */
 export function paletteNameFor(hex?: string): string | undefined {
     if (!hex) return undefined;
     const match = SWATCH_PALETTE.find(
@@ -56,14 +47,6 @@ export function paletteNameFor(hex?: string): string | undefined {
     return match?.name;
 }
 
-/**
- * The colour on a row, as a single swatch that opens the picker.
- *
- * Twenty circles and a hex readout inline is most of a row's width spent on a
- * field most rows leave empty — a size has no colour. So the row shows the one
- * thing worth seeing at a glance, which is the colour itself, and the choosing
- * happens in a dialog where there is room for it.
- */
 export function ColorSwatchButton({
     value,
     colorName,
@@ -71,7 +54,6 @@ export function ColorSwatchButton({
     label = "Colour",
 }: {
     value: string;
-    /** What the shop calls it — shown beside the swatch on the storefront. */
     colorName: string;
     onChange: (patch: { colorHex?: string; colorName?: string }) => void;
     label?: string;
@@ -135,20 +117,12 @@ export function ColorSwatchButton({
                         value={value}
                         onChange={(hex) => onChange({ colorHex: hex })}
                         onPickName={(picked) =>
-                            // The palette's own name, unless the shop already
-                            // typed one of its own — "Gunmetal" beats "Charcoal".
                             colorName.trim()
                                 ? undefined
                                 : onChange({ colorName: picked })
                         }
                         label={label}
                     />
-
-                    {/*
-                     * Named, not just coloured. The storefront prints this
-                     * beside the swatches — "Color: Brown" — and no lookup
-                     * table knows what a shop calls its own colours.
-                     */}
                     <div className="flex flex-col gap-1.5">
                         <Label
                             htmlFor="colour-name"
@@ -177,14 +151,6 @@ export function ColorSwatchButton({
     );
 }
 
-/**
- * Pick a colour, or mix one.
- *
- * The palette covers what a shop actually sells in and names each colour, so
- * the common case is one click and the value arrives spelled correctly. The
- * native picker stays for everything else — a brand colour is nobody's idea of
- * a common case, and a palette that cannot express it would be a cage.
- */
 export function ColorSwatchField({
     value,
     onChange,
@@ -193,11 +159,6 @@ export function ColorSwatchField({
 }: {
     value: string;
     onChange: (hex: string) => void;
-    /**
-     * Called with the palette's name for the picked swatch. Lets a caller fill
-     * an empty name field from the choice — typing "Red" after clicking the red
-     * circle is work the screen can do itself.
-     */
     onPickName?: (name: string) => void;
     label?: string;
 }) {
@@ -229,8 +190,6 @@ export function ColorSwatchField({
                             style={{ background: swatch.hex }}
                         >
                             {active ? (
-                                // Against white and cream a white tick vanishes,
-                                // so the mark takes the darker ink there.
                                 <Check
                                     className={cn(
                                         "size-3.5",
@@ -261,7 +220,6 @@ export function ColorSwatchField({
     );
 }
 
-/** Rough perceived brightness, only ever used to choose tick ink. */
 function isLight(hex: string): boolean {
     const clean = hex.replace("#", "");
     if (clean.length !== 6) return false;

@@ -10,12 +10,6 @@ import {
 import { StockMovementsTab } from "@/components/inventory/stock/StockMovementsTab";
 import { useStockLevels } from "@/components/inventory/stock/useStockLevels";
 
-/**
- * The ledger: every movement ever recorded, against items and add-ons alike.
- *
- * Items and add-ons still have to be loaded here — an entry carries only the
- * id of what moved, so names, units and today's balance come from them.
- */
 export function InventoryStockMovements() {
     const { entries, movementTargets, isLoading, error, retry } =
         useStockLevels();

@@ -49,7 +49,6 @@ export function BusinessFacebookPageForm() {
         try {
             const res = await fetchConnectUrl().unwrap();
             if (res.url) {
-                // Redirect អ្នកប្រើប្រាស់ទៅកាន់ Facebook OAuth Page
                 window.location.href = res.url;
             }
         } catch (cause) {

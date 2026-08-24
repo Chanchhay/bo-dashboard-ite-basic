@@ -168,9 +168,6 @@ export default function CategoryFilter({
         )}
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION 1: ITEM GROUPS / CATEGORIES
-         ───────────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-200 dark:border-gray-800/80 pb-5 space-y-3">
         <h3 className="text-xs font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
           Categories
@@ -223,9 +220,6 @@ export default function CategoryFilter({
         )}
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION 2: SUBCATEGORIES
-         ───────────────────────────────────────────────────────────── */}
       <div className="pb-2 space-y-3">
         <h3 className="text-xs font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
           Subcategories
@@ -281,10 +275,8 @@ export default function CategoryFilter({
 
   return (
     <>
-      {/* Mobile Responsive Header Bar & Drawer Toggle (Phones & Small Tablets) */}
       <div className="md:hidden w-full mb-3 space-y-2">
         <div className="flex items-center gap-2">
-          {/* Mobile Filter Button */}
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -302,7 +294,6 @@ export default function CategoryFilter({
             <ChevronDown className={cn("size-4 transition-transform duration-200", mobileOpen && "rotate-180")} />
           </button>
 
-          {/* Quick Search Glass Button for Mobile */}
           <button
             type="button"
             onClick={() => setSearchModalOpen(true)}
@@ -313,7 +304,6 @@ export default function CategoryFilter({
           </button>
         </div>
 
-        {/* Mobile Filter Collapsible Sheet */}
         {mobileOpen && (
           <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] p-5 shadow-xl animate-in slide-in-from-top-3 duration-200">
             {FilterMarkup}
@@ -321,20 +311,15 @@ export default function CategoryFilter({
         )}
       </div>
 
-      {/* Desktop Sticky Sidebar */}
       <aside className="hidden md:block w-56 lg:w-64 shrink-0">
         <div className="pr-2">
           {FilterMarkup}
         </div>
       </aside>
 
-      {/* ─────────────────────────────────────────────────────────────
-          RESPONSIVE SEARCH MODAL DIALOG
-         ───────────────────────────────────────────────────────────── */}
       {searchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-sm animate-in fade-in-50 duration-200 overflow-y-auto">
           <div className="w-full max-w-3xl rounded-2xl sm:rounded-[32px] bg-white dark:bg-[#151923] p-4 sm:p-7 shadow-2xl border border-gray-200/80 dark:border-gray-800 space-y-4 sm:space-y-5 my-auto animate-in zoom-in-95 duration-200">
-            {/* Search Input Bar with Ring & Clear Button */}
             <div className="flex items-center gap-2.5 sm:gap-4">
               <div className="relative flex-1 flex items-center rounded-full border border-primary/80 dark:border-primary/80 bg-white dark:bg-[#1a1e29] px-3.5 sm:px-4 py-2.5 shadow-2xs focus-within:ring-2 focus-within:ring-primary/30">
                 <SearchIcon className="size-4 text-gray-400 mr-2 shrink-0" />

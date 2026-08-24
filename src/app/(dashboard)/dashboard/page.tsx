@@ -37,8 +37,6 @@ async function loadOverview(): Promise<Overview> {
 
         return { items: items ?? [], stock: stock ?? [] };
     } catch {
-        // A dashboard that throws is worse than one that says it can't reach
-        // the API — the rest of the shell stays usable either way.
         return {
             items: [],
             stock: [],
@@ -60,8 +58,6 @@ function compact(value: number) {
 export default async function DashboardPage() {
     const { items, stock, error } = await loadOverview();
 
-    // An item sold in options reports one balance per option, so what it holds
-    // is their sum rather than whichever row happens to come last.
     const quantityByItem = stock.reduce((totals, entry) => {
         const id = entry.itemId;
         if (!id) return totals;
@@ -166,7 +162,6 @@ export default async function DashboardPage() {
                     </div>
                 </section>
 
-                {/* Sales Channel Actions & Performance Chart */}
                 <SalesChannelsChart />
 
                 <section
@@ -298,7 +293,6 @@ function EmptyState({ hasItems }: { hasItems: boolean }) {
             </p>
             <Link
                 href={hasItems ? "/inventory/stock/adjust" : "/inventory/new"}
-                /* A link that acts as a button borrows the same variants. */
                 className={buttonVariants({ className: "mt-5" })}
             >
                 <Plus className="size-4" aria-hidden="true" />
