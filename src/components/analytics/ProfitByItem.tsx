@@ -22,7 +22,6 @@ import { type ItemProfit } from "@/lib/api/sales-report";
 import { cn } from "@/lib/utils";
 import { useGetItemProfitQuery } from "@/services/salesReportApi";
 
-/** How an item reads on screen: its name, and the option if it has one. */
 function itemLabel(row: ItemProfit) {
     const name = row.itemName || "Unnamed item";
 
@@ -67,29 +66,14 @@ function toCsv(items: ItemProfit[]) {
         .join("\n");
 }
 
-/**
- * What sold, and what was kept on each of it.
- *
- * The statement says a month made money; this says which items made it. A shop
- * with one strong line carrying three weak ones cannot see that from a period
- * total, and goes on restocking all four.
- *
- * Sorted by revenue, because that is the order a shop already thinks about its
- * range in — and the interesting rows are the ones high in this list with a
- * margin that does not match their position.
- */
 export function ProfitByItem({
     from,
     rangeLabel,
 }: {
-    /** The same range the statement above is showing. */
     from?: string;
-    /** Named in the file so an export says what it covers. */
     rangeLabel: string;
 }) {
     const { format } = useMoney();
-    // Browser-only, and its disabled state waits on the query — see the
-    // statement above it.
     const mounted = useMounted();
     const itemsQuery = useGetItemProfitQuery({ ...(from ? { from } : {}) });
 

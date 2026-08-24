@@ -14,8 +14,6 @@ export default async function BusinessCurrencyPage() {
         redirect("/login");
     }
 
-    // The shell supplies navigation and the page title; the Business section in
-    // the sidebar already links Profile and Currency.
     return (
         <div className="pb-4">
             <div className="flex items-center justify-between gap-4">

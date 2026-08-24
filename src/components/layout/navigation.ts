@@ -85,7 +85,6 @@ export const NAVIGATION: NavSection[] = [
     ],
     app: {
       label: "Business Management",
-      // hint: "Profile & currency",
       fill: "linear-gradient(155deg, #46ca22 0%, #0e8a1e 71.64%)",
       ink: "#ffffff",
     },
@@ -113,7 +112,6 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Facebook Page",
         href: "/business/facebook",
-        // No Keycloak permission of its own; treated as business settings.
         permission: "business:read",
       },
     ],
@@ -126,7 +124,6 @@ export const NAVIGATION: NavSection[] = [
     permission: ["member:read", "role:read"],
     app: {
       label: "User Management",
-      // hint: "Staff & roles",
       fill: "linear-gradient(-40.5deg, #08832b 20.11%, #48d321 82.16%)",
       ink: "#ffffff",
     },
@@ -144,7 +141,6 @@ export const NAVIGATION: NavSection[] = [
     ],
     app: {
       label: "Inventory Management",
-      // hint: "Catalog, categories & stock",
       fill: "linear-gradient(-42.95deg, #0e7e2e 5.06%, #42d00e 80.71%)",
       ink: "#ffffff",
     },
@@ -168,9 +164,6 @@ export const NAVIGATION: NavSection[] = [
             alsoActiveOn: [/^\/inventory\/stock\/overview$/],
           },
           {
-            // Add-ons are stocked from the overview, under the item
-            // that offers them. The ledger is its own page: it
-            // answers what happened, not what is left.
             label: "Movements",
             href: "/inventory/stock/movements",
             permission: "stock:read",
@@ -193,9 +186,6 @@ export const NAVIGATION: NavSection[] = [
         ],
       },
       {
-        // Units, conversions, item groups, add-ons and option presets —
-        // the building blocks items are assembled from. Categories used
-        // to live at `/inventory/categories`, which now redirects to groups.
         label: "Item config",
         permission: ["unit:read", "item-group:read", "item:read"],
         children: [
@@ -214,7 +204,6 @@ export const NAVIGATION: NavSection[] = [
           {
             label: "Add-ons",
             href: "/inventory/config/add-ons",
-            // Add-ons ride on items; no permission of their own yet.
             permission: "item:read",
           },
           {
@@ -239,15 +228,12 @@ export const NAVIGATION: NavSection[] = [
         exact: true,
       },
       {
-        // Revenue against what the stock cost, per channel. The one
-        // question the stat cards elsewhere cannot answer.
         label: "Profit",
         href: "/analytics",
       },
     ],
     app: {
       label: "Overview Dashboard",
-      // hint: "Live figures & analytics",
       fill: "linear-gradient(-42.73deg, #008000 14.44%, #36f928 91.63%)",
       ink: "#ffffff",
     },
@@ -314,8 +300,6 @@ export const NAVIGATION: NavSection[] = [
       },
              
     ],
-    // The terminal is its own fullscreen app, so it gets a launch button
-    // rather than a nav row that pretends to stay inside the dashboard.
     launch: {
       label: "Open Point of Sale",
       href: POS_ROUTES.openRegister,
@@ -330,14 +314,12 @@ export const NAVIGATION: NavSection[] = [
     href: "/settings",
     app: {
       label: "Account",
-      // hint: "Your preferences",
       fill: "#e8e8e8",
       ink: "#00932a",
     },
   },
 ];
 
-/** Icons for leaf routes that need one outside the sidebar. */
 export const LEAF_ICONS = {
   categories: FolderTree,
   stock: Warehouse,
@@ -376,12 +358,10 @@ export function visibleSections(permissions: GrantedPermissions) {
     .filter((section) => !section.children || section.children.length > 0);
 }
 
-/** The apps shown in the launcher, in navigation order. */
 export function launcherApps(permissions: GrantedPermissions) {
   return visibleSections(permissions).filter((section) => section.app);
 }
 
-/** Where an app tile takes you — its own route, or its first child page. */
 export function sectionEntryHref(section: NavSection) {
   const firstChild = section.children?.[0];
 
@@ -425,16 +405,12 @@ export function isSectionActive(section: NavSection, pathname: string) {
     : pathname === section.href || pathname.startsWith(`${section.href}/`);
 }
 
-/** The section that owns a route — what "app" you are currently inside. */
 export function findSectionByPath(pathname: string) {
   return NAVIGATION.find((section) => isSectionActive(section, pathname));
 }
 
-/** What the top bar says: the app you are in, and the page inside it. */
 export type PageTitle = {
-  /** Renders semibold — the app you launched, named as it is in the launcher. */
   app: string;
-  /** Renders regular after a separator. Absent on an app's entry page. */
   page?: string;
 };
 
@@ -459,7 +435,6 @@ export function getPageTitle(pathname: string): PageTitle {
         };
       }
 
-      // An app's entry page is the app — no need to say it twice.
       return sectionEntryHref(section) === leaf.href
         ? { app }
         : { app, page: leaf.label };

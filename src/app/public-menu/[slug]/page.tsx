@@ -12,13 +12,8 @@ export default async function PublicMenu({
     return <div>API Base URL is not configured.</div>;
   }
 
-  // Fetch store details
   const storeUrl = `${baseUrl}/api/v1/public/stores/${slug}`;
   const storeRes = await fetch(storeUrl, {
-    // Read fresh. The shop changes a price or closes a channel in the back
-    // office and then looks at its own storefront to check — a cached copy
-    // makes that look broken, and there is no way to tell a shopper the page
-    // they are reading is a minute behind the till.
     cache: "no-store",
   });
 
@@ -46,8 +41,6 @@ export default async function PublicMenu({
 
   const storeDetail = await storeRes.json();
 
-  // Fetch store items — the backend now returns whatever is published to
-  // the "POS" channel, the same set the till sells.
   const itemsRes = await fetch(`${baseUrl}/api/v1/public/stores/${slug}/items`, {
     cache: "no-store",
   });

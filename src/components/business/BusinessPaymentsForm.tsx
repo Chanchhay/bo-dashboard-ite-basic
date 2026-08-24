@@ -357,7 +357,6 @@ function AccountForm({
                         Save
                     </Button>
 
-                    {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
                         data-tour="payments-test"

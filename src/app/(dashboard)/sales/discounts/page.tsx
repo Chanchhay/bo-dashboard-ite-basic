@@ -9,9 +9,6 @@ import {
     Edit2,
     Trash2,
     Calendar,
-    Layers,
-    Percent,
-    DollarSign,
     Loader2,
 } from "lucide-react";
 

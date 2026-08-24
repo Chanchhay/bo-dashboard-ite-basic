@@ -16,12 +16,6 @@ export type PickerOption = {
     hint?: string;
     disabled?: boolean;
 };
-
-/**
- * Picks one thing out of a saved library — an option preset, an add-on set, or
- * a single add-on. All three are "choose from what you already defined", so
- * they share one dialog rather than three near-identical ones.
- */
 export function ItemPickerDialog({
     open,
     onOpenChange,

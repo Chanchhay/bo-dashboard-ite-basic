@@ -113,7 +113,6 @@ import {
 } from "@/services/inventoryApi";
 import { useUploadAssetMutation } from "@/services/assetApi";
 
-/** A file waiting to be uploaded, with the blob URL previewing it. */
 type PickedImage = {
     id: string;
     file: File;
@@ -146,7 +145,6 @@ function Field({ label, name, error, children }: FieldProps) {
     );
 }
 
-/** One picture in the gallery: stored or waiting to be uploaded. */
 function ImageTile({
     url,
     label,
@@ -159,15 +157,12 @@ function ImageTile({
     label: string;
     busy: boolean;
     onRemove: () => void;
-    /** Only stored images can be reordered; picks have no position yet. */
     onMoveBack?: () => void;
     onMoveForward?: () => void;
 }) {
     return (
         <li className="group relative overflow-hidden rounded-xl border border-border bg-muted">
             <span className="block aspect-square">
-                {/* The API serves these URLs dynamically and picks preview as blobs. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="size-full object-cover" />
             </span>
             <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-[11px] text-white">
@@ -247,9 +242,6 @@ function toAttributeDrafts(
         values: (attribute.values || []).map((value) => ({
             value: value.value || "",
             label: value.label || "",
-            // Retired, and passed straight through: nothing on the form edits
-            // a hex any more, and a value saved under the old colour attribute
-            // has nowhere else that remembers one.
             colorHex: value.colorHex || "",
             available: value.available !== false,
         })),
@@ -285,7 +277,6 @@ function toBlockDrafts(
     }));
 }
 
-/** True while any block image — at either depth — is still uploading. */
 function hasUploadingImage(blocks: BlockDraft[]): boolean {
     return blocks.some(
         (block) =>
@@ -303,7 +294,6 @@ type BlockPayload = {
     columns: { blocks: BlockPayload[] }[];
 };
 
-/** Drafts hold bullets as one textarea; the API wants an array of lines. */
 function fromBlockDraft(block: BlockDraft): BlockPayload {
     return {
         type: block.type,
@@ -320,13 +310,6 @@ function fromBlockDraft(block: BlockDraft): BlockPayload {
     };
 }
 
-/**
- * Pricing left the item, but the data has not moved yet: until item prices are
- * migrated into Sale Management, the form carries the stored values straight
- * back so that saving an item cannot silently zero them. Same for the old
- * inline variant rows, which become option attributes at migration time. Both
- * disappear from here once the migration has run.
- */
 function preservedCommerceFields(initialItem: InventoryItem | undefined) {
     return {
         price: initialItem?.price,
@@ -340,37 +323,13 @@ function preservedCommerceFields(initialItem: InventoryItem | undefined) {
             })),
     };
 }
-
-/**
- * What each schema field is called on screen.
- *
- * A validation message is useless when it cannot be traced to a control —
- * "check the highlighted information" is a dead end if the field that failed is
- * one the form never renders an error beside.
- */
-/** A colour on the item, held while the form is open. */
 type ItemColorDraft = {
-    /** Row key while editing; never sent. */
     id: string;
     value: string;
     colorHex: string;
     imageUrl: string;
 };
 
-/**
- * Turns the sizes on screen into the rows that actually carry stock.
- *
- * A size that comes in three colours is three countable things — Large/Red,
- * Large/Navy, Large/Black — because that is the level a shop counts at: Large
- * being "in stock" says nothing about which colours are left. A size with no
- * colours ticked stays one row, which is how every item without colours works
- * and keeps working.
- *
- * Price rides down from the size, so every colour of a Large costs what a
- * Large costs. SKU and barcode do not: they identify one countable thing, and
- * copying a size's SKU onto three shelves would make three things claim to be
- * the same one.
- */
 function toVariantRows(rows: OptionRow[]) {
     return rows.flatMap((row) => {
         const size = row.name.trim();
@@ -392,8 +351,6 @@ function toVariantRows(rows: OptionRow[]) {
 
         return row.colorValues.map((colour, index) => ({
             name: `${size} / ${colour}`,
-            // The first pair keeps the size's SKU so an item that only later
-            // gained colours does not lose the code already printed on it.
             sku: index === 0 ? row.sku.trim() : "",
             barcode: index === 0 ? row.barcode.trim() : "",
             imageUrl: row.imageUrl,
@@ -418,67 +375,19 @@ function emptyOption(): OptionRow {
 }
 
 type OptionRow = {
-    /**
-     * How this row is referred to while the form is open — including by a
-     * conversion declared for it, which is why it has to outlive a rename and
-     * exist before the option is ever saved.
-     */
     id: string;
-    /** The saved option's own id, once the server has given it one. */
     variantId?: string;
     name: string;
-    /**
-     * Each variation is scanned and counted on its own, so it needs its own
-     * SKU and barcode.
-     *
-     * Neither is saved yet: `ItemVariantRequest` carries only name, price and
-     * availability, so these are held on screen until the API grows the
-     * fields. Nothing is silently dropped without saying so.
-     */
     sku: string;
     barcode: string;
-    /**
-     * The stored URL of this option's own picture — what the store swaps to
-     * when a shopper picks the option. Empty on an item whose options all look
-     * alike, and on a picture picked here but not saved yet.
-     */
     imageUrl: string;
-    /**
-     * The swatch this option shows on the store — the circle a shopper clicks.
-     *
-     * Empty on an option that is not a colour: a size has nothing to show. It
-     * belongs to the option because the option is what carries the price and
-     * the shelf, and a colour a shop cannot count is not one it can sell.
-     */
-    /**
-     * Which of the item's colours this size comes in.
-     *
-     * Empty means it is not sold by colour and the size alone is the whole
-     * option. Each ticked colour becomes its own countable row on save, which
-     * is what lets Large be out in Navy while Large in Red is stacked up.
-     */
     colorValues: string[];
-    /**
-     * A picture picked for this option and not uploaded yet.
-     *
-     * Nothing leaves the browser until the form is submitted: an item that is
-     * never created should not litter storage with pictures of options that do
-     * not exist. `previewUrl` is the blob standing in for it on screen.
-     */
     file?: File;
     previewUrl?: string;
     available: boolean;
-    /** Whatever Sale Management has set. Shown here, never edited here. */
     price?: number;
 };
 
-/**
- * The picture of one option.
- *
- * A pick is held here as a file and shown as a blob; it is uploaded by the save
- * along with the rest of the item, so nothing reaches storage until the form is
- * submitted and abandoning the form leaves nothing behind.
- */
 function OptionImageField({
     option,
     index,
@@ -508,8 +417,6 @@ function OptionImageField({
         }
 
         release(option.previewUrl);
-        // The stored URL goes with it: what is on screen is what will be
-        // saved, and a replaced picture is no longer this option's.
         onChange({ file, previewUrl: create(file), imageUrl: "" });
     }
 
@@ -539,15 +446,11 @@ function OptionImageField({
                     className="sr-only"
                     onChange={(event) => {
                         const [file] = Array.from(event.target.files || []);
-                        // Let the same file be picked again after a remove.
                         event.target.value = "";
                         if (file) handlePick(file);
                     }}
                 />
                 {preview ? (
-                    // A saved picture is a URL the API serves; a fresh pick is
-                    // a blob until the save uploads it.
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={preview}
                         alt=""
@@ -633,8 +536,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [editingAttributeId, setEditingAttributeId] = useState<string | null>(
         null,
     );
-    // Which kind of attribute the "add" button is opening: an option a customer
-    // picks, or a fact about the item.
     const [newPlacement, setNewPlacement] =
         useState<ItemAttributePlacement>("OPTION");
     const [attachedAddOnIds, setAttachedAddOnIds] = useState<string[]>(() =>
@@ -644,24 +545,11 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [presetPickerOpen, setPresetPickerOpen] = useState(false);
     const { data: optionPresets } = useGetOptionPresetsQuery();
     const [newAddOnOpen, setNewAddOnOpen] = useState(false);
-    /**
-     * The item's options: same item, different size or pack, each sold on its
-     * own. They are the API's `variants`, which is why a price rides along —
-     * but it is never typed here. Pricing is per sales channel in Sale
-     * Management, so a new option stays unpriced until that is done.
-     */
     const updateOption = (id: string, patch: Partial<OptionRow>) =>
         setOptions((current) =>
             current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
         );
 
-    /**
-     * The saved pairs, folded back into one row per size.
-     *
-     * Storage keeps Large/Red and Large/Navy apart because each has its own
-     * shelf, but the seller typed one Large. Folding on the way in is what
-     * makes the form read the way it was filled in.
-     */
     const [options, setOptions] = useState<OptionRow[]>(() => {
         const rows: OptionRow[] = [];
         const bySize = new Map<string, OptionRow>();
@@ -680,8 +568,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             }
 
             const row: OptionRow = {
-                // A saved option keeps its own id as the row key, so the
-                // conversions loaded below already point at the right row.
                 id: variant.id || createRowId(),
                 ...(variant.id ? { variantId: variant.id } : {}),
                 name: size,
@@ -700,7 +586,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         return rows;
     });
 
-    /** The colours this item comes in, declared once and shared by every size. */
     const [colors, setColors] = useState<ItemColorDraft[]>(() =>
         (initialItem?.colors || []).map((color) => ({
             id: createRowId(),
@@ -709,27 +594,11 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             imageUrl: color.imageUrl || "",
         })),
     );
-    /**
-     * The shared add-on library.
-     *
-     * A new add-on belongs to the library, not to this item — creating one here
-     * is a convenience so the flow does not break off to Inventory config
-     * mid-item, and it lands in the library for every other item to attach.
-     */
     const { data: addOnLibrary } = useGetAddOnsQuery();
     const [createAddOnRecord, createAddOnState] = useCreateAddOnMutation();
     const [uomDraft, setUomDraft] = useState<ItemUomDraft>(() => ({
         ...emptyUomDraft,
         baseUnitId: initialItem?.unit?.id || "",
-        /*
-         * One row per pack per size, not per pack per pair.
-         *
-         * A pack is stored against each countable row, so a six-pack of Small
-         * that comes in three colours is three saved conversions. The seller
-         * declared one, so they are folded back the way the sizes above them
-         * are — and re-pointed at the size's row rather than at whichever pair
-         * happened to be first.
-         */
         conversions: (() => {
             const sizeOfVariant = new Map<string, string>();
             for (const variant of initialItem?.variants || []) {
@@ -756,7 +625,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         : "";
                     const rowId = size ? rowOfSize.get(size) : undefined;
 
-                    // Same pack, same size — the colours of it are one entry.
                     const key = `${conversion.unit?.id}|${size}`;
                     if (seen.has(key)) return [];
                     seen.add(key);
@@ -772,15 +640,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 });
         })(),
     }));
-    /**
-     * The options a conversion can be declared for.
-     *
-     * A name is all it takes: an option typed on this screen is saved in the
-     * same request as the conversion that names it, so it need not exist on the
-     * server first. Unnamed rows are left out — the save drops them, and a case
-     * of nothing is not a thing.
-     */
-    /** Only colours worth offering: a blank row is one still being typed. */
     const namedColors = useMemo(
         () => colors.filter((color) => color.value.trim()),
         [colors],
@@ -793,13 +652,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 .map((option) => ({ id: option.id, name: option.name.trim() })),
         [options],
     );
-
-    /**
-     * Removes an option, and with it any larger unit declared for it.
-     *
-     * A case of Large means nothing once Large is gone, and leaving it behind
-     * would fail the save with a message about an option no longer on screen.
-     */
     function removeOption(rowId: string) {
         const orphaned = uomDraft.conversions.filter(
             (conversion) => conversion.variantId === rowId,
@@ -824,9 +676,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [barcodePreview, setBarcodePreview] = useState(
         initialItem?.barcode || "",
     );
-    // Stored images belong to the server: they arrive with an id and are
-    // deleted through their own endpoint. Picked files are held here until the
-    // save carries them up.
     const storedImages = useMemo(
         () =>
             (initialItem?.images || [])
@@ -849,12 +698,8 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const [reorderImages, reorderImagesState] = useReorderItemImagesMutation();
     const isEditing = Boolean(initialItem);
     const isSaving = createState.isLoading || updateState.isLoading;
-    // A block image is uploaded on pick, so saving mid-upload would store the
-    // block without its picture.
     const isUploadingBlockImage = hasUploadingImage(blocks);
     const galleryCount = storedImages.length + pickedImages.length;
-    // What the gallery and the preview show: what is stored, then what is
-    // about to be uploaded.
     const galleryUrls = [
         ...storedImages.map((image) => image.url || ""),
         ...pickedImages.map((image) => image.previewUrl),
@@ -894,7 +739,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         }
     }
 
-    /** Same generator the item's own barcode uses, aimed at one option. */
     async function generateOptionBarcode(id: string) {
         try {
             const result = await generateBarcode().unwrap();
@@ -920,10 +764,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         });
     }
 
-    /**
-     * Position belongs to the server, so a move sends the whole order. The
-     * first image is the thumbnail, which is what makes this worth having.
-     */
     async function moveStoredImage(index: number, delta: number) {
         const target = index + delta;
 
@@ -956,7 +796,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         }
     }
 
-    /** Stored images are deleted on the spot — the endpoint applies at once. */
     async function removeStoredImage(imageId: string) {
         if (!initialItem) return;
 
@@ -975,11 +814,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         }
     }
 
-    /**
-     * Only a sub-category can be picked: a parent is a heading, not a shelf.
-     * Filing an item on the parent would leave it in a bucket that is really
-     * the sum of its children, and reports would count it twice.
-     */
     const categoryGroups = useMemo(
         () =>
             (groups || []).map((group) => ({
@@ -993,7 +827,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         [groups],
     );
 
-    /** Flat, for the trigger's own label and for the preview. */
     const categoryOptions = useMemo(
         () =>
             categoryGroups.flatMap((group) =>
@@ -1008,8 +841,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     const editingAttribute = attributes.find(
         (attribute) => attribute.id === editingAttributeId,
     );
-    // A blank draft seeded with the placement the button implies, so "Add
-    // option" never opens on "Specification".
     const dialogAttribute: AttributeDraft = editingAttribute ?? {
         id: "",
         name: "",
@@ -1038,29 +869,12 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         );
     }
 
-    /**
-     * Copies a preset's choices in.
-     *
-     * A copy, never a live link: not every drink comes in Large, so the values
-     * are the item's own the moment they land and editing the preset later
-     * leaves this item alone.
-     */
-    /**
-     * Copies a preset's choices in as Options.
-     *
-     * A copy, never a live link: not every drink comes in Large, so the values
-     * are the item's own the moment they land and editing the preset later
-     * leaves this item alone.
-     */
     function applyPreset(preset: OptionPreset) {
-        // Blank starter rows would otherwise sit above the preset's choices
-        // and save as nothing.
         const existing = options.filter((row) => row.name.trim());
         const taken = new Set(
             existing.map((row) => row.name.trim().toLowerCase()),
         );
 
-        // A preset of colours describes the item's palette, not its sizes.
         if (preset.type === "COLOR") {
             const held = new Set(
                 colors.map((color) => color.value.trim().toLowerCase()),
@@ -1103,8 +917,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             .map((value) => ({
                 ...emptyOption(),
                 name: (value.value || "").trim(),
-                // Price stays unset: it is per sales channel, in Sale
-                // Management, exactly as a hand-added option would be.
             }));
 
         if (!added.length) {
@@ -1133,8 +945,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             addOn.baseUnit?.name || "unit"
         } per order`;
 
-    /** The add-on dialog is shared with Inventory config, which reads a unit
-     * by its symbol and category — both of which the API now carries. */
     const configUnits = useMemo(
         () =>
             (units || []).map((unit) => ({
@@ -1195,12 +1005,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             ...ids.filter((id) => !current.includes(id)),
         ]);
     }
-
-    /**
-     * The fields are uncontrolled, so the preview reads them straight off the
-     * form element. That keeps the preview showing unsaved edits without
-     * turning every input into controlled state.
-     */
     function openPreview() {
         const form = formRef.current;
         if (!form) return;
@@ -1235,9 +1039,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 values: attribute.values,
             })),
             descriptionBlocks: blocks.map(fromBlockDraft),
-            // Straight off the rows on screen, not off what was last saved:
-            // the point of the preview is to show the options — and the image
-            // each one switches to — as they are being typed.
             variants: options
                 .filter((option) => option.name.trim())
                 .map((option) => ({
@@ -1247,8 +1048,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     imageUrl: option.previewUrl || option.imageUrl,
                     colorValues: option.colorValues,
                 })),
-            // Straight off the colour rows too, so the preview shows the
-            // swatches as they are being typed.
             colors: colors
                 .filter((color) => color.value.trim())
                 .map((color) => ({
@@ -1256,10 +1055,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     colorHex: color.colorHex.trim() || undefined,
                     imageUrl: color.imageUrl.trim() || undefined,
                 })),
-            // The conversions as they stand on screen. A pack's price is not
-            // edited here — it is set in Sale Management — so it is read back
-            // off the saved item, matched on the unit and the option it is
-            // for; a conversion added a moment ago simply has none yet.
             packs: uomDraft.conversions
                 .map((conversion) => {
                     const unit = (units || []).find(
@@ -1282,7 +1077,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         ...(variantName ? { variantName } : {}),
                     };
                 })
-                // A conversion whose unit has gone is not something to show.
                 .filter((packRow) => packRow.factor > 0),
         });
     }
@@ -1291,8 +1085,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         event.preventDefault();
 
         const formData = new FormData(event.currentTarget);
-        // The rows that will be saved, in the order they are sent, so a
-        // picture picked for one can be matched back to it afterwards.
         const namedRows = options.filter((option) => option.name.trim());
         const attributeValues = attributes.map((attribute) => ({
             name: attribute.name,
@@ -1301,11 +1093,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             icon: attribute.icon,
             values: attribute.values,
         }));
-        /*
-         * Every larger unit on an item sold in options has to say which option
-         * it is for. Catching it here rather than at the server means the form
-         * can name the unit that is missing one.
-         */
         if (namedOptions.length) {
             const stray = uomDraft.conversions.find(
                 (conversion) =>
@@ -1338,8 +1125,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             unitId: uomDraft.baseUnitId || String(formData.get("unitId") || ""),
             name: String(formData.get("name") || ""),
             sku: String(formData.get("sku") || ""),
-            // No input for this any more — SKU is the code people use. An
-            // item that already carries one keeps it.
             code: initialItem?.code || "",
             description: String(formData.get("description") || ""),
             badge: String(formData.get("badge") || ""),
@@ -1351,10 +1136,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             lowStockDefault: Number(formData.get("lowStockDefault") || 0),
             status: String(formData.get("status") || ""),
             ...preservedCommerceFields(initialItem),
-            // A picture picked but not uploaded yet has no URL to send; the
-            // save puts one here once it has carried the file up.
-            // One countable row per size-and-colour pair, which is the level
-            // stock is kept at.
             variants: toVariantRows(namedRows),
             colors: colors
                 .filter((color) => color.value.trim())
@@ -1364,27 +1145,10 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     imageUrl: color.imageUrl.trim(),
                 })),
             addOnIds: attachedAddOnIds,
-            // The base unit comes off the form's own `unitId` field; these are
-            // the larger units declared against it.
-            /*
-             * A pack belongs to a shelf, and the shelf is the pair.
-             *
-             * The seller declares a six-pack of Small once; Small coming in
-             * three colours makes that three packs, one per countable row,
-             * because a six-pack of Small/Navy draws down Navy and not Red.
-             * They travel by name — the pairs are written in this same request
-             * and a brand-new one has no id yet.
-             */
             uomConversions: uomDraft.conversions.flatMap((conversion) => {
-                // The option it is for travels by name as well as by id: a
-                // brand-new option has no id yet, and a renamed one is a new
-                // option, so the name is what the server can match on.
                 const option = options.find(
                     (row) => row.id === conversion.variantId,
                 );
-                // Saving replaces the whole list, and what a pack sells for
-                // is set in Sale Management rather than here — so the price
-                // it already carries has to travel back with it.
                 const saved = (initialItem?.uomConversions || []).find(
                     (row) => row.id && row.id === conversion.id,
                 );
@@ -1411,9 +1175,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     ];
                 }
 
-                // Named per pair, and without an id: the pairs are being
-                // written in this same request, so the name is the only handle
-                // both halves of it share.
                 return option.colorValues.map((colour) => ({
                     ...base,
                     variantName: `${size} / ${colour}`,
@@ -1438,8 +1199,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                       "Check the highlighted item information."),
             });
 
-            // Some of these fields sit far down the page, and one of them has
-            // no error slot of its own, so the form goes to the offender.
             document
                 .getElementById(field)
                 ?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1448,11 +1207,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
         setFieldErrors({});
 
-        /*
-         * Option pictures go up now, not when they were picked: an item that is
-         * never created leaves nothing in storage behind it. Each one comes
-         * back as a URL, which is what the option itself carries.
-         */
         let variants = result.data.variants;
 
         try {
@@ -1486,8 +1240,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         const body = { ...result.data, variants };
 
         try {
-            // The newly picked pictures ride along with the save, so an item
-            // and its gallery land in one request.
             const files = pickedImages.map((image) => image.file);
 
             if (initialItem) {
@@ -1523,12 +1275,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         );
     }
 
-    /*
-     * The form owns the height of the shell's main region and scrolls its
-     * middle only, so the title and the save bar stay put. The negative bottom
-     * margin cancels the region's own bottom padding — without it the form
-     * would be a padding taller than its box and the region would scroll too.
-     */
     return (
         <form
             ref={formRef}
@@ -1565,10 +1311,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 />
             </div>
 
-            {/*
-             * The side padding is re-applied here so the scrollbar sits at the
-             * edge of the region and the card shadows are not clipped.
-             */}
             <div className="-mx-5 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pt-1 pb-6 lg:-mx-8 lg:px-8">
             <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
                 <SectionHeading
@@ -1715,8 +1457,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                         <Select
                             name="itemType"
                             defaultValue={initialItem?.itemType || "PHYSICAL"}
-                            // Every stored type, so an item saved as a service
-                            // still names its type instead of showing a blank.
                             items={itemTypeLabels}
                         >
                             <SelectTrigger
@@ -1849,13 +1589,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     </div>
                 </div>
 
-                {/*
-                 * The colours the item comes in, declared once.
-                 *
-                 * Once, not per size: the same red shirt photographed for
-                 * Small is the same photograph for Large. Each size below then
-                 * ticks which of these it comes in.
-                 */}
                 <div className="mt-5 rounded-xl border border-border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -1924,9 +1657,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                               ...(patch.colorHex === undefined
                                                                   ? {}
                                                                   : { colorHex: patch.colorHex }),
-                                                              // The swatch dialog
-                                                              // names the colour,
-                                                              // which is this row.
                                                               ...(patch.colorName === undefined
                                                                   ? {}
                                                                   : { value: patch.colorName }),
@@ -1961,8 +1691,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                             setColors((current) =>
                                                 current.filter((row) => row.id !== color.id),
                                             );
-                                            // A size cannot come in a colour the
-                                            // item no longer has.
                                             setOptions((current) =>
                                                 current.map((row) => ({
                                                     ...row,
@@ -2116,12 +1844,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                         </div>
                                     </div>
 
-                                    {/*
-                                     * Which colours this size comes in. Each
-                                     * tick becomes its own countable row, so
-                                     * Large can be out in Navy while Large in
-                                     * Red is stacked up.
-                                     */}
                                     {namedColors.length ? (
                                         <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
                                             <Label className="text-xs font-medium text-muted-foreground">
@@ -2220,9 +1942,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
             <ItemUomCard
                 apiUnits={units || []}
-                // Every named option, saved or not: options and conversions are
-                // set up on this screen and saved together, so a case can be
-                // declared for an option typed a moment ago.
                 options={namedOptions}
                 lowStockDefault={initialItem?.lowStockDefault ?? 0}
                 lowStockError={fieldErrors.lowStockDefault}
@@ -2605,10 +2324,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 </Button>
             </div>
 
-            {/*
-             * Keyed so a blank draft reseeds when the button implies a different
-             * placement — the dialog holds its fields in mount-time state.
-             */}
             <ItemAttributeDialog
                 key={editingAttributeId ?? `new-${newPlacement}`}
                 open={attributeDialogOpen}
