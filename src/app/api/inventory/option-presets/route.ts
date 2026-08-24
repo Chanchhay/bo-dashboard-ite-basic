@@ -1,49 +1,49 @@
+import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import {
-    backendErrorResponse,
-    backendRequest,
-} from "@/lib/api/backend";
-import {
-    getInventoryBusinessId,
-    inventoryValidationError,
+  getInventoryBusinessId,
+  inventoryValidationError,
 } from "@/lib/api/inventory-backend";
+import { unwrapList } from "@/lib/api/pagination";
 import {
-    optionPresetSchema,
-    toOptionPresetRequest,
-    type OptionPreset,
+  optionPresetSchema,
+  toOptionPresetRequest,
+  type OptionPreset,
 } from "@/lib/api/inventory";
 
-export async function GET() {
-    try {
-        const businessId = await getInventoryBusinessId();
-        const presets = await backendRequest<OptionPreset[]>(
-            `/api/v1/businesses/${businessId}/option-presets`,
-        );
+type OptionPresetList = OptionPreset[] | { content: OptionPreset[] };
 
-        return Response.json(presets);
-    } catch (error) {
-        return backendErrorResponse(error);
-    }
+export async function GET() {
+  try {
+    const businessId = await getInventoryBusinessId();
+    const presets = await backendRequest<OptionPresetList>(
+      `/api/v1/businesses/${businessId}/option-presets?size=1000`,
+    );
+
+    return Response.json(unwrapList(presets));
+  } catch (error) {
+    return backendErrorResponse(error);
+  }
 }
 
 export async function POST(request: Request) {
-    try {
-        const result = optionPresetSchema.safeParse(await request.json());
+  try {
+    const result = optionPresetSchema.safeParse(await request.json());
 
-        if (!result.success) {
-            return inventoryValidationError(result.error);
-        }
-
-        const businessId = await getInventoryBusinessId();
-        const preset = await backendRequest<OptionPreset>(
-            `/api/v1/businesses/${businessId}/option-presets`,
-            {
-                method: "POST",
-                body: JSON.stringify(toOptionPresetRequest(result.data)),
-            },
-        );
-
-        return Response.json(preset, { status: 201 });
-    } catch (error) {
-        return backendErrorResponse(error);
+    if (!result.success) {
+      return inventoryValidationError(result.error);
     }
+
+    const businessId = await getInventoryBusinessId();
+    const preset = await backendRequest<OptionPreset>(
+      `/api/v1/businesses/${businessId}/option-presets`,
+      {
+        method: "POST",
+        body: JSON.stringify(toOptionPresetRequest(result.data)),
+      },
+    );
+
+    return Response.json(preset, { status: 201 });
+  } catch (error) {
+    return backendErrorResponse(error);
+  }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useMemo, useState } from "react";
 import {
     Plus,
@@ -9,7 +10,6 @@ import {
     Trash2,
     Loader2,
     Mail,
-    Phone,
     MapPin,
     Crown,
     Filter,
@@ -51,7 +51,7 @@ import {
     useCreateCustomerMutation,
     useDeactivateCustomerMutation,
     useDeleteCustomerMutation,
-    useGetCustomersQuery,
+  useGetCustomersPageQuery,
     useUpdateCustomerMutation,
 } from "@/services/customerApi";
 import { useGetMembershipTypesQuery } from "@/services/membershipTypeApi";
@@ -91,7 +91,7 @@ export default function CustomerManagement() {
 
     const toggleCol = (id: string) => {
         setCustomerCols((prev) =>
-            prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+      prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c)),
         );
     };
 
@@ -100,11 +100,18 @@ export default function CustomerManagement() {
     };
 
     // RTK Query Hooks
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
     const {
-        data: customers = [],
+    data,
         isLoading: isCustomersLoading,
+    isFetching: isCustomersFetching,
         refetch,
-    } = useGetCustomersQuery();
+  } = useGetCustomersPageQuery({ page, size: pageSize });
+  const customers = data?.content ?? [];
+  const currentPage = data?.page?.number ?? page;
+  const totalPages = data?.page?.totalPages ?? (customers.length ? 1 : 0);
+  const totalElements = data?.page?.totalElements ?? customers.length;
     const { data: membershipTypes = [] } = useGetMembershipTypesQuery();
     const { data: salesChannels = [] } = useGetSalesChannelsQuery();
 
@@ -321,7 +328,8 @@ export default function CustomerManagement() {
                         Customers
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage your customer database, assign membership types, track total spending, and edit profile details.
+            Manage your customer database, assign membership types, track total
+            spending, and edit profile details.
                     </p>
                 </div>
                 <Button
@@ -355,8 +363,13 @@ export default function CustomerManagement() {
                 ) : filteredCustomers.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Users className="h-8 w-8 mx-auto opacity-40" />
-                        <p className="font-medium text-base text-foreground">No customers found</p>
-                        <p className="text-xs">Add new customers to track their sales history and membership rewards.</p>
+            <p className="font-medium text-base text-foreground">
+              No customers found
+            </p>
+            <p className="text-xs">
+              Add new customers to track their sales history and membership
+              rewards.
+            </p>
                     </div>
                 ) : (
                     <Table>
@@ -365,24 +378,18 @@ export default function CustomerManagement() {
                                 {isColVisible("customerInfo") && (
                                     <TableHead>Customer</TableHead>
                                 )}
-                                {isColVisible("phoneNumber") && (
-                                    <TableHead>Phone</TableHead>
-                                )}
+                {isColVisible("phoneNumber") && <TableHead>Phone</TableHead>}
                                 {isColVisible("membershipType") && (
                                     <TableHead>Membership Type</TableHead>
                                 )}
                                 {isColVisible("salesChannel") && (
                                     <TableHead>Sales Channel</TableHead>
                                 )}
-                                {isColVisible("address") && (
-                                    <TableHead>Address</TableHead>
-                                )}
+                {isColVisible("address") && <TableHead>Address</TableHead>}
                                 {isColVisible("totalSpend") && (
                                     <TableHead>Total Spend</TableHead>
                                 )}
-                                {isColVisible("status") && (
-                                    <TableHead>Status</TableHead>
-                                )}
+                {isColVisible("status") && <TableHead>Status</TableHead>}
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -456,7 +463,10 @@ export default function CustomerManagement() {
                                         {isColVisible("address") && (
                                             <TableCell>
                                                 {c.address ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground max-w-[180px] truncate" title={c.address}>
+                          <span
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground max-w-[180px] truncate"
+                            title={c.address}
+                          >
                                                         <MapPin className="h-3 w-3 shrink-0" />
                                                         {c.address}
                                                     </span>
@@ -513,6 +523,20 @@ export default function CustomerManagement() {
                     </Table>
                 )}
             </div>
+
+      {/* --- PAGINATION --- */}
+      {totalPages > 0 && (
+        <PaginationBar
+          page={currentPage}
+          size={pageSize}
+          totalElements={totalElements}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onSizeChange={setPageSize}
+          isLoading={isCustomersFetching}
+          itemLabel="customer"
+        />
+      )}
 
             {/* --- CREATE / EDIT CUSTOMER DIALOG --- */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -637,7 +661,7 @@ export default function CustomerManagement() {
                                 value={totalSpend}
                                 onChange={(e) =>
                                     setTotalSpend(
-                                        e.target.value === "" ? "" : parseFloat(e.target.value)
+                    e.target.value === "" ? "" : parseFloat(e.target.value),
                                     )
                                 }
                                 placeholder="0.00"
@@ -652,7 +676,10 @@ export default function CustomerManagement() {
                                 onChange={(e) => setActive(e.target.checked)}
                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                             />
-                            <Label htmlFor="active" className="cursor-pointer text-sm font-medium">
+              <Label
+                htmlFor="active"
+                className="cursor-pointer text-sm font-medium"
+              >
                                 Active Customer
                             </Label>
                         </div>
