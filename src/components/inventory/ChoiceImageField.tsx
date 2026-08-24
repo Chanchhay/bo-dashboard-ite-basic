@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ImageOff, X } from "lucide-react";
+import { ImageOff, ImagePlus, X } from "lucide-react";
 
 import { ImagePicker, useObjectUrls } from "@/components/ui/image-picker";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { choiceImageRules } from "@/lib/api/inventory";
 import {
@@ -17,10 +18,13 @@ export function ChoiceImageField({
     value,
     onChange,
     label = "Photo",
+    /** A small click-to-browse thumbnail instead of the full drop zone, for forms where every row already has one of these. */
+    compact = false,
 }: {
     value: string;
     onChange: (url: string) => void;
     label?: string;
+    compact?: boolean;
 }) {
     const [uploadAsset] = useUploadAssetMutation();
     const [deleteAsset] = useDeleteAssetMutation();
@@ -77,6 +81,70 @@ export function ChoiceImageField({
         onChange("");
         setAssetKey(undefined);
         setPreviewUrl(undefined);
+    }
+
+    if (compact) {
+        return (
+            <div className="flex items-center gap-2">
+                <label
+                    className={cn(
+                        "relative flex size-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted text-muted-foreground transition-colors hover:border-primary/50",
+                        uploading && "cursor-not-allowed opacity-60",
+                    )}
+                >
+                    <input
+                        type="file"
+                        accept={choiceImageRules.accept}
+                        disabled={uploading}
+                        className="sr-only"
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            event.target.value = "";
+                            if (!file) return;
+
+                            const message = choiceImageRules.validate(file);
+                            if (message) {
+                                toast({
+                                    tone: "error",
+                                    title: `${label} not selected`,
+                                    description: message,
+                                });
+                                return;
+                            }
+
+                            void handlePick(file);
+                        }}
+                    />
+                    {preview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={preview} alt="" className="size-full object-cover" />
+                    ) : (
+                        <ImagePlus className="size-4" />
+                    )}
+                    {uploading ? (
+                        <span className="absolute inset-0 grid place-items-center bg-white/70 dark:bg-[#1a1e29]/80 text-[8px] font-semibold text-primary">
+                            …
+                        </span>
+                    ) : null}
+                </label>
+
+                <span className="text-xs font-medium text-muted-foreground">
+                    {value ? `Replace ${label.toLowerCase()}` : `${label} (optional)`}
+                </span>
+
+                {value && !uploading ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Remove ${label.toLowerCase()}`}
+                        onClick={handleRemove}
+                    >
+                        <X className="size-3.5" />
+                    </Button>
+                ) : null}
+            </div>
+        );
     }
 
     return (

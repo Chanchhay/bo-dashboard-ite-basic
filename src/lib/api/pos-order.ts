@@ -37,6 +37,12 @@ export type PosOrder = {
     invoiceNumber: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
+    /**
+     * How the sale that closed this order was paid. Null for an order still
+     * open — `status` alone reads a pay-later order as settled, so this is
+     * what a screen has to check to tell the two apart.
+     */
+    paymentMethod?: "CASH" | "DIGITAL" | "PAY_LATER" | null;
     subtotal: number;
     discountAmount: number;
     discountId?: string | null;
@@ -176,7 +182,7 @@ export type AddOrderItemInput = z.infer<typeof addOrderItemSchema>;
 export type UpdateOrderItemInput = z.infer<typeof updateOrderItemSchema>;
 
 export const payOrderSchema = z.object({
-    paymentMethod: z.enum(["CASH", "DIGITAL"]),
+    paymentMethod: z.enum(["CASH", "DIGITAL", "PAY_LATER"]),
     /** Cash tendered. Absent for digital, where there is nothing to hand over. */
     receivedAmount: z.coerce.number().nonnegative().optional(),
     note: z.string().trim().max(200).optional(),
@@ -234,6 +240,11 @@ export type Sale = {
     orderId: string;
     invoiceNumber: string | null;
     cashierId: string | null;
+    /** Null for a walk-in sale never linked to a customer record. */
+    customerId: string | null;
+    customerName: string | null;
+    customerPhone: string | null;
+    customerEmail: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     subtotal: number;
     discountAmount: number;
@@ -252,7 +263,7 @@ export type Sale = {
      */
     displayCurrency: string | null;
     displayExchangeRate: number | null;
-    paymentMethod: "CASH" | "DIGITAL";
+    paymentMethod: "CASH" | "DIGITAL" | "PAY_LATER";
     itemCount: number;
     note: string | null;
     soldAt: string | null;

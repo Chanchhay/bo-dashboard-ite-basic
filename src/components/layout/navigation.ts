@@ -22,14 +22,18 @@ import { POS_ROUTES } from "@/lib/pos-routes";
 
 type NavItemBase = {
   label: string;
+ 
   permission?: PermissionRule;
 };
 
 export type NavLink = NavItemBase & {
   href: string;
   icon?: LucideIcon;
+
   exact?: boolean;
+ 
   alsoActiveOn?: RegExp[];
+
   badge?: number;
 };
 
@@ -38,7 +42,6 @@ export type NavGroup = NavItemBase & {
 };
 
 export type NavLeaf = NavLink | NavGroup;
-
 
 export type NavLaunch = {
   label: string;
@@ -51,17 +54,23 @@ export type NavSection = {
   id: string;
   label: string;
   icon: LucideIcon;
+
   href?: string;
   exact?: boolean;
   children?: NavLeaf[];
+ 
   permission?: PermissionRule;
+
   launch?: NavLaunch;
+
   app?: {
     label: string;
+   
     fill: string;
     ink: string;
   };
 };
+
 
 export const NAVIGATION: NavSection[] = [
   {
@@ -247,17 +256,17 @@ export const NAVIGATION: NavSection[] = [
     permission: ["order:read", "order:create", "item:read"],
     app: {
       label: "Sale Management",
+    
       fill: "#e8e8e8",
       ink: "#00932a",
     },
     children: [
       {
         label: "Orders",
-        href: "/sales",
-        exact: true,
-        permission: "order:read",
+        href: "/sales/orders",
       },
       {
+        
         label: "Item & Pricing",
         href: "/sales/pricing",
         permission: "item:read",
@@ -265,6 +274,7 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Customers",
         href: "/sales/customers",
+    
         permission: "order:read",
       },
       {
@@ -283,10 +293,12 @@ export const NAVIGATION: NavSection[] = [
         permission: "order:read",
       },
       {
+       
         label: "Register Sessions",
         href: "/sales/sessions",
         permission: "order:create",
       },
+             
     ],
     launch: {
       label: "Open Point of Sale",
@@ -314,6 +326,7 @@ export const LEAF_ICONS = {
   pos: ScanLine,
   currency: Coins,
 };
+
 
 export function visibleSections(permissions: GrantedPermissions) {
   return NAVIGATION.filter((section) => can(permissions, section.permission))
@@ -400,6 +413,7 @@ export type PageTitle = {
   app: string;
   page?: string;
 };
+
 
 export function getPageTitle(pathname: string): PageTitle {
   for (const section of NAVIGATION) {
