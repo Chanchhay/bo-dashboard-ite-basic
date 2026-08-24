@@ -23,6 +23,7 @@ import {
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { cn } from "@/lib/utils";
 import type { InventoryItem } from "@/lib/api/inventory";
 import type { SalesChannel } from "@/lib/api/sales-channels";
 import {
@@ -527,7 +528,7 @@ export function MultiChannelPublishDialog({
         <>
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent
-                className={`rounded-2xl p-6 bg-background transition-all border-none shadow-2xl ${
+                className={`rounded-2xl p-6 bg-white dark:bg-[#181b24] transition-all border-none shadow-2xl ${
                     !initialItemId
                         ? "max-w-3xl"
                         : // The allocation grid needs room to lay a column out
@@ -652,31 +653,31 @@ export function MultiChannelPublishDialog({
                         /* MODE 2: Ultra-Clean Spacious 2-Column Batch Mode */
                         <div className="space-y-4">
                         {/* Which way the batch runs. */}
-                        <div className="inline-flex rounded-xl bg-muted p-1">
-                            {(["publish", "unpublish"] as const).map((value) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => {
-                                        if (value === mode) return;
-                                        setMode(value);
-                                        // A direction is a different question,
-                                        // so nothing carries over: everything
-                                        // ticked for publishing must not become
-                                        // everything ticked for removal.
-                                        setCheckedProductIds(new Set());
-                                    }}
-                                    className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors cursor-pointer ${
-                                        mode === value
-                                            ? value === "publish"
-                                                ? "bg-card text-primary shadow-sm"
-                                                : "bg-card text-danger shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                                >
-                                    {value === "publish" ? "Publish" : "Unpublish"}
-                                </button>
-                            ))}
+                        <div className="inline-flex rounded-xl bg-[#f5f5f5] dark:bg-muted/50 p-1">
+                            {(["publish", "unpublish"] as const).map((value) => {
+                                const isActive = mode === value;
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            if (value === mode) return;
+                                            setMode(value);
+                                            setCheckedProductIds(new Set());
+                                        }}
+                                        className={cn(
+                                            "rounded-lg px-4 py-2 text-sm font-bold transition-all cursor-pointer",
+                                            isActive
+                                                ? value === "publish"
+                                                    ? "bg-white dark:bg-card text-primary shadow-xs"
+                                                    : "bg-white dark:bg-card text-danger shadow-xs"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        {value === "publish" ? "Publish" : "Unpublish"}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">

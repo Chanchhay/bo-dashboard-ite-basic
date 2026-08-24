@@ -604,12 +604,6 @@ function Storefront({
                             })}
                         </div>
                     ) : null}
-
-                    {item.sku ? (
-                        <p className="text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                            SKU {item.sku}
-                        </p>
-                    ) : null}
                 </div>
             </div>
 
@@ -801,8 +795,8 @@ function Gallery({
                         className={cn(
                             "relative size-14 shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer",
                             position === index
-                                ? "border-primary ring-2 ring-primary/20 shadow-xs scale-[1.02]"
-                                : "border-transparent dark:border-[#242937] hover:border-primary/40 opacity-70 hover:opacity-100",
+                                ? "border-gray-900 dark:border-white shadow-xs scale-[1.02]"
+                                : "border-transparent dark:border-[#242937] hover:border-gray-400 opacity-70 hover:opacity-100",
                         )}
                     >
                         <img
@@ -866,7 +860,7 @@ function Chip({
                 disabled
                     ? "cursor-not-allowed border-[#f0f1ef] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] text-[#c2c8c0] dark:text-[#64748b] line-through"
                     : active
-                      ? "border-primary bg-primary/5 font-medium text-primary"
+                      ? "border-gray-900 dark:border-white bg-gray-100 dark:bg-[#252a38] font-bold text-gray-900 dark:text-white"
                       : "border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
             )}
         >
@@ -899,7 +893,7 @@ function Swatch({
             title={name}
             className={cn(
                 "grid size-9 place-items-center rounded-full border-2 transition-colors",
-                active ? "border-primary" : "border-transparent",
+                active ? "border-gray-900 dark:border-white" : "border-transparent",
                 disabled && "cursor-not-allowed opacity-40",
             )}
         >

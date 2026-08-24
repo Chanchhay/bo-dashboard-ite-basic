@@ -44,24 +44,37 @@ export function InventoryPageHeader({
     );
 }
 
-export function InventoryLoading({ label = "Loading inventory" }) {
+import { TableSkeleton } from "@/components/ui/skeleton";
+
+export function InventoryLoading({ label = "Loading inventory" }: { label?: string }) {
     return (
-        <div className="flex min-h-64 items-center justify-center rounded-2xl border border-border bg-card">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin text-success" />
-                {label}
-            </div>
+        <div className="rounded-2xl border border-border bg-card shadow-2xs overflow-hidden">
+            <TableSkeleton rows={6} cols={5} />
         </div>
     );
 }
 
+import { ForbiddenCard } from "@/components/ui/forbidden-card";
+import { isForbiddenError } from "@/lib/api-error";
+
 export function InventoryError({
     message,
     retry,
+    error,
 }: {
     message: string;
     retry?: () => void;
+    error?: unknown;
 }) {
+    const isForbidden =
+        isForbiddenError(error) ||
+        message.includes("403") ||
+        message.toLowerCase().includes("forbidden");
+
+    if (isForbidden) {
+        return <ForbiddenCard />;
+    }
+
     return (
         <div
             className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-2xl border border-danger/20 bg-card px-6 text-center"
