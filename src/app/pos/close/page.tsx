@@ -28,7 +28,6 @@ export default function PosCloseRegisterPage() {
 
         if (!active) return;
 
-        // Nothing open means nothing to close — send them back to the till.
         if (!current) {
           router.replace(POS_ROUTES.openRegister);
           return;
@@ -36,7 +35,6 @@ export default function PosCloseRegisterPage() {
 
         setSession(current);
       } catch {
-        // Leave `session` null; the guard below explains it.
       }
 
       if (active) setIsLoading(false);
@@ -108,10 +106,6 @@ export default function PosCloseRegisterPage() {
   );
 }
 
-/**
- * What the drawer came to. Every figure here is the backend's — the terminal
- * does not recompute the difference it just reported.
- */
 function Reconciliation({ session }: { session: RegisterSession }) {
   const { format } = useMoney();
   const router = useRouter();
@@ -184,7 +178,6 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** The close screen prints this as-is, so an unparseable date stays honest. */
 function formatOpenedAt(value: string | null) {
   if (!value) return "—";
 

@@ -32,7 +32,6 @@ export default function CurrencyHeaderWidget() {
     const rates = liveData?.rates || {};
     const rateDate = liveData?.date || "Today";
 
-    // Common currencies to show in mini ticker
     const tickerCurrencies = ["KHR", "EUR", "THB", "JPY", "GBP", "VND", "CNY", "SGD"];
 
     const convertedVal = rates[targetCode]

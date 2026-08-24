@@ -56,20 +56,13 @@ import {
 } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
 
-/**
- * The "no linked record" choice. A sentinel rather than an empty string, which
- * the select would read as nothing chosen and answer with its placeholder.
- */
+
 const noRecordValue = "NONE";
 
 /** Same trick for "no particular option" — see {@link noRecordValue}. */
 const noOptionValue = "WHOLE_ITEM";
 
-/**
- * What the API stores, and therefore what may be sent: quantities carry three
- * decimal places, costs two. Anything longer is rejected outright, so values
- * are rounded here rather than bounced back from the server.
- */
+
 const quantityDecimals = 3;
 const unitCostDecimals = 2;
 
@@ -133,9 +126,7 @@ export function StockAdjustmentForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const paramItemId = searchParams?.get("itemId") || "";
-    /** Movements against an add-on arrive here the same way an item's do. */
     const paramAddOnId = searchParams?.get("addOnId") || "";
-    /** Set when the form was opened from a movement's Adjust button. */
     const paramEntryId = searchParams?.get("entryId") || "";
     const { toast } = useToast();
     const { format: formatMoney } = useMoney();
@@ -158,18 +149,10 @@ export function StockAdjustmentForm() {
     const [overrideBatchExp, setOverrideBatchExp] = useState(false);
     const [batchReceivedAt, setBatchReceivedAt] = useState("");
     const [overrideBatchReceived, setOverrideBatchReceived] = useState(false);
-    /**
-     * Whether the batch section is showing.
-     *
-     * Held here rather than left to the browser so a validation error can open
-     * it: an error on a field nobody can see is a form that will not submit
-     * and will not say why.
-     */
     const [batchOpen, setBatchOpen] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<
         Record<string, string>
     >({});
-    // Add-ons are counted like items, so a count can be corrected on either.
     const [target, setTarget] = useState<StockTargetRef | null>(
         paramItemId
             ? { kind: "ITEM", id: paramItemId }
@@ -179,22 +162,7 @@ export function StockAdjustmentForm() {
     );
     const selectedItemId = target?.kind === "ITEM" ? target.id : "";
     const selectedAddOnId = target?.kind === "ADDON" ? target.id : "";
-    /**
-     * The stock in or stock out this correction is made against.
-     *
-     * Empty means the adjustment stands alone — a plain count correction with
-     * no earlier record to blame. Anything else is written to `referenceId`, so
-     * the movements ledger can say what the adjustment acts on instead of
-     * showing a bare quantity nobody can trace.
-     */
     const [adjustedEntryId, setAdjustedEntryId] = useState(paramEntryId);
-    /**
-     * Which option this adjustment is about.
-     *
-     * An option holds a balance of its own, so this moves that option's count
-     * rather than the item's. Left empty on an item that has options, the
-     * correction lands on whatever is still held against the item as a whole.
-     */
     const [optionId, setOptionId] = useState(
         searchParams?.get("variantId") || "",
     );
@@ -225,13 +193,6 @@ export function StockAdjustmentForm() {
     const selectedAddOn = addOns.find((addOn) => addOn.id === selectedAddOnId);
     const unitLabel =
         selectedItem?.unit?.name || selectedAddOn?.baseUnit?.name || "";
-    /**
-     * What each item and add-on holds in total, for the picker.
-     *
-     * An item sold in options has one summary per option, so these are summed
-     * rather than keyed straight across — keying by item id alone would keep
-     * only the last option's figure and call it the item's.
-     */
     const onHandByTargetId = (stockQuery.data || []).reduce<
         Record<string, number>
     >((totals, summary) => {
@@ -241,13 +202,6 @@ export function StockAdjustmentForm() {
         return totals;
     }, {});
     const targets = toStockTargets(items, addOns, onHandByTargetId);
-    /**
-     * What the target being corrected currently stands at.
-     *
-     * An option keeps its own balance, so a correction to Large is measured
-     * against Large — reading the item's total here would have the form
-     * proposing changes against a number that is the sum of every option.
-     */
     const onHand =
         (stockQuery.data || []).find(
             (summary) =>
@@ -255,18 +209,10 @@ export function StockAdjustmentForm() {
                 (summary.variantId || "") === optionId,
         )?.quantityOnHand ?? 0;
     const entries = entriesQuery.data || [];
-
-    /**
-     * The records this item already has, newest first — what an adjustment can
-     * be made against. Adjustments are excluded: correcting a correction tells
-     * nobody where the count actually went wrong.
-     */
     const adjustableEntries = entries
         .filter(
             (entry) =>
                 (entry.itemId || entry.addOnId) === (target?.id || "") &&
-                // A correction acts on a movement of the same option; one
-                // against Small says nothing about what Large stands at.
                 (entry.variantId || "") === optionId &&
                 entry.entryType !== "ADJUSTMENT",
         )
@@ -280,7 +226,6 @@ export function StockAdjustmentForm() {
         (entry) => entry.id === adjustedEntryId,
     );
 
-    // Options belong to an item; an add-on has none to break down by.
     const itemOptions = (selectedItem?.variants || [])
         .filter((variant) => variant.id && variant.name?.trim())
         .map((variant) => ({
@@ -290,14 +235,6 @@ export function StockAdjustmentForm() {
     const selectedOption = itemOptions.find(
         (option) => option.id === optionId,
     );
-    /**
-     * Whether anything is still counted against the item rather than an option.
-     *
-     * Only stock recorded before the item gained options sits there. It has to
-     * stay correctable — otherwise the quantity is stranded, with no way to
-     * move it onto an option or write it off — but nothing new may be added to
-     * it, which is what the API enforces.
-     */
     const unassignedOnHand =
         (stockQuery.data || []).find(
             (summary) => summary.itemId === selectedItemId && !summary.variantId,
@@ -320,14 +257,6 @@ export function StockAdjustmentForm() {
             .join(" · ");
     }
 
-    /**
-     * What a unit costs right now: the oldest batch still holding stock, which
-     * is the one the next unit out is drawn from.
-     *
-     * The API works this out from the batches themselves. Reading the ledger's
-     * last `unitCost` instead — as this used to — quoted whatever a recent
-     * stock-out was costed at, not what the stock on the shelf is worth.
-     */
     const existingUnitCost = target
         ? (stockQuery.data || []).find(
               (summary) =>
@@ -345,7 +274,6 @@ export function StockAdjustmentForm() {
         quantityInput.trim() !== "" &&
         Number.isFinite(rawNum) &&
         roundTo(rawNum, quantityDecimals) !== 0;
-    // Overstated decreases stock (-), Understated increases stock (+), Manual allows direct +/- input
     const change = qtyValid
         ? roundTo(
               adjustmentType === "OVERSTATED"
@@ -365,38 +293,16 @@ export function StockAdjustmentForm() {
             : selectedItemId
               ? onHand
               : undefined;
-    // The backend refuses an entry that would take the count below zero, so the
-    // form refuses it first and says so where the number was typed.
     const goesNegative = resulting !== undefined && resulting < 0;
-    // Stock cannot have arrived in the future.
     const todayIso = new Date().toLocaleDateString("en-CA");
-    /**
-     * Whether an arrival date would actually go anywhere.
-     *
-     * Only an adjustment that adds stock opens a batch, and the arrival date
-     * belongs to that batch. On a correction downwards, or one that leaves the
-     * count alone, there is no batch being opened for it to describe — so the
-     * field is offered but says why it is doing nothing.
-     */
+
     const opensBatch = change > 0;
-    /*
-     * The earliest day an expiry may name: never in the past, and never
-     * before the batch was made.
-     *
-     * A stocktake corrects what a batch is, and a batch still on the shelf
-     * has not gone off yet — if it had, the correction to record is a
-     * write-off, not a date. So the same floor applies here as on the way in.
-     */
+
     const earliestExpiry =
         batchManufacturedAt && batchManufacturedAt > todayIso
             ? batchManufacturedAt
             : todayIso;
 
-    /**
-     * A correction with the count left alone: the quantity on the shelf is
-     * already right and what is wrong is the cost or the batch details beside
-     * it. The entry still goes to the ledger, carrying a change of zero.
-     */
     const preservesQuantity = isManual && !overrideQuantity;
     const hasCostEdit =
         isManual && overrideUnitCost && unitCostInput.trim() !== "";
@@ -406,10 +312,7 @@ export function StockAdjustmentForm() {
             (overrideBatchMfg && batchManufacturedAt.trim() !== "") ||
             (overrideBatchExp && batchExpiresAt.trim() !== "") ||
             (overrideBatchReceived && batchReceivedAt.trim() !== ""));
-    /**
-     * Preserving the quantity is only a saveable entry when something else is
-     * actually being corrected — otherwise it records nothing at all.
-     */
+   
     const canSubmit = preservesQuantity
         ? hasCostEdit || hasBatchEdit
         : qtyValid && !goesNegative;
@@ -441,9 +344,6 @@ export function StockAdjustmentForm() {
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        // An item sold in options is corrected through one of them. The only
-        // exception is stock still held against the item itself, and there is
-        // none of that here.
         if (itemOptions.length && !optionId && unassignedOnHand <= 0) {
             const message = "Choose which option this correction is for.";
             setFieldErrors({ variantId: message });
@@ -457,19 +357,12 @@ export function StockAdjustmentForm() {
 
         const formData = new FormData(event.currentTarget);
 
-        // Real fields on the movement now rather than a free-form blob, so a
-        // date corrected at stocktake is the same kind of thing as the date
-        // recorded on the way in. Only what was ticked is sent; an untouched
-        // field is left off rather than sent blank, which would read as
-        // clearing it.
         const lotNumber =
             isManual && overrideBatchLot ? batchLot.trim() : "";
         const manufacturedAt =
             isManual && overrideBatchMfg ? batchManufacturedAt.trim() : "";
         const expiresAt =
             isManual && overrideBatchExp ? batchExpiresAt.trim() : "";
-        // Only meaningful on an adjustment that adds stock, since that is the
-        // only one that opens a batch for it to belong to.
         const receivedAt =
             isManual && overrideBatchReceived ? batchReceivedAt.trim() : "";
         const batchEdits = [
@@ -482,8 +375,6 @@ export function StockAdjustmentForm() {
         if (manufacturedAt && expiresAt && expiresAt < manufacturedAt) {
             const message = "This batch expires before it was made.";
             setFieldErrors({ batchExpiresAt: message });
-            // The offending field sits in the collapsed section on any form
-            // the operator has since tidied away.
             setBatchOpen(true);
             toast({
                 tone: "error",
@@ -514,9 +405,6 @@ export function StockAdjustmentForm() {
             return;
         }
 
-        // Every adjustment is a new entry; the API has no way to amend one
-        // already written. A change of zero is only meaningful when something
-        // else on the entry is being corrected, which is checked above.
         const typedQuantity = Number(quantityInput);
         if (
             !preservesQuantity &&
@@ -556,25 +444,9 @@ export function StockAdjustmentForm() {
             return;
         }
 
-        /**
-         * The cost carries forward unless it is being changed on purpose.
-         *
-         * The item's cost is
-         * read off its newest entry, so an adjustment that
-         * sends none would leave the item looking as if it cost nothing, and
-         * every valuation built on it would be wrong.
-         */
         const unitCost =
             typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
 
-        // An adjustment upward is stock appearing, so it opens a batch and a
-        // cost belongs on it. An adjustment downward consumes existing batches
-        // oldest first, and is costed from them — a typed cost there is refused
-        // by the API rather than quietly overriding what the stock was worth.
-        //
-        // A correction that moves nothing sits outside both: the cost is the
-        // whole point of it, and only what was typed is sent — falling back to
-        // the cost already on file would record a correction to nothing.
         const sendsUnitCost = preservesQuantity
             ? typedUnitCost !== ""
             : calculatedChange > 0;
@@ -584,8 +456,6 @@ export function StockAdjustmentForm() {
                 ? { addOnId: target.id }
                 : {
                       itemId: selectedItemId,
-                      // The option moves its own balance now, rather than
-                      // being noted in the reason where nothing could read it.
                       ...(optionId ? { variantId: optionId } : {}),
                   }),
             entryType: "ADJUSTMENT",
@@ -730,7 +600,6 @@ export function StockAdjustmentForm() {
                             </Field>
                         </div>
 
-                        {/* Adjustment Action Dropdown */}
                         <div data-tour="adjust-action-select">
                             <Field
                                 label="Adjustment Action *"
@@ -760,7 +629,6 @@ export function StockAdjustmentForm() {
                             </Field>
                         </div>
 
-                        {/* Which option, when the item is sold in options */}
                         {itemOptions.length ? (
                             <div className="sm:col-span-2 md:col-span-2">
                                 <Field
@@ -779,15 +647,9 @@ export function StockAdjustmentForm() {
                                                     ? ""
                                                     : value,
                                             );
-                                            // Each option has its own history,
-                                            // so a record chosen under the last
-                                            // one no longer applies.
                                             setAdjustedEntryId("");
                                         }}
                                         options={[
-                                            // Offered only where such stock
-                                            // exists: nothing new may be added
-                                            // to it, only corrected away.
                                             ...(unassignedOnHand > 0
                                                 ? [
                                                       {
@@ -807,7 +669,6 @@ export function StockAdjustmentForm() {
                             </div>
                         ) : null}
 
-                        {/* Which record this correction is made against */}
                         <div data-tour="adjust-record-link" className="sm:col-span-2 md:col-span-2">
                             <Field
                                 label="Adjust against record"
@@ -850,7 +711,6 @@ export function StockAdjustmentForm() {
                             </Field>
                         </div>
 
-                        {/* Quantity Field with Manual edit checkbox */}
                         <div data-tour="adjust-quantity-input" className="flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">
@@ -948,7 +808,6 @@ export function StockAdjustmentForm() {
                             ) : null}
                         </div>
 
-                        {/* Unit cost field */}
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="unitCost" className="text-sm font-semibold text-foreground">
@@ -1012,7 +871,6 @@ export function StockAdjustmentForm() {
                             </Field>
                         </div>
 
-                        {/* Batch Details Card */}
                         <details
                             data-tour="adjust-batch-card"
                             open={batchOpen}
@@ -1046,7 +904,6 @@ export function StockAdjustmentForm() {
                             </summary>
 
                             <div className="grid gap-4 border-t border-border p-4 sm:grid-cols-2 sm:p-5">
-                                {/* Batch Lot Number */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="batchLot" className="text-xs font-semibold text-foreground">
@@ -1082,7 +939,6 @@ export function StockAdjustmentForm() {
                                     </p>
                                 </div>
 
-                                {/* Expiration Date */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="batchExpiresAt" className="text-xs font-semibold text-foreground">
@@ -1126,7 +982,6 @@ export function StockAdjustmentForm() {
                                                 : "Sold before stock with no date, soonest first"}
                                     </p>
                                 </div>
-                                {/* Manufactured Date */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="batchManufacturedAt" className="text-xs font-semibold text-foreground">
@@ -1164,7 +1019,6 @@ export function StockAdjustmentForm() {
                                     </p>
                                 </div>
 
-                                {/* Arrived On */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="batchReceivedAt" className="text-xs font-semibold text-foreground">
@@ -1206,7 +1060,6 @@ export function StockAdjustmentForm() {
                 )}
             </section>
 
-            {/* Side Live Summary Panel */}
             <div className="flex flex-col gap-4 sticky top-6">
                 <div data-tour="adjust-summary-panel" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-3">
@@ -1298,7 +1151,6 @@ export function StockAdjustmentForm() {
                     </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex flex-col gap-2.5">
                     <Button
                         data-tour="adjust-submit-btn"

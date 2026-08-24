@@ -42,11 +42,6 @@ import {
     useUpdateUnitMutation,
 } from "@/services/inventoryApi";
 
-/**
- * The screen models a unit the way the config vocabulary does — a symbol and
- * what it measures. The API answers with the same fields, plus the ownership
- * flag that decides whether it can be edited here at all.
- */
 function toConfigUnit(unit: ApiUnit): Unit {
     return {
         id: unit.id,
@@ -88,10 +83,6 @@ export function UnitsTab() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
-    /**
-     * One category open at a time: the list is a reference people scan for a
-     * single unit, so three groups expanded at once is mostly scrolling.
-     */
     const [openCategory, setOpenCategory] = useState<UnitCategory | null>(
         unitCategories[0],
     );
@@ -155,7 +146,6 @@ export function UnitsTab() {
                 ? await updateUnit({ unitId: editingId, body }).unwrap()
                 : await createUnit(body).unwrap();
 
-            // A unit saved into a collapsed group would vanish on save.
             setOpenCategory(body.category);
             toast({
                 tone: "success",
@@ -184,7 +174,6 @@ export function UnitsTab() {
             toast({ tone: "success", title: `${deleteTarget.name} deleted` });
             setDeleteTarget(null);
         } catch (error) {
-            // Anything still measured in it blocks the delete server-side.
             toast({
                 tone: "error",
                 title: "Unit not deleted",

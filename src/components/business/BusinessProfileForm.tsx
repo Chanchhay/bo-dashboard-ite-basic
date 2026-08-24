@@ -589,7 +589,6 @@ function BusinessProfileEditor({
 
 function ProfileQueryError({
     message,
-    /** The server answered; the message below is its own words, not a guess. */
     answered,
     onRetry,
 }: {
@@ -605,9 +604,6 @@ function ProfileQueryError({
             <h2 className="text-lg font-bold">Unable to load business profile</h2>
             <p className="mt-2 text-sm text-[#636b74]">{message}</p>
             {!answered && (
-                // Only when the request never got an answer. Printing this
-                // beside a reply the server did send blames the connection for
-                // something the backend already explained.
                 <p className="mt-4 text-sm text-[#636b74]">
                     Check the server&apos;s <code>API_BASE_URL</code> value and
                     the backend availability, then try again.

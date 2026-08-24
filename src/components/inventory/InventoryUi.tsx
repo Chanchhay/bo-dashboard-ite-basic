@@ -9,7 +9,6 @@ import {
     textareaClassName,
 } from "@/components/ui/form-controls";
 
-/** Kept as aliases so inventory forms share the app-wide control styling. */
 export const inventoryControlClassName = controlClassName;
 export const inventoryTextareaClassName = textareaClassName;
 

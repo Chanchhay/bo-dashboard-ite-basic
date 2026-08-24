@@ -45,10 +45,6 @@ function describeRule(set: AddOnSet) {
     return `${choice} · ${set.required ? "required" : "optional"}`;
 }
 
-/**
- * The dialog is shared with the item form and speaks the config vocabulary:
- * a unit is a symbol and a category, and an add-on carries conversions.
- */
 function toConfigAddOn(addOn: ApiAddOn): AddOn {
     return {
         id: addOn.id,
@@ -81,7 +77,6 @@ export function AddOnsTab() {
     const { toast } = useToast();
     const addOnsQuery = useGetAddOnsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
-    // Items carry the add-ons they offer, which is where "used by" comes from.
     const itemsQuery = useGetInventoryItemOptionsQuery();
     const [createAddOn, createState] = useCreateAddOnMutation();
     const [updateAddOn, updateState] = useUpdateAddOnMutation();
@@ -143,8 +138,6 @@ export function AddOnsTab() {
         };
 
         try {
-            // An add-on is shared, so editing one changes it for every item
-            // that offers it — which is what the dialog warns about.
             const result = editingId
                 ? await updateAddOn({ addOnId: editingId, body }).unwrap()
                 : await createAddOn(body).unwrap();
@@ -179,8 +172,6 @@ export function AddOnsTab() {
             });
             setDeleteTarget(null);
         } catch (error) {
-            // An add-on still attached to items is refused server-side rather
-            // than stripped from all of them.
             toast({
                 tone: "error",
                 title: "Add-on not deleted",
@@ -220,7 +211,6 @@ export function AddOnsTab() {
         if (!deleteSetTarget) return;
 
         try {
-            // Only the grouping goes; the add-ons stay in the library.
             await deleteSet(deleteSetTarget.id).unwrap();
             toast({
                 tone: "success",

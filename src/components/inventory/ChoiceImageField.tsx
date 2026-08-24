@@ -13,19 +13,6 @@ import {
     useUploadAssetMutation,
 } from "@/services/assetApi";
 
-/**
- * One picture belonging to a choice — an Option, or a preset's value.
- *
- * The caller only ever holds the stored URL. A URL box was never a real ask:
- * a shop owner has a photograph on their phone, not a link to one, and the
- * only way to produce a link was to upload it somewhere else first. So the
- * file goes to the asset store on pick and the URL it answers with is what
- * comes back out of here.
- *
- * The upload happens immediately rather than on save, matching the item
- * gallery and the description blocks: a picture that only uploads at save time
- * cannot be previewed, and a failed save would lose it.
- */
 export function ChoiceImageField({
     value,
     onChange,
@@ -42,11 +29,6 @@ export function ChoiceImageField({
 
     const [previewUrl, setPreviewUrl] = useState<string | undefined>();
     const [uploading, setUploading] = useState(false);
-    /**
-     * Only a picture uploaded in this session can be cleaned up. One loaded
-     * with the item is left alone — the form may yet be cancelled, and deleting
-     * it would take the picture off an item that still points at it.
-     */
     const [assetKey, setAssetKey] = useState<string | undefined>();
 
     const preview = previewUrl || value;
@@ -115,9 +97,6 @@ export function ChoiceImageField({
                 preview={
                     <span className="flex size-16 items-center justify-center overflow-hidden rounded-lg bg-muted">
                         {preview ? (
-                            // An uploaded picture is a URL; a fresh pick shows
-                            // as a blob until the upload answers.
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={preview}
                                 alt=""

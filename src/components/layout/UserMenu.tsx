@@ -26,18 +26,6 @@ function initialsOf(name: string) {
   );
 }
 
-/**
- * The avatar chip in the header, and the account actions behind it.
- *
- * The name and picture come from the user-profile query rather than the
- * session, so editing the profile updates this chip in the same tick; the
- * session name from the server stays as the fallback until the query lands.
- *
- * Signing out has to be a POST — it ends the session and hands the browser to
- * Keycloak — so it goes through a real form rather than a link. The form lives
- * outside the popup because clicking an item closes the menu, and a form
- * unmounted mid-click never submits.
- */
 export default function UserMenu({
     name,
     compact = false,
@@ -79,7 +67,6 @@ export default function UserMenu({
                         className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-[13px] font-medium text-white"
                     >
                         {picture ? (
-                            // The profile picture URL is supplied by the API.
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={picture}

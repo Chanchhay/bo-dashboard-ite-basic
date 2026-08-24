@@ -4,8 +4,6 @@ import { can } from "@/lib/permissions";
 import { getUserPermissions } from "@/lib/permissions-server";
 
 export default async function EmployeesPage() {
-    // Checking here only hides the tab — the backend still enforces access
-    // on `/api/v1/admin/audit-logs`.
     const canReadAudits = can(await getUserPermissions(), "admin-audit:read");
 
     return (

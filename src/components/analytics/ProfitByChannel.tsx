@@ -49,14 +49,6 @@ const channelNames: Record<string, string> = {
     MESSENGER: "Messenger",
 };
 
-/**
- * Whether a figure is money kept or money lost, said in words as well as red.
- *
- * Red and green are the two colours a red-green colourblind reader cannot tell
- * apart — measured at ΔE 2.1 for deutan, which is nothing. Profit therefore
- * carries an explicit sign and, where there is room, a word: the colour is a
- * second opinion, never the only one.
- */
 function Money({
     amount,
     format,
@@ -65,7 +57,6 @@ function Money({
 }: {
     amount: number;
     format: (value: number) => string;
-    /** Set on figures that can go either way, such as profit. */
     signed?: boolean;
     className?: string;
 }) {
@@ -89,7 +80,6 @@ function Money({
     );
 }
 
-/** A headline figure. No plot, so no hover layer — it is one number. */
 function StatTile({
     label,
     children,
@@ -112,14 +102,6 @@ function StatTile({
     );
 }
 
-/**
- * How big this channel's profit is against the best one.
- *
- * A single hue, because the bar encodes magnitude and nothing else — the row
- * already says which channel it is, so the colour carries no identity and
- * there is no palette to tell apart. A loss is drawn from the same baseline in
- * the status colour, with the figure beside it carrying the sign.
- */
 function ProfitBar({ value, peak }: { value: number; peak: number }) {
     const width = peak > 0 ? Math.min(100, (Math.abs(value) / peak) * 100) : 0;
 
@@ -171,7 +153,6 @@ export function ProfitByChannel() {
 
     return (
         <div className="flex flex-col gap-4">
-            {/* One row of controls above the figures, as a filter bar should be. */}
             <div className="flex flex-wrap items-center gap-3">
                 <div data-tour="profit-range-select" className="w-44">
                     <Select

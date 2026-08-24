@@ -32,12 +32,6 @@ export default function Sidebar({
         : pathname;
 
     const allowed = visibleSections(permissions);
-    // The shell belongs to the app you opened, so the sidebar shows that app's
-    // own pages and nothing else. Routes that sit outside any app (your
-    // profile, for instance) get just the way back.
-    //
-    // Resolved against `allowed` rather than the raw navigation, so a page the
-    // user can't reach never appears in the scoped list either.
     const current = allowed.find((section) =>
         isSectionActive(section, pathname),
     );
@@ -45,7 +39,6 @@ export default function Sidebar({
 
     return (
         <>
-            {/* Scrim only exists for the mobile drawer. */}
             <div
                 onClick={onClose}
                 aria-hidden="true"
@@ -60,9 +53,6 @@ export default function Sidebar({
             <div
                 className={cn(
                     "fixed inset-y-0 left-0 z-40 flex w-[268px] flex-col bg-shell",
-                    /* `visibility` keeps the closed drawer out of the tab order
-                       instead of leaving focusable links parked off-screen. It
-                       transitions discretely, so the slide-out still plays. */
                     "transition-[transform,visibility] duration-200 ease-out",
                     "lg:visible lg:sticky lg:top-0 lg:z-auto lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:bg-transparent",
                     open ? "translate-x-0" : "invisible -translate-x-full",
@@ -116,8 +106,6 @@ export default function Sidebar({
                     </ul>
                 </nav>
 
-                {/* Pinned rather than scrolled with the nav: leaving for another
-                    app is always available, and never mistaken for a page. */}
                 {current?.launch && (
                     <LaunchButton launch={current.launch} onNavigate={onClose} />
                 )}
@@ -194,9 +182,6 @@ function SectionItem({
 
     return (
         <div data-tour={`sidebar-section-${section.id}`} className="flex flex-col">
-            {/* Not a control — inside an app there is nothing to collapse into.
-                Named as the launcher names it, so the tile you clicked and the
-                app you land in agree. */}
             <p className={cn(rowClass, "font-medium text-[#16181c] dark:text-[#f8fafc]")}>
                 <Icon
                     className="size-[18px] shrink-0 text-primary"
@@ -206,8 +191,6 @@ function SectionItem({
             </p>
 
             <ul
-                /* The rail is the only thing tying children to their parent,
-                   so it sits on the list rather than each row. */
                 className="mt-1 ml-[26px] flex flex-col gap-1 border-l border-[#dcdcd8] dark:border-[#242937] pl-3"
             >
                 {section.children.map((leaf) => {

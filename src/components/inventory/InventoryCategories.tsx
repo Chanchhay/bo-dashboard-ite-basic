@@ -71,10 +71,6 @@ function categoryRows(groups: ItemGroup[]) {
     ]);
 }
 
-/**
- * `embedded` drops the page header: inside the Item Config tabs the screen
- * already sits under one, and two stacked headings read as a mistake.
- */
 export function InventoryCategories({ embedded = false }: { embedded?: boolean } = {}) {
     const { toast } = useToast();
     const { data, error, isLoading, refetch } =

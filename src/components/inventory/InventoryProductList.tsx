@@ -125,9 +125,6 @@ function FilterChip({
     );
 }
 
-/**
- * A heading over one branch of the tree, in the same shape Stock uses.
- */
 function TreeHeading({ children }: { children: React.ReactNode }) {
     return (
         <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -136,9 +133,6 @@ function TreeHeading({ children }: { children: React.ReactNode }) {
     );
 }
 
-/**
- * The rail every branch of the tree hangs off, with a stub to each row.
- */
 function TreeBranch({ children }: { children: React.ReactNode }) {
     return (
         <div className="relative ml-3 space-y-1.5 border-l-2 border-primary/20 pl-4 dark:border-primary/30">
@@ -167,13 +161,6 @@ function TreeLeaf({
     );
 }
 
-/**
- * The item's options — the same item in another size or pack.
- *
- * Each is scanned, counted and priced on its own, which is the whole reason it
- * exists as a row rather than a note on the item. Everything here is set where
- * the item is edited or in Sale Management; this is the read of it.
- */
 function ItemOptionsTree({ item }: { item: InventoryItem }) {
     const { format: formatMoney } = useMoney();
     const options = item.variants || [];
@@ -205,8 +192,6 @@ function ItemOptionsTree({ item }: { item: InventoryItem }) {
                             </div>
 
                             <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2 sm:ml-0">
-                                {/* Priced per sales channel in Sale Management,
-                                    so an option can sit here unpriced. */}
                                 {option.price == null ? (
                                     <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                                         Not priced
@@ -235,23 +220,6 @@ function ItemOptionsTree({ item }: { item: InventoryItem }) {
     );
 }
 
-/**
- * The add-ons this item offers, grouped by the sets they belong to.
- *
- * Everything here is the item's own: the add-ons attached to it, what each one
- * costs, and how much of it one order uses. The sets are the shop's own
- * groupings — an add-on in none of them is still offered, so it is listed
- * rather than hidden.
- *
- * Only what this item offers is listed. An add-on belongs to the items that
- * carry it, so a drink's row has no business showing toppings that belong to
- * something else.
- *
- * The switch decides whether the item sells it. Off is not detached — the
- * item still offers it and keeps its setup, it is simply off the menu today,
- * which is what a shop that has run out of pearls actually wants. Attaching
- * and detaching is done where the item is edited.
- */
 function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     const setsQuery = useGetAddOnSetsQuery();
     const { format: formatMoney } = useMoney();
@@ -312,7 +280,6 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
         }))
         .filter((group) => group.addOns.length);
 
-    // An add-on in no set can still be offered, and still has to be seen.
     const grouping = grouped.flatMap((group) => group.addOns.map((a) => a.id));
     const ungrouped = listed.filter((addOn) => !grouping.includes(addOn.id));
 
@@ -341,9 +308,6 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
 
                 return (
                     <div key={category.id} className="space-y-1.5">
-                        {/* The shop's own grouping of its add-ons. Collapsible,
-                            because a long menu is mostly things you are not
-                            looking at. */}
                         <button
                             type="button"
                             onClick={() => toggleCategory(category.id)}
@@ -389,8 +353,6 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                                                     {addOn.name}
                                                 </p>
                                                 <p className="mt-0.5 text-xs text-muted-foreground">
-                                                    {/* Priced once for the whole
-                                                        business, in Sale Management. */}
                                                     {addOn.price == null
                                                         ? "Not priced"
                                                         : `+${formatMoney(addOn.price)}`}
@@ -759,8 +721,6 @@ export function InventoryProductList() {
                 ),
             });
         } finally {
-            // The outcome is a toast either way, so the dialog has nothing
-            // left to say once the request settles.
             setDeleteTarget(null);
         }
     }
