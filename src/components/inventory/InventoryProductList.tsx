@@ -1,5 +1,6 @@
 "use client";
 
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useMoney } from "@/hooks/useMoney";
 import { formatAmount } from "@/lib/inventory-config/units";
 
@@ -185,9 +186,7 @@ function ItemOptionsTree({ item }: { item: InventoryItem }) {
                                     {option.name || "Unnamed option"}
                                 </p>
                                 <p className="mt-0.5 text-xs text-muted-foreground">
-                                    {option.sku ||
-                                        option.barcode ||
-                                        "No SKU or barcode"}
+                  {option.sku || option.barcode || "No SKU or barcode"}
                                 </p>
                             </div>
 
@@ -224,8 +223,7 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     const setsQuery = useGetAddOnSetsQuery();
     const { format: formatMoney } = useMoney();
     const { toast } = useToast();
-    const [setAvailability, saveState] =
-        useUpdateItemAddOnAvailabilityMutation();
+  const [setAvailability, saveState] = useUpdateItemAddOnAvailabilityMutation();
     const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
         new Set(),
     );
@@ -263,8 +261,8 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     if (!listed.length) {
         return (
             <p className="py-1 text-xs text-muted-foreground">
-                No add-ons on this item. Attach them from the item&apos;s
-                Add-ons section when you edit it.
+        No add-ons on this item. Attach them from the item&apos;s Add-ons
+        section when you edit it.
             </p>
         );
     }
@@ -324,8 +322,7 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                                 {category.name}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                                {onSaleCount} of {category.addOns.length} on
-                                sale
+                {onSaleCount} of {category.addOns.length} on sale
                             </span>
                         </button>
 
@@ -333,20 +330,14 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                             <TreeBranch>
                                 {category.addOns.map((addOn) => {
                                     const unitLabel =
-                                        addOn.baseUnit?.symbol ||
-                                        addOn.baseUnit?.name ||
-                                        "";
+                    addOn.baseUnit?.symbol || addOn.baseUnit?.name || "";
 
                                     const onSale = addOn.available !== false;
 
                                     return (
                                         <TreeLeaf
                                             key={addOn.id}
-                                            className={
-                                                onSale
-                                                    ? undefined
-                                                    : "bg-muted/30 opacity-60"
-                                            }
+                      className={onSale ? undefined : "bg-muted/30 opacity-60"}
                                         >
                                             <div className="min-w-0 flex-1">
                                                 <p className="truncate text-sm font-semibold text-foreground">
@@ -357,10 +348,8 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                                                         ? "Not priced"
                                                         : `+${formatMoney(addOn.price)}`}
                                                     {" · "}
-                                                    {formatAmount(
-                                                        addOn.usePerOrder ?? 1,
-                                                    )}{" "}
-                                                    {unitLabel} per order
+                          {formatAmount(addOn.usePerOrder ?? 1)} {unitLabel} per
+                          order
                                                 </p>
                                             </div>
 
@@ -368,16 +357,9 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
                                                 <Switch
                                                     id={`switch-${item.id}-${addOn.id}`}
                                                     checked={onSale}
-                                                    disabled={
-                                                        saveState.isLoading
-                                                    }
-                                                    onCheckedChange={(
-                                                        checked,
-                                                    ) =>
-                                                        setOnSale(
-                                                            addOn,
-                                                            checked,
-                                                        )
+                          disabled={saveState.isLoading}
+                          onCheckedChange={(checked) =>
+                            setOnSale(addOn, checked)
                                                     }
                                                     aria-label={`Sell ${addOn.name} on ${item.name}`}
                                                     title={
@@ -414,9 +396,7 @@ export function InventoryProductList() {
     } = useAppSelector((state) => state.inventoryUi);
     const [debouncedSearch, setDebouncedSearch] = useState(productSearch);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-    const [filterErrors, setFilterErrors] = useState<
-        Record<string, string>
-    >({});
+  const [filterErrors, setFilterErrors] = useState<Record<string, string>>({});
     const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
     const [expandedAddOnItemIds, setExpandedAddOnItemIds] = useState<Set<string>>(
@@ -445,16 +425,12 @@ export function InventoryProductList() {
         page: productPage,
         size: productPageSize,
         sort: productSort,
-        ...(debouncedSearch.trim()
-            ? { keyword: debouncedSearch.trim() }
-            : {}),
+    ...(debouncedSearch.trim() ? { keyword: debouncedSearch.trim() } : {}),
         ...(productStatus === "ALL" ? {} : { status: productStatus }),
         ...(productFilters.itemGroupId
             ? { itemGroupId: productFilters.itemGroupId }
             : {}),
-        ...(productFilters.unitId
-            ? { unitId: productFilters.unitId }
-            : {}),
+    ...(productFilters.unitId ? { unitId: productFilters.unitId } : {}),
         ...(productFilters.itemType === "ALL"
             ? {}
             : {
@@ -466,9 +442,7 @@ export function InventoryProductList() {
         ...(productFilters.maxPrice
             ? { maxPrice: Number(productFilters.maxPrice) }
             : {}),
-        ...(productFilters.sku.trim()
-            ? { sku: productFilters.sku.trim() }
-            : {}),
+    ...(productFilters.sku.trim() ? { sku: productFilters.sku.trim() } : {}),
         ...(productFilters.barcode.trim()
             ? { barcode: productFilters.barcode.trim() }
             : {}),
@@ -481,7 +455,10 @@ export function InventoryProductList() {
     const groupsQuery = useGetItemGroupsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
     const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
-    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name?: string;
+  } | null>(null);
 
     const items = data?.content ?? [];
     const currentPage = data?.page?.number ?? productPage;
@@ -519,7 +496,11 @@ export function InventoryProductList() {
         const prices: number[] = [];
 
         for (const item of storeItems) {
-            if (typeof item.price === "number" && !isNaN(item.price) && item.price >= 0) {
+      if (
+        typeof item.price === "number" &&
+        !isNaN(item.price) &&
+        item.price >= 0
+      ) {
                 prices.push(item.price);
             }
             if (Array.isArray(item.variants)) {
@@ -532,7 +513,8 @@ export function InventoryProductList() {
         }
 
         const candidateSteps = [
-            1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 500, 750, 1000, 1500, 2000, 5000, 10000,
+      1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 500,
+      750, 1000, 1500, 2000, 5000, 10000,
         ];
 
         let boundaries: number[] = [];
@@ -557,7 +539,10 @@ export function InventoryProductList() {
                 currIdx++;
             }
 
-            if (selectedSteps.length === 1 && startIndex + 1 < candidateSteps.length) {
+      if (
+        selectedSteps.length === 1 &&
+        startIndex + 1 < candidateSteps.length
+      ) {
                 selectedSteps.push(candidateSteps[startIndex + 1]);
             }
 
@@ -610,7 +595,11 @@ export function InventoryProductList() {
             (r) => r.minPrice === min && r.maxPrice === max,
         );
         return match ? match.id : "ALL";
-    }, [productDraftFilters.minPrice, productDraftFilters.maxPrice, dynamicPriceRanges]);
+  }, [
+    productDraftFilters.minPrice,
+    productDraftFilters.maxPrice,
+    dynamicPriceRanges,
+  ]);
 
     function handlePriceRangeChange(value: string) {
         if (value === "ALL") {
@@ -626,18 +615,13 @@ export function InventoryProductList() {
     }
 
     const advancedFilterCount = Object.entries(productFilters).filter(
-        ([key, value]) => key === "itemType" ? value !== "ALL" : Boolean(value),
+    ([key, value]) => (key === "itemType" ? value !== "ALL" : Boolean(value)),
     ).length;
     const hasFilters = Boolean(
-        debouncedSearch.trim() ||
-            productStatus !== "ALL" ||
-            advancedFilterCount,
+    debouncedSearch.trim() || productStatus !== "ALL" || advancedFilterCount,
     );
 
-    function updateDraftFilter(
-        key: ProductAdvancedFilterKey,
-        value: string,
-    ) {
+  function updateDraftFilter(key: ProductAdvancedFilterKey, value: string) {
         dispatch(setProductDraftFilter({ key, value }));
         setFilterErrors((current) => {
             if (!current[key]) {
@@ -679,8 +663,7 @@ export function InventoryProductList() {
                 tone: "error",
                 title: "Filters not applied",
                 description:
-                    result.error.issues[0]?.message ||
-                    "Check the highlighted filters.",
+          result.error.issues[0]?.message || "Check the highlighted filters.",
             });
             return;
         }
@@ -715,10 +698,7 @@ export function InventoryProductList() {
             toast({
                 tone: "error",
                 title: "Delete failed",
-                description: getApiErrorMessage(
-                    cause,
-                    "Unable to delete the item.",
-                ),
+        description: getApiErrorMessage(cause, "Unable to delete the item."),
             });
         } finally {
             setDeleteTarget(null);
@@ -733,9 +713,7 @@ export function InventoryProductList() {
                 size: 1000,
             }).unwrap();
             const exportList =
-                fullData?.content && fullData.content.length
-                    ? fullData.content
-                    : items;
+        fullData?.content && fullData.content.length ? fullData.content : items;
             exportItemsToExcel(exportList, categoryName, unitName);
             toast({
                 tone: "success",
@@ -797,9 +775,7 @@ export function InventoryProductList() {
                             <Input
                                 value={productSearch}
                                 onChange={(event) =>
-                                    dispatch(
-                                        setProductSearch(event.target.value),
-                                    )
+                  dispatch(setProductSearch(event.target.value))
                                 }
                                 placeholder="Search items..."
                                 className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground"
@@ -813,10 +789,7 @@ export function InventoryProductList() {
                                 onValueChange={(value) =>
                                     dispatch(
                                         setProductStatus(
-                                            (value || "ALL") as
-                                                | "ALL"
-                                                | "ACTIVE"
-                                                | "INACTIVE",
+                      (value || "ALL") as "ALL" | "ACTIVE" | "INACTIVE",
                                         ),
                                     )
                                 }
@@ -830,15 +803,9 @@ export function InventoryProductList() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ALL">
-                                        All statuses
-                                    </SelectItem>
-                                    <SelectItem value="ACTIVE">
-                                        Active
-                                    </SelectItem>
-                                    <SelectItem value="INACTIVE">
-                                        Inactive
-                                    </SelectItem>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
                                 </SelectContent>
                             </Select>
 
@@ -850,9 +817,7 @@ export function InventoryProductList() {
                                 aria-label="Advanced filters"
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
-                                onClick={() =>
-                                    setFilterPanelOpen((open) => !open)
-                                }
+                onClick={() => setFilterPanelOpen((open) => !open)}
                                 className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
                             >
                                 <SlidersHorizontal className="size-4 shrink-0" />
@@ -909,38 +874,28 @@ export function InventoryProductList() {
                                     Advanced Filters
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Narrow the catalogue, then apply all fields
-                                    together.
+                  Narrow the catalogue, then apply all fields together.
                                 </p>
                             </div>
 
                             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-category">
-                                        Category
-                                    </Label>
+                  <Label htmlFor="item-filter-category">Category</Label>
                                     <Select
-                                        value={
-                                            productDraftFilters.itemGroupId ||
-                                            "ALL"
-                                        }
+                    value={productDraftFilters.itemGroupId || "ALL"}
                                         items={{
                                             ALL: "All categories",
                                             ...Object.fromEntries(
-                                                categoryOptions.map(
-                                                    (option) => [
+                        categoryOptions.map((option) => [
                                                         option.id,
                                                         option.label,
-                                                    ],
-                                                ),
+                        ]),
                                             ),
                                         }}
                                         onValueChange={(value) =>
                                             updateDraftFilter(
                                                 "itemGroupId",
-                                                value === "ALL"
-                                                    ? ""
-                                                    : value || "",
+                        value === "ALL" ? "" : value || "",
                                             )
                                         }
                                     >
@@ -948,14 +903,9 @@ export function InventoryProductList() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ALL">
-                                                All categories
-                                            </SelectItem>
+                      <SelectItem value="ALL">All categories</SelectItem>
                                             {categoryOptions.map((option) => (
-                                                <SelectItem
-                                                    key={option.id}
-                                                    value={option.id}
-                                                >
+                        <SelectItem key={option.id} value={option.id}>
                                                     {option.label}
                                                 </SelectItem>
                                             ))}
@@ -969,19 +919,13 @@ export function InventoryProductList() {
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-unit">
-                                        Unit
-                                    </Label>
+                  <Label htmlFor="item-filter-unit">Unit</Label>
                                     <Select
-                                        value={
-                                            productDraftFilters.unitId || "ALL"
-                                        }
+                    value={productDraftFilters.unitId || "ALL"}
                                         onValueChange={(value) =>
                                             updateDraftFilter(
                                                 "unitId",
-                                                value === "ALL"
-                                                    ? ""
-                                                    : value || "",
+                        value === "ALL" ? "" : value || "",
                                             )
                                         }
                                     >
@@ -989,54 +933,34 @@ export function InventoryProductList() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ALL">
-                                                All units
+                      <SelectItem value="ALL">All units</SelectItem>
+                      {(unitsQuery.data ?? []).map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name || "Unnamed unit"}
                                             </SelectItem>
-                                            {(unitsQuery.data ?? []).map(
-                                                (unit) => (
-                                                    <SelectItem
-                                                        key={unit.id}
-                                                        value={unit.id}
-                                                    >
-                                                        {unit.name ||
-                                                            "Unnamed unit"}
-                                                    </SelectItem>
-                                                ),
-                                            )}
+                      ))}
                                         </SelectContent>
                                     </Select>
                                     {filterErrors.unitId ? (
-                                        <p className="text-xs text-danger">
-                                            {filterErrors.unitId}
-                                        </p>
+                    <p className="text-xs text-danger">{filterErrors.unitId}</p>
                                     ) : null}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-type">
-                                        Item type
-                                    </Label>
+                  <Label htmlFor="item-filter-type">Item type</Label>
                                     <Select
                                         value={productDraftFilters.itemType}
                                         onValueChange={(value) =>
-                                            updateDraftFilter(
-                                                "itemType",
-                                                value || "ALL",
-                                            )
+                      updateDraftFilter("itemType", value || "ALL")
                                         }
                                     >
                                         <SelectTrigger id="item-filter-type">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ALL">
-                                                All item types
-                                            </SelectItem>
+                      <SelectItem value="ALL">All item types</SelectItem>
                                             {itemTypes.map((type) => (
-                                                <SelectItem
-                                                    key={type}
-                                                    value={type}
-                                                >
+                        <SelectItem key={type} value={type}>
                                                     {titleCase(type)}
                                                 </SelectItem>
                                             ))}
@@ -1050,16 +974,13 @@ export function InventoryProductList() {
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-sort">
-                                        Sort by
-                                    </Label>
+                  <Label htmlFor="item-filter-sort">Sort by</Label>
                                     <Select
                                         value={productSort}
                                         onValueChange={(value) =>
                                             dispatch(
                                                 setProductSort(
-                                                    (value ||
-                                                        "name, asc") as InventoryItemSort,
+                          (value || "name,asc") as InventoryItemSort,
                                                 ),
                                             )
                                         }
@@ -1068,24 +989,17 @@ export function InventoryProductList() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {Object.entries(sortLabels).map(
-                                                ([value, label]) => (
-                                                    <SelectItem
-                                                        key={value}
-                                                        value={value}
-                                                    >
+                      {Object.entries(sortLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
                                                         {label}
                                                     </SelectItem>
-                                                ),
-                                            )}
+                      ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-price-range">
-                                        Price range
-                                    </Label>
+                  <Label htmlFor="item-filter-price-range">Price range</Label>
                                     <Select
                                         value={selectedPriceRangeKey}
                                         onValueChange={(value) =>
@@ -1096,14 +1010,9 @@ export function InventoryProductList() {
                                             <SelectValue placeholder="All prices" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ALL">
-                                                All prices
-                                            </SelectItem>
+                      <SelectItem value="ALL">All prices</SelectItem>
                                             {dynamicPriceRanges.map((option) => (
-                                                <SelectItem
-                                                    key={option.id}
-                                                    value={option.id}
-                                                >
+                        <SelectItem key={option.id} value={option.id}>
                                                     {option.label}
                                                 </SelectItem>
                                             ))}
@@ -1124,35 +1033,23 @@ export function InventoryProductList() {
                                         value={productDraftFilters.sku}
                                         aria-invalid={Boolean(filterErrors.sku)}
                                         onChange={(event) =>
-                                            updateDraftFilter(
-                                                "sku",
-                                                event.target.value,
-                                            )
+                      updateDraftFilter("sku", event.target.value)
                                         }
                                     />
                                     {filterErrors.sku ? (
-                                        <p className="text-xs text-danger">
-                                            {filterErrors.sku}
-                                        </p>
+                    <p className="text-xs text-danger">{filterErrors.sku}</p>
                                     ) : null}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-barcode">
-                                        Barcode
-                                    </Label>
+                  <Label htmlFor="item-filter-barcode">Barcode</Label>
                                     <Input
                                         id="item-filter-barcode"
                                         placeholder="Exact barcode"
                                         value={productDraftFilters.barcode}
-                                        aria-invalid={Boolean(
-                                            filterErrors.barcode,
-                                        )}
+                    aria-invalid={Boolean(filterErrors.barcode)}
                                         onChange={(event) =>
-                                            updateDraftFilter(
-                                                "barcode",
-                                                event.target.value,
-                                            )
+                      updateDraftFilter("barcode", event.target.value)
                                         }
                                     />
                                     {filterErrors.barcode ? (
@@ -1191,43 +1088,31 @@ export function InventoryProductList() {
                             {debouncedSearch.trim() ? (
                                 <FilterChip
                                     label={`Search: ${debouncedSearch.trim()}`}
-                                    onRemove={() =>
-                                        dispatch(setProductSearch(""))
-                                    }
+                  onRemove={() => dispatch(setProductSearch(""))}
                                 />
                             ) : null}
                             {productStatus !== "ALL" ? (
                                 <FilterChip
                                     label={`Status: ${titleCase(productStatus)}`}
-                                    onRemove={() =>
-                                        dispatch(setProductStatus("ALL"))
-                                    }
+                  onRemove={() => dispatch(setProductStatus("ALL"))}
                                 />
                             ) : null}
                             {productFilters.itemGroupId ? (
                                 <FilterChip
                                     label={`Category: ${categoryName.get(productFilters.itemGroupId) || "Selected"}`}
-                                    onRemove={() =>
-                                        dispatch(
-                                            clearProductFilter("itemGroupId"),
-                                        )
-                                    }
+                  onRemove={() => dispatch(clearProductFilter("itemGroupId"))}
                                 />
                             ) : null}
                             {productFilters.unitId ? (
                                 <FilterChip
                                     label={`Unit: ${unitName.get(productFilters.unitId) || "Selected"}`}
-                                    onRemove={() =>
-                                        dispatch(clearProductFilter("unitId"))
-                                    }
+                  onRemove={() => dispatch(clearProductFilter("unitId"))}
                                 />
                             ) : null}
                             {productFilters.itemType !== "ALL" ? (
                                 <FilterChip
                                     label={`Type: ${titleCase(productFilters.itemType)}`}
-                                    onRemove={() =>
-                                        dispatch(clearProductFilter("itemType"))
-                                    }
+                  onRemove={() => dispatch(clearProductFilter("itemType"))}
                                 />
                             ) : null}
                             {productFilters.minPrice || productFilters.maxPrice ? (
@@ -1248,26 +1133,20 @@ export function InventoryProductList() {
                             {productFilters.sku ? (
                                 <FilterChip
                                     label={`SKU: ${productFilters.sku}`}
-                                    onRemove={() =>
-                                        dispatch(clearProductFilter("sku"))
-                                    }
+                  onRemove={() => dispatch(clearProductFilter("sku"))}
                                 />
                             ) : null}
                             {productFilters.barcode ? (
                                 <FilterChip
                                     label={`Barcode: ${productFilters.barcode}`}
-                                    onRemove={() =>
-                                        dispatch(clearProductFilter("barcode"))
-                                    }
+                  onRemove={() => dispatch(clearProductFilter("barcode"))}
                                 />
                             ) : null}
                             <Button
                                 type="button"
                                 variant="link"
                                 size="sm"
-                                onClick={() =>
-                                    dispatch(clearAllProductFilters())
-                                }
+                onClick={() => dispatch(clearAllProductFilters())}
                             >
                                 Clear all
                             </Button>
@@ -1295,10 +1174,7 @@ export function InventoryProductList() {
                     <InventoryLoading label="Loading items" />
                 ) : error ? (
                     <InventoryError
-                        message={getApiErrorMessage(
-                            error,
-                            "Unable to load items.",
-                        )}
+            message={getApiErrorMessage(error, "Unable to load items.")}
                         retry={refetch}
                     />
                 ) : items.length === 0 ? (
@@ -1321,9 +1197,7 @@ export function InventoryProductList() {
                                     <th className="px-5 py-3">Price</th>
                                     <th className="px-5 py-3">Unit</th>
                                     <th className="px-5 py-3">Status</th>
-                                    <th className="px-5 py-3 text-right">
-                                        Actions
-                                    </th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -1355,15 +1229,15 @@ export function InventoryProductList() {
                                                             <ChevronDown
                                                                 className={cn(
                                                                     "size-4 transition-transform duration-200",
-                                                                    isExpanded ? "rotate-180 text-primary" : "rotate-0",
+                                  isExpanded
+                                    ? "rotate-180 text-primary"
+                                    : "rotate-0",
                                                                 )}
                                                             />
                                                         </button>
                                                     </div>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {item.sku ||
-                                                            item.barcode ||
-                                                            "No SKU or barcode"}
+                            {item.sku || item.barcode || "No SKU or barcode"}
                                                     </p>
                                                 </div>
                                             </td>
@@ -1371,14 +1245,11 @@ export function InventoryProductList() {
                                                 {item.itemGroup?.name || "—"}
                                             </td>
                                             <td className="px-5 py-4 text-muted-foreground">
-                                                {item.itemType
-                                                    ? titleCase(item.itemType)
-                                                    : "—"}
+                        {item.itemType ? titleCase(item.itemType) : "—"}
                                             </td>
                                             <td
                                                 className={
-                                                    item.price === undefined ||
-                                                    item.price === null
+                          item.price === undefined || item.price === null
                                                         ? "px-5 py-4 text-muted-foreground"
                                                         : "px-5 py-4 font-semibold"
                                                 }
@@ -1404,11 +1275,7 @@ export function InventoryProductList() {
                                                         variant="outline"
                                                         size="icon-sm"
                                                         aria-label={`Preview ${item.name || "item"} in the store`}
-                                                        onClick={() =>
-                                                            setPreviewItem(
-                                                                toPreviewItem(item),
-                                                            )
-                                                        }
+                            onClick={() => setPreviewItem(toPreviewItem(item))}
                                                     >
                                                         <Eye />
                                                     </Button>
@@ -1450,7 +1317,10 @@ export function InventoryProductList() {
 
                                     const treeRow = (
                                         <tr key={`${item.id}-addons-tree`} className="bg-muted/20">
-                                            <td colSpan={7} className="border-b border-border px-5 py-4">
+                      <td
+                        colSpan={7}
+                        className="border-b border-border px-5 py-4"
+                      >
                                                 <ItemOptionsTree item={item} />
                                                 <ItemAddOnsTreeRow item={item} />
                                             </td>
@@ -1469,73 +1339,16 @@ export function InventoryProductList() {
                         aria-label="Item pages"
                         className="flex flex-col gap-3 border-t border-border px-5 py-4 md:flex-row md:items-center md:justify-between"
                     >
-                        <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
-                            <Label
-                                htmlFor="item-page-size"
-                                className="shrink-0 text-[11px] font-medium text-muted-foreground"
-                            >
-                                Items per page
-                            </Label>
-                            <Select
-                                value={String(productPageSize)}
-                                onValueChange={(value) =>
-                                    dispatch(
-                                        setProductPageSize(
-                                            Number(value),
-                                        ),
-                                    )
-                                }
-                            >
-                                <SelectTrigger
-                                    id="item-page-size"
-                                    aria-label="Items per page"
-                                    className="!h-7 px-2 text-[11px] font-medium rounded-lg border border-border bg-card text-foreground min-w-[58px] justify-between items-center"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="min-w-[58px] w-[58px] p-1 text-[11px]">
-                                    <SelectItem value="10" className="text-[11px] py-1 px-1.5">10</SelectItem>
-                                    <SelectItem value="20" className="text-[11px] py-1 px-1.5">20</SelectItem>
-                                    <SelectItem value="50" className="text-[11px] py-1 px-1.5">50</SelectItem>
-                                    <SelectItem value="100" className="text-[11px] py-1 px-1.5">100</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <span className="text-[11px] font-medium text-muted-foreground">
-                                Showing {firstResult}–{lastResult} of {totalElements}
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={currentPage <= 0 || isFetching}
-                                onClick={() =>
-                                    dispatch(setProductPage(currentPage - 1))
-                                }
-                            >
-                                <ChevronLeft className="size-4" />
-                                Previous
-                            </Button>
-                            <span className="px-2 text-xs font-medium text-muted-foreground">
-                                Page {currentPage + 1} of {totalPages || 1}
-                            </span>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                    currentPage + 1 >= totalPages || isFetching
-                                }
-                                onClick={() =>
-                                    dispatch(setProductPage(currentPage + 1))
-                                }
-                            >
-                                Next
-                                <ChevronRight className="size-4" />
-                            </Button>
-                        </div>
+            <PaginationBar
+              page={currentPage}
+              size={productPageSize}
+              totalElements={totalElements}
+              totalPages={totalPages}
+              onPageChange={(next) => dispatch(setProductPage(next))}
+              onSizeChange={(next) => dispatch(setProductPageSize(next))}
+              isLoading={isFetching}
+              itemLabel="item"
+            />
                     </nav>
                 ) : null}
             </section>
@@ -1549,16 +1362,15 @@ export function InventoryProductList() {
                 }}
                 item={previewItem}
             />
-            <BarcodeScannerOverlay
-                open={scannerOpen}
-                onOpenChange={setScannerOpen}
-            />
+      <BarcodeScannerOverlay open={scannerOpen} onOpenChange={setScannerOpen} />
             <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
                 }}
-                title={deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete item?"}
+        title={
+          deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete item?"
+        }
                 description={
                     deleteTarget?.name ? (
                         <>

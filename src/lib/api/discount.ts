@@ -1,3 +1,5 @@
+import type { PageResult } from "./pagination";
+
 export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 export type DiscountRuleType = "NO_CONDITION" | "MIN_ORDER_AMOUNT" | "MIN_QUANTITY" | "BUY_X_GET_Y";
 export type DiscountScope = "ALL_ITEMS" | "SPECIFIC_ITEMS" | "SPECIFIC_CATEGORIES" | "SPECIFIC_MEMBERSHIP" | "ORDER" | "ITEM" | "CATEGORY";
@@ -42,6 +44,8 @@ export type DiscountResponse = {
     targets?: DiscountTargetResponse[];
     status: RecordStatus;
 };
+
+export type DiscountPage = PageResult<DiscountResponse>;
 
 export type CreateDiscountInput = {
     name: string;
