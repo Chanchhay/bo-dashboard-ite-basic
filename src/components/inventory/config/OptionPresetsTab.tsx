@@ -17,6 +17,7 @@ import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -131,8 +132,14 @@ export function OptionPresetsTab() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [deleteTarget, setDeleteTarget] = useState<OptionPreset | null>(null);
+    const [formOpen, setFormOpen] = useState(false);
 
     const isEditing = Boolean(editingId);
+
+    function openAddForm() {
+        resetForm();
+        setFormOpen(true);
+    }
 
     function updateDraft(patch: Partial<PresetDraft>) {
         setDraft((current) => ({ ...current, ...patch }));
@@ -191,6 +198,7 @@ export function OptionPresetsTab() {
         setDraft(toDraft(preset));
         setEditingId(preset.id);
         setErrors({});
+        setFormOpen(true);
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -258,6 +266,7 @@ export function OptionPresetsTab() {
                 description: `${saved.name || name} was saved.`,
             });
             resetForm();
+            setFormOpen(false);
         } catch (error) {
             toast({
                 tone: "error",
@@ -317,16 +326,27 @@ export function OptionPresetsTab() {
                 never silently change hundreds of items.
             </p>
 
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <div data-tour="presets-list-container">
-                    <ConfigSection
-                        title="Option presets"
-                        description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
-                    >
+            <div data-tour="presets-list-container">
+                <ConfigSection
+                    title="Option presets"
+                    description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
+                    action={
+                        <Button type="button" onClick={openAddForm}>
+                            <Plus className="size-4" />
+                            Add preset
+                        </Button>
+                    }
+                >
                     {presets.length === 0 ? (
                         <ConfigEmpty
                             title="No presets yet"
                             description="Save a list of choices to reuse it across items."
+                            action={
+                                <Button type="button" onClick={openAddForm}>
+                                    <Plus className="size-4" />
+                                    Add preset
+                                </Button>
+                            }
                         />
                     ) : (
                         <div className="divide-y divide-border">
@@ -417,18 +437,27 @@ export function OptionPresetsTab() {
                         </div>
                     )}
                 </ConfigSection>
-                </div>
+            </div>
 
-                <form
-                    onSubmit={handleSubmit}
-                    noValidate
-                    className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
-                >
-                    <div className="flex items-start justify-between gap-4">
+            <Dialog
+                open={formOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        resetForm();
+                        setFormOpen(false);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto p-5 sm:p-7">
+                <form onSubmit={handleSubmit} noValidate>
+                    <DialogHeader className="flex-row items-start gap-4 space-y-0 pr-8 text-left">
+                        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                            <ListChecks className="size-5" />
+                        </span>
                         <div>
-                            <h2 className="text-lg font-semibold text-foreground">
+                            <DialogTitle className="text-lg font-semibold text-foreground">
                                 {isEditing ? "Edit preset" : "Add a preset"}
-                            </h2>
+                            </DialogTitle>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 A name and the choices under it.
                             </p>
@@ -444,177 +473,198 @@ export function OptionPresetsTab() {
                                 <X />
                             </Button>
                         ) : null}
-                    </div>
+                    </DialogHeader>
 
-                    <div className="mt-5 flex flex-col gap-4">
-                        <div data-tour="preset-form-name" className="flex flex-col gap-2">
-                            <Label htmlFor="preset-name">Name *</Label>
-                            <Input
-                                id="preset-name"
-                                value={draft.name}
-                                onChange={(event) =>
-                                    updateDraft({ name: event.target.value })
-                                }
-                                placeholder="Size"
-                                aria-invalid={Boolean(errors.name)}
-                                className={inventoryControlClassName}
-                            />
-                            {errors.name ? (
-                                <p className="text-xs text-danger" role="alert">
-                                    {errors.name}
-                                </p>
-                            ) : null}
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="preset-type">Shown as *</Label>
-                            <Select
-                                value={draft.type}
-                                onValueChange={(value) =>
-                                    updateDraft({
-                                        type: (value ||
-                                            "SELECTION") as OptionPreset["type"],
-                                    })
-                                }
-                                items={typeLabels}
+                    <div className="mt-6 grid gap-5 md:grid-cols-2">
+                            <div
+                                data-tour="preset-form-name"
+                                className="flex min-w-0 flex-col gap-2"
                             >
-                                <SelectTrigger
-                                    id="preset-type"
-                                    className={`${inventoryControlClassName} w-full`}
+                                <Label
+                                    htmlFor="preset-name"
+                                    className="text-sm font-semibold text-foreground"
                                 >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {(
-                                        Object.keys(
-                                            typeLabels,
-                                        ) as OptionPreset["type"][]
-                                    ).map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                            {typeLabels[type]}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <Label>Choices *</Label>
-
-                            <div className="flex flex-col gap-3">
-                                {draft.values.map((row, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex flex-col gap-3 rounded-xl border border-border px-3 py-3"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                value={row.value}
-                                                onChange={(event) =>
-                                                    updateValue(index, {
-                                                        value: event.target.value,
-                                                    })
-                                                }
-                                                placeholder={
-                                                    draft.type === "COLOR"
-                                                        ? "Red"
-                                                        : "Medium"
-                                                }
-                                                aria-label={`Choice ${index + 1}`}
-                                                className={inventoryControlClassName}
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon-lg"
-                                                aria-label={`Remove choice ${index + 1}`}
-                                                onClick={() => removeValue(index)}
-                                                disabled={draft.values.length <= 1}
-                                            >
-                                                <Trash2 className="size-4" />
-                                            </Button>
-                                        </div>
-
-                                        {draft.type === "COLOR" ? (
-                                            <ColorSwatchButton
-                                                value={row.colorHex}
-                                                colorName={row.value}
-                                                label={`Choice ${index + 1} colour`}
-                                                onChange={(patch) =>
-                                                    updateValue(index, {
-                                                        ...(patch.colorHex === undefined
-                                                            ? {}
-                                                            : { colorHex: patch.colorHex }),
-                                                        // A preset value *is* the
-                                                        // colour's name, so naming
-                                                        // it here names the choice.
-                                                        ...(patch.colorName === undefined
-                                                            ? {}
-                                                            : { value: patch.colorName }),
-                                                    })
-                                                }
-                                            />
-                                        ) : null}
-
-                                        <ChoiceImageField
-                                            value={row.imageUrl}
-                                            label={`Choice ${index + 1} photo`}
-                                            onChange={(url) =>
-                                                updateValue(index, {
-                                                    imageUrl: url,
-                                                })
-                                            }
-                                        />
-                                    </div>
-                                ))}
+                                    Name *
+                                </Label>
+                                <Input
+                                    id="preset-name"
+                                    value={draft.name}
+                                    onChange={(event) =>
+                                        updateDraft({ name: event.target.value })
+                                    }
+                                    placeholder="Size"
+                                    aria-invalid={Boolean(errors.name)}
+                                    className={inventoryControlClassName}
+                                />
+                                {errors.name ? (
+                                    <p className="text-xs text-danger" role="alert">
+                                        {errors.name}
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                        What the choice list is called — Size,
+                                        Colour, Sugar level.
+                                    </p>
+                                )}
                             </div>
 
+                            <div className="flex min-w-0 flex-col gap-2">
+                                <Label
+                                    htmlFor="preset-type"
+                                    className="text-sm font-semibold text-foreground"
+                                >
+                                    Shown as *
+                                </Label>
+                                <Select
+                                    value={draft.type}
+                                    onValueChange={(value) =>
+                                        updateDraft({
+                                            type: (value ||
+                                                "SELECTION") as OptionPreset["type"],
+                                        })
+                                    }
+                                    items={typeLabels}
+                                >
+                                    <SelectTrigger
+                                        id="preset-type"
+                                        className={`${inventoryControlClassName} w-full`}
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(
+                                            Object.keys(
+                                                typeLabels,
+                                            ) as OptionPreset["type"][]
+                                        ).map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                {typeLabels[type]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-dashed border-border p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 className="text-sm font-semibold text-foreground">
+                                    Choices *
+                                </h3>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {draft.type === "COLOR"
+                                        ? "Pick a colour for each — the photo is what the store shows once a shopper picks it."
+                                        : "At least two. The photo is what the store shows once a shopper picks it."}
+                                </p>
+                            </div>
                             <Button
                                 type="button"
                                 variant="outline"
+                                size="sm"
                                 onClick={addValue}
-                                className="self-start"
                             >
                                 <Plus className="size-4" />
                                 Add choice
                             </Button>
+                        </div>
 
-                            <p
-                                className={
-                                    errors.values
-                                        ? "text-xs text-danger"
-                                        : "text-xs text-muted-foreground"
-                                }
-                                role={errors.values ? "alert" : undefined}
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {draft.values.map((row, index) => (
+                                <div
+                                    key={index}
+                                    className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-2.5"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            value={row.value}
+                                            onChange={(event) =>
+                                                updateValue(index, {
+                                                    value: event.target.value,
+                                                })
+                                            }
+                                            placeholder={
+                                                draft.type === "COLOR"
+                                                    ? "Red"
+                                                    : "Medium"
+                                            }
+                                            aria-label={`Choice ${index + 1}`}
+                                            className={inventoryControlClassName}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-lg"
+                                            aria-label={`Remove choice ${index + 1}`}
+                                            onClick={() => removeValue(index)}
+                                            disabled={draft.values.length <= 1}
+                                        >
+                                            <Trash2 className="size-4" />
+                                        </Button>
+                                    </div>
+
+                                    {draft.type === "COLOR" ? (
+                                        <ColorSwatchButton
+                                            value={row.colorHex}
+                                            colorName={row.value}
+                                            label={`Choice ${index + 1} colour`}
+                                            onChange={(patch) =>
+                                                updateValue(index, {
+                                                    ...(patch.colorHex === undefined
+                                                        ? {}
+                                                        : { colorHex: patch.colorHex }),
+                                                    // A preset value *is* the
+                                                    // colour's name, so naming
+                                                    // it here names the choice.
+                                                    ...(patch.colorName === undefined
+                                                        ? {}
+                                                        : { value: patch.colorName }),
+                                                })
+                                            }
+                                        />
+                                    ) : null}
+
+                                    <ChoiceImageField
+                                        compact
+                                        value={row.imageUrl}
+                                        label={`Choice ${index + 1} photo`}
+                                        onChange={(url) =>
+                                            updateValue(index, {
+                                                imageUrl: url,
+                                            })
+                                        }
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        {errors.values ? (
+                            <p className="mt-3 text-xs text-danger" role="alert">
+                                {errors.values}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    <div className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-dashed border-border p-4">
+                        <div className="min-w-0">
+                            <Label
+                                htmlFor="preset-required"
+                                className="text-sm font-semibold text-foreground"
                             >
-                                {errors.values ||
-                                    (draft.type === "COLOR"
-                                        ? "Pick a colour for each choice. The photo is what the store shows once a shopper picks it."
-                                        : "At least two choices. The photo is what the store shows once a shopper picks it.")}
+                                Required
+                            </Label>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                A sale cannot proceed until the customer
+                                picks one.
                             </p>
                         </div>
-
-                        <div className="flex items-start justify-between gap-4 rounded-xl border border-border px-4 py-3">
-                            <div className="min-w-0">
-                                <Label
-                                    htmlFor="preset-required"
-                                    className="text-sm font-semibold text-foreground"
-                                >
-                                    Required
-                                </Label>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    A sale cannot proceed until the customer
-                                    picks one.
-                                </p>
-                            </div>
-                            <Switch
-                                id="preset-required"
-                                checked={draft.required}
-                                onCheckedChange={(checked) =>
-                                    updateDraft({ required: Boolean(checked) })
-                                }
-                            />
-                        </div>
+                        <Switch
+                            id="preset-required"
+                            checked={draft.required}
+                            onCheckedChange={(checked) =>
+                                updateDraft({ required: Boolean(checked) })
+                            }
+                        />
                     </div>
 
                     <Button
@@ -622,13 +672,14 @@ export function OptionPresetsTab() {
                         type="submit"
                         size="lg"
                         disabled={createState.isLoading || updateState.isLoading}
-                        className="mt-5 w-full"
+                        className="mt-6 w-full"
                     >
                         <Plus />
                         {isEditing ? "Save changes" : "Add preset"}
                     </Button>
                 </form>
-            </div>
+                </DialogContent>
+            </Dialog>
 
             <DestructiveConfirmDialog
                 open={Boolean(deleteTarget)}

@@ -44,7 +44,7 @@ export interface CustomerDisplayPayload {
   invoiceNumber?: string | null;
   qrCodeUrl?: string | null;
   customerName?: string | null;
-  paymentMethod?: "CASH" | "DIGITAL" | null;
+  paymentMethod?: "CASH" | "DIGITAL" | "PAY_LATER" | null;
   paidAmount?: number | null;
   changeAmount?: number | null;
   updatedAt: string;

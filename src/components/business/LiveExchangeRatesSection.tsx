@@ -6,8 +6,6 @@ import {
     RefreshCw,
     Search,
     Check,
-    Plus,
-    ArrowRight,
     ArrowLeftRight,
     TrendingUp,
 } from "lucide-react";
@@ -20,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import {
     useGetLiveExchangeRatesQuery,
-    useLazyGetLiveExchangeRatesQuery,
 } from "@/services/frankfurterApi";
 import {
     getCurrencyNameAndCountry,
@@ -65,25 +62,19 @@ const COMMON_WORLD_CURRENCIES = [
 export default function LiveExchangeRatesSection({
     baseCurrency,
     configuredCurrencies,
-    onApplyLiveRate,
-    onSyncAllLiveRates,
-    onAddAndConfigureCurrency,
 }: LiveExchangeRatesSectionProps) {
-    const { toast } = useToast();
     const [selectedLiveBase, setSelectedLiveBase] = useState(baseCurrency || "USD");
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Live converter state
     const [calcAmount, setCalcAmount] = useState<number>(1);
     const [calcFrom, setCalcFrom] = useState<string>(baseCurrency || "USD");
     const [calcTo, setCalcTo] = useState<string>(
         configuredCurrencies.find((c) => c.code !== (baseCurrency || "USD"))?.code || "KHR"
     );
 
-    // Fetch live rates via RTK Query with auto real-time polling (every 30 seconds)
     const { data: liveData, isLoading, isFetching, error, refetch } =
         useGetLiveExchangeRatesQuery(selectedLiveBase, {
-            pollingInterval: 30000, // Automatically fetch fresh live market rates every 30 seconds
+            pollingInterval: 30000, 
         });
 
     const rates = liveData?.rates || {};
@@ -91,15 +82,12 @@ export default function LiveExchangeRatesSection({
 
     const configuredCodes = new Set(configuredCurrencies.map((c) => c.code));
 
-    // Swap currency direction
     const handleSwapCurrencies = () => {
         setCalcFrom(calcTo);
         setCalcTo(calcFrom);
     };
 
-    // Filter available rate codes
     const availableCodes = Object.keys(rates).sort((a, b) => {
-        // Prioritize configured currencies and common currencies
         const aConf = configuredCodes.has(a);
         const bConf = configuredCodes.has(b);
         if (aConf && !bConf) return -1;
@@ -119,7 +107,6 @@ export default function LiveExchangeRatesSection({
         );
     });
 
-    // Convert calculation using rates
     function calculateConversion() {
         if (!calcAmount || isNaN(calcAmount) || calcAmount <= 0) return 0;
         if (calcFrom === calcTo) return calcAmount;
@@ -131,12 +118,10 @@ export default function LiveExchangeRatesSection({
             return calcAmount * toRate;
         }
 
-        // Cross rate calculation: (amount / fromRate) * toRate
         const amountInBase = calcAmount / fromRate;
         return amountInBase * toRate;
     }
 
-    // Unit rate calculation (1 calcFrom = ? calcTo)
     const unitRate = calcFrom === calcTo ? 1 : ((rates[calcTo] || 1) / (rates[calcFrom] || 1));
 
     return (
@@ -180,7 +165,6 @@ export default function LiveExchangeRatesSection({
                 </div>
             </div>
 
-            {/* Enlarged Interactive Live Currency Converter Preview */}
             <div className="mt-6 rounded-2xl border border-border p-5 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                     <div>
@@ -197,7 +181,6 @@ export default function LiveExchangeRatesSection({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-[1.2fr_1fr_auto_1fr_1.3fr] items-end">
-                    {/* Amount Input */}
                     <div>
                         <Label htmlFor="convert-amount" className="mb-1.5 block text-xs font-medium text-muted-foreground">
                             Amount
@@ -213,7 +196,6 @@ export default function LiveExchangeRatesSection({
                         />
                     </div>
 
-                    {/* From Currency Selector */}
                     <div>
                         <Label htmlFor="convert-from" className="mb-1.5 block text-xs font-medium text-muted-foreground">
                             From
@@ -226,7 +208,6 @@ export default function LiveExchangeRatesSection({
                         />
                     </div>
 
-                    {/* Interactive Swap / Switch Exchange Button */}
                     <div className="flex justify-center items-center py-1">
                         <Button
                             type="button"
@@ -241,7 +222,6 @@ export default function LiveExchangeRatesSection({
                         </Button>
                     </div>
 
-                    {/* To Currency Selector */}
                     <div>
                         <Label htmlFor="convert-to" className="mb-1.5 block text-xs font-medium text-muted-foreground">
                             To
@@ -254,7 +234,6 @@ export default function LiveExchangeRatesSection({
                         />
                     </div>
 
-                    {/* Converted Output Display Box */}
                     <div className="min-w-0">
                         <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                             Converted Amount
@@ -270,7 +249,6 @@ export default function LiveExchangeRatesSection({
                     </div>
                 </div>
 
-                {/* Conversion Rate Formula & Details */}
                 <div className="mt-4 pt-3 border-t border-border/50 flex flex-wrap items-center justify-between text-xs text-muted-foreground gap-2">
                     <div className="flex items-center gap-2">
                         <CurrencyFlag code={calcFrom} size="xs" />
@@ -286,7 +264,6 @@ export default function LiveExchangeRatesSection({
                 </div>
             </div>
 
-            {/* Filter & Live Rates Table */}
             <div className="mt-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative flex-1 max-w-sm">
@@ -311,7 +288,6 @@ export default function LiveExchangeRatesSection({
                     </div>
                 </div>
 
-                {/* Table list */}
                 <div className="mt-4 overflow-hidden rounded-xl border border-border bg-popover/50">
                     <div className="max-h-[380px] overflow-y-auto">
                         {isLoading || isFetching ? (

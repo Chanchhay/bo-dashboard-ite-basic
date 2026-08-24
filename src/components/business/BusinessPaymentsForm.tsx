@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
+import { FormSkeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
     bakongSettingsSchema,
@@ -36,13 +37,6 @@ const BLANK: Fields = {
     storeLabel: "",
 };
 
-/**
- * Where a merchant connects their Bakong account so the till can take KHQR.
- *
- * The API token is write-only: the backend only ever reports whether one
- * exists. Nothing here renders a masked stand-in, because a row of dots that
- * isn't the real secret invites someone to "confirm" a token they cannot see.
- */
 export function BusinessPaymentsForm() {
     const { toast } = useToast();
     const { data, isLoading } = useGetBakongSettingsQuery();
@@ -89,11 +83,7 @@ export function BusinessPaymentsForm() {
     }
 
     if (isLoading) {
-        return (
-            <p className="p-6 text-sm text-muted-foreground">
-                Loading payment settings…
-            </p>
-        );
+        return <FormSkeleton rows={4} />;
     }
 
     return (
@@ -120,9 +110,6 @@ export function BusinessPaymentsForm() {
                 </div>
 
                 {data?.configured && !hasToken && (
-                    /* Generating a code and confirming payment are different
-                       credentials. Without the token a QR can appear and never
-                       settle, which looks like the customer's fault. */
                     <p className="mt-4 flex items-start gap-2 rounded-xl bg-warning/15 px-3 py-2 text-sm text-warning">
                         <KeyRound
                             className="mt-0.5 size-4 shrink-0"
@@ -152,13 +139,6 @@ export function BusinessPaymentsForm() {
     );
 }
 
-/**
- * The editable half.
- *
- * Split out and keyed on the saved record so its initial state comes from
- * props: React resets it by remounting when the settings change, which is
- * cheaper and less error-prone than mirroring server data with an effect.
- */
 function AccountForm({
     settings,
     hasToken,
@@ -202,8 +182,6 @@ function AccountForm({
 
         const candidate = {
             ...(fields as unknown as BakongSettingsInput),
-            // Left out entirely unless the merchant typed a new one, so saving
-            // the form never silently clears a working token.
             apiToken: apiToken.trim() || undefined,
         };
 
@@ -406,10 +384,6 @@ function PreviewCard({ khqr }: { khqr: Khqr }) {
                         this is only to confirm the details are accepted.
                     </p>
                     {khqr.qrImage ? (
-                        /* A data URI from the backend, not an external fetch.
-                           Kept on a white plate in both themes — a QR with a
-                           transparent background is unscannable on the dark
-                           card, and scanners expect a light quiet zone. */
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={khqr.qrImage}

@@ -12,12 +12,6 @@ function isPosRoute(pathname: string | null) {
   )
 }
 
-/**
- * POS is a light-only app, and this is the only place that can hold it there.
- * next-themes renders a nested provider as a passthrough, so POS's own
- * provider never ran; forcing the theme here also covers dialogs and menus,
- * which portal to `<body>` and escape any wrapper POS puts around its tree.
- */
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const pathname = usePathname()
 

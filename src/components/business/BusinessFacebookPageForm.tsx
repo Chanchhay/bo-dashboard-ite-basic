@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { LoaderCircle, CheckCircle2, AlertCircle, Link2, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { FormSkeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
@@ -25,7 +26,6 @@ export function BusinessFacebookPageForm() {
     const isConnected = data?.connected;
     const pageName = data?.pageName;
 
-    // ត្រួតពិនិត្យពេល Facebook OAuth Redirect ត្រឡប់មកវិញជាមួយ Result Query
     useEffect(() => {
         const result = searchParams.get("facebook");
         if (result === "facebook_connected") {
@@ -80,12 +80,7 @@ export function BusinessFacebookPageForm() {
     }
 
     if (isLoading) {
-        return (
-            <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
-                Loading Facebook settings…
-            </div>
-        );
+        return <FormSkeleton rows={2} />;
     }
 
     return (

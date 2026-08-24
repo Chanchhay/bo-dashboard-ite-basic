@@ -11,14 +11,7 @@ import { filterOrders } from "@/lib/api/pos-order-backend";
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
-/**
- * One page of orders for Sale Management: any status, filtered and sorted
- * newest first.
- *
- * The backend pages the filter query, so only the rows on screen are read.
- * Range-wide figures come from `/orders/summary`, which is cached on the
- * filters alone and so survives paging without being recounted.
- */
+
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
@@ -38,9 +31,7 @@ export async function GET(request: Request) {
         );
 
         return Response.json({
-            // Empty carts are dropped from the rows but left in the count:
-            // the backend paged and totalled before they could be excluded,
-            // and a page short of a row is better than a total that drifts.
+          
             content: result.content.filter(isRealOrder),
             page: result.page,
         } satisfies PosOrderPage);
