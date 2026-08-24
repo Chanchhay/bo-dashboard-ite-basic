@@ -11,6 +11,7 @@ import {
     ExternalLink,
     Clock,
     Package,
+    PackageCheck,
     User,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { useToast } from "@/components/ui/toast";
 
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
@@ -25,6 +27,7 @@ import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
 import { itemThumbnail } from "@/lib/api/inventory";
 import {
+    useConfirmOrderMutation,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
@@ -43,6 +46,7 @@ import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 const STATUS_FILTERS = [
     "ALL",
     "PENDING",
+    "CONFIRMED",
     "PAID",
     "CANCELLED",
     "FAILED",
@@ -63,6 +67,7 @@ type DateFilter = (typeof DATE_FILTERS)[number];
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
+    CONFIRMED: "bg-primary/10 text-primary",
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
@@ -90,6 +95,30 @@ function rangeStart(filter: DateFilter): string | undefined {
 
 export default function SalesOrdersDraftPage() {
     const { format } = useMoney();
+    const { toast } = useToast();
+    const [confirmOrder] = useConfirmOrderMutation();
+    const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
+
+    async function handleConfirmOrder(order: PosOrder) {
+        setConfirmingOrderId(order.id);
+        try {
+            await confirmOrder(order.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Order confirmed",
+                description: `${order.invoiceNumber ?? "This order"}'s stock has been taken off the shelf.`,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not confirm the order",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        } finally {
+            setConfirmingOrderId(null);
+        }
+    }
+
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
@@ -99,10 +128,6 @@ export default function SalesOrdersDraftPage() {
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-
-    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null,
-    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -160,6 +185,17 @@ export default function SalesOrdersDraftPage() {
     const orders = useMemo(() => data?.content ?? [], [data]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
+
+    // Only a PAID order has a receipt — the backend rejects anything else
+    // with a 409, so an order still awaiting payment renders straight from
+    // the row data it already has instead of asking for one.
+    const selectedOrder = useMemo(
+        () => orders.find((order) => order.id === selectedOrderId) ?? null,
+        [orders, selectedOrderId],
+    );
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: selectedOrderId === null || selectedOrder?.status !== "PAID",
+    });
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
@@ -305,6 +341,8 @@ export default function SalesOrdersDraftPage() {
                                         onClick={() => setSelectedOrderId(order.id)}
                                         itemThumbnailById={itemThumbnailById}
                                         customerNameById={customerNameById}
+                                        onConfirm={() => void handleConfirmOrder(order)}
+                                        isConfirming={confirmingOrderId === order.id}
                                     />
                                 ))}
                             </div>
@@ -341,13 +379,31 @@ export default function SalesOrdersDraftPage() {
                 <DialogContent className="max-w-[480px] p-6 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="pb-3 border-b">
                         <DialogTitle className="text-lg font-bold text-foreground">
-                            {receiptQuery.data?.order.status === "PENDING"
+                            {selectedOrder && selectedOrder.status !== "PAID"
                                 ? "Order Ticket (Unpaid)"
                                 : "Receipt Details"}
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading ? (
+                    {selectedOrder && selectedOrder.status !== "PAID" ? (
+                        // Nothing has settled yet, so there is no receipt to
+                        // fetch — the order itself, already on this page, is
+                        // the whole of what there is to show.
+                        businessQuery.data ? (
+                            <div className="py-2">
+                                <ReceiptTicket
+                                    business={businessQuery.data}
+                                    order={selectedOrder}
+                                    receipt={null}
+                                    currencies={currenciesQuery.data}
+                                />
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
+                                Loading details...
+                            </div>
+                        )
+                    ) : receiptQuery.isLoading ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
@@ -497,11 +553,15 @@ function OrderCard({
     onClick,
     itemThumbnailById,
     customerNameById,
+    onConfirm,
+    isConfirming,
 }: {
     order: PosOrder;
     onClick: () => void;
     itemThumbnailById: Map<string, string | undefined>;
     customerNameById: Map<string, string>;
+    onConfirm: () => void;
+    isConfirming: boolean;
 }) {
     const { format } = useMoney();
 
@@ -521,6 +581,7 @@ function OrderCard({
     // among cards that already settled, so it also gets a tinted card.
     const isAwaitingPayment =
         order.status === "PENDING" ||
+        order.status === "CONFIRMED" ||
         (order.status === "PAID" && order.paymentMethod === "PAY_LATER");
 
     return (
@@ -549,8 +610,12 @@ function OrderCard({
                 </div>
 
                 <div className="flex items-center gap-2">
-                   
-                    {isAwaitingPayment ? (
+                    {order.status === "CONFIRMED" ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                            <PackageCheck className="size-3" aria-hidden="true" />
+                            Confirmed
+                        </span>
+                    ) : isAwaitingPayment ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-semibold text-warning">
                             <Clock className="size-3" aria-hidden="true" />
                             Pending
@@ -569,6 +634,25 @@ function OrderCard({
             </div>
 
             <LineItemListPanel order={order} itemThumbnailById={itemThumbnailById} />
+
+            {order.status === "PENDING" && (
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            // The card underneath opens the receipt dialog —
+                            // this is a different action entirely.
+                            event.stopPropagation();
+                            onConfirm();
+                        }}
+                        disabled={isConfirming}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                    >
+                        <PackageCheck className="size-3.5" aria-hidden="true" />
+                        {isConfirming ? "Confirming…" : "Confirm order"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

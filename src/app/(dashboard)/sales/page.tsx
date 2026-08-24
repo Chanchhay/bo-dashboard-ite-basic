@@ -112,6 +112,7 @@ const SALES_COLUMNS: SalesColumnConfig[] = [
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
+    CONFIRMED: "bg-primary/10 text-primary",
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
