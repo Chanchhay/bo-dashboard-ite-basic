@@ -1,10 +1,11 @@
 "use client";
 
-import { Printer } from "lucide-react";
+import { Clock, Printer } from "lucide-react";
 
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
 import { printReceipt } from "@/lib/print-receipt";
+import { useMoney } from "@/hooks/useMoney";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 import { useGetReceiptQuery } from "@/services/posOrderApi";
@@ -20,9 +21,11 @@ export function PaidReceiptView({
   sale,
   onNewOrder,
 }: PaidReceiptViewProps) {
+  const { format } = useMoney();
   const businessQuery = useGetBusinessProfileQuery();
   const currenciesQuery = useGetBusinessCurrenciesQuery();
   const receiptQuery = useGetReceiptQuery(sale.orderId);
+  const isPayLater = sale.paymentMethod === "PAY_LATER";
 
   if (businessQuery.isLoading) {
     return (
@@ -43,6 +46,15 @@ export function PaidReceiptView({
 
   return (
     <div className="flex min-h-full flex-col items-center overflow-y-auto bg-[#f5f5f5] px-4 py-6 print:bg-white print:p-0 sm:py-8">
+      {isPayLater && (
+        <div className="mb-4 flex w-full max-w-[559px] items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 print:hidden">
+          <Clock className="size-5 shrink-0" aria-hidden="true" />
+          <p className="text-sm font-semibold">
+            Sale closed as Pay later — {format(sale.totalAmount, sale.currency)}{" "}
+            still owed. Settle it from Sales → Pay Later.
+          </p>
+        </div>
+      )}
       <ReceiptTicket
         business={businessQuery.data}
         order={receiptQuery.data?.order ?? order}

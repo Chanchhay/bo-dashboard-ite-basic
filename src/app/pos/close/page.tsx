@@ -10,14 +10,6 @@ import type { RegisterSession } from "@/lib/api/pos-session";
 import { useMoney } from "@/hooks/useMoney";
 import { POS_ROUTES } from "@/lib/pos-routes";
 
-/**
- * End of shift. Lives inside the POS shell rather than the dashboard so a
- * cashier closing up never lands in the back office.
- *
- * Two states: count the drawer, then see how it reconciled. The reconciliation
- * is the point of closing, so it gets its own screen rather than flashing past
- * on the way to a redirect.
- */
 export default function PosCloseRegisterPage() {
   const router = useRouter();
   const { toast } = useToast();

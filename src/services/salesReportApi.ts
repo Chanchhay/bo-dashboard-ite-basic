@@ -1,5 +1,9 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
+    CollectPayLaterInput,
+    PayLaterSale,
+} from "@/lib/api/pay-later";
+import type {
     DailyChannelRevenue,
     ItemProfitReport,
     PeriodProfitReport,
@@ -90,11 +94,32 @@ export const salesReportApi = baseApi.injectEndpoints({
             }),
             providesTags: ["SalesProfit"],
         }),
+
+        /** Every sale rung up as "Pay later" that hasn't been collected yet. */
+        getPayLaterSales: builder.query<PayLaterSale[], void>({
+            query: () => "/sales/pay-later",
+            providesTags: ["PayLaterSales"],
+        }),
+
+        /** Settles a pay-later sale once the money actually comes in. */
+        collectPayLaterPayment: builder.mutation<
+            PayLaterSale,
+            { saleId: string; body: CollectPayLaterInput }
+        >({
+            query: ({ saleId, body }) => ({
+                url: `/sales/pay-later/${saleId}/collect`,
+                method: "PATCH",
+                body,
+            }),
+            invalidatesTags: ["PayLaterSales", "SalesProfit"],
+        }),
     }),
 });
 
 export const {
     useGetSalesProfitQuery,
+    useGetPayLaterSalesQuery,
+    useCollectPayLaterPaymentMutation,
     useGetPeriodProfitQuery,
     useGetItemProfitQuery,
     useGetDailyRevenueByChannelQuery,

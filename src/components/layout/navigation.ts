@@ -22,22 +22,18 @@ import { POS_ROUTES } from "@/lib/pos-routes";
 
 type NavItemBase = {
   label: string;
-  /**
-   * The Keycloak permission this entry needs, or several of which any one
-   * suffices. Omit to make the page available to everyone who can see the
-   * section.
-   */
+ 
   permission?: PermissionRule;
 };
 
 export type NavLink = NavItemBase & {
   href: string;
   icon?: LucideIcon;
-  /** Match the pathname exactly instead of by prefix. */
+
   exact?: boolean;
-  /** Extra routes that should keep this entry highlighted. */
+ 
   alsoActiveOn?: RegExp[];
-  /** Optional count pill. Only ever set from real data. */
+
   badge?: number;
 };
 
@@ -47,11 +43,6 @@ export type NavGroup = NavItemBase & {
 
 export type NavLeaf = NavLink | NavGroup;
 
-/**
- * A separate app this section can hand off to, pinned to the foot of the
- * sidebar. Not a nav row: it leaves the dashboard shell entirely, so it reads
- * as launching something rather than moving between pages.
- */
 export type NavLaunch = {
   label: string;
   href: string;
@@ -63,35 +54,24 @@ export type NavSection = {
   id: string;
   label: string;
   icon: LucideIcon;
-  /** A section either links somewhere itself, or expands to children. */
+
   href?: string;
   exact?: boolean;
   children?: NavLeaf[];
-  /**
-   * Omit to make the section available to everyone. Otherwise list what its
-   * pages need: a section opens if the user can reach anything inside it.
-   */
+ 
   permission?: PermissionRule;
-  /** A separate app launched from this section's sidebar. */
+
   launch?: NavLaunch;
-  /** Launcher presentation. Sections without this never appear as an app. */
+
   app?: {
     label: string;
-    // hint: string;
-    /** Badge fill; `ink` is the icon drawn on it. */
+   
     fill: string;
     ink: string;
   };
 };
 
-/**
- * Gates name Keycloak permissions directly — the same names the access token
- * carries and the role editor lists. A few screens have no permission of their
- * own yet because the backend does not guard their endpoints (Facebook, add-ons
- * and option presets, and the sales configuration pages); those borrow the
- * nearest real permission, noted where it happens, and should be given their
- * own once the backend defines one.
- */
+
 export const NAVIGATION: NavSection[] = [
   {
     id: "business",
@@ -290,22 +270,17 @@ export const NAVIGATION: NavSection[] = [
     permission: ["order:read", "order:create", "item:read"],
     app: {
       label: "Sale Management",
-      // hint: "Orders & point of sale",
+    
       fill: "#e8e8e8",
       ink: "#00932a",
     },
     children: [
       {
         label: "Orders",
-        href: "/sales",
-        exact: true,
-        permission: "order:read",
+        href: "/sales/orders",
       },
       {
-        // Base prices, what each channel charges instead, and where
-        // each item sells — one screen, where it used to be three.
-        // Sits above Customers because it is the thing most owners
-        // open Sale Management to do.
+        
         label: "Item & Pricing",
         href: "/sales/pricing",
         permission: "item:read",
@@ -313,8 +288,7 @@ export const NAVIGATION: NavSection[] = [
       {
         label: "Customers",
         href: "/sales/customers",
-        // Customers, discounts, member types and taxes are sales
-        // configuration the backend does not guard separately yet.
+    
         permission: "order:read",
       },
       {
@@ -333,14 +307,12 @@ export const NAVIGATION: NavSection[] = [
         permission: "order:read",
       },
       {
-        // Who was on the till, and whether the drawer counted true.
-        // Beside the terminal that opens and closes those drawers
-        // rather than with the reports: it is read at the end of a
-        // shift, not for the trend.
+       
         label: "Register Sessions",
         href: "/sales/sessions",
         permission: "order:create",
       },
+             
     ],
     // The terminal is its own fullscreen app, so it gets a launch button
     // rather than a nav row that pretends to stay inside the dashboard.
@@ -373,7 +345,7 @@ export const LEAF_ICONS = {
   currency: Coins,
 };
 
-/** Sections the user may reach, with unreachable child pages stripped out. */
+
 export function visibleSections(permissions: GrantedPermissions) {
   return NAVIGATION.filter((section) => can(permissions, section.permission))
     .map((section) =>
@@ -466,11 +438,7 @@ export type PageTitle = {
   page?: string;
 };
 
-/**
- * Title for the top bar. The app name carries through every page of an app, so
- * the heading always answers "which app am I in" before "which page" — and it
- * matches the tile you clicked in the launcher.
- */
+
 export function getPageTitle(pathname: string): PageTitle {
   for (const section of NAVIGATION) {
     const app = section.app?.label ?? section.label;

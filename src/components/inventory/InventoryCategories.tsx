@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
     ChevronDown,
     FolderPlus,
     LoaderCircle,
     Pencil,
+    Search,
     Trash2,
     X,
 } from "lucide-react";
@@ -95,9 +96,40 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
     );
     const [formKey, setFormKey] = useState(0);
     const [fieldError, setFieldError] = useState<string | null>(null);
+    const [query, setQuery] = useState("");
     const groups = data || [];
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
+
+    // A category whose own name matches keeps every subcategory under it; one
+    // that matches only through a subcategory keeps just the subcategories
+    // that matched, so the parent still gives them somewhere to sit.
+    const filteredGroups = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return groups;
+
+        return groups.flatMap((group) => {
+            const groupMatches =
+                (group.name || "").toLowerCase().includes(q) ||
+                (group.note || "").toLowerCase().includes(q);
+            const matchingSubGroups = (group.subGroups || []).filter(
+                (subGroup) =>
+                    (subGroup.name || "").toLowerCase().includes(q) ||
+                    (subGroup.note || "").toLowerCase().includes(q),
+            );
+
+            if (!groupMatches && matchingSubGroups.length === 0) {
+                return [];
+            }
+
+            return [
+                {
+                    ...group,
+                    subGroups: groupMatches ? group.subGroups : matchingSubGroups,
+                },
+            ];
+        });
+    }, [groups, query]);
 
     function toggleGroup(groupId: string) {
         setCollapsedGroupIds((current) => {
@@ -254,6 +286,29 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                             {rows.length} configured{" "}
                             {rows.length === 1 ? "entry" : "entries"}
                         </p>
+
+                        {rows.length > 0 && (
+                            <div className="relative mt-3">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#7b857a] dark:text-[#94a3b8]" />
+                                <input
+                                    type="text"
+                                    value={query}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    placeholder="Search categories"
+                                    className={`${inventoryControlClassName} w-full pl-9`}
+                                />
+                                {query && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuery("")}
+                                        aria-label="Clear search"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7b857a] hover:text-[#161d16] dark:text-[#94a3b8] dark:hover:text-[#f8fafc]"
+                                    >
+                                        <X className="size-4" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {rows.length === 0 ? (
@@ -261,9 +316,14 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                             title="No categories yet"
                             description="Use the form to add the first item category."
                         />
+                    ) : filteredGroups.length === 0 ? (
+                        <InventoryEmpty
+                            title="No matches"
+                            description={`Nothing matches "${query}". Try a different search.`}
+                        />
                     ) : (
                         <div className="divide-y divide-[#edf0ec] dark:divide-[#242937]">
-                            {groups.map((group) => {
+                            {filteredGroups.map((group) => {
                                 const subGroups = group.subGroups || [];
                                 const isCollapsed = collapsedGroupIds.has(group.id);
                                 const hasSubGroups = subGroups.length > 0;
