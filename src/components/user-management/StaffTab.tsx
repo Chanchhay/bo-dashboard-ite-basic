@@ -59,7 +59,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 autoComplete="new-password"
                 className={`${fieldClassName} pr-11`}
                 aria-invalid={invalid}
-                placeholder="Enter password"
+                placeholder="At least 6 characters"
             />
             <Button
                 type="button"
@@ -287,7 +287,7 @@ export default function StaffTab() {
                                             id="username"
                                             name="username"
                                             autoComplete="off"
-                                            placeholder="john_doe"
+                                            placeholder="john"
                                             className={fieldClassName}
                                             aria-invalid={Boolean(
                                                 fieldErrors.username,
@@ -304,7 +304,7 @@ export default function StaffTab() {
                                             name="email"
                                             type="email"
                                             autoComplete="off"
-                                            placeholder="john.doe@example.com"
+                                            placeholder="john@company.com"
                                             className={fieldClassName}
                                             aria-invalid={Boolean(
                                                 fieldErrors.email,
@@ -333,7 +333,7 @@ export default function StaffTab() {
                                 <input
                                     id="firstName"
                                     name="firstName"
-                                    placeholder="John"
+                                    placeholder="Alex"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.firstName
@@ -353,7 +353,7 @@ export default function StaffTab() {
                                 <input
                                     id="lastName"
                                     name="lastName"
-                                    placeholder="Doe"
+                                    placeholder="john"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.lastName
@@ -372,7 +372,7 @@ export default function StaffTab() {
                                     id="phoneNumber"
                                     name="phoneNumber"
                                     inputMode="tel"
-                                    placeholder="+855 12 345 678"
+                                    placeholder="012 345 678"
                                     defaultValue={
                                         editor.mode === "edit"
                                             ? editor.staff.phoneNumber
@@ -436,24 +436,23 @@ export default function StaffTab() {
                             </FormField>
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
-                            <Button
-                                type="submit"
-                                disabled={saving}
-
-                            >
-                                {saving
-                                    ? "Saving…"
-                                    : editor.mode === "create"
-                                      ? "Create user"
-                                      : "Save changes"}
-                            </Button>
+                        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
                             <Button
                                 type="button"
                                 onClick={closeEditor}
                                 variant="outline"
                             >
                                 Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={saving}
+                            >
+                                {saving
+                                    ? "Saving…"
+                                    : editor.mode === "create"
+                                      ? "Create user"
+                                      : "Save changes"}
                             </Button>
                         </div>
                     </form>
@@ -465,18 +464,20 @@ export default function StaffTab() {
                     title="Users"
                     description="People who can sign in to this business."
                     action={
-                        <Button
-                            type="button"
-                            data-tour="add-user"
-                            onClick={() => {
-                                setEditor({ mode: "create" });
-                                setFieldErrors({});
-                            }}
-                            className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
-                        >
-                            <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
-                            <span>Add user</span>
-                        </Button>
+                        !editor ? (
+                            <Button
+                                type="button"
+                                data-tour="add-user"
+                                onClick={() => {
+                                    setEditor({ mode: "create" });
+                                    setFieldErrors({});
+                                }}
+                                className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
+                            >
+                                <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                                <span>Add user</span>
+                            </Button>
+                        ) : null
                     }
                 />
 

@@ -296,24 +296,23 @@ export default function RolesTab() {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
-                            <Button
-                                type="submit"
-                                disabled={saving}
-
-                            >
-                                {saving
-                                    ? "Saving…"
-                                    : editor.mode === "create"
-                                      ? "Create role"
-                                      : "Save changes"}
-                            </Button>
+                        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
                             <Button
                                 type="button"
                                 onClick={closeEditor}
                                 variant="outline"
                             >
                                 Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={saving}
+                            >
+                                {saving
+                                    ? "Saving…"
+                                    : editor.mode === "create"
+                                        ? "Create role"
+                                        : "Save changes"}
                             </Button>
                         </div>
                     </form>
@@ -391,7 +390,7 @@ export default function RolesTab() {
                                                 }
                                                 aria-label={`Edit ${role.name || "role"}`}
                                                 variant="ghost"
-                                                    size="icon-sm"
+                                                size="icon-sm"
                                             >
                                                 <Pencil
                                                     className="size-4"

@@ -314,8 +314,7 @@ export const NAVIGATION: NavSection[] = [
       },
              
     ],
-    // The terminal is its own fullscreen app, so it gets a launch button
-    // rather than a nav row that pretends to stay inside the dashboard.
+    
     launch: {
       label: "Open Point of Sale",
       href: POS_ROUTES.openRegister,
@@ -337,7 +336,7 @@ export const NAVIGATION: NavSection[] = [
   },
 ];
 
-/** Icons for leaf routes that need one outside the sidebar. */
+
 export const LEAF_ICONS = {
   categories: FolderTree,
   stock: Warehouse,
