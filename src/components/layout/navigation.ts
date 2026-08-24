@@ -22,7 +22,6 @@ import { POS_ROUTES } from "@/lib/pos-routes";
 
 type NavItemBase = {
   label: string;
- 
   permission?: PermissionRule;
 };
 
@@ -58,7 +57,6 @@ export type NavSection = {
   href?: string;
   exact?: boolean;
   children?: NavLeaf[];
- 
   permission?: PermissionRule;
 
   launch?: NavLaunch;
@@ -244,7 +242,7 @@ export const NAVIGATION: NavSection[] = [
     icon: Bell,
     href: "/notifications",
     app: {
-      label: "Notifications",
+      label: "Notification Management",
       fill: "linear-gradient(155deg, #0e8a1e 0%, #46ca22 100%)",
       ink: "#ffffff",
     },
@@ -313,7 +311,8 @@ export const NAVIGATION: NavSection[] = [
     icon: Settings,
     href: "/settings",
     app: {
-      label: "Account",
+      label: "Account Setting",
+      // hint: "Your preferences",
       fill: "#e8e8e8",
       ink: "#00932a",
     },

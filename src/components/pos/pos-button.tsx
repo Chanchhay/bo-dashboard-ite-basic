@@ -31,18 +31,21 @@ export default function PosButton({ active, onChange }: PosButtonType) {
     <div
       role="tablist"
       aria-label="Terminal sections"
+      data-tour="pos-tab-bar"
       className="scrollbar-none w-full shrink-0 overflow-x-auto bg-[#f5f5f5] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 min-[1025px]:px-[27px] min-[1025px]:pb-[25px] min-[1025px]:pt-[9px]"
     >
       <div className="mx-auto flex w-max gap-2 min-[1025px]:mx-0 min-[1025px]:gap-[15px]">
         {POS_TABS.map((tab) => {
           const isActive = tab.label === active;
           const isDisabled = "disabled" in tab && tab.disabled;
+          const tourKey = `pos-tab-${tab.label.toLowerCase().replace(/\s+/g, "-")}`;
 
           return (
             <button
               key={tab.label}
               type="button"
               role="tab"
+              data-tour={tourKey}
               aria-selected={isActive}
               disabled={isDisabled}
               title={isDisabled ? "Coming soon" : undefined}

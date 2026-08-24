@@ -698,7 +698,7 @@ export function PosScreen({
                 onNewOrder={() => setPaidReceipt(null)}
               />
             ) : (
-              <div className="px-3 pt-4 sm:px-6 sm:pt-6 min-[1025px]:px-[25px] min-[1025px]:pt-8">
+              <div data-tour="pos-search-grid" className="px-3 pt-4 sm:px-6 sm:pt-6 min-[1025px]:px-[25px] min-[1025px]:pt-8">
                 {isLoading ? (
                   <div className="text-sm text-gray-400">
                     Loading items…
@@ -791,6 +791,7 @@ export function PosScreen({
           activeDiscountLabel={activeDiscountLabel}
           onChange={(tab) => {
             if (tab === "Discount") {
+              setActiveTab("Point of Sale");
               setDiscountModalOpen(true);
               return;
             }
