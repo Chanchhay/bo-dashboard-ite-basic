@@ -68,7 +68,7 @@ export function PaginationBar({
     >
       {/* Left: rows per page */}
       <div className="flex items-center gap-2.5">
-        <span className="text-sm text-description whitespace-nowrap">
+        <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
           Items per page
         </span>
         <Select
@@ -79,7 +79,7 @@ export function PaginationBar({
           }}
           disabled={isLoading}
         >
-          <SelectTrigger className="h-9 w-[4.5rem] rounded-xl border-border bg-card px-3 text-sm font-medium">
+          <SelectTrigger className="h-9 w-[4.5rem] rounded-xl border-border bg-card px-3 text-sm font-medium text-foreground shadow-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -94,12 +94,12 @@ export function PaginationBar({
 
       {/* Right: range readout and page stepper */}
       <div className="flex items-center gap-3 sm:gap-4">
-        <span className="text-sm text-description whitespace-nowrap">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
           <span className="font-semibold text-primary">
             {firstRow}
             {lastRow > firstRow ? `\u2013${lastRow}` : ""}
           </span>{" "}
-          of <span className="font-semibold text-primary">{totalElements}</span>{" "}
+          of <span className="font-semibold text-foreground">{totalElements}</span>{" "}
           {noun}
         </span>
 
@@ -108,28 +108,29 @@ export function PaginationBar({
             type="button"
             variant="outline"
             size="icon-sm"
-            className="rounded-full"
+            className="size-8 rounded-full border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 shadow-xs"
             aria-label="Previous page"
             disabled={!canGoBack}
             onClick={() => onPageChange(currentPage - 1)}
           >
-            <ChevronLeft />
+            <ChevronLeft className="size-4 text-foreground" />
           </Button>
 
-          <span className="text-sm font-semibold whitespace-nowrap text-text">
-            Page {currentPage + 1} of {safeTotalPages}
+          <span className="text-sm font-medium whitespace-nowrap text-foreground">
+            Page <span className="font-semibold">{currentPage + 1}</span> of{" "}
+            <span className="font-semibold">{safeTotalPages}</span>
           </span>
 
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="rounded-full"
+            className="size-8 rounded-full border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 shadow-xs"
             aria-label="Next page"
             disabled={!canGoForward}
             onClick={() => onPageChange(currentPage + 1)}
           >
-            <ChevronRight />
+            <ChevronRight className="size-4 text-foreground" />
           </Button>
         </div>
       </div>
