@@ -29,7 +29,7 @@ import {
   itemAttributeTypeLabels,
 } from "@/lib/api/inventory";
 
-import { cn } from "@/lib/utils";
+import { cn, scrollFieldIntoView } from "@/lib/utils";
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
 import { ChoiceImageField } from "@/components/inventory/ChoiceImageField";
 import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
@@ -1080,9 +1080,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             unit?.name || "larger"
           } conversion has to say which one it is for. Pick an option on the highlighted row under Conversions, or remove it.`,
         });
-        document
-          .getElementById("conversion-option")
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        scrollFieldIntoView("conversion-option");
         return;
       }
     }
@@ -1161,9 +1159,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
           : (firstIssue?.message ?? "Check the highlighted item information."),
       });
 
-      document
-        .getElementById(field)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollFieldIntoView(field);
       return;
     }
 
