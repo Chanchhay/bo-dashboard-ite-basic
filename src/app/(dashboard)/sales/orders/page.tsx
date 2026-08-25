@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
     ChevronLeft,
@@ -97,7 +97,7 @@ function rangeStart(filter: DateFilter): string | undefined {
 }
 
 
-export default function SalesOrdersDraftPage() {
+export default function SalesOrdersPage() {
     const { format } = useMoney();
     const { toast } = useToast();
     const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
@@ -201,14 +201,30 @@ export default function SalesOrdersDraftPage() {
     );
     const isPaid = selectedOrder?.status === "PAID";
     const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null || !isPaid,
+        skip: !selectedOrderId || !isPaid,
     });
 
     const matchingReceipt =
         isPaid && receiptQuery.data?.order?.id === selectedOrderId
             ? receiptQuery.data
             : null;
-    const displayOrder = matchingReceipt?.order ?? selectedOrder;
+    const currentDisplayOrder = matchingReceipt?.order ?? selectedOrder;
+    const currentReceipt = matchingReceipt?.receipt ?? null;
+
+    const [persistedDisplayOrder, setPersistedDisplayOrder] = useState<PosOrder | null>(null);
+    const [persistedReceipt, setPersistedReceipt] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (currentDisplayOrder) {
+            setPersistedDisplayOrder(currentDisplayOrder);
+        }
+        if (currentReceipt) {
+            setPersistedReceipt(currentReceipt);
+        }
+    }, [currentDisplayOrder, currentReceipt]);
+
+    const displayOrder = currentDisplayOrder ?? (selectedOrderId ? null : persistedDisplayOrder);
+    const displayReceipt = currentReceipt ?? (selectedOrderId ? null : persistedReceipt);
     const isUnpaid = !displayOrder || displayOrder.status !== "PAID";
 
     const search = query.trim().toLowerCase();
@@ -216,8 +232,8 @@ export default function SalesOrdersDraftPage() {
         () =>
             search
                 ? orders.filter((order) =>
-                      matchesSearch(order, search, customerNameById),
-                  )
+                    matchesSearch(order, search, customerNameById),
+                )
                 : orders,
         [orders, search, customerNameById],
     );
@@ -414,18 +430,14 @@ export default function SalesOrdersDraftPage() {
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
-                    ) : displayOrder && businessQuery.data ? (
+                    ) : displayOrder ? (
                         <div className="py-2">
                             <ReceiptTicket
-                                business={businessQuery.data}
+                                business={businessQuery.data ?? null}
                                 order={displayOrder}
-                                receipt={matchingReceipt?.receipt ?? null}
+                                receipt={displayReceipt}
                                 currencies={currenciesQuery.data}
                             />
-                        </div>
-                    ) : businessQuery.isLoading || currenciesQuery.isLoading ? (
-                        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-                            Loading details...
                         </div>
                     ) : (
                         <div className="py-8 text-center text-sm text-destructive">

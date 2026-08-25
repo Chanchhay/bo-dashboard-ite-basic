@@ -197,7 +197,7 @@ export default function SalesOrdersPage() {
             try {
                 const raw = localStorage.getItem("ipos_sales_table_columns");
                 if (raw) return JSON.parse(raw);
-            } catch {}
+            } catch { }
         }
         return SALES_COLUMNS.reduce((acc, col) => {
             acc[col.key] = col.defaultVisible;
@@ -210,7 +210,7 @@ export default function SalesOrdersPage() {
             const next = { ...prev, [key]: !prev[key] };
             try {
                 localStorage.setItem("ipos_sales_table_columns", JSON.stringify(next));
-            } catch {}
+            } catch { }
             return next;
         });
     };
@@ -258,7 +258,7 @@ export default function SalesOrdersPage() {
 
     const isPaid = selectedOrder?.status === "PAID";
     const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null || !isPaid,
+        skip: !selectedOrderId || !isPaid,
     });
 
     const pageItemBreakdown = useMemo(() => {
@@ -297,15 +297,31 @@ export default function SalesOrdersPage() {
         isPaid && receiptQuery.data?.order?.id === selectedOrderId
             ? receiptQuery.data
             : null;
-    const displayOrder = matchingReceipt?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
+    const currentDisplayOrder = matchingReceipt?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
+    const currentReceipt = matchingReceipt?.receipt ?? null;
+
+    const [persistedDisplayOrder, setPersistedDisplayOrder] = useState<PosOrder | null>(null);
+    const [persistedReceipt, setPersistedReceipt] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (currentDisplayOrder) {
+            setPersistedDisplayOrder(currentDisplayOrder);
+        }
+        if (currentReceipt) {
+            setPersistedReceipt(currentReceipt);
+        }
+    }, [currentDisplayOrder, currentReceipt]);
+
+    const displayOrder = currentDisplayOrder ?? (selectedOrderId ? null : persistedDisplayOrder);
+    const displayReceipt = currentReceipt ?? (selectedOrderId ? null : persistedReceipt);
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
         () =>
             search
                 ? orders.filter((order) =>
-                      matchesSearch(order, search, customerNameById),
-                  )
+                    matchesSearch(order, search, customerNameById),
+                )
                 : orders,
         [orders, search, customerNameById],
     );
@@ -533,12 +549,12 @@ export default function SalesOrdersPage() {
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
-                    ) : displayOrder && businessQuery.data ? (
+                    ) : displayOrder ? (
                         <div className="py-2">
                             <ReceiptTicket
-                                business={businessQuery.data}
+                                business={businessQuery.data ?? null}
                                 order={displayOrder}
-                                receipt={matchingReceipt?.receipt ?? null}
+                                receipt={displayReceipt}
                                 currencies={currenciesQuery.data}
                             />
                         </div>
@@ -827,8 +843,8 @@ function FilterGroup<T extends string>({
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
                     className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${value === option
-                            ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     {option === "ALL" ? "All" : option}

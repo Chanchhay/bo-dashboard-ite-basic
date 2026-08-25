@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Check,
     ChevronLeft,
@@ -95,8 +95,18 @@ export function PayLaterList() {
     const [paidReceiptOrderId, setPaidReceiptOrderId] = useState<string | null>(null);
 
     const receiptQuery = useGetReceiptQuery(paidReceiptOrderId ?? "", {
-        skip: paidReceiptOrderId === null,
+        skip: !paidReceiptOrderId,
     });
+    const [persistedReceiptData, setPersistedReceiptData] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (receiptQuery.data) {
+            setPersistedReceiptData(receiptQuery.data);
+        }
+    }, [receiptQuery.data]);
+
+    const displayReceiptData = receiptQuery.data ?? (paidReceiptOrderId ? null : persistedReceiptData);
+
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -306,11 +316,10 @@ export function PayLaterList() {
                                         >
                                             <span className="font-medium">{col.label}</span>
                                             <div
-                                                className={`flex size-4 items-center justify-center rounded border transition-colors ${
-                                                    checked
-                                                        ? "border-primary bg-primary text-primary-foreground"
-                                                        : "border-border bg-background"
-                                                }`}
+                                                className={`flex size-4 items-center justify-center rounded border transition-colors ${checked
+                                                    ? "border-primary bg-primary text-primary-foreground"
+                                                    : "border-border bg-background"
+                                                    }`}
                                             >
                                                 {checked && <Check className="size-3 stroke-[3]" />}
                                             </div>
@@ -363,92 +372,92 @@ export function PayLaterList() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                            pagedSales.map((sale) => {
-                                const Icon = channelIcons[sale.channel] ?? ShoppingBag;
-                                const owed = sale.totalAmount - sale.paidAmount;
+                                pagedSales.map((sale) => {
+                                    const Icon = channelIcons[sale.channel] ?? ShoppingBag;
+                                    const owed = sale.totalAmount - sale.paidAmount;
 
-                                return (
-                                    <TableRow key={sale.id}>
-                                        {visibleColumns.sale && (
-                                            <TableCell className="py-3">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                                                        <Icon className="size-4" />
-                                                    </span>
-                                                    <p className="text-sm font-semibold text-foreground">
-                                                        {sale.invoiceNumber ?? "—"}
-                                                    </p>
-                                                </div>
-                                            </TableCell>
-                                        )}
-
-                                        {visibleColumns.customer && (
-                                            <TableCell className="hidden sm:table-cell">
-                                                {sale.customerId ? (
-                                                    <div className="min-w-0">
-                                                        <p className="truncate text-sm font-medium text-foreground">
-                                                            {sale.customerName ||
-                                                                sale.customerPhone ||
-                                                                sale.customerEmail ||
-                                                                "Unnamed customer"}
+                                    return (
+                                        <TableRow key={sale.id}>
+                                            {visibleColumns.sale && (
+                                                <TableCell className="py-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                                            <Icon className="size-4" />
+                                                        </span>
+                                                        <p className="text-sm font-semibold text-foreground">
+                                                            {sale.invoiceNumber ?? "—"}
                                                         </p>
-                                                        {sale.customerName &&
-                                                        (sale.customerPhone || sale.customerEmail) ? (
-                                                            <p className="truncate text-xs text-muted-foreground">
-                                                                {sale.customerPhone || sale.customerEmail}
-                                                            </p>
-                                                        ) : null}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">
-                                                        Walk-in
+                                                </TableCell>
+                                            )}
+
+                                            {visibleColumns.customer && (
+                                                <TableCell className="hidden sm:table-cell">
+                                                    {sale.customerId ? (
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-medium text-foreground">
+                                                                {sale.customerName ||
+                                                                    sale.customerPhone ||
+                                                                    sale.customerEmail ||
+                                                                    "Unnamed customer"}
+                                                            </p>
+                                                            {sale.customerName &&
+                                                                (sale.customerPhone || sale.customerEmail) ? (
+                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                    {sale.customerPhone || sale.customerEmail}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Walk-in
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                            )}
+
+                                            {visibleColumns.channel && (
+                                                <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
+                                                    {channelNames[sale.channel] ?? sale.channel}
+                                                </TableCell>
+                                            )}
+
+                                            {visibleColumns.soldAt && (
+                                                <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
+                                                    {sale.soldAt
+                                                        ? new Date(sale.soldAt).toLocaleString()
+                                                        : "—"}
+                                                </TableCell>
+                                            )}
+
+                                            {visibleColumns.status && (
+                                                <TableCell>
+                                                    <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-medium text-warning">
+                                                        Pending
                                                     </span>
-                                                )}
-                                            </TableCell>
-                                        )}
+                                                </TableCell>
+                                            )}
 
-                                        {visibleColumns.channel && (
-                                            <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                                                {channelNames[sale.channel] ?? sale.channel}
-                                            </TableCell>
-                                        )}
+                                            {visibleColumns.owed && (
+                                                <TableCell className="text-right text-sm font-semibold text-danger">
+                                                    {format(owed, sale.currency)}
+                                                </TableCell>
+                                            )}
 
-                                        {visibleColumns.soldAt && (
-                                            <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                                                {sale.soldAt
-                                                    ? new Date(sale.soldAt).toLocaleString()
-                                                    : "—"}
-                                            </TableCell>
-                                        )}
-
-                                        {visibleColumns.status && (
-                                            <TableCell>
-                                                <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-medium text-warning">
-                                                    Pending
-                                                </span>
-                                            </TableCell>
-                                        )}
-
-                                        {visibleColumns.owed && (
-                                            <TableCell className="text-right text-sm font-semibold text-danger">
-                                                {format(owed, sale.currency)}
-                                            </TableCell>
-                                        )}
-
-                                        {visibleColumns.action && (
-                                            <TableCell className="text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCollecting(sale)}
-                                                    className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
-                                                >
-                                                    Collect
-                                                </button>
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                );
-                            })
+                                            {visibleColumns.action && (
+                                                <TableCell className="text-right">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setCollecting(sale)}
+                                                        className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+                                                    >
+                                                        Collect
+                                                    </button>
+                                                </TableCell>
+                                            )}
+                                        </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>
@@ -530,7 +539,7 @@ export function PayLaterList() {
                         <button
                             type="button"
                             onClick={printReceipt}
-                            disabled={!receiptQuery.data || !businessQuery.data}
+                            disabled={!displayReceiptData}
                             className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-white disabled:opacity-40"
                         >
                             <Printer className="size-3.5" aria-hidden="true" />
@@ -542,12 +551,12 @@ export function PayLaterList() {
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading receipt...
                         </div>
-                    ) : receiptQuery.data && businessQuery.data ? (
+                    ) : displayReceiptData ? (
                         <div className="py-2">
                             <ReceiptTicket
-                                business={businessQuery.data}
-                                order={receiptQuery.data.order}
-                                receipt={receiptQuery.data.receipt}
+                                business={businessQuery.data ?? null}
+                                order={displayReceiptData.order}
+                                receipt={displayReceiptData.receipt}
                                 currencies={currenciesQuery.data}
                             />
                         </div>
