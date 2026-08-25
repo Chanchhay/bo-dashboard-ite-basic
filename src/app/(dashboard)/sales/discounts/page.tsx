@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
 import { DateTimePicker } from "@/components/ui/date-picker";
@@ -538,9 +539,7 @@ export default function DiscountsAndCouponsPage() {
             {activeTab === "discounts" && (
                 <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
-                        <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
-                            <Loader2 className="h-5 w-5 animate-spin" /> Loading discount rules...
-                        </div>
+                        <TableSkeleton rows={5} cols={6} />
                     ) : filteredDiscounts.length === 0 ? (
                         <div className="text-center py-16 text-muted-foreground space-y-2">
                             <Tag className="h-8 w-8 mx-auto opacity-40" />
@@ -673,9 +672,7 @@ export default function DiscountsAndCouponsPage() {
             {activeTab === "coupons" && (
                 <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isCouponsLoading ? (
-                        <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
-                            <Loader2 className="h-5 w-5 animate-spin" /> Loading coupons...
-                        </div>
+                        <TableSkeleton rows={5} cols={6} />
                     ) : filteredCoupons.length === 0 ? (
                         <div className="text-center py-16 text-muted-foreground space-y-2">
                             <Ticket className="h-8 w-8 mx-auto opacity-40" />

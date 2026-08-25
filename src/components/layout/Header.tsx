@@ -19,7 +19,7 @@ export default function Header({
     const { app, page } = getPageTitle(pathname);
 
     return (
-        <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-5 sm:px-6 sm:pt-6 sm:pb-6 lg:px-8">
+        <header className="z-30 flex shrink-0 items-center justify-between gap-2 px-4 pt-4 pb-4 sm:px-6 sm:pt-5 lg:px-8 bg-shell/95 backdrop-blur-md transition-all">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                 <button
                     type="button"

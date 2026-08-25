@@ -28,7 +28,8 @@ import type { TaxConfig, TaxType } from "@/lib/api/tax";
 import { taxSchema } from "@/lib/api/tax";
 import { getDefaultTax, updateDefaultTax } from "@/lib/tax-store";
 import { cn } from "@/lib/utils";
-
+import { FormSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import type { PosOrder, PosReceipt } from "@/lib/api/pos-order";
 import type { Business } from "@/lib/api/business";
@@ -212,10 +213,23 @@ export default function TaxesPage() {
 
   if (!isLoaded) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="flex items-center space-x-2 text-muted-foreground">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span>Loading tax settings...</span>
+      <div className="space-y-6 pb-12">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 rounded-lg" />
+            <Skeleton className="h-4 w-72 rounded-md" />
+          </div>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <FormSkeleton rows={3} />
+          </div>
+          <div className="lg:col-span-5">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-2xs">
+              <Skeleton className="h-6 w-36 rounded-md" />
+              <Skeleton className="h-64 w-full rounded-2xl" />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -234,6 +248,7 @@ export default function TaxesPage() {
             Configure your store tax rule applied to POS orders and customer receipts.
           </p>
         </div>
+        <TourButton />
       </div>
 
       {formError && (

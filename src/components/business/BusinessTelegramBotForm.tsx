@@ -6,6 +6,7 @@ import { KeyRound, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { FormSkeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
@@ -197,9 +198,8 @@ function AccountForm({
                         <Label htmlFor="welcomeMessage">
                             Welcome Message (Optional)
                         </Label>
-                        <textarea
+                        <Textarea
                             id="welcomeMessage"
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                             value={fields.welcomeMessage}
                             onChange={(e) =>
                                 setFields({ ...fields, welcomeMessage: e.target.value })
@@ -209,17 +209,7 @@ function AccountForm({
                     </div>
                 </div>
 
-                <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
-                    <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
-                        {isSaving && (
-                            <LoaderCircle
-                                className="-ml-1 mr-2 size-4 animate-spin"
-                                aria-hidden="true"
-                            />
-                        )}
-                        {isConfigured ? "Update Settings" : "Connect Bot"}
-                    </Button>
-
+                <div className="mt-6 flex items-center justify-end gap-3 border-t border-border pt-5">
                     {isConfigured && (
                         <Button
                             type="button"
@@ -242,6 +232,16 @@ function AccountForm({
                             Disconnect
                         </Button>
                     )}
+
+                    <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
+                        {isSaving && (
+                            <LoaderCircle
+                                className="-ml-1 mr-2 size-4 animate-spin"
+                                aria-hidden="true"
+                            />
+                        )}
+                        {isConfigured ? "Update Settings" : "Connect Bot"}
+                    </Button>
                 </div>
             </section>
         </form>

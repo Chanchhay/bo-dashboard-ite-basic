@@ -441,7 +441,7 @@ export function StockLevelTable({
 
             <div data-tour="stock-table-container" className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
-                <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-md text-xs font-semibold tracking-wide text-muted-foreground uppercase border-b border-border">
                     <tr>
                         <th className="px-5 py-3">Name</th>
                         <th className="px-5 py-3">On hand</th>
@@ -585,35 +585,37 @@ export function StockLevelTable({
                                     </td>
                                     {hasActions ? (
                                         <td className="px-5 py-4">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                                                 {/* An item sold in options is
                                                     stocked through them: its
                                                     own figure is their sum, so
                                                     moving "the item" would
                                                     belong to no option. */}
                                                 {row.options?.length ? (
-                                                    <button
+                                                    <Button
                                                         type="button"
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() =>
                                                             toggleRowAddOns(rowKey)
                                                         }
-                                                        className="cursor-pointer text-xs font-semibold text-primary hover:underline"
                                                     >
                                                         Stock by option
-                                                    </button>
+                                                    </Button>
                                                 ) : null}
                                                 {onViewBatches ? (
-                                                    <button
+                                                    <Button
                                                         type="button"
                                                         data-tour="stock-batches-action"
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() =>
                                                             onViewBatches(row.id)
                                                         }
                                                         title="What this cost, delivery by delivery"
-                                                        className="cursor-pointer text-xs font-semibold text-primary hover:underline"
                                                     >
                                                         Batches
-                                                    </button>
+                                                    </Button>
                                                 ) : null}
                                                 {onStockIn && !row.options?.length ? (
                                                     <Button

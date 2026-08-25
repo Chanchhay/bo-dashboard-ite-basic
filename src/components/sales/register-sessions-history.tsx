@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+import { TourButton } from "@/components/onboarding/TourButton";
 import { useMoney } from "@/hooks/useMoney";
 import type {
   RegisterSession,
@@ -281,7 +282,7 @@ export function RegisterSessionsHistory() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8 text-foreground ">
+    <div className="flex flex-col gap-6 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-xs text-foreground">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -292,6 +293,7 @@ export function RegisterSessionsHistory() {
             Track live and past till opens, closes, starting floats, cash sales, and shift discrepancies.
           </p>
         </div>
+        <TourButton />
       </div>
 
       {/* Metric Cards */}
@@ -365,15 +367,15 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* Filters and Search Toolbar */}
-      <div data-tour="sessions-search-bar" className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-3.5 sm:p-4 shadow-xs dark:border-slate-800/80 dark:bg-[#151c28]">
+      <div data-tour="sessions-search-bar" className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-none bg-transparent p-0 shadow-none">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-slate-500" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => applyQuery(e.target.value)}
             placeholder="Search "
-            className="w-full rounded-xl border border-border bg-muted/40 dark:bg-[#0d121c] dark:border-slate-800 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground dark:text-slate-100 placeholder:text-muted-foreground dark:placeholder:text-slate-500 outline-none transition-colors focus:border-primary"
+            className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary"
           />
           {query && (
             <button
@@ -514,7 +516,7 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* History Table */}
-      <div data-tour="sessions-table-container" className="rounded-2xl border border-border bg-card dark:border-slate-800/80 dark:bg-[#151c28] shadow-md overflow-hidden">
+      <div data-tour="sessions-table-container" className="rounded-2xl border border-border/70 bg-card overflow-hidden">
         <div className="overflow-x-auto min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="bg-muted/50 dark:bg-[#0f1520]">

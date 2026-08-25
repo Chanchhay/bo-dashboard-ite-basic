@@ -236,7 +236,11 @@ function StagedImageField({
                             onClick={
                                 staged.isDirty ? staged.reset : staged.remove
                             }
-                            className="h-auto px-2 py-1 text-xs font-medium text-[#4b5563] dark:text-[#94a3b8] hover:text-primary"
+                            className={`h-auto px-2 py-1 text-xs font-medium ${
+                                staged.isDirty
+                                    ? "text-[#4b5563] dark:text-[#94a3b8] hover:text-primary"
+                                    : "text-danger hover:text-danger"
+                            }`}
                         >
                             {staged.isDirty
                                 ? `Undo ${noun.toLowerCase()} change`
@@ -312,7 +316,7 @@ function BusinessProfileEditor({
 
     /** Fires on blur — no button to click, the business just pastes the link and moves on. */
     async function autoDetectLocationFromLink(
-        event: FocusEvent<HTMLTextAreaElement>,
+        event: FocusEvent<HTMLInputElement>,
     ) {
         const link = event.currentTarget.value.trim();
         if (!link || link === lastDetectedLinkRef.current) {
@@ -596,8 +600,7 @@ function BusinessProfileEditor({
                             <Input
                                 id="website"
                                 name="website"
-                                type="text"
-                                inputMode="url"
+                                type="url"
                                 defaultValue={business.website || ""}
                                 maxLength={255}
                                 aria-invalid={Boolean(fieldErrors.website)}
@@ -649,12 +652,12 @@ function BusinessProfileEditor({
                             name="googleMap"
                             error={fieldErrors.googleMap}
                         >
-                            <Textarea
+                            <Input
                                 id="googleMap"
                                 name="googleMap"
+                                type="url"
                                 defaultValue={business.googleMap || ""}
                                 maxLength={255}
-                                rows={2}
                                 aria-invalid={Boolean(fieldErrors.googleMap)}
                                 onBlur={autoDetectLocationFromLink}
                                 className={`${textareaClassName} min-h-[90px] text-[#6b7280] underline`}

@@ -192,6 +192,7 @@ export function UnitsTab() {
     if (unitsError) {
         return (
             <InventoryError
+                error={unitsError}
                 message={getApiErrorMessage(
                     unitsError,
                     "Unable to load the units.",
@@ -292,7 +293,7 @@ export function UnitsTab() {
                                                             <div className="flex shrink-0 gap-2">
                                                                 <Button
                                                                     type="button"
-                                                                    variant="outline"
+                                                                    variant="ghost"
                                                                     size="icon-sm"
                                                                     aria-label={`Edit ${unit.name}`}
                                                                     onClick={() =>
@@ -301,12 +302,13 @@ export function UnitsTab() {
                                                                         )
                                                                     }
                                                                 >
-                                                                    <Pencil />
+                                                                    <Pencil className="size-4" />
                                                                 </Button>
                                                                 <Button
                                                                     type="button"
-                                                                    variant="destructive"
+                                                                    variant="ghost"
                                                                     size="icon-sm"
+                                                                    className="hover:bg-red-50 dark:hover:bg-red-950/40"
                                                                     disabled={
                                                                         deleteState.isLoading
                                                                     }
@@ -317,7 +319,7 @@ export function UnitsTab() {
                                                                         )
                                                                     }
                                                                 >
-                                                                    <Trash2 />
+                                                                    <Trash2 className="size-4 text-brand-red" />
                                                                 </Button>
                                                             </div>
                                                         )}

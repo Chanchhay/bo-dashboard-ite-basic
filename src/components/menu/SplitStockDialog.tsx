@@ -496,7 +496,7 @@ export function SplitStockDialog({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl rounded-2xl border-none bg-background p-6 shadow-2xl">
+            <DialogContent className="max-w-4xl rounded-2xl border-none bg-white dark:bg-[#181b24] p-6 shadow-2xl">
                 <DialogHeader className="border-none pb-3">
                     <DialogTitle className="flex items-center gap-2.5 text-xl font-bold text-foreground">
                         <Scale className="size-6 text-primary" /> Split stock
@@ -611,8 +611,8 @@ export function SplitStockDialog({
                                             key={channel.id}
                                             className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 transition-colors ${
                                                 isChecked
-                                                    ? "border-primary/40 bg-primary/5"
-                                                    : "border-border bg-card"
+                                                    ? "border-primary/40 bg-primary/10"
+                                                    : "border-border bg-[#f5f5f5] dark:bg-muted/50"
                                             }`}
                                         >
                                             <button

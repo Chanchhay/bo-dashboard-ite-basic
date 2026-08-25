@@ -36,7 +36,12 @@ export type PosOrder = {
     customerId: string | null;
     invoiceNumber: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
-    status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
+    /**
+     * `CONFIRMED` means staff accepted the order and its stock has already
+     * left the shelf, but nobody has paid for it yet — distinct from
+     * `PENDING`, where nothing has been taken off the shelf at all.
+     */
+    status: "PENDING" | "CONFIRMED" | "PAID" | "FAILED" | "CANCELLED";
     /**
      * How the sale that closed this order was paid. Null for an order still
      * open — `status` alone reads a pay-later order as settled, so this is
@@ -56,6 +61,8 @@ export type PosOrder = {
     displayCurrency: string | null;
     displayExchangeRate: number | null;
     note: string | null;
+    /** True only for a Pay Later web order still waiting on the owner to approve it. */
+    awaitingPayLaterApproval?: boolean;
     items: PosOrderItem[];
     createdDate: string | null;
 };

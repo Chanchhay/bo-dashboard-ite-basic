@@ -98,9 +98,9 @@ export default function UserMenu({
 
           <MenuSeparator />
 
-          <MenuLinkItem render={<Link href="/profile" />}>
+          <MenuLinkItem render={<Link href="/settings" />}>
             <UserRound aria-hidden="true" />
-            Your profile
+            Account settings
           </MenuLinkItem>
 
           <MenuItem

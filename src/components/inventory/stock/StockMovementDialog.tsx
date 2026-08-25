@@ -267,12 +267,18 @@ export function StockMovementDialog({
                             <Input
                                 id="movement-quantity"
                                 type="number"
-                                min="0"
-                                step="any"
+                                min="1"
+                                step="1"
                                 autoFocus
                                 value={quantity}
+                                onKeyDown={(e) => {
+                                    if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 onChange={(event) => {
-                                    setQuantity(event.target.value);
+                                    const val = event.target.value.replace(/[^\d]/g, "");
+                                    setQuantity(val);
                                     setError("");
                                 }}
                                 placeholder="10"

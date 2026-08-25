@@ -159,6 +159,34 @@ export const posOrderApi = baseApi.injectEndpoints({
             ],
         }),
 
+        /** Accepts a pending order and takes its stock off the shelf now, ahead of payment. */
+        confirmOrder: builder.mutation<PosOrder, string>({
+            query: (orderId) => ({
+                url: `/orders/${encodeURIComponent(orderId)}/confirm`,
+                method: "POST",
+            }),
+            invalidatesTags: (_result, _error, orderId) => [
+                "PosOrder",
+                "PosOrderHistory",
+                { type: "PosOpenOrders", id: orderId },
+                { type: "PosOpenOrders", id: "LIST" },
+            ],
+        }),
+
+        /** Owner-only: approves a storefront Pay Later order, taking its stock off the shelf now. */
+        approvePayLaterOrder: builder.mutation<PosOrder, string>({
+            query: (orderId) => ({
+                url: `/orders/${encodeURIComponent(orderId)}/pay-later/approve`,
+                method: "POST",
+            }),
+            invalidatesTags: (_result, _error, orderId) => [
+                "PosOrder",
+                "PosOrderHistory",
+                { type: "PosOpenOrders", id: orderId },
+                { type: "PosOpenOrders", id: "LIST" },
+            ],
+        }),
+
         addOrderItem: builder.mutation<PosOrder, AddOrderItemInput>({
             query: ({ itemId, variantId, unitId, addOnIds, quantity }) => ({
                 url: "/orders/current/items",
@@ -499,6 +527,8 @@ export const {
     useParkOrderMutation,
     useLoadOrderForEditMutation,
     useCancelOpenOrderMutation,
+    useConfirmOrderMutation,
+    useApprovePayLaterOrderMutation,
     useAddOrderItemMutation,
     useUpdateOrderItemMutation,
     useRemoveOrderItemMutation,
