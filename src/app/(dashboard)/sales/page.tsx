@@ -255,8 +255,9 @@ export default function SalesOrdersPage() {
         return orders.find((o) => o.id === selectedOrderId) ?? null;
     }, [orders, selectedOrderId]);
 
+    const isPaid = selectedOrder?.status === "PAID";
     const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null || selectedOrder?.status !== "PAID",
+        skip: selectedOrderId === null || !isPaid,
     });
 
     const pageItemBreakdown = useMemo(() => {
@@ -281,7 +282,11 @@ export default function SalesOrdersPage() {
         return { stockQty, stockRevenue, noStockQty, noStockRevenue };
     }, [orders]);
 
-    const displayOrder = receiptQuery.data?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
+    const matchingReceipt =
+        isPaid && receiptQuery.data?.order?.id === selectedOrderId
+            ? receiptQuery.data
+            : null;
+    const displayOrder = matchingReceipt?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
@@ -507,7 +512,7 @@ export default function SalesOrdersPage() {
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading && !selectedOrder ? (
+                    {isPaid && receiptQuery.isLoading && !matchingReceipt ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
@@ -516,7 +521,7 @@ export default function SalesOrdersPage() {
                             <ReceiptTicket
                                 business={businessQuery.data}
                                 order={displayOrder}
-                                receipt={receiptQuery.data?.receipt ?? null}
+                                receipt={matchingReceipt?.receipt ?? null}
                                 currencies={currenciesQuery.data}
                             />
                         </div>

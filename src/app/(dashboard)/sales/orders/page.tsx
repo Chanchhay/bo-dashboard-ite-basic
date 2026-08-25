@@ -193,11 +193,16 @@ export default function SalesOrdersDraftPage() {
         () => orders.find((order) => order.id === selectedOrderId) ?? null,
         [orders, selectedOrderId],
     );
+    const isPaid = selectedOrder?.status === "PAID";
     const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null || selectedOrder?.status !== "PAID",
+        skip: selectedOrderId === null || !isPaid,
     });
 
-    const displayOrder = receiptQuery.data?.order ?? selectedOrder;
+    const matchingReceipt =
+        isPaid && receiptQuery.data?.order?.id === selectedOrderId
+            ? receiptQuery.data
+            : null;
+    const displayOrder = matchingReceipt?.order ?? selectedOrder;
     const isUnpaid = !displayOrder || displayOrder.status !== "PAID";
 
     const search = query.trim().toLowerCase();
@@ -388,7 +393,7 @@ export default function SalesOrdersDraftPage() {
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading && !displayOrder ? (
+                    {isPaid && receiptQuery.isLoading && !matchingReceipt ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
@@ -397,7 +402,7 @@ export default function SalesOrdersDraftPage() {
                             <ReceiptTicket
                                 business={businessQuery.data}
                                 order={displayOrder}
-                                receipt={receiptQuery.data?.receipt ?? null}
+                                receipt={matchingReceipt?.receipt ?? null}
                                 currencies={currenciesQuery.data}
                             />
                         </div>
