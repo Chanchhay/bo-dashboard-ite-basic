@@ -316,7 +316,7 @@ function BusinessProfileEditor({
 
     /** Fires on blur — no button to click, the business just pastes the link and moves on. */
     async function autoDetectLocationFromLink(
-        event: FocusEvent<HTMLTextAreaElement>,
+        event: FocusEvent<HTMLInputElement>,
     ) {
         const link = event.currentTarget.value.trim();
         if (!link || link === lastDetectedLinkRef.current) {
