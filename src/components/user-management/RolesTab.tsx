@@ -57,7 +57,7 @@ function getGroupedPermissions(permissionValues: string[]): RolePermissionCatego
         }
     }
 
-    const knownValues = new Set(PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.value)));
+    const knownValues = new Set<string>(PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.value)));
     const uncataloged = permissionValues.filter((v) => !knownValues.has(v));
     if (uncataloged.length > 0) {
         result.push({

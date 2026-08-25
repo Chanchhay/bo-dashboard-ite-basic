@@ -61,6 +61,8 @@ export type PosOrder = {
     displayCurrency: string | null;
     displayExchangeRate: number | null;
     note: string | null;
+    /** True only for a Pay Later web order still waiting on the owner to approve it. */
+    awaitingPayLaterApproval?: boolean;
     items: PosOrderItem[];
     createdDate: string | null;
 };

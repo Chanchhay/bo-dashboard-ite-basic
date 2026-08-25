@@ -9,7 +9,6 @@ import {
     RefreshCw,
     Search,
     ExternalLink,
-    Printer,
     Columns3,
 } from "lucide-react";
 
@@ -28,7 +27,6 @@ import { TourButton } from "@/components/onboarding/TourButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
-import { printReceipt } from "@/lib/print-receipt";
 
 import {
     Table,
@@ -216,9 +214,6 @@ export default function SalesOrdersPage() {
         });
     };
 
-    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null,
-    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -255,6 +250,15 @@ export default function SalesOrdersPage() {
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
+    const selectedOrder = useMemo(() => {
+        if (!selectedOrderId) return null;
+        return orders.find((o) => o.id === selectedOrderId) ?? null;
+    }, [orders, selectedOrderId]);
+
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: selectedOrderId === null || selectedOrder?.status !== "PAID",
+    });
+
     const pageItemBreakdown = useMemo(() => {
         let stockQty = 0;
         let stockRevenue = 0;
@@ -276,11 +280,6 @@ export default function SalesOrdersPage() {
 
         return { stockQty, stockRevenue, noStockQty, noStockRevenue };
     }, [orders]);
-
-    const selectedOrder = useMemo(() => {
-        if (!selectedOrderId) return null;
-        return orders.find((o) => o.id === selectedOrderId) ?? null;
-    }, [orders, selectedOrderId]);
 
     const displayOrder = receiptQuery.data?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
 
