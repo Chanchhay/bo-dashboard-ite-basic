@@ -61,14 +61,14 @@ export function PaginationBar({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 border-t border-border bg-card px-4 py-3",
+        "flex flex-col gap-3 border-t border-border bg-card px-4 py-3.5 sm:px-6",
         "sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
       {/* Left: rows per page */}
       <div className="flex items-center gap-2.5">
-        <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+        <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
           Items per page
         </span>
         <Select
@@ -79,12 +79,12 @@ export function PaginationBar({
           }}
           disabled={isLoading}
         >
-          <SelectTrigger className="h-9 w-[4.5rem] rounded-xl border-border bg-card px-3 text-sm font-medium text-foreground shadow-xs">
+          <SelectTrigger className="h-9 w-[4.5rem] rounded-xl border border-border bg-card px-3 text-xs sm:text-sm font-bold text-foreground shadow-2xs hover:bg-muted/40 transition-colors cursor-pointer">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {sizeOptions.map((option) => (
-              <SelectItem key={option} value={String(option)}>
+              <SelectItem key={option} value={String(option)} className="font-semibold text-xs sm:text-sm">
                 {option}
               </SelectItem>
             ))}
@@ -93,44 +93,43 @@ export function PaginationBar({
       </div>
 
       {/* Right: range readout and page stepper */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <span className="text-sm text-muted-foreground whitespace-nowrap">
-          <span className="font-semibold text-primary">
+      <div className="flex items-center gap-3 sm:gap-5">
+        <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
+          <span className="font-bold text-foreground">
             {firstRow}
             {lastRow > firstRow ? `\u2013${lastRow}` : ""}
           </span>{" "}
-          of <span className="font-semibold text-foreground">{totalElements}</span>{" "}
+          of <span className="font-bold text-foreground">{totalElements}</span>{" "}
           {noun}
         </span>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="size-8 rounded-full border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 shadow-xs"
+            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30"
             aria-label="Previous page"
             disabled={!canGoBack}
             onClick={() => onPageChange(currentPage - 1)}
           >
-            <ChevronLeft className="size-4 text-foreground" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <span className="text-sm font-medium whitespace-nowrap text-foreground">
-            Page <span className="font-semibold">{currentPage + 1}</span> of{" "}
-            <span className="font-semibold">{safeTotalPages}</span>
+          <span className="text-xs sm:text-sm font-bold whitespace-nowrap text-foreground">
+            Page {currentPage + 1} of {safeTotalPages}
           </span>
 
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            className="size-8 rounded-full border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 shadow-xs"
+            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30"
             aria-label="Next page"
             disabled={!canGoForward}
             onClick={() => onPageChange(currentPage + 1)}
           >
-            <ChevronRight className="size-4 text-foreground" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

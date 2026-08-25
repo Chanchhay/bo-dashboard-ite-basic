@@ -310,85 +310,87 @@ export default function SalesOrdersPage() {
     }
 
     return (
-        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-4">
-            <div className="flex items-center justify-between gap-4">
-                <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
-                    Track sales orders, order receipts, channel breakdown, and digital menu configuration.
-                </p>
-                <TourButton />
+        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-12 sm:pb-16">
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
+                <div className="flex items-center justify-between gap-4">
+                    <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
+                        Track sales orders, order receipts, channel breakdown, and digital menu configuration.
+                    </p>
+                    <TourButton />
+                </div>
+
+                <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
+                        <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                        {storefrontError && (
+                            <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 mr-4">
+                            <Switch
+                                id="menu-toggle"
+                                checked={Boolean(storefrontStatus?.listed)}
+                                disabled={isEnabling || isDisabling}
+                                onCheckedChange={handleMenuToggle}
+                            />
+                            <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                            <Link
+                                href={subdomainUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Live Menu
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+
+                <section
+                    data-tour="sales-order-stats"
+                    aria-label="Totals"
+                    className="grid grid-cols-2 gap-3 lg:grid-cols-6"
+                >
+                    <Stat
+                        label="Orders"
+                        value={totals ? String(totals.orders) : "—"}
+                    />
+                    <Stat
+                        label="Total Revenue"
+                        value={totals ? format(totals.revenue) : "—"}
+                    />
+                    <Stat
+                        label="Stock Items Sold"
+                        value={format(pageItemBreakdown.stockRevenue)}
+                    />
+                    <Stat
+                        label="No-Stock Items Sold"
+                        value={format(pageItemBreakdown.noStockRevenue)}
+                    />
+                    <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
+                    <Stat
+                        label="Pending"
+                        value={totals ? String(totals.pending) : "—"}
+                    />
+                </section>
+
+                {summaryQuery.data?.truncated && (
+                    <p className="-mt-2 text-[13px] text-muted-foreground">
+                        Totals cover the most recent orders in this range only.
+                        Narrow the dates for exact figures — the table below still
+                        pages through every order.
+                    </p>
+                )}
             </div>
 
-            <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
-                    <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
-                    {storefrontError && (
-                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="flex items-center gap-2 mr-4">
-                        <Switch
-                            id="menu-toggle"
-                            checked={Boolean(storefrontStatus?.listed)}
-                            disabled={isEnabling || isDisabling}
-                            onCheckedChange={handleMenuToggle}
-                        />
-                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                        <Link
-                            href={subdomainUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            Live Menu
-                        </Link>
-                    </div>
-                </div>
-            </div>
-
-            <section
-                data-tour="sales-order-stats"
-                aria-label="Totals"
-                className="grid grid-cols-2 gap-3 lg:grid-cols-6"
-            >
-                <Stat
-                    label="Orders"
-                    value={totals ? String(totals.orders) : "—"}
-                />
-                <Stat
-                    label="Total Revenue"
-                    value={totals ? format(totals.revenue) : "—"}
-                />
-                <Stat
-                    label="Stock Items Sold"
-                    value={format(pageItemBreakdown.stockRevenue)}
-                />
-                <Stat
-                    label="No-Stock Items Sold"
-                    value={format(pageItemBreakdown.noStockRevenue)}
-                />
-                <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
-                <Stat
-                    label="Pending"
-                    value={totals ? String(totals.pending) : "—"}
-                />
-            </section>
-
-            {summaryQuery.data?.truncated && (
-                <p className="-mt-2 text-[13px] text-muted-foreground">
-                    Totals cover the most recent orders in this range only.
-                    Narrow the dates for exact figures — the table below still
-                    pages through every order.
-                </p>
-            )}
-
-            <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div data-tour="sales-orders-filters" className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
+            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
+                <div data-tour="sales-orders-filters" className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -437,8 +439,7 @@ export default function SalesOrdersPage() {
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
-
-                    <>
+                    <div>
                         {rows.length === 0 ? (
                             <EmptyState searching={Boolean(search)} />
                         ) : (
@@ -448,7 +449,7 @@ export default function SalesOrdersPage() {
                                 aria-busy={isFetching}
                             >
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="sticky top-14 z-10 bg-card border-b border-border shadow-xs">
                                         <TableRow>
                                             {visibleColumns.invoice && <TableHead>Invoice</TableHead>}
                                             {visibleColumns.date && <TableHead>Date</TableHead>}
@@ -477,24 +478,26 @@ export default function SalesOrdersPage() {
                             </div>
                         )}
 
-                        <Pager
-                            page={page}
-                            pageCount={pageCount}
-                            pageSize={pageSize}
-                            first={firstRow}
-                            last={lastRow}
-                            total={totalElements}
-                            busy={isFetching}
-                            filtered={
-                                search ? orders.length - rows.length : 0
-                            }
-                            onPage={setPage}
-                            onPageSize={(next) => {
-                                setPageSize(next);
-                                setPage(0);
-                            }}
-                        />
-                    </>
+                        <div className="border-t border-border bg-card rounded-b-2xl">
+                            <Pager
+                                page={page}
+                                pageCount={pageCount}
+                                pageSize={pageSize}
+                                first={firstRow}
+                                last={lastRow}
+                                total={totalElements}
+                                busy={isFetching}
+                                filtered={
+                                    search ? orders.length - rows.length : 0
+                                }
+                                onPage={setPage}
+                                onPageSize={(next) => {
+                                    setPageSize(next);
+                                    setPage(0);
+                                }}
+                            />
+                        </div>
+                    </div>
                 )}
             </section>
 

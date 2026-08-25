@@ -254,6 +254,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
     if (error) {
         return (
             <InventoryError
+                error={error}
                 message={getApiErrorMessage(
                     error,
                     "Unable to load categories.",
@@ -359,20 +360,20 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                 ) : null}
                                                 <Button
                                                     type="button"
-                                                    variant="outline"
+                                                    variant="ghost"
                                                     size="icon-sm"
                                                     aria-label={`Edit ${group.name || "category"}`}
                                                     onClick={() =>
                                                         startEditing(group)
                                                     }
                                                 >
-                                                    <Pencil />
+                                                    <Pencil className="size-4" />
                                                 </Button>
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
-                                                    size="sm"
-                                                    className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
+                                                    size="icon-sm"
+                                                    className="hover:bg-red-50 dark:hover:bg-red-950/40"
                                                     aria-label={`Delete ${group.name || "category"}`}
                                                     disabled={
                                                         deleteState.isLoading
@@ -412,7 +413,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                         <div className="flex gap-2">
                                                             <Button
                                                                 type="button"
-                                                                variant="outline"
+                                                                variant="ghost"
                                                                 size="icon-sm"
                                                                 aria-label={`Edit ${subGroup.name || "subcategory"}`}
                                                                 onClick={() =>
@@ -422,13 +423,13 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                                     )
                                                                 }
                                                             >
-                                                                <Pencil />
+                                                                <Pencil className="size-4" />
                                                             </Button>
                                                             <Button
                                                                 type="button"
                                                                 variant="ghost"
-                                                                size="sm"
-                                                                className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
+                                                                size="icon-sm"
+                                                                className="hover:bg-red-50 dark:hover:bg-red-950/40"
                                                                 aria-label={`Delete ${subGroup.name || "subcategory"}`}
                                                                 disabled={
                                                                     deleteState.isLoading

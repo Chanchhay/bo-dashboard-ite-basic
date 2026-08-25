@@ -13,13 +13,17 @@ import {
     Package,
     PackageCheck,
     User,
+    QrCode,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { useToast } from "@/components/ui/toast";
+import MenuQRModal from "@/components/menu/menu-qr-modal";
 
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
@@ -128,6 +132,11 @@ export default function SalesOrdersDraftPage() {
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: selectedOrderId === null,
+    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -228,69 +237,80 @@ export default function SalesOrdersDraftPage() {
     }
 
     return (
-        <div className="flex flex-col gap-5 pb-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
-                    <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
-                    {storefrontError && (
-                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="flex items-center gap-2 mr-4">
-                        <Switch
-                            id="menu-toggle"
-                            checked={Boolean(storefrontStatus?.listed)}
-                            disabled={isEnabling || isDisabling}
-                            onCheckedChange={handleMenuToggle}
-                        />
-                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+        <div className="flex flex-col gap-5 pb-12 sm:pb-16">
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
+                        <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                        {storefrontError && (
+                            <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                        )}
                     </div>
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 mr-4">
+                            <Switch
+                                id="menu-toggle"
+                                checked={Boolean(storefrontStatus?.listed)}
+                                disabled={isEnabling || isDisabling}
+                                onCheckedChange={handleMenuToggle}
+                            />
+                            <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+                        </div>
 
-                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                        <Link
-                            href={subdomainUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            Live Menu
-                        </Link>
+                        <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsQrModalOpen(true)}
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-2xs"
+                            >
+                                <QrCode className="h-4 w-4 text-primary" />
+                                <span>QR Code</span>
+                            </Button>
+                            <Link
+                                href={subdomainUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Live Menu
+                            </Link>
+                        </div>
                     </div>
                 </div>
+
+                <section
+                    aria-label="Totals"
+                    className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+                >
+                    <Stat
+                        label="Orders"
+                        value={totals ? String(totals.orders) : "—"}
+                    />
+                    <Stat
+                        label="Revenue"
+                        value={totals ? format(totals.revenue) : "—"}
+                    />
+                    <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
+                    <Stat
+                        label="Pending"
+                        value={totals ? String(totals.pending) : "—"}
+                    />
+                </section>
+
+                {summaryQuery.data?.truncated && (
+                    <p className="-mt-2 text-[13px] text-muted-foreground">
+                        Totals cover the most recent orders in this range only.
+                        Narrow the dates for exact figures — the table below still
+                        pages through every order.
+                    </p>
+                )}
             </div>
 
-            <section
-                aria-label="Totals"
-                className="grid grid-cols-2 gap-3 lg:grid-cols-4"
-            >
-                <Stat
-                    label="Orders"
-                    value={totals ? String(totals.orders) : "—"}
-                />
-                <Stat
-                    label="Revenue"
-                    value={totals ? format(totals.revenue) : "—"}
-                />
-                <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
-                <Stat
-                    label="Pending"
-                    value={totals ? String(totals.pending) : "—"}
-                />
-            </section>
-
-            {summaryQuery.data?.truncated && (
-                <p className="-mt-2 text-[13px] text-muted-foreground">
-                    Totals cover the most recent orders in this range only.
-                    Narrow the dates for exact figures — the table below still
-                    pages through every order.
-                </p>
-            )}
-
-            <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
+            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -327,14 +347,12 @@ export default function SalesOrdersDraftPage() {
                 </div>
 
                 {isLoading ? (
-                    <p className="p-10 text-center text-[14px] text-muted-foreground">
-                        Loading orders…
-                    </p>
+                    <CardListSkeleton count={4} />
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
 
-                    <>
+                    <div>
                         {rows.length === 0 ? (
                             <EmptyState searching={Boolean(search)} />
                         ) : (
@@ -356,26 +374,26 @@ export default function SalesOrdersDraftPage() {
                             </div>
                         )}
 
-                        {/* The pager stays put even when a search empties the
-                            page, so the way back to the rest is never hidden. */}
-                        <Pager
-                            page={page}
-                            pageCount={pageCount}
-                            pageSize={pageSize}
-                            first={firstRow}
-                            last={lastRow}
-                            total={totalElements}
-                            busy={isFetching}
-                            filtered={
-                                search ? orders.length - rows.length : 0
-                            }
-                            onPage={setPage}
-                            onPageSize={(next) => {
-                                setPageSize(next);
-                                setPage(0);
-                            }}
-                        />
-                    </>
+                        <div className="border-t border-border bg-card rounded-b-2xl">
+                            <Pager
+                                page={page}
+                                pageCount={pageCount}
+                                pageSize={pageSize}
+                                first={firstRow}
+                                last={lastRow}
+                                total={totalElements}
+                                busy={isFetching}
+                                filtered={
+                                    search ? orders.length - rows.length : 0
+                                }
+                                onPage={setPage}
+                                onPageSize={(next) => {
+                                    setPageSize(next);
+                                    setPage(0);
+                                }}
+                            />
+                        </div>
+                    </div>
                 )}
             </section>
 
@@ -417,6 +435,13 @@ export default function SalesOrdersDraftPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Digital Menu QR Code Modal */}
+            <MenuQRModal
+                isOpen={isQrModalOpen}
+                onClose={() => setIsQrModalOpen(false)}
+                menuUrl={subdomainUrl}
+            />
         </div>
     );
 }

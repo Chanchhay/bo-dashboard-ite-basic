@@ -1,6 +1,7 @@
 "use client";
 
 import { PaginationBar } from "@/components/ui/PaginationBar";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { useMemo, useState } from "react";
 import {
     Plus,
@@ -13,10 +14,14 @@ import {
     MapPin,
     Crown,
     Filter,
+    Calendar,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+import { DatePicker } from "@/components/ui/date-picker";
+import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,12 +149,44 @@ export default function CustomerManagement() {
     const [deletingCustomer, setDeletingCustomer] =
         useState<CustomerResponse | null>(null);
 
-    // Channel Filter state
+    // Filter states
     const [selectedChannelFilter, setSelectedChannelFilter] = useState<string>("ALL");
+    const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+    const [datePreset, setDatePreset] = useState<string>("ALL");
+    const [fromDate, setFromDate] = useState<string>("");
+    const [toDate, setToDate] = useState<string>("");
+
+    const handleDatePresetChange = (preset: string) => {
+        setDatePreset(preset);
+        const today = new Date();
+        const todayStr = today.toISOString().split("T")[0];
+
+        if (preset === "ALL") {
+            setFromDate("");
+            setToDate("");
+        } else if (preset === "TODAY") {
+            setFromDate(todayStr);
+            setToDate(todayStr);
+        } else if (preset === "7DAYS") {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 7);
+            setFromDate(d.toISOString().split("T")[0]);
+            setToDate(todayStr);
+        } else if (preset === "30DAYS") {
+            const d = new Date(today);
+            d.setDate(d.getDate() - 30);
+            setFromDate(d.toISOString().split("T")[0]);
+            setToDate(todayStr);
+        }
+    };
 
     const filteredCustomers = useMemo(() => {
         return customers.filter((c) => {
-            // 1. Channel Filter
+            // 1. Status Filter
+            if (statusFilter === "ACTIVE" && !c.active) return false;
+            if (statusFilter === "INACTIVE" && c.active) return false;
+
+            // 2. Channel Filter
             if (selectedChannelFilter !== "ALL") {
                 if (selectedChannelFilter === "NONE") {
                     if (c.salesChannel) return false;
@@ -158,7 +195,31 @@ export default function CustomerManagement() {
                 }
             }
 
-            // 2. Search Query Filter
+            // 3. Date Range Filter (Registered Date)
+            if (fromDate || toDate) {
+                const gc = c.globalCustomer as unknown as { createdDate?: string; createdAt?: string } | undefined;
+                const createdStr =
+                    c.createdDate ||
+                    (c as unknown as { createdAt?: string }).createdAt ||
+                    gc?.createdDate ||
+                    gc?.createdAt;
+
+                if (createdStr) {
+                    const createdTime = new Date(createdStr).getTime();
+                    if (!isNaN(createdTime)) {
+                        if (fromDate) {
+                            const fromTime = new Date(`${fromDate}T00:00:00`).getTime();
+                            if (createdTime < fromTime) return false;
+                        }
+                        if (toDate) {
+                            const toTime = new Date(`${toDate}T23:59:59.999`).getTime();
+                            if (createdTime > toTime) return false;
+                        }
+                    }
+                }
+            }
+
+            // 4. Search Query Filter
             if (!searchQuery.trim()) return true;
             const q = searchQuery.trim().toLowerCase();
 
@@ -187,7 +248,7 @@ export default function CustomerManagement() {
                 channel.includes(q)
             );
         });
-    }, [customers, searchQuery, selectedChannelFilter]);
+    }, [customers, searchQuery, selectedChannelFilter, statusFilter, fromDate, toDate]);
 
     const openCreateDialog = () => {
         setEditingCustomer(null);
@@ -320,46 +381,137 @@ export default function CustomerManagement() {
     }, [salesChannelId, salesChannels, posSalesChannels]);
 
     return (
-        <div className="space-y-6">
-            {/* Header Section */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                        Customers
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-            Manage your customer database, assign membership types, track total
-            spending, and edit profile details.
-                    </p>
-                </div>
-                <Button
-                    data-tour="add-customer-btn"
-                    onClick={openCreateDialog}
-                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
-                >
-                    <Plus className="h-4 w-4" /> Add Customer
-                </Button>
-            </div>
+        <div className="flex flex-col gap-6">
+            {/* Sticky Header Section */}
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+                <InventoryPageHeader
+                    title="Customers"
+                    description="Manage customer profiles, phone numbers, lifetime spending, and loyalty visit records."
+                    action={
+                        <div className="flex items-center gap-3">
+                            <Button
+                                data-tour="add-customer-btn"
+                                onClick={openCreateDialog}
+                                className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-xs cursor-pointer"
+                            >
+                                <Plus className="h-4 w-4" /> Add Customer
+                            </Button>
+                            <TourButton />
+                        </div>
+                    }
+                />
 
-            {/* Controls Bar */}
-            <div data-tour="customers-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
-                <div className="relative w-full sm:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name, email, phone..."
-                        className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
-                    />
+                {/* Controls Bar & Filters */}
+                <div data-tour="customers-search-bar" className="flex flex-col gap-3 pt-1">
+                    {/* Top Control Row: Search + Status Filter + Column Dropdown */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                            {/* Search Input */}
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search by name, email, phone..."
+                                    className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
+                                />
+                            </div>
+
+                            {/* Status Filter Dropdown */}
+                            <Select
+                                value={statusFilter}
+                                onValueChange={(val) => setStatusFilter((val || "ALL") as "ALL" | "ACTIVE" | "INACTIVE")}
+                            >
+                                <SelectTrigger size="sm" className="!h-10 w-36 rounded-xl bg-card border-border text-sm font-medium">
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All Statuses</SelectItem>
+                                    <SelectItem value="ACTIVE">Active</SelectItem>
+                                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <ColumnSelectDropdown
+                            columns={customerCols}
+                            onToggleColumn={toggleCol}
+                            onResetDefaults={resetCols}
+                        />
+                    </div>
+
+                    {/* Date Filter Toolbar Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-xs sm:text-sm text-foreground mr-1 flex items-center gap-1.5">
+                                <Calendar className="size-4 text-primary" />
+                                <span>Date:</span>
+                            </span>
+                            {[
+                                { id: "ALL", label: "All Time" },
+                                { id: "TODAY", label: "Today" },
+                                { id: "7DAYS", label: "Last 7 Days" },
+                                { id: "30DAYS", label: "Last 30 Days" },
+                            ].map((p) => (
+                                <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => handleDatePresetChange(p.id)}
+                                    className={cn(
+                                        "px-3 py-1 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer",
+                                        datePreset === p.id && !fromDate && !toDate
+                                            ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                                            : datePreset === p.id
+                                              ? "bg-primary/10 text-primary font-semibold border border-primary/20"
+                                              : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
+                                    )}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs sm:text-sm font-medium text-muted-foreground">From:</span>
+                                <div className="w-36 sm:w-40">
+                                    <DatePicker
+                                        value={fromDate}
+                                        max={toDate || undefined}
+                                        placeholder="Any date"
+                                        className="h-9"
+                                        onValueChange={(val) => {
+                                            setFromDate(val);
+                                            setDatePreset("CUSTOM");
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs sm:text-sm font-medium text-muted-foreground">To:</span>
+                                <div className="w-36 sm:w-40">
+                                    <DatePicker
+                                        value={toDate}
+                                        min={fromDate || undefined}
+                                        placeholder="Any date"
+                                        className="h-9"
+                                        onValueChange={(val) => {
+                                            setToDate(val);
+                                            setDatePreset("CUSTOM");
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Table */}
             <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isCustomersLoading ? (
-                    <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" /> Loading customers...
-                    </div>
+                    <TableSkeleton rows={6} cols={6} />
                 ) : filteredCustomers.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Users className="h-8 w-8 mx-auto opacity-40" />

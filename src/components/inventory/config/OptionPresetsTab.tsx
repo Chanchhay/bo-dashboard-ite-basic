@@ -294,6 +294,7 @@ export function OptionPresetsTab() {
     if (presetsQuery.error) {
         return (
             <InventoryError
+                error={presetsQuery.error}
                 message={getApiErrorMessage(
                     presetsQuery.error,
                     "Unable to load the presets.",
@@ -393,25 +394,26 @@ export function OptionPresetsTab() {
                                         <div className="flex shrink-0 gap-2">
                                             <Button
                                                 type="button"
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon-sm"
                                                 aria-label={`Edit ${preset.name}`}
                                                 onClick={() =>
                                                     startEditing(preset)
                                                 }
                                             >
-                                                <Pencil />
+                                                <Pencil className="size-4" />
                                             </Button>
                                             <Button
                                                 type="button"
-                                                variant="destructive"
+                                                variant="ghost"
                                                 size="icon-sm"
+                                                className="hover:bg-red-50 dark:hover:bg-red-950/40"
                                                 aria-label={`Delete ${preset.name}`}
                                                 onClick={() =>
                                                     setDeleteTarget(preset)
                                                 }
                                             >
-                                                <Trash2 />
+                                                <Trash2 className="size-4 text-brand-red" />
                                             </Button>
                                         </div>
                                     </div>
