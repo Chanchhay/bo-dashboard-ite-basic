@@ -338,15 +338,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                     action={
                         <div className="flex items-center gap-2">
                             <TourButton />
-                            <Button
-                                variant="outline"
-                                render={<Link href="/inventory/stock" />}
-                                nativeButton={false}
-                                className="h-10 gap-2 rounded-xl"
-                            >
-                                <ArrowLeft className="size-4" />
-                                Back to stock
-                            </Button>
                         </div>
                     }
                 />
@@ -479,16 +470,16 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                                 id="quantity"
                                                 name="quantity"
                                                 type="number"
-                                                step="0.01"
-                                                min="0.01"
+                                                step="1"
+                                                min="1"
                                                 value={quantityInput}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === "-" || e.key === "e") {
+                                                    if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
                                                         e.preventDefault();
                                                     }
                                                 }}
                                                 onChange={(e) => {
-                                                    const val = e.target.value.replace(/-/g, "");
+                                                    const val = e.target.value.replace(/[^\d]/g, "");
                                                     setQuantityInput(val);
                                                     setFieldErrors((current) => {
                                                         const next = { ...current };

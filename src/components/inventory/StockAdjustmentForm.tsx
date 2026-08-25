@@ -522,15 +522,6 @@ export function StockAdjustmentForm() {
                 action={
                     <div className="flex items-center gap-2">
                         <TourButton />
-                        <Button
-                            variant="outline"
-                            render={<Link href="/inventory/stock" />}
-                            nativeButton={false}
-                            className="h-10 gap-2 rounded-xl"
-                        >
-                            <ArrowLeft className="size-4" />
-                            Back to stock
-                        </Button>
                     </div>
                 }
             />
@@ -733,16 +724,22 @@ export function StockAdjustmentForm() {
                                     id="quantity"
                                     name="quantity"
                                     type="number"
-                                    step="0.01"
+                                    step="1"
                                     disabled={isManual && !overrideQuantity}
                                     value={quantityInput}
                                     onKeyDown={(e) => {
-                                        if (!isManual && (e.key === "-" || e.key === "e")) {
+                                        if (e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
+                                            e.preventDefault();
+                                        }
+                                        if (!isManual && e.key === "-") {
                                             e.preventDefault();
                                         }
                                     }}
                                     onChange={(event) => {
-                                        const val = isManual ? event.target.value : event.target.value.replace(/-/g, "");
+                                        const raw = event.target.value;
+                                        const val = isManual
+                                            ? raw.replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "")
+                                            : raw.replace(/[^\d]/g, "");
                                         setQuantityInput(val);
                                         setFieldErrors((current) => {
                                             const next = { ...current };

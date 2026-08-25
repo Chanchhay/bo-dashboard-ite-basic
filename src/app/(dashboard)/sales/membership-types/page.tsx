@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { TourButton } from "@/components/onboarding/TourButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -243,9 +244,7 @@ export default function MembershipTypesPage() {
             {/* Table */}
             <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                 {isTypesLoading ? (
-                    <div className="flex justify-center items-center py-16 text-muted-foreground gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" /> Loading member types...
-                    </div>
+                    <TableSkeleton rows={5} cols={5} />
                 ) : filteredTypes.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Award className="h-8 w-8 mx-auto opacity-40" />

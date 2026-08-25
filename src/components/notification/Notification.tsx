@@ -97,9 +97,10 @@ function getNotificationIcon(type?: string | null) {
     }
 }
 
-function getNotificationLink(notification: Notification): string | null {
-    const type = notification.type?.toUpperCase();
+function getNotificationLink(notification: Notification): string {
+    const type = notification.type?.toUpperCase() || "";
     const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
+    const deepLink = (notification.deepLink || "").toLowerCase();
 
     if (
         type === "ORDER" ||
@@ -107,31 +108,61 @@ function getNotificationLink(notification: Notification): string | null {
         type === "SUCCESS" ||
         text.includes("sale") ||
         text.includes("inv-") ||
-        text.includes("order")
+        text.includes("order") ||
+        deepLink.includes("order") ||
+        deepLink.includes("sale") ||
+        deepLink.includes("pos")
     ) {
-        return "/sales";
+        return "/sales/orders";
     }
 
-    if (type === "INVENTORY" || type === "LOW_STOCK" || text.includes("stock")) {
+    if (
+        type === "INVENTORY" ||
+        type === "LOW_STOCK" ||
+        type === "WARNING" ||
+        type === "ALERT" ||
+        text.includes("stock") ||
+        text.includes("item") ||
+        deepLink.includes("inventory") ||
+        deepLink.includes("stock")
+    ) {
         return "/inventory/stock";
     }
 
-    const link = notification.deepLink;
-    if (link && link !== "#") {
-        if (link.includes("/pos") || link.includes("/sales")) {
-            return "/sales";
-        }
-        if (link.includes("/inventory") || link.includes("/stock")) {
-            return "/inventory/stock";
-        }
-        if (link.startsWith("/dashboard/")) {
-            const clean = link.replace("/dashboard", "");
-            return clean || "/sales";
-        }
-        return link;
+    if (text.includes("customer") || deepLink.includes("customer")) {
+        return "/sales/customers";
     }
 
-    return "/sales";
+    if (text.includes("discount") || text.includes("coupon") || deepLink.includes("discount")) {
+        return "/sales/discounts";
+    }
+
+    if (text.includes("session") || text.includes("till") || deepLink.includes("session")) {
+        return "/sales/sessions";
+    }
+
+    if (text.includes("tax") || deepLink.includes("tax")) {
+        return "/sales/taxes";
+    }
+
+    if (text.includes("employee") || text.includes("staff") || deepLink.includes("employee")) {
+        return "/employees";
+    }
+
+    if (notification.deepLink && notification.deepLink !== "#") {
+        const link = notification.deepLink;
+        if (
+            link.startsWith("/sales") ||
+            link.startsWith("/inventory") ||
+            link.startsWith("/business") ||
+            link.startsWith("/employees") ||
+            link.startsWith("/analytics")
+        ) {
+            return link;
+        }
+    }
+
+    return "/sales/orders";
 }
 
 export function NotificationMenu({ className }: { className?: string }) {
@@ -398,7 +429,7 @@ function NotificationItem({
 }) {
     const timeAgo = formatTimeAgo(notification.createdAt);
     const isUnread = !notification.read;
-    const href = notification.deepLink || "#";
+    const targetLink = getNotificationLink(notification);
 
     const isUuid = (str?: string | null) =>
         Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
@@ -478,13 +509,9 @@ function NotificationItem({
         </div>
     );
 
-    if (notification.deepLink) {
-        return (
-            <Link href={href} className="block outline-none focus-visible:bg-primary/10">
-                {innerContent}
-            </Link>
-        );
-    }
-
-    return innerContent;
+    return (
+        <Link href={targetLink} className="block outline-none focus-visible:bg-primary/10">
+            {innerContent}
+        </Link>
+    );
 }

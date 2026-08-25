@@ -11,11 +11,49 @@
  * broken query anywhere in the app was reported to the user — and to whoever
  * they told — as a duplicate customer.
  */
+/**
+ * Checks if an error is a 403 Forbidden / Access Denied error.
+ */
+export function isForbiddenError(error: unknown): boolean {
+    if (typeof error === "object" && error !== null) {
+        if ("status" in error) {
+            const status = (error as { status: unknown }).status;
+            if (status === 403 || status === "403") return true;
+        }
+        if (
+            "data" in error &&
+            typeof (error as { data: unknown }).data === "object" &&
+            (error as { data: unknown }).data !== null
+        ) {
+            const data = (error as { data: Record<string, unknown> }).data;
+            if (data.status === 403 || data.status === "403") return true;
+            if (
+                typeof data.message === "string" &&
+                (data.message.includes("403") || data.message.toLowerCase().includes("forbidden"))
+            ) {
+                return true;
+            }
+        }
+        if (
+            "message" in error &&
+            typeof (error as { message: unknown }).message === "string"
+        ) {
+            const msg = (error as { message: string }).message;
+            if (msg.includes("403") || msg.toLowerCase().includes("forbidden")) return true;
+        }
+    }
+    return false;
+}
+
 export function getApiErrorMessage(
     error: unknown,
     fallback: string,
     duplicate?: string,
 ) {
+    if (isForbiddenError(error)) {
+        return "Access Forbidden — You do not have permission to access this resource.";
+    }
+
     if (
         typeof error === "object" &&
         error !== null &&

@@ -19,7 +19,9 @@ import {
     getApiErrorMessage,
     InventoryError,
     InventoryLoading,
+    InventoryPageHeader,
 } from "@/components/inventory/InventoryUi";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { MultiChannelPublishDialog } from "@/components/menu/MultiChannelPublishDialog";
 import { SplitStockDialog } from "@/components/menu/SplitStockDialog";
 import { ChannelPriceDialog } from "@/components/sales/pricing/ChannelPriceDialog";
@@ -714,208 +716,189 @@ export function ItemPricingTab() {
     const openNow = draft ? isOpenAt(draft.schedule, new Date()) : true;
 
     return (
-        <div className="flex flex-col gap-4">
-            {/* Whose price is being set. */}
-            <div data-tour="pricing-scope-selector" className="flex flex-wrap items-center gap-2">
-                <button
-                    type="button"
-                    onClick={() => setScope(baseScope)}
-                    aria-pressed={isBase}
-                    className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                        isBase
-                            ? "border-primary bg-primary/10 font-bold text-primary shadow-xs ring-1 ring-primary/30"
-                            : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                >
-                    <span
-                        className={`grid size-7 place-items-center rounded-lg ${
+        <div className="flex flex-col gap-6">
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
+                    <InventoryPageHeader
+                        title="Item & Pricing"
+                        description="Set base prices, then what each channel sells and charges — one catalogue, one place."
+                    />
+                    <TourButton />
+                </div>
+
+                {/* Whose price is being set. */}
+                <div data-tour="pricing-scope-selector" className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setScope(baseScope)}
+                        aria-pressed={isBase}
+                        className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                             isBase
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-muted-foreground"
+                                ? "border-primary bg-primary/10 font-bold text-primary shadow-xs ring-1 ring-primary/30"
+                                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                     >
-                        <Tag className="size-4 shrink-0" />
-                    </span>
-                    Base price
-                </button>
+                        <span
+                            className={`grid size-7 place-items-center rounded-lg ${
+                                isBase
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted text-muted-foreground"
+                            }`}
+                        >
+                            <Tag className="size-4 shrink-0" />
+                        </span>
+                        Base price
+                    </button>
 
-                {channels.length ? (
-                    <span
-                        aria-hidden
-                        className="mx-1 h-8 w-px shrink-0 bg-border"
-                    />
-                ) : null}
-
-                {channels.map((entry) => (
-                    <ChannelScopeChip
-                        key={entry.id}
-                        channel={entry}
-                        active={entry.id === scope}
-                        showCode={repeatedNames.has(
-                            (entry.name || "").trim().toLowerCase(),
-                        )}
-                        liveSchedule={
-                            entry.id === channelId ? draft?.schedule : undefined
-                        }
-                        onSelect={() => setScope(entry.id)}
-                        onListingLoaded={collectListing}
-                    />
-                ))}
-            </div>
-
-            {/* When this channel takes orders, and which others keep the same
-                hours. Orders arriving while it is shut are turned away, so this
-                is not a note to self. */}
-            {isBase ? null : (
-                <>
-                    {listingQuery.error ? (
-                        <InventoryError
-                            message={getApiErrorMessage(
-                                listingQuery.error,
-                                "Unable to load this channel.",
-                            )}
-                            retry={listingQuery.refetch}
+                    {channels.length ? (
+                        <span
+                            aria-hidden
+                            className="mx-1 h-8 w-px shrink-0 bg-border"
                         />
                     ) : null}
 
-                    <ChannelScheduleCard
-                        channelName={channel?.name ?? "This channel"}
-                        schedule={draft?.schedule ?? emptySchedule()}
-                        onChange={(next) =>
-                            editDraft((current) => ({
-                                ...current,
-                                schedule: next,
-                            }))
+                    {channels.map((entry) => (
+                        <ChannelScopeChip
+                            key={entry.id}
+                            channel={entry}
+                            active={entry.id === scope}
+                            showCode={repeatedNames.has(
+                                (entry.name || "").trim().toLowerCase(),
+                            )}
+                            liveSchedule={
+                                entry.id === channelId ? draft?.schedule : undefined
+                            }
+                            onSelect={() => setScope(entry.id)}
+                            onListingLoaded={collectListing}
+                        />
+                    ))}
+                </div>
+
+                {/* Finding the item and pricing the lot, in one bar. The rule and
+                    the search belong together: the rule only ever applies to what
+                    the search left showing. */}
+                <div data-tour="pricing-filter-bar" className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-4 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <ItemPricingFilters
+                        items={items}
+                        searchQuery={searchQuery}
+                        onSearchChange={(value) => {
+                            setSearchQuery(value);
+                            setPage(1);
+                        }}
+                        onScan={() => setScannerOpen(true)}
+                        panelOpen={filterPanelOpen}
+                        onPanelOpenChange={setFilterPanelOpen}
+                        draftFilters={draftFilters}
+                        onDraftFiltersChange={setDraftFilters}
+                        onApply={() => {
+                            setAppliedFilters({ ...draftFilters });
+                            setPage(1);
+                        }}
+                        onReset={handleResetFilters}
+                        activeFilterCount={activeFilterCount}
+                        extra={
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setPublishingItemId("")}
+                                    className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
+                                >
+                                    <ShoppingBag className="size-4 shrink-0" />
+                                    <span>Manage channels</span>
+                                </Button>
+
+                                {/* The same allocation the item form asks for one
+                                    number at a time, arrived at by a rule instead
+                                    — which is the only way to do it to eighty
+                                    items at once. */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setSplittingStock(true)}
+                                    className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
+                                >
+                                    <Scale className="size-4 shrink-0" />
+                                    <span>Split stock</span>
+                                </Button>
+                            </>
                         }
                     />
-                </>
-            )}
 
-            {/* Finding the item and pricing the lot, in one bar. The rule and
-                the search belong together: the rule only ever applies to what
-                the search left showing. */}
-            <div data-tour="pricing-filter-bar" className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-4 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <ItemPricingFilters
-                    items={items}
-                    searchQuery={searchQuery}
-                    onSearchChange={(value) => {
-                        setSearchQuery(value);
-                        setPage(1);
-                    }}
-                    onScan={() => setScannerOpen(true)}
-                    panelOpen={filterPanelOpen}
-                    onPanelOpenChange={setFilterPanelOpen}
-                    draftFilters={draftFilters}
-                    onDraftFiltersChange={setDraftFilters}
-                    onApply={() => {
-                        setAppliedFilters({ ...draftFilters });
-                        setPage(1);
-                    }}
-                    onReset={handleResetFilters}
-                    activeFilterCount={activeFilterCount}
-                    extra={
-                        <>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setPublishingItemId("")}
-                                className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
-                            >
-                                <ShoppingBag className="size-4 shrink-0" />
-                                <span>Manage channels</span>
-                            </Button>
+                    {/* The rule sits under the search because it only ever applies
+                        to what the search left showing — and on its own line so the
+                        row above stays four things wide however narrow the window. */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border/50 pt-3">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                            {isBase ? "Price from cost" : "Channel markup"}
+                        </p>
 
-                            {/* The same allocation the item form asks for one
-                                number at a time, arrived at by a rule instead
-                                — which is the only way to do it to eighty
-                                items at once. */}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setSplittingStock(true)}
-                                className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
-                            >
-                                <Scale className="size-4 shrink-0" />
-                                <span>Split stock</span>
-                            </Button>
-                        </>
-                    }
-                />
+                        {isBase ? (
+                            <RuleControl
+                                kind={costRule}
+                                value={costRuleValue}
+                                label="Pricing rule"
+                                onKindChange={setCostRule}
+                                onValueChange={setCostRuleValue}
+                            />
+                        ) : (
+                            <RuleControl
+                                kind={globalKind}
+                                value={draft?.globalValue ?? ""}
+                                label="Global channel rule"
+                                onKindChange={(kind) =>
+                                    setGlobalRule(kind, draft?.globalValue ?? "")
+                                }
+                                onValueChange={(value) =>
+                                    setGlobalRule(globalKind, value)
+                                }
+                            />
+                        )}
 
-                {/* The rule sits under the search because it only ever applies
-                    to what the search left showing — and on its own line so the
-                    row above stays four things wide however narrow the window. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border/50 pt-3">
-                    <p className="text-xs font-semibold text-muted-foreground">
-                        {isBase ? "Price from cost" : "Channel markup"}
-                    </p>
-
-                    {isBase ? (
-                        <RuleControl
-                            kind={costRule}
-                            value={costRuleValue}
-                            label="Pricing rule"
-                            onKindChange={setCostRule}
-                            onValueChange={setCostRuleValue}
-                        />
-                    ) : (
-                        <RuleControl
-                            kind={globalKind}
-                            value={draft?.globalValue ?? ""}
-                            label="Global channel rule"
-                            onKindChange={(kind) =>
-                                setGlobalRule(kind, draft?.globalValue ?? "")
-                            }
-                            onValueChange={(value) =>
-                                setGlobalRule(globalKind, value)
-                            }
-                        />
-                    )}
-
-                    {/* A channel's rule is saved with the rest of the channel,
-                        so it has nothing to apply on its own. */}
-                    {isBase ? (
-                        <div className="ml-auto flex items-center gap-2.5">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={resetCostRule}
-                                className="!h-10 shrink-0 rounded-xl px-3.5 text-sm font-semibold"
-                            >
-                                Reset
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={applyCostRule}
-                                className="!h-10 shrink-0 rounded-xl px-4 text-sm font-semibold shadow-xs"
-                            >
-                                Apply to all
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="ml-auto w-36 shrink-0">
-                            <Select
-                                value={statusFilter}
-                                items={{
-                                    ALL: "All items",
-                                    OVERRIDDEN: "With overrides",
-                                    DEFAULT: "Channel default",
-                                }}
-                                onValueChange={(value) => {
-                                    setStatusFilter(
-                                        (value || "ALL") as
-                                            | "ALL"
-                                            | "OVERRIDDEN"
-                                            | "DEFAULT",
-                                    );
-                                    setPage(1);
-                                }}
-                            >
-                                <SelectTrigger
-                                    size="sm"
-                                    aria-label="Show items"
-                                    className={`${controlClassName} !h-10 shrink-0 rounded-xl border border-border bg-card px-3.5 text-sm font-semibold`}
+                        {/* A channel's rule is saved with the rest of the channel,
+                            so it has nothing to apply on its own. */}
+                        {isBase ? (
+                            <div className="ml-auto flex items-center gap-2.5">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={resetCostRule}
+                                    className="!h-10 shrink-0 rounded-xl px-3.5 text-sm font-semibold"
                                 >
+                                    Reset
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={applyCostRule}
+                                    className="!h-10 shrink-0 rounded-xl px-4 text-sm font-semibold shadow-xs"
+                                >
+                                    Apply to all
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="ml-auto w-36 shrink-0">
+                                <Select
+                                    value={statusFilter}
+                                    items={{
+                                        ALL: "All items",
+                                        OVERRIDDEN: "With overrides",
+                                        DEFAULT: "Channel default",
+                                    }}
+                                    onValueChange={(value) => {
+                                        setStatusFilter(
+                                            (value || "ALL") as
+                                                | "ALL"
+                                                | "OVERRIDDEN"
+                                                | "DEFAULT",
+                                        );
+                                        setPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger
+                                        size="sm"
+                                        aria-label="Show items"
+                                        className={`${controlClassName} !h-10 shrink-0 rounded-xl border border-border bg-card px-3.5 text-sm font-semibold`}
+                                    >
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -934,6 +917,7 @@ export function ItemPricingTab() {
                     )}
                 </div>
             </div>
+</div>
 
             {/* Unsaved channel edits, said where they can be acted on. */}
             {!isBase && dirty ? (

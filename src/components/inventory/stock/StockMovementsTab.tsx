@@ -518,7 +518,7 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Search Bar */}
-                    <div data-tour="movements-search" className="relative min-w-60 flex-1 sm:flex-initial">
+                    <div data-tour="movements-search" className="relative min-w-72 sm:w-80 lg:w-96 flex-1 sm:flex-initial">
                         <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             type="text"
