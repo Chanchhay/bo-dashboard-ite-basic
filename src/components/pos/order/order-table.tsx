@@ -594,6 +594,35 @@ export function OrderTable({
     );
   };
 
+  const boPosDefaultRule = useMemo<AppliedDiscountRule | null>(() => {
+    const activeRule = discounts.find(
+      (d) =>
+        d.status === "ACTIVE" &&
+        !d.requiresCoupon &&
+        (!d.applicableChannels || d.applicableChannels.length === 0 || d.applicableChannels.includes("POS"))
+    );
+    if (!activeRule) return null;
+
+    return {
+      type: activeRule.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
+      value: activeRule.value,
+      maxDiscountAmount: activeRule.maxDiscountAmount,
+      discountId: activeRule.id,
+      label: activeRule.name,
+      scope: activeRule.scope,
+      targetItemIds: activeRule.targets
+        ?.filter((t) => t.targetType === "ITEM")
+        .map((t) => t.targetId),
+      targetItemGroupIds: activeRule.targets
+        ?.filter((t) => t.targetType === "ITEM_GROUP")
+        .map((t) => t.targetId),
+      minOrderAmount: activeRule.minOrderAmount,
+      minQuantity: activeRule.minQuantity,
+      buyQuantity: activeRule.buyQuantity,
+      getQuantity: activeRule.getQuantity,
+    };
+  }, [discounts]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -609,6 +638,10 @@ export function OrderTable({
           rule = parsed;
         }
       } catch {}
+    }
+
+    if (!rule && boPosDefaultRule) {
+      rule = boPosDefaultRule;
     }
 
     if (order?.id) {
@@ -644,7 +677,16 @@ export function OrderTable({
     } else {
       setActiveDiscountRule(null);
     }
-  }, [order?.id, order?.subtotal, order?.discountAmount, order?.discountId, order?.discountCode, order?.items, setOrderDiscount]);
+  }, [
+    order?.id,
+    order?.subtotal,
+    order?.discountAmount,
+    order?.discountId,
+    order?.discountCode,
+    order?.items,
+    setOrderDiscount,
+    boPosDefaultRule,
+  ]);
 
   const selectedCustomer = useMemo(() => {
     if (!order?.customerId) return null;
@@ -1056,27 +1098,13 @@ export function OrderTable({
               Discount
             </span>
             {activeDiscountRule?.label && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
                 {activeDiscountRule.label}
-                <button
-                  type="button"
-                  onClick={() => void handleApplyDiscountRule(null)}
-                  className="hover:text-brand-red ml-0.5"
-                  title="Remove Discount"
-                >
-                  <X className="h-3 w-3" />
-                </button>
               </span>
             )}
-            <button
-              type="button"
-              data-tour="pos-cart-discount"
-              onClick={() => setDiscountModalOpen(true)}
-              className="text-xs font-bold text-primary hover:bg-primary/10 px-2 py-0.5 rounded-md border border-primary/30 flex items-center gap-1 transition-all"
-            >
-              <Tag className="h-3 w-3" />
-              {summary.discount > 0 ? "Edit" : "+ Apply"}
-            </button>
+            <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-semibold min-[1025px]:leading-7 font-bold">
+              -{format(summary.discount, order?.currency)}
+            </span>
           </div>
         )}
 
