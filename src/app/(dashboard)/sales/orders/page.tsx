@@ -134,9 +134,6 @@ export default function SalesOrdersDraftPage() {
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null,
-    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
