@@ -215,9 +215,11 @@ export default function SalesOrdersDraftPage() {
     const rows = useMemo(
         () =>
             search
-                ? orders.filter((order) => matchesSearch(order, search))
+                ? orders.filter((order) =>
+                      matchesSearch(order, search, customerNameById),
+                  )
                 : orders,
-        [orders, search],
+        [orders, search, customerNameById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -529,10 +531,18 @@ function Pager({
 }
 
 
-function matchesSearch(order: PosOrder, search: string) {
+function matchesSearch(
+    order: PosOrder,
+    search: string,
+    customerNameById?: Map<string, string>,
+) {
+    const customerName = order.customerId
+        ? (customerNameById?.get(order.customerId) ?? "")
+        : "";
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
+        customerName.toLowerCase().includes(search) ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -600,6 +610,12 @@ function OrderCard({
         order.status === "CONFIRMED" ||
         (order.status === "PAID" && order.paymentMethod === "PAY_LATER");
 
+    const customerName = order.customerId
+        ? customerNameById.get(order.customerId)
+        : null;
+    const noteName = order.note?.trim() || null;
+    const displayName = customerName || noteName;
+
     return (
         <div
             onClick={onClick}
@@ -616,10 +632,15 @@ function OrderCard({
                             {formatOrderDate(order.createdDate)} · {CHANNEL_LABELS[order.channel]}
                         </span>
                     </div>
-                    {order.customerId && (
+                    {displayName && (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-sm font-medium text-foreground">
                             <User className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                            {customerNameById.get(order.customerId) ?? "Customer"}
+                            <span>{displayName}</span>
+                            {customerName && noteName && customerName !== noteName && (
+                                <span className="text-xs text-muted-foreground font-normal">
+                                    ({noteName})
+                                </span>
+                            )}
                         </p>
                     )}
                 </div>

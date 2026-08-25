@@ -52,6 +52,7 @@ import {
     useDisableStorefrontMutation,
 } from "@/services/businessApi";
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
+import { useGetCustomersQuery } from "@/services/customerApi";
 
 
 const STATUS_FILTERS = [
@@ -282,6 +283,16 @@ export default function SalesOrdersPage() {
         return { stockQty, stockRevenue, noStockQty, noStockRevenue };
     }, [orders]);
 
+    const { data: customers = [] } = useGetCustomersQuery();
+    const customerNameById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const customer of customers) {
+            const name = customer.globalCustomer?.fullName;
+            if (name) map.set(customer.id, name);
+        }
+        return map;
+    }, [customers]);
+
     const matchingReceipt =
         isPaid && receiptQuery.data?.order?.id === selectedOrderId
             ? receiptQuery.data
@@ -292,9 +303,11 @@ export default function SalesOrdersPage() {
     const rows = useMemo(
         () =>
             search
-                ? orders.filter((order) => matchesSearch(order, search))
+                ? orders.filter((order) =>
+                      matchesSearch(order, search, customerNameById),
+                  )
                 : orders,
-        [orders, search],
+        [orders, search, customerNameById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -470,6 +483,7 @@ export default function SalesOrdersPage() {
                                                 key={order.id}
                                                 order={order}
                                                 visibleColumns={visibleColumns}
+                                                customerNameById={customerNameById}
                                                 onClick={() => setSelectedOrderId(order.id)}
                                             />
                                         ))}
@@ -622,10 +636,18 @@ function Pager({
     );
 }
 
-function matchesSearch(order: PosOrder, search: string) {
+function matchesSearch(
+    order: PosOrder,
+    search: string,
+    customerNameById?: Map<string, string>,
+) {
+    const customerName = order.customerId
+        ? (customerNameById?.get(order.customerId) ?? "")
+        : "";
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
+        customerName.toLowerCase().includes(search) ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -635,10 +657,12 @@ function matchesSearch(order: PosOrder, search: string) {
 function OrderRow({
     order,
     visibleColumns,
+    customerNameById,
     onClick,
 }: {
     order: PosOrder;
     visibleColumns: Record<SalesColumnKey, boolean>;
+    customerNameById: Map<string, string>;
     onClick: () => void;
 }) {
     const { format } = useMoney();
@@ -658,6 +682,11 @@ function OrderRow({
     const displayTotal = isExclusive
         ? parseFloat((afterDiscount + taxAmt).toFixed(2))
         : order.total;
+
+    const customerName = order.customerId
+        ? customerNameById.get(order.customerId)
+        : null;
+    const noteName = order.note?.trim() || null;
 
     return (
         <TableRow
@@ -681,7 +710,12 @@ function OrderRow({
             )}
             {visibleColumns.note && (
                 <TableCell className="text-muted-foreground">
-                    {order.note?.trim() || "—"}
+                    {(() => {
+                        if (customerName && noteName && customerName !== noteName) {
+                            return `${customerName} (${noteName})`;
+                        }
+                        return customerName || noteName || "—";
+                    })()}
                 </TableCell>
             )}
             {visibleColumns.items && (
