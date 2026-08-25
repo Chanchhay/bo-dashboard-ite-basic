@@ -255,6 +255,7 @@ function AccountForm({
                         <Input
                             value={fields.merchantName}
                             onChange={(e) => set("merchantName")(e.target.value)}
+                            placeholder="e.g. Coffee Corner"
                         />
                     </Field>
 
@@ -270,6 +271,7 @@ function AccountForm({
                         <Input
                             value={fields.merchantId}
                             onChange={(e) => set("merchantId")(e.target.value)}
+                            placeholder="e.g. 123456"
                         />
                     </Field>
 
@@ -279,6 +281,7 @@ function AccountForm({
                             onChange={(e) =>
                                 set("acquiringBank")(e.target.value)
                             }
+                            placeholder="e.g. ABA Bank"
                         />
                     </Field>
 
@@ -286,6 +289,7 @@ function AccountForm({
                         <Input
                             value={fields.mobileNumber}
                             onChange={(e) => set("mobileNumber")(e.target.value)}
+                            placeholder="e.g. +855 12 345 678"
                         />
                     </Field>
 
@@ -293,6 +297,7 @@ function AccountForm({
                         <Input
                             value={fields.storeLabel}
                             onChange={(e) => set("storeLabel")(e.target.value)}
+                            placeholder="e.g. Main Branch"
                         />
                     </Field>
                 </div>
@@ -346,17 +351,8 @@ function AccountForm({
                     )}
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3 border-t border-border pt-5">
-                    <Button type="submit" data-tour="payments-save" disabled={isSaving}>
-                        {isSaving && (
-                            <LoaderCircle
-                                className="size-4 animate-spin"
-                                aria-hidden="true"
-                            />
-                        )}
-                        Save
-                    </Button>
-
+                <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border pt-5">
+                    {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
                         data-tour="payments-test"
@@ -366,6 +362,16 @@ function AccountForm({
                     >
                         <QrCode className="size-4" aria-hidden="true" />
                         {isPreviewing ? "Testing…" : "Test with $1 code"}
+                    </Button>
+
+                    <Button type="submit" data-tour="payments-save" disabled={isSaving}>
+                        {isSaving && (
+                            <LoaderCircle
+                                className="size-4 animate-spin"
+                                aria-hidden="true"
+                            />
+                        )}
+                        Save
                     </Button>
                 </div>
             </form>

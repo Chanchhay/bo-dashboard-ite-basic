@@ -11,6 +11,7 @@ import {
     ExternalLink,
     Clock,
     Package,
+    PackageCheck,
     User,
     QrCode,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { useToast } from "@/components/ui/toast";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -29,6 +31,7 @@ import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
 import { itemThumbnail } from "@/lib/api/inventory";
 import {
+    useApprovePayLaterOrderMutation,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
@@ -47,6 +50,7 @@ import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 const STATUS_FILTERS = [
     "ALL",
     "PENDING",
+    "CONFIRMED",
     "PAID",
     "CANCELLED",
     "FAILED",
@@ -67,6 +71,7 @@ type DateFilter = (typeof DATE_FILTERS)[number];
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
+    CONFIRMED: "bg-primary/10 text-primary",
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
@@ -94,6 +99,30 @@ function rangeStart(filter: DateFilter): string | undefined {
 
 export default function SalesOrdersDraftPage() {
     const { format } = useMoney();
+    const { toast } = useToast();
+    const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
+    const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
+
+    async function handleApprovePayLaterOrder(order: PosOrder) {
+        setConfirmingOrderId(order.id);
+        try {
+            await approvePayLaterOrder(order.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Order approved",
+                description: `${order.invoiceNumber ?? "This order"}'s stock has been taken off the shelf.`,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not approve the order",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        } finally {
+            setConfirmingOrderId(null);
+        }
+    }
+
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
@@ -121,7 +150,7 @@ export default function SalesOrdersDraftPage() {
         return map;
     }, [itemOptionsQuery.data]);
 
-  
+
     const { data: customers = [] } = useGetCustomersQuery();
     const customerNameById = useMemo(() => {
         const map = new Map<string, string>();
@@ -165,6 +194,25 @@ export default function SalesOrdersDraftPage() {
     const orders = useMemo(() => data?.content ?? [], [data]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
+
+    // Only a PAID order has a receipt — the backend rejects anything else
+    // with a 409, so an order still awaiting payment renders straight from
+    // the row data it already has instead of asking for one.
+    const selectedOrder = useMemo(
+        () => orders.find((order) => order.id === selectedOrderId) ?? null,
+        [orders, selectedOrderId],
+    );
+    const isPaid = selectedOrder?.status === "PAID";
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: selectedOrderId === null || !isPaid,
+    });
+
+    const matchingReceipt =
+        isPaid && receiptQuery.data?.order?.id === selectedOrderId
+            ? receiptQuery.data
+            : null;
+    const displayOrder = matchingReceipt?.order ?? selectedOrder;
+    const isUnpaid = !displayOrder || displayOrder.status !== "PAID";
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
@@ -319,6 +367,8 @@ export default function SalesOrdersDraftPage() {
                                         onClick={() => setSelectedOrderId(order.id)}
                                         itemThumbnailById={itemThumbnailById}
                                         customerNameById={customerNameById}
+                                        onApprovePayLater={() => void handleApprovePayLaterOrder(order)}
+                                        isConfirming={confirmingOrderId === order.id}
                                     />
                                 ))}
                             </div>
@@ -355,24 +405,28 @@ export default function SalesOrdersDraftPage() {
                 <DialogContent className="max-w-[480px] p-6 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="pb-3 border-b">
                         <DialogTitle className="text-lg font-bold text-foreground">
-                            {receiptQuery.data?.order.status === "PENDING"
+                            {isUnpaid
                                 ? "Order Ticket (Unpaid)"
                                 : "Receipt Details"}
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading ? (
+                    {isPaid && receiptQuery.isLoading && !matchingReceipt ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
-                    ) : receiptQuery.data && businessQuery.data ? (
+                    ) : displayOrder && businessQuery.data ? (
                         <div className="py-2">
                             <ReceiptTicket
                                 business={businessQuery.data}
-                                order={receiptQuery.data.order}
-                                receipt={receiptQuery.data.receipt}
+                                order={displayOrder}
+                                receipt={matchingReceipt?.receipt ?? null}
                                 currencies={currenciesQuery.data}
                             />
+                        </div>
+                    ) : businessQuery.isLoading || currenciesQuery.isLoading ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
+                            Loading details...
                         </div>
                     ) : (
                         <div className="py-8 text-center text-sm text-destructive">
@@ -412,7 +466,7 @@ function Pager({
     last: number;
     total: number;
     busy: boolean;
-  
+
     filtered: number;
     onPage: (next: number) => void;
     onPageSize: (next: number) => void;
@@ -518,11 +572,15 @@ function OrderCard({
     onClick,
     itemThumbnailById,
     customerNameById,
+    onApprovePayLater,
+    isConfirming,
 }: {
     order: PosOrder;
     onClick: () => void;
     itemThumbnailById: Map<string, string | undefined>;
     customerNameById: Map<string, string>;
+    onApprovePayLater: () => void;
+    isConfirming: boolean;
 }) {
     const { format } = useMoney();
 
@@ -542,14 +600,14 @@ function OrderCard({
     // among cards that already settled, so it also gets a tinted card.
     const isAwaitingPayment =
         order.status === "PENDING" ||
+        order.status === "CONFIRMED" ||
         (order.status === "PAID" && order.paymentMethod === "PAY_LATER");
 
     return (
         <div
             onClick={onClick}
-            className={`flex cursor-pointer flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 ${
-                isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
-            }`}
+            className={`flex cursor-pointer flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 ${isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
+                }`}
         >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -570,8 +628,12 @@ function OrderCard({
                 </div>
 
                 <div className="flex items-center gap-2">
-                   
-                    {isAwaitingPayment ? (
+                    {order.status === "CONFIRMED" ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                            <PackageCheck className="size-3" aria-hidden="true" />
+                            Confirmed
+                        </span>
+                    ) : isAwaitingPayment ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-semibold text-warning">
                             <Clock className="size-3" aria-hidden="true" />
                             Pending
@@ -590,6 +652,28 @@ function OrderCard({
             </div>
 
             <LineItemListPanel order={order} itemThumbnailById={itemThumbnailById} />
+
+            {order.status === "PENDING" && order.awaitingPayLaterApproval && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                        Customer chose to pay later — approving takes stock off the shelf now.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            // The card underneath opens the receipt dialog —
+                            // this is a different action entirely.
+                            event.stopPropagation();
+                            onApprovePayLater();
+                        }}
+                        disabled={isConfirming}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                    >
+                        <PackageCheck className="size-3.5" aria-hidden="true" />
+                        {isConfirming ? "Approving…" : "Approve order"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
@@ -732,8 +816,8 @@ function FilterGroup<T extends string>({
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
                     className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${value === option
-                            ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     {option === "ALL" ? "All" : option}

@@ -9,7 +9,6 @@ import {
     RefreshCw,
     Search,
     ExternalLink,
-    Printer,
     Columns3,
 } from "lucide-react";
 
@@ -28,7 +27,6 @@ import { TourButton } from "@/components/onboarding/TourButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
-import { printReceipt } from "@/lib/print-receipt";
 
 import {
     Table,
@@ -112,6 +110,7 @@ const SALES_COLUMNS: SalesColumnConfig[] = [
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
+    CONFIRMED: "bg-primary/10 text-primary",
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
@@ -215,9 +214,6 @@ export default function SalesOrdersPage() {
         });
     };
 
-    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null,
-    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -254,6 +250,16 @@ export default function SalesOrdersPage() {
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
+    const selectedOrder = useMemo(() => {
+        if (!selectedOrderId) return null;
+        return orders.find((o) => o.id === selectedOrderId) ?? null;
+    }, [orders, selectedOrderId]);
+
+    const isPaid = selectedOrder?.status === "PAID";
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: selectedOrderId === null || !isPaid,
+    });
+
     const pageItemBreakdown = useMemo(() => {
         let stockQty = 0;
         let stockRevenue = 0;
@@ -276,12 +282,11 @@ export default function SalesOrdersPage() {
         return { stockQty, stockRevenue, noStockQty, noStockRevenue };
     }, [orders]);
 
-    const selectedOrder = useMemo(() => {
-        if (!selectedOrderId) return null;
-        return orders.find((o) => o.id === selectedOrderId) ?? null;
-    }, [orders, selectedOrderId]);
-
-    const displayOrder = receiptQuery.data?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
+    const matchingReceipt =
+        isPaid && receiptQuery.data?.order?.id === selectedOrderId
+            ? receiptQuery.data
+            : null;
+    const displayOrder = matchingReceipt?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
@@ -510,7 +515,7 @@ export default function SalesOrdersPage() {
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading && !selectedOrder ? (
+                    {isPaid && receiptQuery.isLoading && !matchingReceipt ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
@@ -519,7 +524,7 @@ export default function SalesOrdersPage() {
                             <ReceiptTicket
                                 business={businessQuery.data}
                                 order={displayOrder}
-                                receipt={receiptQuery.data?.receipt ?? null}
+                                receipt={matchingReceipt?.receipt ?? null}
                                 currencies={currenciesQuery.data}
                             />
                         </div>

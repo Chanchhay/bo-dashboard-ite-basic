@@ -298,6 +298,7 @@ export const NAVIGATION: NavSection[] = [
       },
              
     ],
+    
     launch: {
       label: "Open Point of Sale",
       href: POS_ROUTES.openRegister,
