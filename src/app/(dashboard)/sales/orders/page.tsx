@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
     ChevronLeft,
@@ -97,7 +97,7 @@ function rangeStart(filter: DateFilter): string | undefined {
 }
 
 
-export default function SalesOrdersDraftPage() {
+export default function SalesOrdersPage() {
     const { format } = useMoney();
     const { toast } = useToast();
     const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
@@ -201,23 +201,41 @@ export default function SalesOrdersDraftPage() {
     );
     const isPaid = selectedOrder?.status === "PAID";
     const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null || !isPaid,
+        skip: !selectedOrderId || !isPaid,
     });
 
     const matchingReceipt =
         isPaid && receiptQuery.data?.order?.id === selectedOrderId
             ? receiptQuery.data
             : null;
-    const displayOrder = matchingReceipt?.order ?? selectedOrder;
+    const currentDisplayOrder = matchingReceipt?.order ?? selectedOrder;
+    const currentReceipt = matchingReceipt?.receipt ?? null;
+
+    const [persistedDisplayOrder, setPersistedDisplayOrder] = useState<PosOrder | null>(null);
+    const [persistedReceipt, setPersistedReceipt] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (currentDisplayOrder) {
+            setPersistedDisplayOrder(currentDisplayOrder);
+        }
+        if (currentReceipt) {
+            setPersistedReceipt(currentReceipt);
+        }
+    }, [currentDisplayOrder, currentReceipt]);
+
+    const displayOrder = currentDisplayOrder ?? (selectedOrderId ? null : persistedDisplayOrder);
+    const displayReceipt = currentReceipt ?? (selectedOrderId ? null : persistedReceipt);
     const isUnpaid = !displayOrder || displayOrder.status !== "PAID";
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
         () =>
             search
-                ? orders.filter((order) => matchesSearch(order, search))
+                ? orders.filter((order) =>
+                    matchesSearch(order, search, customerNameById),
+                )
                 : orders,
-        [orders, search],
+        [orders, search, customerNameById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -412,18 +430,14 @@ export default function SalesOrdersDraftPage() {
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
-                    ) : displayOrder && businessQuery.data ? (
+                    ) : displayOrder ? (
                         <div className="py-2">
                             <ReceiptTicket
-                                business={businessQuery.data}
+                                business={businessQuery.data ?? null}
                                 order={displayOrder}
-                                receipt={matchingReceipt?.receipt ?? null}
+                                receipt={displayReceipt}
                                 currencies={currenciesQuery.data}
                             />
-                        </div>
-                    ) : businessQuery.isLoading || currenciesQuery.isLoading ? (
-                        <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-                            Loading details...
                         </div>
                     ) : (
                         <div className="py-8 text-center text-sm text-destructive">
@@ -529,10 +543,18 @@ function Pager({
 }
 
 
-function matchesSearch(order: PosOrder, search: string) {
+function matchesSearch(
+    order: PosOrder,
+    search: string,
+    customerNameById?: Map<string, string>,
+) {
+    const customerName = order.customerId
+        ? (customerNameById?.get(order.customerId) ?? "")
+        : "";
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
+        customerName.toLowerCase().includes(search) ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -600,6 +622,12 @@ function OrderCard({
         order.status === "CONFIRMED" ||
         (order.status === "PAID" && order.paymentMethod === "PAY_LATER");
 
+    const customerName = order.customerId
+        ? customerNameById.get(order.customerId)
+        : null;
+    const noteName = order.note?.trim() || null;
+    const displayName = customerName || noteName;
+
     return (
         <div
             onClick={onClick}
@@ -616,10 +644,15 @@ function OrderCard({
                             {formatOrderDate(order.createdDate)} · {CHANNEL_LABELS[order.channel]}
                         </span>
                     </div>
-                    {order.customerId && (
+                    {displayName && (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-sm font-medium text-foreground">
                             <User className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                            {customerNameById.get(order.customerId) ?? "Customer"}
+                            <span>{displayName}</span>
+                            {customerName && noteName && customerName !== noteName && (
+                                <span className="text-xs text-muted-foreground font-normal">
+                                    ({noteName})
+                                </span>
+                            )}
                         </p>
                     )}
                 </div>

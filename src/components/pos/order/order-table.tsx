@@ -1149,6 +1149,7 @@ export function OrderTable({
           itemCount={items.length}
           onCreate={handleCreateOrder}
           isCreating={isParking}
+          defaultName={selectedCustomer?.globalCustomer?.fullName || order?.note || ""}
         />
       )}
 
