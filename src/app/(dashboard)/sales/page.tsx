@@ -9,7 +9,6 @@ import {
     RefreshCw,
     Search,
     ExternalLink,
-    Printer,
     Columns3,
 } from "lucide-react";
 
@@ -28,7 +27,6 @@ import { TourButton } from "@/components/onboarding/TourButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
-import { printReceipt } from "@/lib/print-receipt";
 
 import {
     Table,
@@ -42,6 +40,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
+import { usePendingOfflineOrders } from "@/lib/offline-orders";
 import {
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
@@ -54,6 +53,7 @@ import {
     useDisableStorefrontMutation,
 } from "@/services/businessApi";
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
+import { useGetCustomersQuery } from "@/services/customerApi";
 
 
 const STATUS_FILTERS = [
@@ -112,6 +112,7 @@ const SALES_COLUMNS: SalesColumnConfig[] = [
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
+    CONFIRMED: "bg-primary/10 text-primary",
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
@@ -197,7 +198,7 @@ export default function SalesOrdersPage() {
             try {
                 const raw = localStorage.getItem("ipos_sales_table_columns");
                 if (raw) return JSON.parse(raw);
-            } catch {}
+            } catch { }
         }
         return SALES_COLUMNS.reduce((acc, col) => {
             acc[col.key] = col.defaultVisible;
@@ -210,14 +211,11 @@ export default function SalesOrdersPage() {
             const next = { ...prev, [key]: !prev[key] };
             try {
                 localStorage.setItem("ipos_sales_table_columns", JSON.stringify(next));
-            } catch {}
+            } catch { }
             return next;
         });
     };
 
-    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null,
-    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -248,11 +246,27 @@ export default function SalesOrdersPage() {
 
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
+    const pendingOfflineOrders = usePendingOfflineOrders();
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
-    const orders = useMemo(() => data?.content ?? [], [data]);
+    const orders = useMemo(() => {
+        const serverOrders = data?.content ?? [];
+        const pendingIds = new Set(pendingOfflineOrders.map((o: PosOrder) => o.id));
+        const filteredServer = serverOrders.filter((o: PosOrder) => !pendingIds.has(o.id));
+        return [...pendingOfflineOrders, ...filteredServer];
+    }, [data, pendingOfflineOrders]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
+
+    const selectedOrder = useMemo(() => {
+        if (!selectedOrderId) return null;
+        return orders.find((o) => o.id === selectedOrderId) ?? null;
+    }, [orders, selectedOrderId]);
+
+    const isPaid = selectedOrder?.status === "PAID";
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: !selectedOrderId || !isPaid,
+    });
 
     const pageItemBreakdown = useMemo(() => {
         let stockQty = 0;
@@ -276,20 +290,47 @@ export default function SalesOrdersPage() {
         return { stockQty, stockRevenue, noStockQty, noStockRevenue };
     }, [orders]);
 
-    const selectedOrder = useMemo(() => {
-        if (!selectedOrderId) return null;
-        return orders.find((o) => o.id === selectedOrderId) ?? null;
-    }, [orders, selectedOrderId]);
+    const { data: customers = [] } = useGetCustomersQuery();
+    const customerNameById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const customer of customers) {
+            const name = customer.globalCustomer?.fullName;
+            if (name) map.set(customer.id, name);
+        }
+        return map;
+    }, [customers]);
 
-    const displayOrder = receiptQuery.data?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
+    const matchingReceipt =
+        isPaid && receiptQuery.data?.order?.id === selectedOrderId
+            ? receiptQuery.data
+            : null;
+    const currentDisplayOrder = matchingReceipt?.order ?? (selectedOrder ? asPosOrder(selectedOrder) : null);
+    const currentReceipt = matchingReceipt?.receipt ?? null;
+
+    const [persistedDisplayOrder, setPersistedDisplayOrder] = useState<PosOrder | null>(null);
+    const [persistedReceipt, setPersistedReceipt] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (currentDisplayOrder) {
+            setPersistedDisplayOrder(currentDisplayOrder);
+        }
+        if (currentReceipt) {
+            setPersistedReceipt(currentReceipt);
+        }
+    }, [currentDisplayOrder, currentReceipt]);
+
+    const displayOrder = currentDisplayOrder ?? (selectedOrderId ? null : persistedDisplayOrder);
+    const displayReceipt = currentReceipt ?? (selectedOrderId ? null : persistedReceipt);
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
         () =>
             search
-                ? orders.filter((order) => matchesSearch(order, search))
+                ? orders.filter((order) =>
+                    matchesSearch(order, search, customerNameById),
+                )
                 : orders,
-        [orders, search],
+        [orders, search, customerNameById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -305,85 +346,87 @@ export default function SalesOrdersPage() {
     }
 
     return (
-        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-4">
-            <div className="flex items-center justify-between gap-4">
-                <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
-                    Track sales orders, order receipts, channel breakdown, and digital menu configuration.
-                </p>
-                <TourButton />
+        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-12 sm:pb-16">
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
+                <div className="flex items-center justify-between gap-4">
+                    <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
+                        Track sales orders, order receipts, channel breakdown, and digital menu configuration.
+                    </p>
+                    <TourButton />
+                </div>
+
+                <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
+                        <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                        {storefrontError && (
+                            <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 mr-4">
+                            <Switch
+                                id="menu-toggle"
+                                checked={Boolean(storefrontStatus?.listed)}
+                                disabled={isEnabling || isDisabling}
+                                onCheckedChange={handleMenuToggle}
+                            />
+                            <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                            <Link
+                                href={subdomainUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Live Menu
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+
+                <section
+                    data-tour="sales-order-stats"
+                    aria-label="Totals"
+                    className="grid grid-cols-2 gap-3 lg:grid-cols-6"
+                >
+                    <Stat
+                        label="Orders"
+                        value={totals ? String(totals.orders) : "—"}
+                    />
+                    <Stat
+                        label="Total Revenue"
+                        value={totals ? format(totals.revenue) : "—"}
+                    />
+                    <Stat
+                        label="Stock Items Sold"
+                        value={format(pageItemBreakdown.stockRevenue)}
+                    />
+                    <Stat
+                        label="No-Stock Items Sold"
+                        value={format(pageItemBreakdown.noStockRevenue)}
+                    />
+                    <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
+                    <Stat
+                        label="Pending"
+                        value={totals ? String(totals.pending) : "—"}
+                    />
+                </section>
+
+                {summaryQuery.data?.truncated && (
+                    <p className="-mt-2 text-[13px] text-muted-foreground">
+                        Totals cover the most recent orders in this range only.
+                        Narrow the dates for exact figures — the table below still
+                        pages through every order.
+                    </p>
+                )}
             </div>
 
-            <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
-                    <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
-                    {storefrontError && (
-                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="flex items-center gap-2 mr-4">
-                        <Switch
-                            id="menu-toggle"
-                            checked={Boolean(storefrontStatus?.listed)}
-                            disabled={isEnabling || isDisabling}
-                            onCheckedChange={handleMenuToggle}
-                        />
-                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                        <Link
-                            href={subdomainUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            Live Menu
-                        </Link>
-                    </div>
-                </div>
-            </div>
-
-            <section
-                data-tour="sales-order-stats"
-                aria-label="Totals"
-                className="grid grid-cols-2 gap-3 lg:grid-cols-6"
-            >
-                <Stat
-                    label="Orders"
-                    value={totals ? String(totals.orders) : "—"}
-                />
-                <Stat
-                    label="Total Revenue"
-                    value={totals ? format(totals.revenue) : "—"}
-                />
-                <Stat
-                    label="Stock Items Sold"
-                    value={format(pageItemBreakdown.stockRevenue)}
-                />
-                <Stat
-                    label="No-Stock Items Sold"
-                    value={format(pageItemBreakdown.noStockRevenue)}
-                />
-                <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
-                <Stat
-                    label="Pending"
-                    value={totals ? String(totals.pending) : "—"}
-                />
-            </section>
-
-            {summaryQuery.data?.truncated && (
-                <p className="-mt-2 text-[13px] text-muted-foreground">
-                    Totals cover the most recent orders in this range only.
-                    Narrow the dates for exact figures — the table below still
-                    pages through every order.
-                </p>
-            )}
-
-            <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div data-tour="sales-orders-filters" className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
+            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
+                <div data-tour="sales-orders-filters" className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -432,8 +475,7 @@ export default function SalesOrdersPage() {
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
-
-                    <>
+                    <div>
                         {rows.length === 0 ? (
                             <EmptyState searching={Boolean(search)} />
                         ) : (
@@ -443,7 +485,7 @@ export default function SalesOrdersPage() {
                                 aria-busy={isFetching}
                             >
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="sticky top-14 z-10 bg-card border-b border-border shadow-xs">
                                         <TableRow>
                                             {visibleColumns.invoice && <TableHead>Invoice</TableHead>}
                                             {visibleColumns.date && <TableHead>Date</TableHead>}
@@ -464,6 +506,7 @@ export default function SalesOrdersPage() {
                                                 key={order.id}
                                                 order={order}
                                                 visibleColumns={visibleColumns}
+                                                customerNameById={customerNameById}
                                                 onClick={() => setSelectedOrderId(order.id)}
                                             />
                                         ))}
@@ -472,24 +515,26 @@ export default function SalesOrdersPage() {
                             </div>
                         )}
 
-                        <Pager
-                            page={page}
-                            pageCount={pageCount}
-                            pageSize={pageSize}
-                            first={firstRow}
-                            last={lastRow}
-                            total={totalElements}
-                            busy={isFetching}
-                            filtered={
-                                search ? orders.length - rows.length : 0
-                            }
-                            onPage={setPage}
-                            onPageSize={(next) => {
-                                setPageSize(next);
-                                setPage(0);
-                            }}
-                        />
-                    </>
+                        <div className="border-t border-border bg-card rounded-b-2xl">
+                            <Pager
+                                page={page}
+                                pageCount={pageCount}
+                                pageSize={pageSize}
+                                first={firstRow}
+                                last={lastRow}
+                                total={totalElements}
+                                busy={isFetching}
+                                filtered={
+                                    search ? orders.length - rows.length : 0
+                                }
+                                onPage={setPage}
+                                onPageSize={(next) => {
+                                    setPageSize(next);
+                                    setPage(0);
+                                }}
+                            />
+                        </div>
+                    </div>
                 )}
             </section>
 
@@ -507,16 +552,16 @@ export default function SalesOrdersPage() {
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading && !selectedOrder ? (
+                    {isPaid && receiptQuery.isLoading && !matchingReceipt ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
-                    ) : displayOrder && businessQuery.data ? (
+                    ) : displayOrder ? (
                         <div className="py-2">
                             <ReceiptTicket
-                                business={businessQuery.data}
+                                business={businessQuery.data ?? null}
                                 order={displayOrder}
-                                receipt={receiptQuery.data?.receipt ?? null}
+                                receipt={displayReceipt}
                                 currencies={currenciesQuery.data}
                             />
                         </div>
@@ -614,10 +659,18 @@ function Pager({
     );
 }
 
-function matchesSearch(order: PosOrder, search: string) {
+function matchesSearch(
+    order: PosOrder,
+    search: string,
+    customerNameById?: Map<string, string>,
+) {
+    const customerName = order.customerId
+        ? (customerNameById?.get(order.customerId) ?? "")
+        : "";
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
+        customerName.toLowerCase().includes(search) ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -627,10 +680,12 @@ function matchesSearch(order: PosOrder, search: string) {
 function OrderRow({
     order,
     visibleColumns,
+    customerNameById,
     onClick,
 }: {
     order: PosOrder;
     visibleColumns: Record<SalesColumnKey, boolean>;
+    customerNameById: Map<string, string>;
     onClick: () => void;
 }) {
     const { format } = useMoney();
@@ -650,6 +705,11 @@ function OrderRow({
     const displayTotal = isExclusive
         ? parseFloat((afterDiscount + taxAmt).toFixed(2))
         : order.total;
+
+    const customerName = order.customerId
+        ? customerNameById.get(order.customerId)
+        : null;
+    const noteName = order.note?.trim() || null;
 
     return (
         <TableRow
@@ -673,7 +733,12 @@ function OrderRow({
             )}
             {visibleColumns.note && (
                 <TableCell className="text-muted-foreground">
-                    {order.note?.trim() || "—"}
+                    {(() => {
+                        if (customerName && noteName && customerName !== noteName) {
+                            return `${customerName} (${noteName})`;
+                        }
+                        return customerName || noteName || "—";
+                    })()}
                 </TableCell>
             )}
             {visibleColumns.items && (
@@ -785,8 +850,8 @@ function FilterGroup<T extends string>({
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
                     className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${value === option
-                            ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     {option === "ALL" ? "All" : option}

@@ -1,17 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
-import { ShoppingBag, MapPin, ExternalLink } from "lucide-react";
+import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
-import {
-  ItemPreviewDialog,
-  toPreviewItem,
-  type PreviewItem,
-} from "@/components/inventory/ItemPreviewDialog";
-import { itemThumbnail } from "@/lib/api/inventory";
+import { itemThumbnail, itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
+import { attributeIcon } from "@/lib/api/attribute-icons";
 import { useGetItemGroupsQuery } from "@/services/inventoryApi";
+import { useMoney } from "@/hooks/useMoney";
+import { cn } from "@/lib/utils";
 
 export type MenuItemEntry = {
   id: string;
@@ -21,6 +19,197 @@ export type MenuItemEntry = {
   image: string | null;
   rawItem: any;
 };
+
+function PublicProductDetailView({
+  entry,
+  storeDetail,
+  orderUrl,
+  onBack,
+}: {
+  entry: MenuItemEntry;
+  storeDetail: any;
+  orderUrl: string;
+  onBack: () => void;
+}) {
+  const { format: formatMoney } = useMoney();
+  const rawItem = entry.rawItem as InventoryItem;
+  const gallery = itemImageUrls(rawItem);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const activeImage =
+    gallery[selectedImageIndex] ||
+    entry.image ||
+    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80";
+
+  const price = rawItem.price ?? entry.price ?? 0;
+  const categoryName = rawItem.itemGroup?.name || entry.category || "General";
+  const attributes = rawItem.attributes || [];
+  const specs = attributes.filter((attr) => attr.placement === "SPECIFICATION");
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
+      {/* Top Header */}
+      <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
+        <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1f2430] px-3 py-1.5 text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#282e3d] transition-all cursor-pointer shrink-0"
+              >
+                <ArrowLeft className="size-4" />
+                <span>Back to Menu</span>
+              </button>
+              <div className="hidden sm:flex items-center gap-2 border-l border-gray-200 dark:border-gray-800 pl-4 min-w-0">
+                <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                  {storeDetail.displayName || storeDetail.name}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <a
+                href={orderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shrink-0"
+              >
+                <ShoppingBag className="size-4" />
+                <span>Order Now</span>
+                <ExternalLink className="size-3.5 opacity-80" />
+              </a>
+
+              <ThemeToggle
+                variant="icon"
+                className="size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Full Page Item Container */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-8 py-6 sm:py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start bg-white dark:bg-[#1a1e29] p-6 sm:p-10 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs">
+          {/* Left: Product Gallery */}
+          <div className="flex flex-col gap-4">
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-gray-50 dark:bg-[#12151e] border border-gray-100 dark:border-gray-800 flex items-center justify-center">
+              <img
+                src={activeImage}
+                alt={rawItem.name ?? entry.name}
+                className="h-full w-full object-cover transition-all duration-300"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80";
+                }}
+              />
+            </div>
+            {gallery.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {gallery.map((url, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedImageIndex(idx)}
+                    className={cn(
+                      "relative aspect-square w-16 shrink-0 overflow-hidden rounded-xl border-2 p-1 transition-all cursor-pointer",
+                      idx === selectedImageIndex
+                        ? "border-gray-900 dark:border-white bg-gray-100 dark:bg-gray-800 shadow-xs scale-[1.02]"
+                        : "border-transparent bg-gray-100 dark:bg-gray-800 opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    <img
+                      src={url}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="h-full w-full object-cover rounded-lg"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: Product Details & Description */}
+          <div className="flex flex-col gap-6">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                <Tag className="h-3.5 w-3.5 text-primary" />
+                {categoryName}
+              </span>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-gray-100 mt-3 tracking-tight">
+                {entry.name}
+              </h1>
+              <p className="text-3xl font-black text-[#d14341] dark:text-[#f87171] mt-3">
+                {formatMoney(price)}
+              </p>
+            </div>
+
+            {rawItem.description ? (
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                  Description
+                </h3>
+                <p className="text-sm sm:text-base leading-relaxed text-gray-600 dark:text-gray-300">
+                  {rawItem.description}
+                </p>
+              </div>
+            ) : null}
+
+            {/* Specifications */}
+            {specs.length > 0 && (
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-5 space-y-3">
+                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Specifications
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {specs.map((spec, idx) => {
+                    const Glyph = attributeIcon(spec.icon);
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2.5 rounded-2xl bg-gray-50 dark:bg-[#12151e] p-3 text-xs"
+                      >
+                        <Glyph className="h-4 w-4 text-primary dark:text-emerald-400 shrink-0" />
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-gray-100 block">
+                            {spec.name}
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {spec.values?.[0]?.value || "—"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 pt-5 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+              <a
+                href={orderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all cursor-pointer"
+              >
+                <ShoppingBag className="size-4" />
+                <span>Order Now</span>
+              </a>
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1f2430] py-3.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#282e3d] transition-all cursor-pointer"
+              >
+                Return to Full Menu Catalog
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export default function PublicMenuClient({
   storeDetail,
@@ -32,7 +221,7 @@ export default function PublicMenuClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
   const [selectedSubCategory, setSelectedSubCategory] = useState("All");
-  const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+  const [selectedItemEntry, setSelectedItemEntry] = useState<MenuItemEntry | null>(null);
 
   // Dynamically resolve store website / online ordering URL for ANY store or shop
   const orderUrl = useMemo(() => {
@@ -65,6 +254,45 @@ export default function PublicMenuClient({
       };
     });
   }, [storeItems]);
+
+  // Restore full-page product detail view from URL query parameter ?item=<id> on page load / F5 refresh
+  useEffect(() => {
+    if (typeof window === "undefined" || !items.length) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const itemIdFromUrl = urlParams.get("item") || urlParams.get("product") || urlParams.get("id");
+    if (itemIdFromUrl) {
+      const matched = items.find(
+        (i) =>
+          String(i.id) === String(itemIdFromUrl) ||
+          String(i.rawItem.code) === String(itemIdFromUrl) ||
+          String(i.rawItem.sku) === String(itemIdFromUrl)
+      );
+      if (matched) {
+        setSelectedItemEntry(matched);
+      }
+    }
+  }, [items]);
+
+  const handleOpenDetail = (item: MenuItemEntry) => {
+    setSelectedItemEntry(item);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("item", item.id);
+      window.history.pushState({}, "", url.toString());
+    }
+  };
+
+  const handleBackToCatalog = () => {
+    setSelectedItemEntry(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("item");
+      url.searchParams.delete("product");
+      url.searchParams.delete("id");
+      const newSearch = url.searchParams.toString();
+      window.history.pushState({}, "", url.pathname + (newSearch ? `?${newSearch}` : ""));
+    }
+  };
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -134,6 +362,18 @@ export default function PublicMenuClient({
     });
   }, [items, selectedMainCategory, selectedSubCategory, searchQuery]);
 
+  // If a product is selected or opened via URL, render the FULL PAGE SCREEN of its detail!
+  if (selectedItemEntry) {
+    return (
+      <PublicProductDetailView
+        entry={selectedItemEntry}
+        storeDetail={storeDetail}
+        orderUrl={orderUrl}
+        onBack={handleBackToCatalog}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
@@ -199,7 +439,7 @@ export default function PublicMenuClient({
             onSearchChange={setSearchQuery}
             onItemSelect={(id) => {
               const matched = items.find((i) => String(i.id) === String(id));
-              if (matched) setPreviewItem(toPreviewItem(matched.rawItem));
+              if (matched) handleOpenDetail(matched);
             }}
             onChange={setSelectedMainCategory}
             onSubCategoryChange={setSelectedSubCategory}
@@ -222,7 +462,7 @@ export default function PublicMenuClient({
             onSearchChange={setSearchQuery}
             onItemSelect={(id) => {
               const matched = items.find((i) => String(i.id) === String(id));
-              if (matched) setPreviewItem(toPreviewItem(matched.rawItem));
+              if (matched) handleOpenDetail(matched);
             }}
             onChange={setSelectedMainCategory}
             onSubCategoryChange={setSelectedSubCategory}
@@ -282,7 +522,7 @@ export default function PublicMenuClient({
                     image={item.image as string}
                     onClick={(e) => {
                       e.preventDefault();
-                      setPreviewItem(toPreviewItem(item.rawItem));
+                      handleOpenDetail(item);
                     }}
                   />
                 ))}
@@ -291,13 +531,6 @@ export default function PublicMenuClient({
           </div>
         </div>
       </main>
-
-      <ItemPreviewDialog
-        open={previewItem !== null}
-        onOpenChange={(open) => !open && setPreviewItem(null)}
-        item={previewItem}
-        hideAddToCart={true}
-      />
     </div>
   );
 }

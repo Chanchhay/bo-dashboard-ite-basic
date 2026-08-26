@@ -12,6 +12,7 @@ import {
 import UserMenu from "@/components/layout/UserMenu";
 import type { GrantedPermissions } from "@/lib/permissions";
 import BrandLogo from "@/components/brand/BrandLogo";
+import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 
@@ -57,6 +58,13 @@ export default function AppLauncher({
                 </Link>
 
                 <div className="flex items-center gap-3 sm:gap-5">
+                    <InstallAppButton
+                        label="Install App"
+                        variant="default"
+                        size="sm"
+                        className="hidden sm:inline-flex bg-[#00932a] text-white hover:bg-[#00932a]/90"
+                    />
+
                     <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">
                         <ThemeToggle variant="icon" className="hidden sm:grid" />
                         <div data-tour="notifications" className="inline-flex h-10 items-center justify-center">

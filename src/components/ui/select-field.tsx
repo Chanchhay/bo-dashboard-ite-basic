@@ -26,6 +26,7 @@ export function SelectField({
     disabled,
     className,
     contentClassName,
+    size = "default",
 }: {
     id?: string;
     name?: string;
@@ -38,6 +39,7 @@ export function SelectField({
     disabled?: boolean;
     className?: string;
     contentClassName?: string;
+    size?: "sm" | "default";
 }) {
     const items = Object.fromEntries(
         options.map((option) => [option.value, option.label]),
@@ -59,6 +61,7 @@ export function SelectField({
         >
             <SelectTrigger
                 id={id}
+                size={size}
                 aria-invalid={invalid}
                 className={cn("w-full", className)}
             >

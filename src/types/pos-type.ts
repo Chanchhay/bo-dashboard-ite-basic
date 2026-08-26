@@ -1,5 +1,5 @@
 export type OrderChannel = "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
-export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "CANCELLED";
+export type OrderStatus = "PENDING" | "CONFIRMED" | "PAID" | "FAILED" | "CANCELLED";
 export type DiscountType = "PERCENTAGE" | "FIXED" | "COUPON";
 export type PaymentMethodType = "CASH" | "DIGITAL";
 export type ItemStatus = "ACTIVE" | "INACTIVE" | "EXPIRED" | "ISOLATED";

@@ -124,3 +124,72 @@ export function FormSkeleton({ rows = 4 }: { rows?: number }) {
     </div>
   );
 }
+
+export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="w-full space-y-3 p-4">
+      {/* Table Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-border/80 gap-4">
+        {Array.from({ length: cols }).map((_, i) => (
+          <Skeleton key={i} className={cn("h-4 rounded-md", i === 0 ? "w-36" : "w-24")} />
+        ))}
+      </div>
+      {/* Table Rows */}
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex items-center justify-between py-3 border-b border-border/40 gap-4">
+          <div className="flex items-center gap-3 w-44 shrink-0">
+            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+            <div className="space-y-1.5 flex-1">
+              <Skeleton className="h-4 w-28 rounded-md" />
+              <Skeleton className="h-3 w-20 rounded-md" />
+            </div>
+          </div>
+          {Array.from({ length: cols - 1 }).map((_, c) => (
+            <Skeleton
+              key={c}
+              className={cn(
+                "h-4 rounded-md",
+                c === cols - 2 ? "w-16 rounded-full" : c % 2 === 0 ? "w-24" : "w-20"
+              )}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function CardListSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-32 rounded-md" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <Skeleton className="h-4 w-48 rounded-md" />
+            <Skeleton className="h-6 w-24 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function MetricCardsSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3.5 w-24 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-xl" />
+          </div>
+          <Skeleton className="h-7 w-28 rounded-lg" />
+        </div>
+      ))}
+    </div>
+  );
+}

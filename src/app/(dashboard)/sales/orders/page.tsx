@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
     ChevronLeft,
@@ -11,20 +11,28 @@ import {
     ExternalLink,
     Clock,
     Package,
+    PackageCheck,
     User,
+    QrCode,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { useToast } from "@/components/ui/toast";
+import MenuQRModal from "@/components/menu/menu-qr-modal";
 
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
+import { usePendingOfflineOrders } from "@/lib/offline-orders";
 import { itemThumbnail } from "@/lib/api/inventory";
 import {
+    useApprovePayLaterOrderMutation,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
@@ -43,6 +51,7 @@ import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 const STATUS_FILTERS = [
     "ALL",
     "PENDING",
+    "CONFIRMED",
     "PAID",
     "CANCELLED",
     "FAILED",
@@ -63,6 +72,7 @@ type DateFilter = (typeof DATE_FILTERS)[number];
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
     PAID: "bg-success/10 text-success",
     PENDING: "bg-warning/15 text-warning",
+    CONFIRMED: "bg-primary/10 text-primary",
     CANCELLED: "bg-muted text-muted-foreground",
     FAILED: "bg-danger/10 text-danger",
 };
@@ -88,8 +98,32 @@ function rangeStart(filter: DateFilter): string | undefined {
 }
 
 
-export default function SalesOrdersDraftPage() {
+export default function SalesOrdersPage() {
     const { format } = useMoney();
+    const { toast } = useToast();
+    const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
+    const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
+
+    async function handleApprovePayLaterOrder(order: PosOrder) {
+        setConfirmingOrderId(order.id);
+        try {
+            await approvePayLaterOrder(order.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Order approved",
+                description: `${order.invoiceNumber ?? "This order"}'s stock has been taken off the shelf.`,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not approve the order",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        } finally {
+            setConfirmingOrderId(null);
+        }
+    }
+
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
@@ -99,10 +133,8 @@ export default function SalesOrdersDraftPage() {
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
-        skip: selectedOrderId === null,
-    });
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
@@ -116,7 +148,7 @@ export default function SalesOrdersDraftPage() {
         return map;
     }, [itemOptionsQuery.data]);
 
-  
+
     const { data: customers = [] } = useGetCustomersQuery();
     const customerNameById = useMemo(() => {
         const map = new Map<string, string>();
@@ -154,20 +186,64 @@ export default function SalesOrdersDraftPage() {
 
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
+    const pendingOfflineOrders = usePendingOfflineOrders();
+
     // Cached on the filters alone, so turning a page never recounts the range.
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
-    const orders = useMemo(() => data?.content ?? [], [data]);
+    const orders = useMemo(() => {
+        const serverOrders = data?.content ?? [];
+        const pendingIds = new Set(pendingOfflineOrders.map((o: PosOrder) => o.id));
+        const filteredServer = serverOrders.filter((o: PosOrder) => !pendingIds.has(o.id));
+        return [...pendingOfflineOrders, ...filteredServer];
+    }, [data, pendingOfflineOrders]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
+
+    // Only a PAID order has a receipt — the backend rejects anything else
+    // with a 409, so an order still awaiting payment renders straight from
+    // the row data it already has instead of asking for one.
+    const selectedOrder = useMemo(
+        () => orders.find((order) => order.id === selectedOrderId) ?? null,
+        [orders, selectedOrderId],
+    );
+    const isPaid = selectedOrder?.status === "PAID";
+    const receiptQuery = useGetReceiptQuery(selectedOrderId ?? "", {
+        skip: !selectedOrderId || !isPaid,
+    });
+
+    const matchingReceipt =
+        isPaid && receiptQuery.data?.order?.id === selectedOrderId
+            ? receiptQuery.data
+            : null;
+    const currentDisplayOrder = matchingReceipt?.order ?? selectedOrder;
+    const currentReceipt = matchingReceipt?.receipt ?? null;
+
+    const [persistedDisplayOrder, setPersistedDisplayOrder] = useState<PosOrder | null>(null);
+    const [persistedReceipt, setPersistedReceipt] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (currentDisplayOrder) {
+            setPersistedDisplayOrder(currentDisplayOrder);
+        }
+        if (currentReceipt) {
+            setPersistedReceipt(currentReceipt);
+        }
+    }, [currentDisplayOrder, currentReceipt]);
+
+    const displayOrder = currentDisplayOrder ?? (selectedOrderId ? null : persistedDisplayOrder);
+    const displayReceipt = currentReceipt ?? (selectedOrderId ? null : persistedReceipt);
+    const isUnpaid = !displayOrder || displayOrder.status !== "PAID";
 
     const search = query.trim().toLowerCase();
     const rows = useMemo(
         () =>
             search
-                ? orders.filter((order) => matchesSearch(order, search))
+                ? orders.filter((order) =>
+                    matchesSearch(order, search, customerNameById),
+                )
                 : orders,
-        [orders, search],
+        [orders, search, customerNameById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -184,69 +260,80 @@ export default function SalesOrdersDraftPage() {
     }
 
     return (
-        <div className="flex flex-col gap-5 pb-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
-                    <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
-                    {storefrontError && (
-                        <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="flex items-center gap-2 mr-4">
-                        <Switch
-                            id="menu-toggle"
-                            checked={Boolean(storefrontStatus?.listed)}
-                            disabled={isEnabling || isDisabling}
-                            onCheckedChange={handleMenuToggle}
-                        />
-                        <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+        <div className="flex flex-col gap-5 pb-12 sm:pb-16">
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
+                        <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                        {storefrontError && (
+                            <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
+                        )}
                     </div>
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 mr-4">
+                            <Switch
+                                id="menu-toggle"
+                                checked={Boolean(storefrontStatus?.listed)}
+                                disabled={isEnabling || isDisabling}
+                                onCheckedChange={handleMenuToggle}
+                            />
+                            <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+                        </div>
 
-                    <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                        <Link
-                            href={subdomainUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            Live Menu
-                        </Link>
+                        <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsQrModalOpen(true)}
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-2xs"
+                            >
+                                <QrCode className="h-4 w-4 text-primary" />
+                                <span>QR Code</span>
+                            </Button>
+                            <Link
+                                href={subdomainUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Live Menu
+                            </Link>
+                        </div>
                     </div>
                 </div>
+
+                <section
+                    aria-label="Totals"
+                    className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+                >
+                    <Stat
+                        label="Orders"
+                        value={totals ? String(totals.orders) : "—"}
+                    />
+                    <Stat
+                        label="Revenue"
+                        value={totals ? format(totals.revenue) : "—"}
+                    />
+                    <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
+                    <Stat
+                        label="Pending"
+                        value={totals ? String(totals.pending) : "—"}
+                    />
+                </section>
+
+                {summaryQuery.data?.truncated && (
+                    <p className="-mt-2 text-[13px] text-muted-foreground">
+                        Totals cover the most recent orders in this range only.
+                        Narrow the dates for exact figures — the table below still
+                        pages through every order.
+                    </p>
+                )}
             </div>
 
-            <section
-                aria-label="Totals"
-                className="grid grid-cols-2 gap-3 lg:grid-cols-4"
-            >
-                <Stat
-                    label="Orders"
-                    value={totals ? String(totals.orders) : "—"}
-                />
-                <Stat
-                    label="Revenue"
-                    value={totals ? format(totals.revenue) : "—"}
-                />
-                <Stat label="Paid" value={totals ? String(totals.paid) : "—"} />
-                <Stat
-                    label="Pending"
-                    value={totals ? String(totals.pending) : "—"}
-                />
-            </section>
-
-            {summaryQuery.data?.truncated && (
-                <p className="-mt-2 text-[13px] text-muted-foreground">
-                    Totals cover the most recent orders in this range only.
-                    Narrow the dates for exact figures — the table below still
-                    pages through every order.
-                </p>
-            )}
-
-            <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4">
+            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -283,14 +370,12 @@ export default function SalesOrdersDraftPage() {
                 </div>
 
                 {isLoading ? (
-                    <p className="p-10 text-center text-[14px] text-muted-foreground">
-                        Loading orders…
-                    </p>
+                    <CardListSkeleton count={4} />
                 ) : error ? (
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
 
-                    <>
+                    <div>
                         {rows.length === 0 ? (
                             <EmptyState searching={Boolean(search)} />
                         ) : (
@@ -305,31 +390,33 @@ export default function SalesOrdersDraftPage() {
                                         onClick={() => setSelectedOrderId(order.id)}
                                         itemThumbnailById={itemThumbnailById}
                                         customerNameById={customerNameById}
+                                        onApprovePayLater={() => void handleApprovePayLaterOrder(order)}
+                                        isConfirming={confirmingOrderId === order.id}
                                     />
                                 ))}
                             </div>
                         )}
 
-                        {/* The pager stays put even when a search empties the
-                            page, so the way back to the rest is never hidden. */}
-                        <Pager
-                            page={page}
-                            pageCount={pageCount}
-                            pageSize={pageSize}
-                            first={firstRow}
-                            last={lastRow}
-                            total={totalElements}
-                            busy={isFetching}
-                            filtered={
-                                search ? orders.length - rows.length : 0
-                            }
-                            onPage={setPage}
-                            onPageSize={(next) => {
-                                setPageSize(next);
-                                setPage(0);
-                            }}
-                        />
-                    </>
+                        <div className="border-t border-border bg-card rounded-b-2xl">
+                            <Pager
+                                page={page}
+                                pageCount={pageCount}
+                                pageSize={pageSize}
+                                first={firstRow}
+                                last={lastRow}
+                                total={totalElements}
+                                busy={isFetching}
+                                filtered={
+                                    search ? orders.length - rows.length : 0
+                                }
+                                onPage={setPage}
+                                onPageSize={(next) => {
+                                    setPageSize(next);
+                                    setPage(0);
+                                }}
+                            />
+                        </div>
+                    </div>
                 )}
             </section>
 
@@ -341,22 +428,22 @@ export default function SalesOrdersDraftPage() {
                 <DialogContent className="max-w-[480px] p-6 max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="pb-3 border-b">
                         <DialogTitle className="text-lg font-bold text-foreground">
-                            {receiptQuery.data?.order.status === "PENDING"
+                            {isUnpaid
                                 ? "Order Ticket (Unpaid)"
                                 : "Receipt Details"}
                         </DialogTitle>
                     </DialogHeader>
 
-                    {receiptQuery.isLoading ? (
+                    {isPaid && receiptQuery.isLoading && !matchingReceipt ? (
                         <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
                             Loading details...
                         </div>
-                    ) : receiptQuery.data && businessQuery.data ? (
+                    ) : displayOrder ? (
                         <div className="py-2">
                             <ReceiptTicket
-                                business={businessQuery.data}
-                                order={receiptQuery.data.order}
-                                receipt={receiptQuery.data.receipt}
+                                business={businessQuery.data ?? null}
+                                order={displayOrder}
+                                receipt={displayReceipt}
                                 currencies={currenciesQuery.data}
                             />
                         </div>
@@ -367,6 +454,13 @@ export default function SalesOrdersDraftPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Digital Menu QR Code Modal */}
+            <MenuQRModal
+                isOpen={isQrModalOpen}
+                onClose={() => setIsQrModalOpen(false)}
+                menuUrl={subdomainUrl}
+            />
         </div>
     );
 }
@@ -391,7 +485,7 @@ function Pager({
     last: number;
     total: number;
     busy: boolean;
-  
+
     filtered: number;
     onPage: (next: number) => void;
     onPageSize: (next: number) => void;
@@ -457,10 +551,18 @@ function Pager({
 }
 
 
-function matchesSearch(order: PosOrder, search: string) {
+function matchesSearch(
+    order: PosOrder,
+    search: string,
+    customerNameById?: Map<string, string>,
+) {
+    const customerName = order.customerId
+        ? (customerNameById?.get(order.customerId) ?? "")
+        : "";
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
+        customerName.toLowerCase().includes(search) ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -497,11 +599,15 @@ function OrderCard({
     onClick,
     itemThumbnailById,
     customerNameById,
+    onApprovePayLater,
+    isConfirming,
 }: {
     order: PosOrder;
     onClick: () => void;
     itemThumbnailById: Map<string, string | undefined>;
     customerNameById: Map<string, string>;
+    onApprovePayLater: () => void;
+    isConfirming: boolean;
 }) {
     const { format } = useMoney();
 
@@ -521,14 +627,20 @@ function OrderCard({
     // among cards that already settled, so it also gets a tinted card.
     const isAwaitingPayment =
         order.status === "PENDING" ||
+        order.status === "CONFIRMED" ||
         (order.status === "PAID" && order.paymentMethod === "PAY_LATER");
+
+    const customerName = order.customerId
+        ? customerNameById.get(order.customerId)
+        : null;
+    const noteName = order.note?.trim() || null;
+    const displayName = customerName || noteName;
 
     return (
         <div
             onClick={onClick}
-            className={`flex cursor-pointer flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 ${
-                isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
-            }`}
+            className={`flex cursor-pointer flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 ${isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
+                }`}
         >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -540,17 +652,26 @@ function OrderCard({
                             {formatOrderDate(order.createdDate)} · {CHANNEL_LABELS[order.channel]}
                         </span>
                     </div>
-                    {order.customerId && (
+                    {displayName && (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-sm font-medium text-foreground">
                             <User className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                            {customerNameById.get(order.customerId) ?? "Customer"}
+                            <span>{displayName}</span>
+                            {customerName && noteName && customerName !== noteName && (
+                                <span className="text-xs text-muted-foreground font-normal">
+                                    ({noteName})
+                                </span>
+                            )}
                         </p>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2">
-                   
-                    {isAwaitingPayment ? (
+                    {order.status === "CONFIRMED" ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                            <PackageCheck className="size-3" aria-hidden="true" />
+                            Confirmed
+                        </span>
+                    ) : isAwaitingPayment ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-semibold text-warning">
                             <Clock className="size-3" aria-hidden="true" />
                             Pending
@@ -569,6 +690,28 @@ function OrderCard({
             </div>
 
             <LineItemListPanel order={order} itemThumbnailById={itemThumbnailById} />
+
+            {order.status === "PENDING" && order.awaitingPayLaterApproval && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                        Customer chose to pay later — approving takes stock off the shelf now.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            // The card underneath opens the receipt dialog —
+                            // this is a different action entirely.
+                            event.stopPropagation();
+                            onApprovePayLater();
+                        }}
+                        disabled={isConfirming}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                    >
+                        <PackageCheck className="size-3.5" aria-hidden="true" />
+                        {isConfirming ? "Approving…" : "Approve order"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
@@ -711,8 +854,8 @@ function FilterGroup<T extends string>({
                     onClick={() => onChange(option)}
                     aria-pressed={value === option}
                     className={`rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${value === option
-                            ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     {option === "ALL" ? "All" : option}

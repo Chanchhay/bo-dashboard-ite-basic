@@ -236,6 +236,7 @@ export function AddOnsTab() {
     if (addOnsQuery.error || unitsQuery.error) {
         return (
             <InventoryError
+                error={addOnsQuery.error || unitsQuery.error}
                 message={getApiErrorMessage(
                     addOnsQuery.error || unitsQuery.error,
                     "Unable to load the add-ons.",
@@ -341,7 +342,7 @@ export function AddOnsTab() {
                                                 <div className="flex justify-end gap-2">
                                                     <Button
                                                         type="button"
-                                                        variant="outline"
+                                                        variant="ghost"
                                                         size="icon-sm"
                                                         disabled={
                                                             updateState.isLoading
@@ -351,12 +352,13 @@ export function AddOnsTab() {
                                                             openDialog(addOn.id)
                                                         }
                                                     >
-                                                        <Pencil />
+                                                        <Pencil className="size-4" />
                                                     </Button>
                                                     <Button
                                                         type="button"
-                                                        variant="destructive"
+                                                        variant="ghost"
                                                         size="icon-sm"
+                                                        className="hover:bg-red-50 dark:hover:bg-red-950/40"
                                                         disabled={
                                                             deleteState.isLoading
                                                         }
@@ -367,7 +369,7 @@ export function AddOnsTab() {
                                                             )
                                                         }
                                                     >
-                                                        <Trash2 />
+                                                        <Trash2 className="size-4 text-brand-red" />
                                                     </Button>
                                                 </div>
                                             </td>
@@ -438,7 +440,7 @@ export function AddOnsTab() {
                                 <div className="flex shrink-0 gap-2">
                                     <Button
                                         type="button"
-                                        variant="outline"
+                                        variant="ghost"
                                         size="icon-sm"
                                         aria-label={`Edit ${set.name}`}
                                         onClick={() => {
@@ -446,17 +448,18 @@ export function AddOnsTab() {
                                             setSetEditorOpen(true);
                                         }}
                                     >
-                                        <Pencil />
+                                        <Pencil className="size-4" />
                                     </Button>
                                     <Button
                                         type="button"
-                                        variant="destructive"
+                                        variant="ghost"
                                         size="icon-sm"
+                                        className="hover:bg-red-50 dark:hover:bg-red-950/40"
                                         disabled={deleteSetState.isLoading}
                                         aria-label={`Delete ${set.name}`}
                                         onClick={() => setDeleteSetTarget(set)}
                                     >
-                                        <Trash2 />
+                                        <Trash2 className="size-4 text-brand-red" />
                                     </Button>
                                 </div>
                             </div>

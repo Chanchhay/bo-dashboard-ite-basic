@@ -298,6 +298,7 @@ export const NAVIGATION: NavSection[] = [
       },
              
     ],
+    
     launch: {
       label: "Open Point of Sale",
       href: POS_ROUTES.openRegister,
@@ -311,8 +312,7 @@ export const NAVIGATION: NavSection[] = [
     icon: Settings,
     href: "/settings",
     app: {
-      label: "Account Setting",
-      // hint: "Your preferences",
+      label: "Settings",
       fill: "#e8e8e8",
       ink: "#00932a",
     },

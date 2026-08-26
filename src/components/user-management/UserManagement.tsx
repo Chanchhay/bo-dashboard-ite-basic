@@ -6,6 +6,7 @@ import { ScrollText, ShieldCheck, Users } from "lucide-react";
 import AuditsTab from "@/components/user-management/AuditsTab";
 import RolesTab from "@/components/user-management/RolesTab";
 import StaffTab from "@/components/user-management/StaffTab";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { cn } from "@/lib/utils";
 
 type TabId = "users" | "roles" | "audits";
@@ -47,13 +48,21 @@ export default function UserManagement({
 
     return (
         <div className="flex flex-col gap-5 pb-4">
-            <div
-                role="tablist"
-                data-tour="employees-tabs"
-                aria-label="User management sections"
-                onKeyDown={onKeyDown}
-                className="grid w-full grid-cols-3 gap-1 rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-1 sm:p-1.5 sm:flex sm:w-fit"
-            >
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 bg-shell/95 backdrop-blur-md pt-1 pb-4 flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
+                    <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
+                        Manage staff accounts, assign security role permissions, and view system audit logs.
+                    </p>
+                    <TourButton />
+                </div>
+
+                <div
+                    role="tablist"
+                    data-tour="employees-tabs"
+                    aria-label="User management sections"
+                    onKeyDown={onKeyDown}
+                    className="grid w-full grid-cols-3 gap-1 rounded-2xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#242937] p-1 sm:p-1.5 sm:flex sm:w-fit shadow-xs"
+                >
                 {TABS.map((tab) => {
                     const selected = tab.id === active;
                     const Icon = tab.icon;
@@ -90,6 +99,7 @@ export default function UserManagement({
                         </button>
                     );
                 })}
+                </div>
             </div>
 
             <div

@@ -36,14 +36,6 @@ export function PaidReceiptView({
     );
   }
 
-  if (!businessQuery.data) {
-    return (
-      <div className="flex min-h-64 items-center justify-center p-6 text-center text-sm text-brand-red">
-        The business profile could not be loaded for this receipt.
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-full flex-col items-center overflow-y-auto bg-[#f5f5f5] px-4 py-6 print:bg-white print:p-0 sm:py-8">
       {isPayLater && (
@@ -56,7 +48,7 @@ export function PaidReceiptView({
         </div>
       )}
       <ReceiptTicket
-        business={businessQuery.data}
+        business={businessQuery.data ?? null}
         order={receiptQuery.data?.order ?? order}
         receipt={receiptQuery.data?.receipt}
         sale={sale}
