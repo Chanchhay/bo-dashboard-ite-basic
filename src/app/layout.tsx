@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 import { TourProvider } from "@/lib/tours/TourProvider";
+import { PwaRegister } from "@/components/common/PwaRegister";
 
 export default function RootLayout({
   children,
@@ -23,15 +24,16 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className="h-full font-sans antialiased">
-      <body className="min-h-full flex flex-col">
-        <NetworkStatusBanner />
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <PwaRegister />
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <StoreProvider>
+            <NetworkStatusBanner />
             <TourProvider>{children}</TourProvider>
           </StoreProvider>
         </ThemeProvider>
