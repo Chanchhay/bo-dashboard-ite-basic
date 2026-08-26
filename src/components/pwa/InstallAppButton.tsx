@@ -12,11 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { usePwaInstall } from "@/components/pwa/PwaInstallProvider";
 
-/**
- * "Install App" affordance. Reads from `PwaInstallProvider` — it never
- * listens for `beforeinstallprompt` itself, so there is exactly one place in
- * the app that does.
- */
+
 export function InstallAppButton({
   className,
   variant = "outline",
@@ -28,7 +24,6 @@ export function InstallAppButton({
   variant?: "outline" | "ghost" | "default";
   size?: "sm" | "default";
   label?: string;
-  /** Fixed bottom-right FAB styling instead of an inline button. */
   floating?: boolean;
 }) {
   const { toast } = useToast();
