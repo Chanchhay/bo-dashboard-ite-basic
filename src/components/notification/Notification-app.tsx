@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -158,6 +158,23 @@ function getNotificationLink(notification: Notification): string {
 export default function NotificationsApp() {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState<string>("ALL");
+
+    const [isOnline, setIsOnline] = useState<boolean>(() =>
+        typeof window !== "undefined" ? navigator.onLine : true
+    );
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
+    }, []);
 
     const { data, isLoading, isError, refetch } = useGetReceivedNotificationsQuery({
         page: 0,
@@ -325,9 +342,13 @@ export default function NotificationsApp() {
                         </div>
                     )}
 
-                    {isError && !isLoading && (
+                    {(isError || !isOnline) && !isLoading && (
                         <div className="flex flex-col items-center justify-center py-12 px-5 text-center gap-2.5">
-                            <p className="text-sm text-danger font-bold">Failed to load notifications.</p>
+                            <p className="text-sm text-danger font-bold max-w-[320px]">
+                                {!isOnline
+                                    ? "Please connect to the internet to view notifications."
+                                    : "Failed to load notifications."}
+                            </p>
                             <Button type="button" variant="outline" size="sm" onClick={() => refetch()} className="rounded-xl">
                                 Try again
                             </Button>
