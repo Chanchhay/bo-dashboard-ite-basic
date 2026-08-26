@@ -44,26 +44,40 @@ async function loadOrders(businessId: string, filters: OrderFilter[]) {
     return { orders: orders.filter(isRealOrder), truncated };
 }
 
+import { getSyncedOrders } from "@/lib/synced-orders-store";
+
 /** Range-wide totals for Sale Management's stat cards. */
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
         const businessId = await getCurrentBusinessId();
-        const { orders, truncated } = await loadOrders(
-            businessId,
-            orderFiltersFromQuery(url),
-        );
+        let orders: PosOrder[] = [];
+        let truncated = false;
+
+        try {
+            const loaded = await loadOrders(
+                businessId,
+                orderFiltersFromQuery(url),
+            );
+            orders = loaded.orders;
+            truncated = loaded.truncated;
+        } catch {
+            // Fallback if backend server endpoint fails or is un-configured
+        }
+
+        const synced = getSyncedOrders(url);
+        const allOrders = [...synced, ...orders];
 
         // Revenue counts paid orders only — a pending or cancelled total is
         // money nobody has taken.
-        const paid = orders.filter((order) => order.status === "PAID");
+        const paid = allOrders.filter((order) => order.status === "PAID");
 
         return Response.json({
             totals: {
-                orders: orders.length,
+                orders: allOrders.length,
                 revenue: paid.reduce((sum, order) => sum + order.total, 0),
                 paid: paid.length,
-                pending: orders.filter((order) => order.status === "PENDING")
+                pending: allOrders.filter((order) => order.status === "PENDING")
                     .length,
             },
             truncated,

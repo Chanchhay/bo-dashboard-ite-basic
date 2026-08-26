@@ -6,6 +6,7 @@ import {
   Clock,
   Bell,
   Wifi,
+  WifiOff,
   Check,
   Menu,
   X,
@@ -23,6 +24,7 @@ import BrandLogo from "@/components/brand/BrandLogo";
 import { TourButton } from "@/components/onboarding/TourButton";
 import UserMenu from "@/components/layout/UserMenu";
 import { NotificationMenu } from "@/components/notification/Notification";
+import { usePosOffline } from "@/lib/offline/usePosOffline";
 import {
   Select,
   SelectContent,
@@ -56,6 +58,7 @@ export function Navbar({
 }: NavbarProps) {
   const router = useRouter();
   const [time, setTime] = useState("");
+  const { isOnline } = usePosOffline();
 
   useEffect(() => {
     const update = () =>
@@ -81,6 +84,7 @@ export function Navbar({
           categories={categories}
           selectedCategoryId={selectedCategoryId}
           onCategoryChange={onCategoryChange}
+          isOnline={isOnline}
         />
 
         <button
@@ -146,9 +150,17 @@ export function Navbar({
 
         <TourButton />
 
-        <div className="hidden h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-white xl:flex">
-          <Wifi className="h-3.5 w-3.5" />
-          Online
+        <div
+          className={`hidden h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-white xl:flex transition-colors ${
+            isOnline ? "bg-primary" : "bg-amber-600"
+          }`}
+        >
+          {isOnline ? (
+            <Wifi className="h-3.5 w-3.5" />
+          ) : (
+            <WifiOff className="h-3.5 w-3.5" />
+          )}
+          {isOnline ? "Online" : "Offline"}
         </div>
       </div>
     </nav>
@@ -161,68 +173,69 @@ function MobileMenu({
   categories,
   selectedCategoryId,
   onCategoryChange,
+  isOnline,
 }: {
   router: ReturnType<typeof useRouter>;
   time: string;
   categories: PosCategoryOption[];
   selectedCategoryId: string;
   onCategoryChange: (value: string) => void;
+  isOnline: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isDisplayOn, setIsDisplayOn] = useState(true);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isOpen]);
-
   return (
-    <div className="flex items-center min-[901px]:hidden">
+    <>
       <button
         type="button"
         onClick={() => setIsOpen(true)}
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 xl:hidden"
         aria-label="Open menu"
-        className="flex size-10 shrink-0 items-center justify-center text-gray-700 dark:text-gray-200 hover:text-primary transition-colors"
       >
-        <Menu className="size-5.5" />
+        <Menu className="h-5 w-5" />
       </button>
 
       {isOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-50 bg-black/20"
-            onClick={() => setIsOpen(false)}
-          />
-
-          {/* Slide-down panel */}
-          <div className="animate-in fade-in slide-in-from-top-2 fixed inset-x-0 top-0 z-50 rounded-b-2xl bg-white shadow-lg duration-150">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-              <BrandLogo variant="wordmark" className="w-24" />
+        <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-xs xl:hidden">
+          <div className="flex h-full w-4/5 max-w-sm flex-col bg-white dark:bg-gray-900 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 px-4 py-3">
+              <BrandLogo variant="wordmark" alt="" className="h-7 w-auto shrink-0" />
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                aria-label="Close menu"
-                className="text-gray-400"
+                className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex flex-col py-1">
-              <CategorySelect
-                categories={categories}
-                selectedCategoryId={selectedCategoryId}
-                onCategoryChange={(value) => {
-                  onCategoryChange(value);
-                  setIsOpen(false);
-                }}
-                mobile
-              />
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">
+                  Category
+                </label>
+                <Select
+                  value={selectedCategoryId}
+                  onValueChange={(val) => {
+                    onCategoryChange(String(val ?? "ALL"));
+                    setIsOpen(false);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
 
               <MenuRow
                 icon={
@@ -252,11 +265,21 @@ function MobileMenu({
               />
 
               <MenuRow
-                icon={<Wifi className="h-4.5 w-4.5 text-primary" />}
+                icon={
+                  isOnline ? (
+                    <Wifi className="h-4.5 w-4.5 text-primary" />
+                  ) : (
+                    <WifiOff className="h-4.5 w-4.5 text-amber-500" />
+                  )
+                }
                 label="Connection"
                 right={
-                  <span className="rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-white">
-                    Online
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-xs font-semibold text-white ${
+                      isOnline ? "bg-emerald-600" : "bg-amber-600"
+                    }`}
+                  >
+                    {isOnline ? "Online" : "Offline"}
                   </span>
                 }
               />
@@ -287,9 +310,9 @@ function MobileMenu({
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
