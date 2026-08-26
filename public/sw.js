@@ -176,6 +176,25 @@ self.addEventListener("fetch", (event) => {
     event.waitUntil(clearPosShell());
   }
 
+  /*
+   * Leave cross-origin requests to the browser.
+   *
+   * Item photos, business logos and profile pictures are plain <img> tags
+   * pointed at the backend's own host, and their `destination` is "image" —
+   * so without this they fall into the network-first branch below and get
+   * re-issued by fetch() from inside this worker. A worker inherits the CSP
+   * delivered with its script, and next.config.ts serves /sw.js under
+   * `default-src 'self'`, which caps connect-src at same-origin: that re-issued
+   * fetch is blocked, and the image breaks. The page itself has no CSP, so
+   * simply not intercepting lets the browser load it as normal.
+   *
+   * Nothing is lost by skipping them. A cross-origin response here is opaque
+   * (status 0), so the `status === 200` check below never cached one anyway.
+   */
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   // Bypass service worker for API, HMR, websockets, and dev chunks
   if (
     url.pathname.startsWith("/api/") ||
