@@ -35,9 +35,6 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {/* NetworkStatusBanner reads offline sync state through
-                usePosOffline -> useDispatch, so it has to sit inside
-                StoreProvider. */}
             <StoreProvider>
               <NetworkStatusBanner />
 
