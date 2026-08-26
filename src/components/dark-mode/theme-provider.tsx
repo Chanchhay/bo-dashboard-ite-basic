@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { ThemeProvider as NextThemesProvider, ThemeProviderProps } from "next-themes"
 
@@ -13,14 +14,23 @@ function isPosRoute(pathname: string | null) {
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const onPos = isPosRoute(pathname);
+
+  useEffect(() => {
+    if (onPos) {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [onPos]);
 
   return (
     <NextThemesProvider
       {...props}
-      forcedTheme={isPosRoute(pathname) ? "light" : props.forcedTheme}
+      enableSystem={false}
+      enableColorScheme={false}
+      forcedTheme={onPos ? "light" : props.forcedTheme}
     >
       {children}
     </NextThemesProvider>
-  )
+  );
 }

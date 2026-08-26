@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description: "FluxiBiz business operations platform",
 };
 
+import { TourProvider } from "@/lib/tours/TourProvider";
+import { PwaRegister } from "@/components/common/PwaRegister";
+
 export default function RootLayout({
   children,
 }: Readonly<{

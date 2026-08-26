@@ -9,6 +9,7 @@ import type { ChannelItem } from "@/lib/api/sales-channels";
 import { itemThumbnail } from "@/lib/api/inventory";
 
 import { useMoney } from "@/hooks/useMoney";
+import { usePosOffline } from "@/lib/offline/usePosOffline";
 import { PaidReceiptView } from "@/components/pos/order/pain-receipt-view";
 import { ItemChoiceModal } from "@/components/pos/item-choice-modal";
 import PosCard from "@/components/pos/pos-card";
@@ -138,7 +139,31 @@ export function PosScreen({
     };
   }, []);
 
-  const { data: currentStockList = [] } = useGetCurrentStockQuery();
+  const { isOnline, cacheStockList, getCachedStockList } = usePosOffline();
+  const { data: remoteStockList = [] } = useGetCurrentStockQuery();
+  const [cachedStockList, setCachedStockList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (remoteStockList && remoteStockList.length > 0) {
+      void cacheStockList(remoteStockList);
+    }
+  }, [remoteStockList, cacheStockList]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!isOnline || remoteStockList.length === 0) {
+      getCachedStockList().then((items) => {
+        if (isMounted && items && items.length > 0) {
+          setCachedStockList(items);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOnline, remoteStockList.length, getCachedStockList]);
+
+  const currentStockList = remoteStockList.length > 0 ? remoteStockList : cachedStockList;
 
   const stockByItemId = useMemo(() => {
     const map = new Map<string, number>();
@@ -235,9 +260,10 @@ export function PosScreen({
 
       if (itemType === "SERVICE" || itemType === "DIGITAL") return false;
 
-      // An item sold in options is sellable while any one option has stock;
-      // the item's own total already sums them.
-      return (stockFor(entry.item.id) ?? 0) <= 0;
+      const stockVal = stockFor(entry.item.id);
+      if (stockVal === undefined) return false;
+
+      return stockVal <= 0;
     },
     [stockFor],
   );
@@ -271,17 +297,7 @@ export function PosScreen({
         );
       })
       .map((entry) => {
-        // An item photographed only through its options — a colour swatch, a
-        // size's own shot — still has a face for the grid to show.
         const thumbnail = itemThumbnail(entry.item);
-
-        // What it actually sells for, not what the item row happens to hold.
-        //
-        // An item sold in options is never sold as itself, so `item.price` is
-        // a number nobody is ever charged — and it is the one price a channel
-        // has no exception against, so the card sat on the business price
-        // while the form beside it charged the channel's. The cheapest thing
-        // you can actually buy is the honest headline.
         const prices = linesOf(entry.item)
           .map((line) => line.base)
           .filter((price): price is number => price !== undefined);
@@ -347,6 +363,10 @@ export function PosScreen({
           unitPrice: input.unitPrice,
         }).unwrap();
       } catch (error) {
+        if (typeof window !== "undefined" && !navigator.onLine) {
+          // Offline mode: Item added to local optimistic cart state successfully
+          return undefined;
+        }
         toast({
           tone: "error",
           title: "Could not add that item",

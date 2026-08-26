@@ -16,6 +16,9 @@ import { useMoney } from "@/hooks/useMoney";
 import type { Order } from "@/types/pos-type";
 import type { PosOrder, PosOrderItem, Sale } from "@/lib/api/pos-order";
 
+import { useDispatch } from "react-redux";
+import { offlineDb } from "@/lib/offline/db";
+import { processOfflineCheckout } from "@/lib/checkout";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetCustomersQuery } from "@/services/customerApi";
@@ -422,6 +425,7 @@ export function OrderTable({
 }: OrderTableProps) {
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
+  const dispatch = useDispatch();
 
   const { data: order, isLoading, error } = useGetCurrentOrderQuery();
   const { data: customers = [] } = useGetCustomersQuery();
@@ -467,6 +471,10 @@ export function OrderTable({
     try {
       await change();
     } catch (cause) {
+      if (typeof window !== "undefined" && !navigator.onLine) {
+        // Offline: Quantity / item removal applied locally to cart state
+        return;
+      }
       toast({
         tone: "error",
         title: failure,
@@ -750,11 +758,34 @@ export function OrderTable({
     }
   };
 
-  if (isLoading) {
+  const isOffline = typeof window !== "undefined" && !navigator.onLine;
+
+  // Save active order cart to localStorage so offline refreshes don't lose items
+  useEffect(() => {
+    if (typeof window !== "undefined" && order && order.items && order.items.length > 0) {
+      try {
+        localStorage.setItem("ipos_offline_active_cart", JSON.stringify(order));
+      } catch {}
+    }
+  }, [order]);
+
+  const [savedOfflineCart] = useState<PosOrder | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("ipos_offline_active_cart");
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  if (isLoading && !isOffline) {
     return <div className="p-6 text-sm text-gray-400">Loading order…</div>;
   }
 
-  if (error) {
+  if (error && !isOffline) {
     return (
       <div className="p-6 text-sm text-brand-red">
         Could not load the current order.
@@ -762,9 +793,25 @@ export function OrderTable({
     );
   }
 
-  const items = order?.items ?? [];
-  const subtotalNum = order?.subtotal ?? 0;
-  const discountNum = order?.discountAmount ?? 0;
+  const fallbackOrder: PosOrder = savedOfflineCart || {
+    id: "offline-current",
+    businessId: "1",
+    customerId: null,
+    invoiceNumber: null,
+    channel: "POS",
+    status: "PENDING",
+    subtotal: 0,
+    discountAmount: 0,
+    taxAmount: 0,
+    total: 0,
+    currency: "USD",
+    items: [],
+  } as PosOrder;
+
+  const effectiveOrder = order || fallbackOrder;
+  const items = effectiveOrder.items ?? [];
+  const subtotalNum = effectiveOrder.subtotal ?? 0;
+  const discountNum = effectiveOrder.discountAmount ?? 0;
   const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
   const activeTax = getActiveDefaultTax();
@@ -841,18 +888,74 @@ export function OrderTable({
     const sold = order;
 
     try {
+      let sale: Sale;
+      const isOfflineMode = typeof window !== "undefined" && !navigator.onLine;
       const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
-      const sale = await payOrder({
-        paymentMethod: method,
-        receivedAmount,
-        isTaxActive,
-        isTaxInclusive,
-        taxInclusionType,
-        taxRate: effectiveTaxRate,
-        taxAmount: summary.taxAmount,
-        discountId: activeDiscountRule?.discountId,
-        discountCode: activeDiscountRule?.discountCode,
-      }).unwrap();
+
+      if (isOfflineMode) {
+        const localUuid = `offline-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const recAmount = receivedAmount ?? summary.total;
+        const chgAmount = Math.max(0, recAmount - summary.total);
+
+        await processOfflineCheckout({
+          businessId: "1",
+          items: (order.items || []).map((i) => ({
+            product_id: i.itemId,
+            product_name: i.itemName,
+            quantity: i.quantity,
+            unit_price: i.unitPrice,
+            subtotal: i.lineTotal,
+          })),
+          subtotal: summary.subtotal,
+          discountAmount: summary.discount,
+          total: summary.total,
+          paymentMethod: method === "CASH" ? "CASH" : "CARD",
+        });
+
+        // Deduct local stock balances for sold items in IndexedDB
+        for (const item of order.items || []) {
+          if (item.itemId) {
+            const key = item.variantId ? `${item.itemId}:${item.variantId}` : item.itemId;
+            const existingStock = await offlineDb.stockList.get(key);
+            if (existingStock) {
+              const newQty = Math.max(0, existingStock.quantityOnHand - item.quantity);
+              await offlineDb.stockList.update(key, { quantityOnHand: newQty });
+            }
+          }
+        }
+
+        sale = {
+          id: `sale-off-${Date.now()}`,
+          orderId: order.id,
+          totalAmount: summary.total,
+          receivedAmount: recAmount,
+          changeAmount: chgAmount,
+          paymentMethod: method,
+          createdAt: new Date().toISOString(),
+        } as unknown as Sale;
+
+        (dispatch as any)(posOrderApi.util.updateQueryData("getCurrentOrder", undefined, () => null));
+        try {
+          localStorage.removeItem("ipos_offline_active_cart");
+        } catch {}
+      } else {
+        sale = await payOrder({
+          paymentMethod: method,
+          receivedAmount,
+          isTaxActive,
+          isTaxInclusive,
+          taxInclusionType,
+          taxRate: effectiveTaxRate,
+          taxAmount: summary.taxAmount,
+          discountId: activeDiscountRule?.discountId,
+          discountCode: activeDiscountRule?.discountCode,
+        }).unwrap();
+
+        (dispatch as any)(posOrderApi.util.updateQueryData("getCurrentOrder", undefined, () => null));
+        try {
+          localStorage.removeItem("ipos_offline_active_cart");
+        } catch {}
+      }
 
       if (sold.id) {
         if (activeDiscountRule) {
@@ -1149,6 +1252,7 @@ export function OrderTable({
           itemCount={items.length}
           onCreate={handleCreateOrder}
           isCreating={isParking}
+          defaultName={selectedCustomer?.globalCustomer?.fullName || order?.note || ""}
         />
       )}
 
