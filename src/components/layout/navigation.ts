@@ -184,6 +184,24 @@ export const NAVIGATION: NavSection[] = [
         ],
       },
       {
+        label: "Import data",
+        permission: ["item:read", "item:create"],
+        children: [
+          {
+            label: "New import",
+            href: "/inventory/import",
+            exact: true,
+            permission: "item:create",
+          },
+          {
+            label: "History",
+            href: "/inventory/import/history",
+            permission: "item:read",
+            alsoActiveOn: [/^\/inventory\/import\/[^/]+$/],
+          },
+        ],
+      },
+      {
         label: "Item config",
         permission: ["unit:read", "item-group:read", "item:read"],
         children: [

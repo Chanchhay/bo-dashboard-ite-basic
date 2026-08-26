@@ -73,6 +73,8 @@ export const baseApi = createApi({
         "BusinessCurrencies",
         "InventoryItems",
         "InventoryItemGroups",
+        "DataImports",
+        "DataImportRows",
         "InventoryAddOns",
         "InventoryAddOnSets",
         "InventoryOptionPresets",
