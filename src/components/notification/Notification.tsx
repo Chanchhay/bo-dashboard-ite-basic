@@ -171,6 +171,23 @@ export function NotificationMenu({ className }: { className?: string }) {
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const { data: session } = authClient.useSession();
 
+    const [isOnline, setIsOnline] = React.useState<boolean>(() =>
+        typeof window !== "undefined" ? navigator.onLine : true
+    );
+
+    React.useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
+    }, []);
+
     React.useEffect(() => {
         if (session?.user?.id) {
             notificationSocket.connect({
@@ -338,9 +355,13 @@ export function NotificationMenu({ className }: { className?: string }) {
                         </div>
                     )}
 
-                    {isError && !isLoading && (
+                    {(isError || !isOnline) && !isLoading && (
                         <div className="flex flex-col items-center justify-center py-10 px-5 text-center gap-2.5">
-                            <p className="text-base text-red-500 font-bold">Failed to load notifications.</p>
+                            <p className="text-base text-red-500 font-bold max-w-[280px]">
+                                {!isOnline
+                                    ? "Please connect to the internet to view notifications."
+                                    : "Failed to load notifications."}
+                            </p>
                             <button
                                 type="button"
                                 onClick={() => refetch()}

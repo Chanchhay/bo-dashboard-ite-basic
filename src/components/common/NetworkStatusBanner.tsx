@@ -14,10 +14,11 @@ export function NetworkStatusBanner() {
   const [prevStatus, setPrevStatus] = useState(status);
   const [showRestored, setShowRestored] = useState(false);
 
-  const isPosRoute = pathname?.startsWith("/pos");
+  const isPosOrCustomerDisplayRoute =
+    pathname?.startsWith("/pos") || pathname?.startsWith("/customer-display");
 
-  // On POS routes, status is shown inside the Navbar header badge — no floating banners needed
-  if (isPosRoute) return null;
+  // On POS and Customer Display routes, status is managed locally inside the view — no floating banners needed
+  if (isPosOrCustomerDisplayRoute) return null;
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto transition-all duration-300 ease-out">
@@ -32,7 +33,7 @@ export function NetworkStatusBanner() {
 
 
       {/* Offline State on Non-POS Route */}
-      {status === "offline" && !isPosRoute && (
+      {status === "offline" && (
         <div className="flex items-center gap-3 rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-xl border border-rose-400/40 backdrop-blur-md animate-in fade-in slide-in-from-top-3">
           <WifiOff className="size-4 shrink-0" />
           <span>Offline — Dashboard requires Internet</span>
