@@ -200,7 +200,7 @@ function MobileMenu({
         <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-xs xl:hidden">
           <div className="flex h-full w-4/5 max-w-sm flex-col bg-white dark:bg-gray-900 shadow-xl">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 px-4 py-3">
-              <BrandLogo size="md" />
+              <BrandLogo variant="wordmark" alt="" className="h-7 w-auto shrink-0" />
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -218,7 +218,7 @@ function MobileMenu({
                 <Select
                   value={selectedCategoryId}
                   onValueChange={(val) => {
-                    onCategoryChange(val);
+                    onCategoryChange(String(val ?? "ALL"));
                     setIsOpen(false);
                   }}
                 >

@@ -14,9 +14,6 @@ export const metadata: Metadata = {
   description: "FluxiBiz business operations platform",
 };
 
-import { TourProvider } from "@/lib/tours/TourProvider";
-import { PwaRegister } from "@/components/common/PwaRegister";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,19 +25,22 @@ export default function RootLayout({
       suppressHydrationWarning
       className="h-full font-sans antialiased"
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <PwaManager />
 
         <PwaInstallProvider>
-          <NetworkStatusBanner />
-
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
+            {/* NetworkStatusBanner reads offline sync state through
+                usePosOffline -> useDispatch, so it has to sit inside
+                StoreProvider. */}
             <StoreProvider>
+              <NetworkStatusBanner />
+
               <TourProvider>
                 {children}
               </TourProvider>

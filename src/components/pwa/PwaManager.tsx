@@ -2,7 +2,12 @@
 
 import { useEffect } from 'react'
 
+import { authClient } from '@/lib/auth/auth-client'
+
 export function PwaManager() {
+  const { data: session } = authClient.useSession()
+  const isSignedIn = Boolean(session)
+
   useEffect(() => {
     if (!('serviceWorker' in navigator)) {
       console.log('Service Worker is not supported')
@@ -24,6 +29,29 @@ export function PwaManager() {
 
     registerServiceWorker()
   }, [])
+
+  // The POS shell is behind the auth proxy, so it can only be cached once
+  // there is a session — fetching it while signed out redirects to /login.
+  // Warming it here means the terminal opens offline even for someone who
+  // signed in on the dashboard and never navigated to /pos.
+  useEffect(() => {
+    if (!isSignedIn || !('serviceWorker' in navigator)) return
+
+    let cancelled = false
+
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        if (cancelled) return
+        registration.active?.postMessage({ type: 'PRECACHE_POS_SHELL' })
+      })
+      .catch((error) => {
+        console.warn('Could not warm the POS shell:', error)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSignedIn])
 
   return null
 }
