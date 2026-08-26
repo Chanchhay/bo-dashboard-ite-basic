@@ -86,7 +86,7 @@ export function DiscountSelectModal({
             if (d.applicableChannels && d.applicableChannels.length > 0) {
                 return d.applicableChannels.includes("POS");
             }
-            return true;
+            return false;
         });
     }, [discounts]);
 

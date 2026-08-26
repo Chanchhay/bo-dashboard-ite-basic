@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Plus,
     Tag,
@@ -20,6 +20,7 @@ import {
     XCircle,
     Zap,
     SlidersHorizontal,
+    X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -249,96 +250,44 @@ export default function DiscountsAndCouponsPage() {
         );
     }, [coupons, searchQuery]);
 
-    const getEffectiveChannels = (d: DiscountResponse): OrderChannel[] => {
-        if (d.applicableChannels && d.applicableChannels.length > 0) {
-            return d.applicableChannels;
-        }
-        return ["POS", "WEB", "TELEGRAM", "MESSENGER"];
-    };
+    const [channelSelectedDiscounts, setChannelSelectedDiscounts] = useState<Record<OrderChannel, string>>({
+        WEB: "NONE",
+        TELEGRAM: "NONE",
+        MESSENGER: "NONE",
+        POS: "NONE",
+    });
 
-    const getAssignedDiscountForChannel = (channel: OrderChannel): DiscountResponse | undefined => {
-        return discounts.find(
-            (d) => d.status === "ACTIVE" && getEffectiveChannels(d).includes(channel)
-        );
-    };
-
-    const buildUpdateDiscountPayload = (d: DiscountResponse, updatedChannels: OrderChannel[]): UpdateDiscountInput => {
-        const payload: UpdateDiscountInput = {
-            applicableChannels: updatedChannels,
-        };
-
-        if (d.targets && d.targets.length > 0) {
-            const itemIds = d.targets
-                .filter((t) => t.targetType === "ITEM")
-                .map((t) => t.targetId);
-            const groupIds = d.targets
-                .filter((t) => t.targetType === "ITEM_GROUP")
-                .map((t) => t.targetId);
-
-            if (itemIds.length > 0) {
-                payload.targetItemIds = itemIds;
-            }
-            if (groupIds.length > 0) {
-                payload.targetItemGroupIds = groupIds;
-            }
-        }
-
-        return payload;
-    };
-
-    const handleSelectChannelDiscount = async (channel: OrderChannel, selectedDiscountId: string) => {
+    useEffect(() => {
         try {
-            for (const d of discounts) {
-                const effChannels = getEffectiveChannels(d);
-                const hasChannel = effChannels.includes(channel);
-
-                if (d.id === selectedDiscountId) {
-                    if (!hasChannel || !d.applicableChannels || d.applicableChannels.length === 0) {
-                        const updated = Array.from(new Set([...effChannels, channel]));
-                        const body = buildUpdateDiscountPayload(d, updated);
-                        await updateDiscount({ id: d.id, body }).unwrap();
-                    }
-                } else if (hasChannel) {
-                    const updated = effChannels.filter((c) => c !== channel);
-                    const body = buildUpdateDiscountPayload(d, updated);
-                    await updateDiscount({ id: d.id, body }).unwrap();
-                }
+            const saved = localStorage.getItem("channel_active_applied_discounts");
+            if (saved) {
+                setChannelSelectedDiscounts(JSON.parse(saved));
             }
-            await refetchDiscounts();
-        } catch (err) {
-            console.error("Failed to update channel discount selection", err);
-            alert(getApiErrorMessage(err, "Failed to update channel discount selection."));
-        }
-    };
+        } catch (e) {}
+    }, []);
 
-    const [confirmChannelChange, setConfirmChannelChange] = useState<{
-        channel: OrderChannel;
-        channelTitle: string;
-        discountId: string;
-        discountName: string;
-    } | null>(null);
-
-    const handleInitiateChannelDiscountChange = (channel: OrderChannel, channelTitle: string, selectedDiscountId: string) => {
-        const currentAssigned = getAssignedDiscountForChannel(channel);
-        const currentId = currentAssigned?.id || "";
-        if (currentId === selectedDiscountId) return;
-
-        const targetDisc = discounts.find((d) => d.id === selectedDiscountId);
-        const discountName = targetDisc ? targetDisc.name : "No Discount (Standard Price)";
-
-        setConfirmChannelChange({
-            channel,
-            channelTitle,
-            discountId: selectedDiscountId,
-            discountName,
+    const handleSelectChannelDiscount = (channel: OrderChannel, discountId: string) => {
+        setChannelSelectedDiscounts((prev) => {
+            const updated = { ...prev, [channel]: discountId };
+            try {
+                localStorage.setItem("channel_active_applied_discounts", JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
         });
     };
 
-    const handleConfirmChannelDiscountChange = async () => {
-        if (!confirmChannelChange) return;
-        const { channel, discountId } = confirmChannelChange;
-        setConfirmChannelChange(null);
-        await handleSelectChannelDiscount(channel, discountId);
+    const getAssignedDiscountForChannel = (channel: OrderChannel): DiscountResponse | undefined => {
+        const selectedId = channelSelectedDiscounts[channel];
+        if (!selectedId || selectedId === "NONE") return undefined;
+        return discounts.find(
+            (d) =>
+                d.id === selectedId &&
+                d.status === "ACTIVE" &&
+                !d.requiresCoupon &&
+                (d.applicableChannels && d.applicableChannels.length > 0
+                    ? d.applicableChannels.includes(channel)
+                    : false)
+        );
     };
 
     const couponEligibleDiscounts = useMemo(() => {
@@ -945,8 +894,8 @@ export default function DiscountsAndCouponsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/40">
-                                    <TableHead>Sales Channel</TableHead>
-                                    <TableHead>Active Applied Discount (Choose 1)</TableHead>
+                                    <TableHead className="w-1/3">Sales Channel</TableHead>
+                                    <TableHead className="w-1/2">Active Applied Discount (Choose 1)</TableHead>
                                     <TableHead className="text-right">Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -959,27 +908,37 @@ export default function DiscountsAndCouponsPage() {
                                 ].map(({ channel, title, subtitle, icon: Icon, color }) => {
                                     const assignedDiscount = getAssignedDiscountForChannel(channel);
 
+                                    // Filter ONLY discounts where this channel was selected during discount creation
+                                    const channelPermittedDiscounts = discounts.filter(
+                                        (d) =>
+                                            d.status === "ACTIVE" &&
+                                            !d.requiresCoupon &&
+                                            (d.applicableChannels && d.applicableChannels.length > 0
+                                                ? d.applicableChannels.includes(channel)
+                                                : false)
+                                    );
+
                                     const selectOptions = [
                                         { value: "NONE", label: "No Discount (Standard Price)" },
-                                        ...discounts
-                                            .filter((d) => d.status === "ACTIVE")
-                                            .map((d) => ({
-                                                value: d.id,
-                                                label: `${d.name} (${
-                                                    d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
-                                                        ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
-                                                        : d.type === "PERCENTAGE"
-                                                        ? `${d.value}% OFF`
-                                                        : format(d.value)
-                                                })`,
-                                            })),
+                                        ...channelPermittedDiscounts.map((d) => ({
+                                            value: d.id,
+                                            label: `${d.name} (${
+                                                d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                    ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
+                                                    : d.type === "PERCENTAGE"
+                                                    ? `${d.value}% OFF`
+                                                    : format(d.value)
+                                            })`,
+                                        })),
                                     ];
+
+                                    const currentValue = assignedDiscount?.id || "NONE";
 
                                     return (
                                         <TableRow key={channel} className="hover:bg-muted/30 transition-colors">
-                                            <TableCell>
+                                            <TableCell className="align-middle py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-lg ${color}`}>
+                                                    <div className={`p-2 rounded-lg shrink-0 ${color}`}>
                                                         <Icon className="h-4 w-4" />
                                                     </div>
                                                     <div>
@@ -988,23 +947,24 @@ export default function DiscountsAndCouponsPage() {
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="min-w-[280px]">
-                                                <SelectField
-                                                    value={assignedDiscount?.id || "NONE"}
-                                                    onValueChange={(val) =>
-                                                        handleInitiateChannelDiscountChange(
-                                                            channel,
-                                                            title,
-                                                            val === "NONE" ? "" : val
-                                                        )
-                                                    }
-                                                    options={selectOptions}
-                                                    className="h-10 text-sm bg-card border-border rounded-xl shadow-2xs font-medium"
-                                                />
+                                            <TableCell className="align-middle py-4">
+                                                <div className="max-w-md">
+                                                    <SelectField
+                                                        value={currentValue}
+                                                        onValueChange={(val) => handleSelectChannelDiscount(channel, val)}
+                                                        options={selectOptions}
+                                                        className="h-10 text-sm bg-card border-border rounded-xl shadow-2xs font-medium"
+                                                    />
+                                                    {channelPermittedDiscounts.length === 0 && (
+                                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                                            No discounts were configured for this channel under the Discounts tab.
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </TableCell>
-                                            <TableCell className="text-right whitespace-nowrap">
+                                            <TableCell className="text-right align-middle py-4 whitespace-nowrap">
                                                 {assignedDiscount ? (
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                                         Active
                                                     </span>
                                                 ) : (
@@ -1021,45 +981,6 @@ export default function DiscountsAndCouponsPage() {
                     )}
                 </div>
             )}
-
-            {/* --- CONFIRM CHANNEL DISCOUNT CHANGE DIALOG --- */}
-            <Dialog open={!!confirmChannelChange} onOpenChange={(open) => !open && setConfirmChannelChange(null)}>
-                <DialogContent className="max-w-md rounded-2xl p-6">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                            <Tag className="h-5 w-5 text-primary" />
-                            Confirm Channel Discount Change
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="py-3 text-sm text-foreground space-y-3">
-                        <p>
-                            Are you sure you want to set the active discount for{" "}
-                            <span className="font-semibold text-primary">{confirmChannelChange?.channelTitle}</span> to:
-                        </p>
-                        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 font-bold text-primary text-center text-sm">
-                            {confirmChannelChange?.discountName}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            This discount rule will automatically apply to customer checkouts on this sales channel until modified in the Back Office dashboard.
-                        </p>
-                    </div>
-                    <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                        <Button
-                            variant="outline"
-                            onClick={() => setConfirmChannelChange(null)}
-                            className="rounded-xl text-sm"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleConfirmChannelDiscountChange}
-                            className="bg-primary hover:bg-primary/90 text-white rounded-xl text-sm shadow-sm"
-                        >
-                            Apply Discount
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* --- CREATE / EDIT DISCOUNT DIALOG --- */}
             <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>

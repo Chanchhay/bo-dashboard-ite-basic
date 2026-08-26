@@ -595,11 +595,27 @@ export function OrderTable({
   };
 
   const boPosDefaultRule = useMemo<AppliedDiscountRule | null>(() => {
+    let selectedPosDiscountId: string | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("channel_active_applied_discounts");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          selectedPosDiscountId = parsed?.POS || null;
+        }
+      } catch (e) {}
+    }
+
+    if (!selectedPosDiscountId || selectedPosDiscountId === "NONE") {
+      return null;
+    }
+
     const activeRule = discounts.find(
       (d) =>
+        d.id === selectedPosDiscountId &&
         d.status === "ACTIVE" &&
         !d.requiresCoupon &&
-        (!d.applicableChannels || d.applicableChannels.length === 0 || d.applicableChannels.includes("POS"))
+        (d.applicableChannels && d.applicableChannels.length > 0 ? d.applicableChannels.includes("POS") : false)
     );
     if (!activeRule) return null;
 
@@ -626,34 +642,41 @@ export function OrderTable({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
     let rule: AppliedDiscountRule | null = null;
-
-    if (storeDefaultRaw) {
-      try {
-        const parsed = JSON.parse(storeDefaultRaw);
-        if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed)) {
-          localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
-        } else {
-          rule = parsed;
-        }
-      } catch {}
-    }
-
-    if (!rule && boPosDefaultRule) {
-      rule = boPosDefaultRule;
-    }
+    let explicitlyDisabled = false;
 
     if (order?.id) {
       const cartKey = `pos_cart_discount_${order.id}`;
       const cartRaw = localStorage.getItem(cartKey);
-      if (cartRaw) {
+      if (cartRaw === "NONE") {
+        explicitlyDisabled = true;
+      } else if (cartRaw) {
         try {
           rule = JSON.parse(cartRaw);
         } catch {}
-      } else if (rule) {
+      }
+    }
+
+    if (!rule && !explicitlyDisabled) {
+      const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+      if (storeDefaultRaw) {
         try {
-          localStorage.setItem(cartKey, JSON.stringify(rule));
+          const parsed = JSON.parse(storeDefaultRaw);
+          if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed)) {
+            localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
+          } else {
+            rule = parsed;
+          }
+        } catch {}
+      }
+
+      if (!rule && boPosDefaultRule) {
+        rule = boPosDefaultRule;
+      }
+
+      if (rule && order?.id) {
+        try {
+          localStorage.setItem(`pos_cart_discount_${order.id}`, JSON.stringify(rule));
         } catch {}
       }
     }
@@ -676,6 +699,13 @@ export function OrderTable({
       }
     } else {
       setActiveDiscountRule(null);
+      if (order?.id && (order.discountAmount ?? 0) > 0) {
+        void setOrderDiscount({
+          discountAmount: 0,
+          discountId: null,
+          discountCode: null,
+        });
+      }
     }
   }, [
     order?.id,
@@ -759,7 +789,7 @@ export function OrderTable({
     if (!rule) {
       localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
       if (order?.id) {
-        localStorage.removeItem(`pos_cart_discount_${order.id}`);
+        localStorage.setItem(`pos_cart_discount_${order.id}`, "NONE");
       }
       setActiveDiscountRule(null);
       if (order?.id) {
@@ -769,6 +799,11 @@ export function OrderTable({
           discountCode: null,
         }).unwrap();
       }
+      toast({
+        tone: "info",
+        title: "Discount Removed",
+        description: "Discount has been removed from this order.",
+      });
       return;
     }
 
@@ -1097,11 +1132,21 @@ export function OrderTable({
             <span className="text-primary min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">
               Discount
             </span>
-            {activeDiscountRule?.label && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
-                {activeDiscountRule.label}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {activeDiscountRule?.label && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
+                  {activeDiscountRule.label}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleApplyDiscountRule(null)}
+                className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 rounded border border-red-200 transition-colors"
+                title="Cancel discount on this order"
+              >
+                ✕ Cancel
+              </button>
+            </div>
             <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-semibold min-[1025px]:leading-7 font-bold">
               -{format(summary.discount, order?.currency)}
             </span>
