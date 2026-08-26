@@ -2056,19 +2056,9 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  {
- element: '[data-tour="tax-type-select"]',
- popover: {
- title: "4. Calculation Type % / $",
- description: "Select whether tax is computed as a percentage rate (%) or a fixed dollar amount ($) per order.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
  element: '[data-tour="tax-rate-input"]',
  popover: {
- title: "5. Tax Rate Value ",
+ title: "4. Tax Rate Value ",
  description: "Set your business tax rate percentage (e.g. 10% VAT) applied to order subtotals.",
  side: "bottom",
  align: "start",
@@ -2078,7 +2068,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-mode-selection"]',
  popover: {
- title: "6. Tax Pricing Mode (Exclusive vs Inclusive) ",
+ title: "5. Tax Pricing Mode (Exclusive vs Inclusive) ",
  description: "Choose Exclusive mode (adds tax extra on top of subtotal) or Inclusive mode (product prices already include tax with zero extra charge).",
  side: "top",
  align: "start",
@@ -2088,7 +2078,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-save-btn"]',
  popover: {
- title: "7. Save Tax Settings ",
+ title: "6. Save Tax Settings ",
  description: "Click Save to store and immediately enforce tax rules across all Point of Sale registers.",
  side: "top",
  align: "end",
@@ -2098,7 +2088,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-receipt-preview"]',
  popover: {
- title: "8. Live Thermal Receipt Preview ",
+ title: "7. Live Thermal Receipt Preview ",
  description: "Real-time ticket preview showing how tax subtotals, tax rate lines, and total amounts render on printed receipts.",
  side: "left",
  align: "start",

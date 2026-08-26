@@ -11,12 +11,12 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { Khqr, Sale } from "@/lib/api/pos-order";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
-import { getActiveDefaultTax } from "@/lib/tax-store";
 import {
   useGenerateKhqrMutation,
   useGetBakongStatusQuery,
 } from "@/services/posOrderApi";
 import { useGetCustomersQuery } from "@/services/customerApi";
+import { useGetBusinessProfileQuery } from "@/services/businessApi";
 
 type PaymentMethod = "CASH" | "DIGITAL";
 
@@ -47,6 +47,7 @@ export function Payment({
  
   const { data: bakong } = useGetBakongStatusQuery();
   const { data: customers = [] } = useGetCustomersQuery();
+  const { data: business } = useGetBusinessProfileQuery();
   const [generateKhqr, { isLoading: isGenerating }] = useGenerateKhqrMutation();
 
   const attachedCustomer = useMemo(() => {
@@ -73,20 +74,16 @@ export function Payment({
   const total = parseFloat(order.total);
   const totalSecondary = secondaryFor(total, order);
 
-  const activeTax = useMemo(() => getActiveDefaultTax(), [open]);
-  const isTaxActive = activeTax?.isActive ?? false;
-  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
-
-  const effectiveTaxRate = isTaxActive ? (activeTax?.taxRate ?? 0) : 0;
   const afterDiscount = Math.max(0, subtotal - discount);
 
-  const taxAmount = isTaxActive
-    ? (isTaxInclusive
-        ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-        : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
-    : 0;
-
-  const taxName = activeTax?.taxName ?? "VAT";
+  // Tax was already computed server-side when this order was created — read
+  // directly rather than re-derived, so this dialog never disagrees with
+  // what will actually be charged.
+  const taxAmount = order.tax_amount ?? 0;
+  const isTaxActive = taxAmount > 0;
+  const isTaxInclusive = order.tax_inclusion_type === "INCLUSIVE";
+  const effectiveTaxRate = order.tax_rate ?? 0;
+  const taxName = business?.taxLabel || "VAT";
 
   const storedDiscountRule = useMemo(() => {
     if (!order.id || typeof window === "undefined") return null;

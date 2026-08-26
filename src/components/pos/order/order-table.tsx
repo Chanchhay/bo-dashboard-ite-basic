@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetDiscountsQuery } from "@/services/discountApi";
+import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import {
   posOrderApi,
   useGetCurrentOrderQuery,
@@ -50,7 +51,6 @@ export interface OrderTableProps {
 /**
  * The payment dialog still speaks the older snake_case `Order`.
  */
-import { getActiveDefaultTax } from "@/lib/tax-store";
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
   if (!phoneStr) return "";
@@ -214,29 +214,11 @@ function computeItemDiscount(
 function legacyOrderShape(order: PosOrder): Order {
   const subtotalNum = order.subtotal ?? 0;
   const discountNum = order.discountAmount ?? 0;
-  const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
-  const activeTax = getActiveDefaultTax();
-  const isTaxActive = activeTax?.isActive ?? false;
-  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
-
-  const effectiveTaxRate = isTaxActive
-    ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
-    : 0;
-
-  const calculatedTax = isTaxActive
-    ? isTaxInclusive
-      ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-      : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2))
-    : 0;
-
-  const taxAmount = isTaxActive
-    ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
-    : 0;
-
-  const computedTotal = isTaxInclusive
-    ? afterDiscount
-    : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
+  // Tax and the total were already computed server-side when this order was
+  // created or last repriced — carried through as-is rather than re-derived,
+  // so the payment dialog never disagrees with what will actually be charged.
+  const computedTotal = order.total ?? subtotalNum;
 
   let storedRule: AppliedDiscountRule | null = null;
   try {
@@ -255,6 +237,9 @@ function legacyOrderShape(order: PosOrder): Order {
     subtotal: String(subtotalNum),
     discount_amount: String(discountNum),
     applied_discounts: null,
+    tax_rate: order.taxRate ?? null,
+    tax_amount: order.taxAmount ?? null,
+    tax_inclusion_type: order.taxInclusionType ?? null,
     total: String(computedTotal),
     currency: order.currency,
     note: order.note,
@@ -426,6 +411,7 @@ export function OrderTable({
   const { data: order, isLoading, error } = useGetCurrentOrderQuery();
   const { data: customers = [] } = useGetCustomersQuery();
   const { data: discounts = [] } = useGetDiscountsQuery();
+  const { data: business } = useGetBusinessProfileQuery();
 
   const [updateOrderItem] = useUpdateOrderItemMutation();
   const [removeOrderItem] = useRemoveOrderItemMutation();
@@ -842,39 +828,24 @@ export function OrderTable({
   const items = order?.items ?? [];
   const subtotalNum = order?.subtotal ?? 0;
   const discountNum = order?.discountAmount ?? 0;
-  const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
-  const activeTax = getActiveDefaultTax();
-  const isTaxActive = activeTax?.isActive ?? false;
-  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
-
-  const effectiveTaxRate = isTaxActive
-    ? ((order?.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
-    : 0;
-
-  const calculatedTax = isTaxActive
-    ? isTaxInclusive
-      ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-      : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2))
-    : 0;
-
-  const taxAmount = isTaxActive
-    ? ((order?.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
-    : 0;
-
-  const computedCartTotal = isTaxInclusive
-    ? afterDiscount
-    : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
+  // Tax was already computed server-side against this order's own items and
+  // the business's configured rate — read directly rather than re-derived,
+  // so the cart summary never disagrees with what payment will actually charge.
+  const taxAmount = order?.taxAmount ?? 0;
+  const isTaxActive = taxAmount > 0;
+  const isTaxInclusive = order?.taxInclusionType === "INCLUSIVE";
+  const effectiveTaxRate = order?.taxRate ?? 0;
 
   const summary = {
     subtotal: subtotalNum,
     discount: discountNum,
-    taxName: activeTax?.taxName ?? "VAT",
+    taxName: business?.taxLabel || "VAT",
     taxRate: effectiveTaxRate,
     taxAmount: taxAmount,
     isTaxActive,
     isTaxInclusive,
-    total: computedCartTotal,
+    total: order?.total ?? subtotalNum,
   };
   const totalSecondary = secondaryFor(summary.total, order);
 
@@ -918,15 +889,13 @@ export function OrderTable({
     const sold = order;
 
     try {
-      const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
+      // Tax is no longer sent — the backend already applied the business's
+      // configured rate when this order was created, and re-sending a
+      // client-computed figure here would risk overriding that with a stale
+      // or drifted number.
       const sale = await payOrder({
         paymentMethod: method,
         receivedAmount,
-        isTaxActive,
-        isTaxInclusive,
-        taxInclusionType,
-        taxRate: effectiveTaxRate,
-        taxAmount: summary.taxAmount,
         discountId: activeDiscountRule?.discountId,
         discountCode: activeDiscountRule?.discountCode,
       }).unwrap();
@@ -941,16 +910,6 @@ export function OrderTable({
           } catch {}
         }
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
-        try {
-          localStorage.setItem(`pos_order_tax_rule_${sold.id}`, JSON.stringify({
-            isTaxActive,
-            isTaxInclusive,
-            taxInclusionType,
-            taxRate: effectiveTaxRate,
-            taxAmount: summary.taxAmount,
-            totalAmount: summary.total,
-          }));
-        } catch {}
       }
 
       // Revert discount to previous normal store default discount (or clear if none)
