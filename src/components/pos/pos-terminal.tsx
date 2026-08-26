@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Navbar,
@@ -8,6 +8,8 @@ import {
 } from "@/components/pos/navbar-pos/navbar";
 import { PosScreen } from "@/components/pos/pos-screen";
 import { useGetChannelItemsQuery } from "@/services/salesChannelApi";
+import { usePosOffline } from "@/lib/offline/usePosOffline";
+import type { ChannelItem } from "@/lib/api/sales-channels";
 
 export interface PosTerminalProps {
   managerName: string;
@@ -25,8 +27,31 @@ export function PosTerminal({
 }: PosTerminalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("ALL");
-  const { data: channelItems = [], isLoading } =
-    useGetChannelItemsQuery("POS");
+  const { isOnline, cacheCatalog, getCachedCatalog } = usePosOffline();
+  const { data: remoteItems = [], isLoading } = useGetChannelItemsQuery("POS");
+  const [cachedItems, setCachedItems] = useState<ChannelItem[]>([]);
+
+  useEffect(() => {
+    if (remoteItems && remoteItems.length > 0) {
+      void cacheCatalog(remoteItems);
+    }
+  }, [remoteItems, cacheCatalog]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!isOnline || remoteItems.length === 0) {
+      getCachedCatalog().then((items) => {
+        if (isMounted && items && items.length > 0) {
+          setCachedItems(items);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOnline, remoteItems.length, getCachedCatalog]);
+
+  const channelItems = remoteItems.length > 0 ? remoteItems : cachedItems;
 
   const categories = useMemo<PosCategoryOption[]>(() => {
     const uniqueCategories = new Map<string, string>();

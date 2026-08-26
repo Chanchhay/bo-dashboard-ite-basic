@@ -15,7 +15,6 @@ export const POS_TABS = [
   // No screens behind these yet. Shown disabled rather than hidden so the
   // shape of the terminal stays honest about what is still coming.
   { label: "Discount" },
-  { label: "Modify", disabled: true },
 ] as const;
 
 export type PosTab = (typeof POS_TABS)[number]["label"];
@@ -47,7 +46,6 @@ export default function PosButton({ active, onChange }: PosButtonType) {
               role="tab"
               data-tour={tourKey}
               aria-selected={isActive}
-              disabled={isDisabled}
               title={isDisabled ? "Coming soon" : undefined}
               onClick={() => onChange?.(tab.label)}
               className={`h-11 shrink-0 rounded-xl border px-4 text-sm font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:px-5 sm:text-base min-[1025px]:h-[55px] min-[1025px]:min-w-[130px] min-[1025px]:rounded-[14px] min-[1025px]:text-xl ${

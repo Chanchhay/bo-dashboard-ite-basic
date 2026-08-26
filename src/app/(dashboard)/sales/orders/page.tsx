@@ -29,6 +29,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
+import { usePendingOfflineOrders } from "@/lib/offline-orders";
 import { itemThumbnail } from "@/lib/api/inventory";
 import {
     useApprovePayLaterOrderMutation,
@@ -185,10 +186,17 @@ export default function SalesOrdersDraftPage() {
 
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
+    const pendingOfflineOrders = usePendingOfflineOrders();
+
     // Cached on the filters alone, so turning a page never recounts the range.
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
-    const orders = useMemo(() => data?.content ?? [], [data]);
+    const orders = useMemo(() => {
+        const serverOrders = data?.content ?? [];
+        const pendingIds = new Set(pendingOfflineOrders.map((o: PosOrder) => o.id));
+        const filteredServer = serverOrders.filter((o: PosOrder) => !pendingIds.has(o.id));
+        return [...pendingOfflineOrders, ...filteredServer];
+    }, [data, pendingOfflineOrders]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
