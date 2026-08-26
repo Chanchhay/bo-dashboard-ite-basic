@@ -21,8 +21,8 @@ export function ReceiptDetailView({
   const receiptQuery = useGetReceiptQuery(receiptId);
   const businessQuery = useGetBusinessProfileQuery();
   const currenciesQuery = useGetBusinessCurrenciesQuery();
-  const isLoading = receiptQuery.isLoading || businessQuery.isLoading;
-  const error = receiptQuery.error || businessQuery.error;
+  const isLoading = receiptQuery.isLoading;
+  const error = receiptQuery.error;
 
   return (
     <div className="flex min-h-full flex-col bg-[#f5f5f5] print:bg-white">
@@ -39,7 +39,7 @@ export function ReceiptDetailView({
         <button
           type="button"
           onClick={printReceipt}
-          disabled={!receiptQuery.data || !businessQuery.data}
+          disabled={!receiptQuery.data}
           className="flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-40"
         >
           <Printer className="size-4" aria-hidden="true" />
@@ -53,7 +53,7 @@ export function ReceiptDetailView({
             className="h-[680px] w-full max-w-[559px] animate-pulse rounded-[7px] bg-white/70"
             aria-label="Loading receipt"
           />
-        ) : error || !receiptQuery.data || !businessQuery.data ? (
+        ) : error || !receiptQuery.data ? (
           <div className="flex min-h-64 max-w-sm flex-col items-center justify-center gap-3 text-center">
             <p className="font-semibold text-[#37423b]">Could not load receipt</p>
             <p className="text-sm text-[#636b74]">
@@ -73,7 +73,7 @@ export function ReceiptDetailView({
           </div>
         ) : (
           <ReceiptTicket
-            business={businessQuery.data}
+            business={businessQuery.data ?? null}
             order={receiptQuery.data.order}
             receipt={receiptQuery.data.receipt}
             currencies={currenciesQuery.data}

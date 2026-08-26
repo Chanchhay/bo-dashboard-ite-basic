@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   MessageSquareOff,
   Pencil,
@@ -13,6 +13,7 @@ import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { useMoney } from "@/hooks/useMoney";
+import { useGetCustomersQuery } from "@/services/customerApi";
 import {
   useCancelOpenOrderMutation,
   useGetOpenOrdersQuery,
@@ -36,6 +37,16 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
     isFetching,
     refetch,
   } = useGetOpenOrdersQuery(undefined, { refetchOnMountOrArgChange: true });
+  const { data: customers = [] } = useGetCustomersQuery();
+  const customerNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const customer of customers) {
+      const name = customer.globalCustomer?.fullName;
+      if (name) map.set(customer.id, name);
+    }
+    return map;
+  }, [customers]);
+
   const [loadOrderForEdit, { isLoading: isLoadingEdit }] =
     useLoadOrderForEditMutation();
   const [cancelOpenOrder, { isLoading: isCancelling }] =
@@ -147,7 +158,10 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
               0,
             );
             const created = order.createdDate ? new Date(order.createdDate) : null;
-            const name = order.note?.trim() || "Untitled order";
+            const customerName = order.customerId
+              ? customerNameById.get(order.customerId)
+              : null;
+            const name = order.note?.trim() || customerName || "Untitled order";
 
             return (
               <article

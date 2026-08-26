@@ -90,7 +90,7 @@ export function ReceiptsList({
   const currenciesQuery = useGetBusinessCurrenciesQuery();
   const { format } = useMoney();
   const printQuery = useGetReceiptQuery(printOrderId ?? "", {
-    skip: printOrderId === null,
+    skip: !printOrderId,
   });
 
   useEffect(() => {
@@ -489,10 +489,10 @@ export function ReceiptsList({
         </div>
       </section>
 
-      {printOrderId && printQuery.currentData && businessQuery.data && (
+      {printOrderId && printQuery.currentData && (
         <ReceiptTicket
           className="fixed left-[-10000px] top-0"
-          business={businessQuery.data}
+          business={businessQuery.data ?? null}
           order={printQuery.currentData.order}
           receipt={printQuery.currentData.receipt}
           currencies={currenciesQuery.data}
