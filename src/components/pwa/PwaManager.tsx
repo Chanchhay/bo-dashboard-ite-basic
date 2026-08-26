@@ -29,11 +29,7 @@ export function PwaManager() {
 
     registerServiceWorker()
   }, [])
-
-  // The POS shell is behind the auth proxy, so it can only be cached once
-  // there is a session — fetching it while signed out redirects to /login.
-  // Warming it here means the terminal opens offline even for someone who
-  // signed in on the dashboard and never navigated to /pos.
+  
   useEffect(() => {
     if (!isSignedIn || !('serviceWorker' in navigator)) return
 
