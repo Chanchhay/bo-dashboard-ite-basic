@@ -805,8 +805,12 @@ export function OrderTable({
     taxAmount: 0,
     total: 0,
     currency: "USD",
+    displayCurrency: null,
+    displayExchangeRate: null,
+    note: null,
     items: [],
-  } as PosOrder;
+    createdDate: null,
+  };
 
   const effectiveOrder = order || fallbackOrder;
   const items = effectiveOrder.items ?? [];

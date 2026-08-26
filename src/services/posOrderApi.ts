@@ -204,8 +204,16 @@ export const posOrderApi = baseApi.injectEndpoints({
                             if (!currentDraft) {
                                 return {
                                     id: `offline-${Date.now()}`,
-                                    orderNumber: "OFF-1",
-                                    status: "OPEN",
+                                    businessId: "1",
+                                    customerId: null,
+                                    invoiceNumber: null,
+                                    channel: "POS",
+                                    status: "PENDING",
+                                    currency: "USD",
+                                    displayCurrency: null,
+                                    displayExchangeRate: null,
+                                    note: null,
+                                    createdDate: null,
                                     items: [
                                         {
                                             id: `temp-${Date.now()}-${Math.random()}`,
@@ -223,7 +231,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                                     discountAmount: 0,
                                     taxAmount: 0,
                                     total: (arg.quantity || 1) * (arg.unitPrice ?? 0),
-                                } as PosOrder;
+                                } satisfies PosOrder;
                             }
                             const addQty = arg.quantity || 1;
                             const existingIndex = currentDraft.items.findIndex(

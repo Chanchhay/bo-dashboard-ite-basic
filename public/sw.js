@@ -1,3 +1,22 @@
+const CACHE_NAME = "ipos-pos-cache-v2";
+
+// Public assets only — these are reachable without a session, so they are safe
+// to warm at install time.
+const PRECACHE_ASSETS = [
+  "/manifest.webmanifest",
+  "/favicon.ico",
+];
+
+// The POS shell sits behind the auth proxy: fetching it while signed out just
+// redirects to /login, and Cache.put() rejects a redirected response anyway.
+// It is warmed on demand instead, once the app reports an established session
+// (see PRECACHE_POS_SHELL below).
+const POS_SHELL_URL = "/pos";
+
+/* ------------------------------------------------------------------ */
+/* Push notifications                                                  */
+/* ------------------------------------------------------------------ */
+
 self.addEventListener("push", function (event) {
   if (!event.data) {
     return;
@@ -36,23 +55,26 @@ self.addEventListener("notificationclick", function (event) {
       }
     }),
   );
-const CACHE_NAME = "ipos-pos-cache-v2";
+});
 
-const PRECACHE_ASSETS = [
-  "/pos",
-  "/manifest.json",
-  "/favicon.ico",
-];
+/* ------------------------------------------------------------------ */
+/* Offline app shell                                                   */
+/* ------------------------------------------------------------------ */
 
 // Install Event - Pre-cache core POS App Shell
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("[Service Worker] Pre-caching POS App Shell");
-      return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn("[Service Worker] Pre-cache warning:", err);
-      });
-    })
+    caches.open(CACHE_NAME).then((cache) =>
+      // Cache each asset on its own so a single 404 does not abort the whole
+      // pre-cache the way cache.addAll() would.
+      Promise.all(
+        PRECACHE_ASSETS.map((asset) =>
+          cache.add(asset).catch((err) => {
+            console.warn("[Service Worker] Pre-cache warning:", asset, err);
+          })
+        )
+      )
+    )
   );
   self.skipWaiting();
 });
@@ -74,9 +96,85 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+/**
+ * Warms the POS shell after login.
+ *
+ * The app posts PRECACHE_POS_SHELL once it has a session, so the terminal is
+ * available offline even for someone who signed in on the dashboard and never
+ * navigated to /pos. A redirected or non-OK response means the session was not
+ * accepted, and caching a login page as the POS shell would be worse than
+ * caching nothing.
+ */
+async function precachePosShell() {
+  try {
+    const response = await fetch(POS_SHELL_URL, {
+      credentials: "same-origin",
+      redirect: "follow",
+    });
+
+    if (!response.ok || response.redirected) {
+      console.warn("[Service Worker] POS shell not cacheable yet (unauthenticated?)");
+      return;
+    }
+
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(POS_SHELL_URL, response);
+    console.log("[Service Worker] POS shell cached");
+  } catch (err) {
+    console.warn("[Service Worker] POS shell pre-cache failed:", err);
+  }
+}
+
+/**
+ * Drops every cached POS document on sign-out.
+ *
+ * /pos is server-rendered per request, so a cached shell carries the data of
+ * whoever was signed in. On a shared terminal the next person could pull that
+ * back out of the cache while offline. Static assets under /_next/static are
+ * not user-specific and stay put, so a re-login re-warms cheaply.
+ */
+async function clearPosShell() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const requests = await cache.keys();
+
+    await Promise.all(
+      requests.map((request) => {
+        const { pathname } = new URL(request.url);
+        if (pathname === POS_SHELL_URL || pathname.startsWith(`${POS_SHELL_URL}/`)) {
+          return cache.delete(request);
+        }
+      })
+    );
+
+    console.log("[Service Worker] POS shell cleared");
+  } catch (err) {
+    console.warn("[Service Worker] POS shell clear failed:", err);
+  }
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "PRECACHE_POS_SHELL") {
+    event.waitUntil(precachePosShell());
+  }
+
+  if (event.data?.type === "CLEAR_POS_SHELL") {
+    event.waitUntil(clearPosShell());
+  }
+});
+
 // Fetch Event - Custom caching policy scoped for POS
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+
+  // Sign-out invalidates every cached POS document. Catching it here rather
+  // than in the page means no logout path can miss it: /api/logout is a form
+  // POST that navigates away, so a page-side handler would race the redirect,
+  // whereas waitUntil keeps this worker alive until the eviction finishes.
+  // The request itself is left alone and goes to the network as usual.
+  if (event.request.method === "POST" && url.pathname === "/api/logout") {
+    event.waitUntil(clearPosShell());
+  }
 
   // Bypass service worker for API, HMR, websockets, and dev chunks
   if (
@@ -101,7 +199,27 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (!networkResponse) return networkResponse;
+
+          /*
+           * Landing on /login after following a redirect means the session is
+           * over. The proxy sends an expired Keycloak token there just as it
+           * does a missing cookie, and that expiry path never touches
+           * /api/logout — so this is the only signal the worker gets that the
+           * cached shell now belongs to a session that has ended.
+           *
+           * Caching the response would be wrong twice over: it would stand the
+           * login screen in as the POS shell, and Cache.put() rejects a
+           * redirected response anyway.
+           */
+          if (networkResponse.redirected) {
+            if (new URL(networkResponse.url).pathname.startsWith("/login")) {
+              event.waitUntil(clearPosShell());
+            }
+            return networkResponse;
+          }
+
+          if (networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseClone);
@@ -115,8 +233,18 @@ self.addEventListener("fetch", (event) => {
             return cachedResponse;
           }
           if (url.pathname.startsWith("/pos")) {
-            return caches.match("/pos");
+            const shell = await caches.match(POS_SHELL_URL);
+            if (shell) {
+              return shell;
+            }
           }
+          // respondWith() rejects on an undefined return, which surfaces as a
+          // browser network error instead of our offline state.
+          return new Response("", {
+            status: 503,
+            statusText: "Offline",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
         })
     );
   }

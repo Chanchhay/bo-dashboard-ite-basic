@@ -5,7 +5,7 @@ import {
     isRealOrder,
     orderFiltersFromQuery,
 } from "@/lib/api/order-filters";
-import type { PosOrderPage } from "@/lib/api/pos-order";
+import type { PosOrder, PosOrderPage } from "@/lib/api/pos-order";
 import { filterOrders } from "@/lib/api/pos-order-backend";
 
 import { getSyncedOrders } from "@/lib/synced-orders-store";
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
             { min: 1, max: MAX_PAGE_SIZE },
         );
         const businessId = await getCurrentBusinessId();
-        let resultContent = [];
+        let resultContent: PosOrder[] = [];
         let resultPage = { number: page, size, totalElements: 0, totalPages: 1 };
 
         try {
