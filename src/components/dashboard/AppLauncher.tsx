@@ -59,7 +59,7 @@ export default function AppLauncher({
 
                 <div className="flex items-center gap-3 sm:gap-5">
                     <InstallAppButton
-                        label="Install FluxiBiz"
+                        label="Install App"
                         variant="default"
                         size="sm"
                         className="hidden sm:inline-flex bg-[#00932a] text-white hover:bg-[#00932a]/90"
