@@ -215,11 +215,18 @@ function displayOf(value: PreviewValue) {
     return value.label || value.value;
 }
 
-function PackPrice({ price }: { price?: number }) {
+function PackPrice({ price, active }: { price?: number; active?: boolean }) {
     const { format: formatMoney } = useMoney();
 
     return (
-        <span className="mt-0.5 block text-xs text-[#7b857a] dark:text-[#94a3b8]">
+        <span
+            className={cn(
+                "mt-0.5 block text-xs transition-colors",
+                active
+                    ? "text-primary font-medium"
+                    : "text-[#7b857a] dark:text-[#94a3b8]",
+            )}
+        >
             {formatMoney(price, undefined, { fallback: "Price not set" })}
         </span>
     );
@@ -416,7 +423,14 @@ function Storefront({
                                 >
                                     <span>{option.name}</span>
                                     {option.price === undefined ? null : (
-                                        <span className="mt-0.5 block text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                        <span
+                                            className={cn(
+                                                "mt-0.5 block text-xs transition-colors",
+                                                index === variantIndex
+                                                    ? "text-primary font-medium"
+                                                    : "text-[#7b857a] dark:text-[#94a3b8]",
+                                            )}
+                                        >
                                             {formatMoney(option.price)}
                                         </span>
                                     )}
@@ -452,7 +466,7 @@ function Storefront({
                                 onClick={() => setPackIndex(-1)}
                             >
                                 <span>{singleLabel}</span>
-                                <PackPrice price={singlePrice} />
+                                <PackPrice price={singlePrice} active={!pack} />
                             </Chip>
                             {packs.map((row, index) => (
                                 <Chip
@@ -461,12 +475,19 @@ function Storefront({
                                     onClick={() => setPackIndex(index)}
                                 >
                                     <span>{row.unitName}</span>
-                                    <span className="mt-0.5 block text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                    <span
+                                        className={cn(
+                                            "mt-0.5 block text-xs transition-colors",
+                                            index === packIndex
+                                                ? "text-primary font-medium"
+                                                : "text-[#7b857a] dark:text-[#94a3b8]",
+                                        )}
+                                    >
                                         Holds {formatAmount(row.factor)}{" "}
                                         {unitWord}
                                         {row.factor === 1 ? "" : "s"}
                                     </span>
-                                    <PackPrice price={row.price} />
+                                    <PackPrice price={row.price} active={index === packIndex} />
                                 </Chip>
                             ))}
                         </OptionRow>
@@ -856,11 +877,11 @@ function Chip({
             disabled={disabled}
             aria-pressed={active}
             className={cn(
-                "rounded-lg border px-4 py-2 text-center text-sm transition-colors",
+                "rounded-xl border px-4 py-2 text-center text-sm transition-colors",
                 disabled
                     ? "cursor-not-allowed border-[#f0f1ef] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] text-[#c2c8c0] dark:text-[#64748b] line-through"
                     : active
-                      ? "border-gray-900 dark:border-white bg-gray-100 dark:bg-[#252a38] font-bold text-gray-900 dark:text-white"
+                      ? "border-primary bg-primary/10 dark:bg-primary/20 font-semibold text-primary"
                       : "border-[#e8e8e8] dark:border-[#2a3042] bg-white dark:bg-[#1e2330] text-[#1a222b] dark:text-[#f8fafc] hover:border-[#cfd6cc] dark:hover:border-[#384252]",
             )}
         >
@@ -893,7 +914,7 @@ function Swatch({
             title={name}
             className={cn(
                 "grid size-9 place-items-center rounded-full border-2 transition-colors",
-                active ? "border-gray-900 dark:border-white" : "border-transparent",
+                active ? "border-primary dark:border-primary" : "border-transparent",
                 disabled && "cursor-not-allowed opacity-40",
             )}
         >
