@@ -36,7 +36,6 @@ const optionalPhoneSchema = z
         "Use 8–30 characters containing only numbers, spaces, and an optional +.",
     );
 
-/** The `413` on the profile update is the server's own upload ceiling. */
 export const profilePictureRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp",
     maxBytes: 5 * 1024 * 1024,
@@ -44,8 +43,6 @@ export const profilePictureRules = imageUploadRules({
     formats: "PNG, JPG or WebP",
 });
 
-// The text half of `UpdateUserProfileRequest`. The picture rides along as the
-// request's `file` part, so it is not a field here.
 export const userProfileSchema = z.object({
     firstName: z
         .string()
@@ -62,10 +59,8 @@ export const userProfileSchema = z.object({
 
 export type UserProfileInput = z.infer<typeof userProfileSchema>;
 
-/** What the form hands to the mutation: the fields plus an optional picture. */
 export type UserProfileUpdate = UserProfileInput & { file?: File | null };
 
-/** `PATCH /user-profiles/me` is multipart, so the fields go in as parts. */
 export function toUserProfileFormData(
     input: UserProfileInput,
     file?: File | null,
@@ -76,8 +71,8 @@ export function toUserProfileFormData(
         formData.append(name, value);
     }
 
-    // Left out entirely when unchanged — an absent part keeps the stored
-    // picture, an empty one would not.
+    
+    
     if (file) {
         formData.append("file", file, file.name);
     }

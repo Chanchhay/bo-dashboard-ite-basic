@@ -35,20 +35,19 @@ export function CancelOrderDialog({
       }}
     >
       <DialogContent
-        className="w-[calc(100vw-2rem)] max-w-[440px] gap-0 rounded-[24px] border border-red-100 bg-white p-5 shadow-[0_24px_60px_rgba(15,26,18,0.22)] sm:p-7"
+        className="w-[calc(100vw-2rem)] max-w-[440px] gap-0 rounded-[24px] border border-red-100 dark:border-red-900/40 bg-card p-5 shadow-[0_24px_60px_rgba(15,26,18,0.22)] sm:p-7"
         showCloseButton={false}
       >
         <DialogHeader className="items-center text-center">
-          <span className="grid size-14 place-items-center rounded-2xl bg-red-50 text-brand-red">
+          <span className="grid size-14 place-items-center rounded-2xl bg-red-50 dark:bg-red-950/50 text-brand-red">
             <TriangleAlert className="size-7" aria-hidden="true" />
           </span>
-          <DialogTitle className="mt-4 text-2xl font-bold text-[#191c1e]">
+          <DialogTitle className="mt-4 text-2xl font-bold text-foreground">
             Cancel order?
           </DialogTitle>
-          <DialogDescription className="mt-2 max-w-sm text-sm leading-6 text-[#636b74]">
-            <span className="font-semibold text-[#37423b]">{orderName}</span>{" "}
-            will be cancelled and removed from open orders. This cannot be
-            undone.
+          <DialogDescription className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+            <span className="font-semibold text-foreground">{orderName}</span>{" "}
+            will be cancelled. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
 

@@ -303,7 +303,6 @@ function fromBlockDraft(block: BlockDraft): BlockPayload {
 function preservedCommerceFields(initialItem: InventoryItem | undefined) {
   return {
     price: initialItem?.price,
-    compareAtPrice: initialItem?.compareAtPrice,
     variants: (initialItem?.variants || [])
       .filter((variant) => variant.name?.trim())
       .map((variant) => ({
@@ -476,7 +475,6 @@ const fieldLabels: Record<string, string> = {
   badge: "Badge",
   barcode: "Barcode",
   price: "Price",
-  compareAtPrice: "Compare-at price",
   itemType: "Item type",
   attributes: "Attributes",
   descriptionBlocks: "Store page",
@@ -997,7 +995,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
       images: galleryUrls,
       badge: read("badge"),
       price: preserved.price ?? undefined,
-      compareAtPrice: preserved.compareAtPrice ?? undefined,
       sku: read("sku"),
       categoryName:
         categoryOptions.find((option) => option.id === categoryId)?.label || "",
@@ -2175,7 +2172,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         ) : null}
       </div>
 
-      <div className="-mx-5 flex shrink-0 flex-row items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-4 lg:-mx-8 lg:px-8 sm:gap-3">
+      <div className="sticky -bottom-8 z-30 -mx-5 flex shrink-0 flex-row items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8 sm:gap-3">
         <Button
           variant="outline"
           render={<Link href="/inventory" />}
