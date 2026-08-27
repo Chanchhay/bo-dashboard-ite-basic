@@ -81,7 +81,13 @@ export function DiscountSelectModal({
     const [couponError, setCouponError] = useState<string>("");
 
     const activeDiscounts = useMemo(() => {
-        return discounts.filter((d) => d.status === "ACTIVE" && !d.requiresCoupon);
+        return discounts.filter((d) => {
+            if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
+            if (d.applicableChannels && d.applicableChannels.length > 0) {
+                return d.applicableChannels.includes("POS");
+            }
+            return false;
+        });
     }, [discounts]);
 
     const calculateCustomPreview = (): number => {

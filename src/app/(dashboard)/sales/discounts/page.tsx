@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Plus,
     Tag,
@@ -10,6 +10,17 @@ import {
     Trash2,
     Calendar,
     Loader2,
+    Layers,
+    Store,
+    Globe,
+    Send,
+    MessageSquare,
+    Monitor,
+    CheckCircle2,
+    XCircle,
+    Zap,
+    SlidersHorizontal,
+    X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +53,7 @@ import type {
     CouponStatus,
     CreateCouponInput,
     CreateDiscountInput,
+    UpdateDiscountInput,
     DiscountResponse,
     DiscountRuleType,
     DiscountScope,
@@ -83,9 +95,10 @@ function formatDateTimeForInput(dateStr?: string | null): string {
 export default function DiscountsAndCouponsPage() {
     const { format, base } = useMoney();
     const baseSymbol = base?.symbol ?? base?.code ?? "";
-    const [activeTab, setActiveTab] = useState<"discounts" | "coupons">("discounts");
+    const [activeTab, setActiveTab] = useState<"discounts" | "coupons" | "channels">("discounts");
     const [searchQuery, setSearchQuery] = useState("");
     const [discountFilter, setDiscountFilter] = useState<"ALL" | "AUTO" | "COUPON">("ALL");
+    const [selectedChannelFilter, setSelectedChannelFilter] = useState<"ALL" | "WEB" | "TELEGRAM" | "MESSENGER" | "POS">("ALL");
 
     // --- Column Visibility States ---
     const [discountCols, setDiscountCols] = useState([
@@ -106,8 +119,19 @@ export default function DiscountsAndCouponsPage() {
         { id: "status", label: "Status", visible: true },
     ]);
 
+    const [channelCols, setChannelCols] = useState([
+        { id: "name", label: "Rule Name", visible: true },
+        { id: "typeValue", label: "Type & Value", visible: true },
+        { id: "scope", label: "Scope & Targets", visible: true },
+        { id: "condition", label: "Condition", visible: true },
+        { id: "autoChannels", label: "Active Channels", visible: true },
+        { id: "channelToggle", label: "Channel Auto-Apply Controls", visible: true },
+        { id: "status", label: "Status", visible: true },
+    ]);
+
     const isDiscColVisible = (id: string) => discountCols.find((c) => c.id === id)?.visible ?? true;
     const isCoupColVisible = (id: string) => couponCols.find((c) => c.id === id)?.visible ?? true;
+    const isChanColVisible = (id: string) => channelCols.find((c) => c.id === id)?.visible ?? true;
 
     const toggleDiscountCol = (id: string) => {
         setDiscountCols((prev) =>
@@ -121,12 +145,22 @@ export default function DiscountsAndCouponsPage() {
         );
     };
 
+    const toggleChannelCol = (id: string) => {
+        setChannelCols((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+        );
+    };
+
     const resetDiscountCols = () => {
         setDiscountCols((prev) => prev.map((c) => ({ ...c, visible: true })));
     };
 
     const resetCouponCols = () => {
         setCouponCols((prev) => prev.map((c) => ({ ...c, visible: true })));
+    };
+
+    const resetChannelCols = () => {
+        setChannelCols((prev) => prev.map((c) => ({ ...c, visible: true })));
     };
 
     // --- RTK Queries & Mutations ---
@@ -215,6 +249,46 @@ export default function DiscountsAndCouponsPage() {
                 (c.discount && c.discount.name.toLowerCase().includes(q))
         );
     }, [coupons, searchQuery]);
+
+    const [channelSelectedDiscounts, setChannelSelectedDiscounts] = useState<Record<OrderChannel, string>>({
+        WEB: "NONE",
+        TELEGRAM: "NONE",
+        MESSENGER: "NONE",
+        POS: "NONE",
+    });
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("channel_active_applied_discounts");
+            if (saved) {
+                setChannelSelectedDiscounts(JSON.parse(saved));
+            }
+        } catch (e) {}
+    }, []);
+
+    const handleSelectChannelDiscount = (channel: OrderChannel, discountId: string) => {
+        setChannelSelectedDiscounts((prev) => {
+            const updated = { ...prev, [channel]: discountId };
+            try {
+                localStorage.setItem("channel_active_applied_discounts", JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+        });
+    };
+
+    const getAssignedDiscountForChannel = (channel: OrderChannel): DiscountResponse | undefined => {
+        const selectedId = channelSelectedDiscounts[channel];
+        if (!selectedId || selectedId === "NONE") return undefined;
+        return discounts.find(
+            (d) =>
+                d.id === selectedId &&
+                d.status === "ACTIVE" &&
+                !d.requiresCoupon &&
+                (d.applicableChannels && d.applicableChannels.length > 0
+                    ? d.applicableChannels.includes(channel)
+                    : false)
+        );
+    };
 
     const couponEligibleDiscounts = useMemo(() => {
         return discounts.filter((d) => d.requiresCoupon || d.id === cDiscountId);
@@ -481,18 +555,18 @@ export default function DiscountsAndCouponsPage() {
                     <TourButton />
                     <Button
                         data-tour="create-discount-btn"
-                        onClick={activeTab === "discounts" ? openCreateDiscount : openCreateCoupon}
+                        onClick={activeTab === "coupons" ? openCreateCoupon : openCreateDiscount}
                         className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
                     >
                         <Plus className="h-4 w-4" />
-                        {activeTab === "discounts" ? "Create Discount" : "Create Coupon"}
+                        {activeTab === "coupons" ? "Create Coupon" : "Create Discount"}
                     </Button>
                 </div>
             </div>
 
             {/* Navigation Tabs & Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border pb-3">
-                <div data-tour="discounts-tabs" className="flex items-center space-x-2">
+                <div data-tour="discounts-tabs" className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setActiveTab("discounts")}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -515,6 +589,17 @@ export default function DiscountsAndCouponsPage() {
                         <Ticket className="h-4 w-4" />
                         Coupons ({coupons.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab("channels")}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            activeTab === "channels"
+                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                                : "text-muted-foreground hover:text-foreground"
+                        }`}
+                    >
+                        <Layers className="h-4 w-4" />
+                        Channel Discounts
+                    </button>
                 </div>
 
                 <div data-tour="discounts-search-bar" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
@@ -523,15 +608,17 @@ export default function DiscountsAndCouponsPage() {
                         <Input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={`Search ${activeTab}...`}
+                            placeholder={`Search ${activeTab === "channels" ? "channel rules" : activeTab}...`}
                             className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                         />
                     </div>
-                    <ColumnSelectDropdown
-                        columns={activeTab === "discounts" ? discountCols : couponCols}
-                        onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
-                        onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
-                    />
+                    {activeTab !== "channels" && (
+                        <ColumnSelectDropdown
+                            columns={activeTab === "discounts" ? discountCols : couponCols}
+                            onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
+                            onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -792,6 +879,103 @@ export default function DiscountsAndCouponsPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </div>
+            )}
+
+            {/* Channel Discounts Single-Selection Table */}
+            {activeTab === "channels" && (
+                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                    {isDiscountsLoading ? (
+                        <TableSkeleton rows={4} cols={3} />
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/40">
+                                    <TableHead className="w-1/3">Sales Channel</TableHead>
+                                    <TableHead className="w-1/2">Active Applied Discount (Choose 1)</TableHead>
+                                    <TableHead className="text-right">Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {[
+                                    { channel: "WEB" as OrderChannel, title: "Web Storefront", subtitle: "Online customer storefront checkout", icon: Globe, color: "text-blue-500 bg-blue-500/10" },
+                                    { channel: "TELEGRAM" as OrderChannel, title: "Telegram Bot", subtitle: "Social messaging catalog & checkout", icon: Send, color: "text-sky-500 bg-sky-500/10" },
+                                    { channel: "MESSENGER" as OrderChannel, title: "Messenger Bot", subtitle: "Facebook Messenger checkout", icon: MessageSquare, color: "text-purple-500 bg-purple-500/10" },
+                                    { channel: "POS" as OrderChannel, title: "POS Terminal", subtitle: "In-store cashier checkout", icon: Monitor, color: "text-amber-500 bg-amber-500/10" },
+                                ].map(({ channel, title, subtitle, icon: Icon, color }) => {
+                                    const assignedDiscount = getAssignedDiscountForChannel(channel);
+
+                                    // Filter ONLY discounts where this channel was selected during discount creation
+                                    const channelPermittedDiscounts = discounts.filter(
+                                        (d) =>
+                                            d.status === "ACTIVE" &&
+                                            !d.requiresCoupon &&
+                                            (d.applicableChannels && d.applicableChannels.length > 0
+                                                ? d.applicableChannels.includes(channel)
+                                                : false)
+                                    );
+
+                                    const selectOptions = [
+                                        { value: "NONE", label: "No Discount (Standard Price)" },
+                                        ...channelPermittedDiscounts.map((d) => ({
+                                            value: d.id,
+                                            label: `${d.name} (${
+                                                d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                    ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
+                                                    : d.type === "PERCENTAGE"
+                                                    ? `${d.value}% OFF`
+                                                    : format(d.value)
+                                            })`,
+                                        })),
+                                    ];
+
+                                    const currentValue = assignedDiscount?.id || "NONE";
+
+                                    return (
+                                        <TableRow key={channel} className="hover:bg-muted/30 transition-colors">
+                                            <TableCell className="align-middle py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg shrink-0 ${color}`}>
+                                                        <Icon className="h-4 w-4" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-semibold text-foreground">{title}</div>
+                                                        <div className="text-xs text-muted-foreground">{subtitle}</div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="align-middle py-4">
+                                                <div className="max-w-md">
+                                                    <SelectField
+                                                        value={currentValue}
+                                                        onValueChange={(val) => handleSelectChannelDiscount(channel, val)}
+                                                        options={selectOptions}
+                                                        className="h-10 text-sm bg-card border-border rounded-xl shadow-2xs font-medium"
+                                                    />
+                                                    {channelPermittedDiscounts.length === 0 && (
+                                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                                            No discounts were configured for this channel under the Discounts tab.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right align-middle py-4 whitespace-nowrap">
+                                                {assignedDiscount ? (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                        Active
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                                        Inactive
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     )}

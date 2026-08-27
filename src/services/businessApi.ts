@@ -4,6 +4,7 @@ import type {
     BusinessCategory,
     BusinessProfileInput,
     StorefrontStatus,
+    TaxSettingsInput,
 } from "@/lib/api/business";
 
 /** Both pictures post the same single `file` part to their own route. */
@@ -27,6 +28,14 @@ export const businessApi = baseApi.injectEndpoints({
         updateBusinessProfile: builder.mutation<Business, BusinessProfileInput>({
             query: (body) => ({
                 url: "/business-profile",
+                method: "PUT",
+                body,
+            }),
+            invalidatesTags: ["Business"],
+        }),
+        updateBusinessTax: builder.mutation<Business, TaxSettingsInput>({
+            query: (body) => ({
+                url: "/business-tax",
                 method: "PUT",
                 body,
             }),
@@ -80,6 +89,7 @@ export const {
     useGetBusinessProfileQuery,
     useGetBusinessCategoriesQuery,
     useUpdateBusinessProfileMutation,
+    useUpdateBusinessTaxMutation,
     useUploadBusinessLogoMutation,
     useDeleteBusinessLogoMutation,
     useUploadBusinessThumbnailMutation,

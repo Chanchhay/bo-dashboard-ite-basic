@@ -40,6 +40,8 @@ export type PosOrder = {
     discountAmount: number;
     discountId?: string | null;
     discountCode?: string | null;
+    /** What to call it on a receipt — the coupon code, the discount's own name, or "X% OFF". */
+    discountLabel?: string | null;
     taxRate?: number | null;
     taxAmount?: number | null;
     taxInclusionType?: TaxInclusionType | null;
@@ -229,6 +231,8 @@ export type Sale = {
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     subtotal: number;
     discountAmount: number;
+    /** What to call it on a receipt — the coupon code, the discount's own name, or "X% OFF". */
+    discountLabel?: string | null;
     taxRate?: number | null;
     taxAmount?: number | null;
     taxInclusionType?: TaxInclusionType | null;
