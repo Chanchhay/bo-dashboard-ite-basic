@@ -151,102 +151,14 @@ export function ReceiptTicket({
   // order's own record of how it was paid.
   const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
 
-  const storedTaxRule = useMemo(() => {
-    const id = sale?.orderId || order?.id;
-    if (!id || typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem(`pos_order_tax_rule_${id}`);
-      if (raw) return JSON.parse(raw);
-    } catch { }
-    return null;
-  }, [sale?.orderId, order?.id]);
-
-  let isTaxActive = false;
-  let isTaxInclusive = false;
-  let effectiveTaxRate = 0;
-  let taxAmount = 0;
-
-  const recordTaxInclusionType = sale?.taxInclusionType || order?.taxInclusionType;
-
-  if (taxConfig !== undefined && taxConfig !== null) {
-    // Explicit preview mode override (e.g. Tax Settings preview card)
-    isTaxActive = taxConfig.isActive ?? false;
-    isTaxInclusive = taxConfig.isTaxInclusive ?? false;
-    effectiveTaxRate = isTaxActive ? (taxConfig.taxRate ?? 0) : 0;
-    taxAmount = isTaxActive
-      ? (isTaxInclusive
-        ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-        : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
-      : 0;
-  } else if (recordTaxInclusionType) {
-    // Direct from Spring backend API (OrderResponse / SaleResponse)
-    isTaxActive = (sale?.taxAmount && sale.taxAmount > 0) || (order?.taxAmount && order.taxAmount > 0) || (activeTaxConfig?.isActive ?? false);
-    isTaxInclusive = recordTaxInclusionType === "INCLUSIVE";
-    effectiveTaxRate = (sale?.taxRate || order?.taxRate) && (sale?.taxRate || order?.taxRate)! > 0
-      ? (sale?.taxRate || order?.taxRate)!
-      : (activeTaxConfig?.taxRate ?? 10);
-    taxAmount = (sale?.taxAmount && sale.taxAmount > 0)
-      ? sale.taxAmount
-      : (order?.taxAmount && order.taxAmount > 0)
-        ? order.taxAmount
-        : (isTaxInclusive
-          ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-          : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)));
-  } else if (storedTaxRule !== null) {
-    // Historical frozen tax rule snapshot
-    isTaxActive = storedTaxRule.isTaxActive ?? false;
-    isTaxInclusive = storedTaxRule.taxInclusionType
-      ? storedTaxRule.taxInclusionType === "INCLUSIVE"
-      : (storedTaxRule.isTaxInclusive ?? false);
-    effectiveTaxRate = storedTaxRule.taxRate ?? 0;
-    taxAmount = storedTaxRule.taxAmount ?? 0;
-  } else {
-    // Check live store default tax settings
-    const liveTaxActive = activeTaxConfig?.isActive ?? false;
-    const liveTaxInclusive = activeTaxConfig?.isTaxInclusive ?? false;
-    const liveTaxRate = activeTaxConfig?.taxRate ?? 10;
-
-    if (isHistoricalSale && sale) {
-      const saleTaxAmt = sale.taxAmount ?? 0;
-      const saleTaxRate = sale.taxRate ?? 0;
-
-      if (sale.totalAmount > afterDiscount + 0.01) {
-        isTaxActive = true;
-        isTaxInclusive = false;
-        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
-        taxAmount = saleTaxAmt > 0 ? saleTaxAmt : parseFloat((sale.totalAmount - afterDiscount).toFixed(2));
-      } else if (saleTaxAmt > 0 || saleTaxRate > 0) {
-        isTaxActive = true;
-        isTaxInclusive = true;
-        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
-        taxAmount = saleTaxAmt;
-      } else {
-        isTaxActive = false;
-        isTaxInclusive = false;
-        effectiveTaxRate = 0;
-        taxAmount = 0;
-      }
-    } else {
-      // Current open cart
-      isTaxActive = liveTaxActive;
-      isTaxInclusive = liveTaxInclusive;
-      effectiveTaxRate = isTaxActive
-        ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : liveTaxRate)
-        : 0;
-
-      const calculatedTax = isTaxActive
-        ? (isTaxInclusive
-          ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-          : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
-        : 0;
-
-      taxAmount = isTaxActive
-        ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
-        : 0;
-    }
-  }
-
-  const effectiveTaxName = activeTaxConfig?.taxName ?? "VAT";
+  // Tax was computed once, server-side, when the order was created (or last
+  // repriced) — reading it straight off the record matches every other
+  // channel and never drifts from what was actually charged.
+  const isTaxInclusive = (sale?.taxInclusionType ?? order?.taxInclusionType) === "INCLUSIVE";
+  const taxAmount = sale?.taxAmount ?? order?.taxAmount ?? 0;
+  const effectiveTaxRate = sale?.taxRate ?? order?.taxRate ?? 0;
+  const isTaxActive = taxAmount > 0;
+  const effectiveTaxName = business?.taxLabel || "VAT";
   const effectiveShowTax = isTaxActive;
 
   const total = sale?.totalAmount ?? order?.total ?? (isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + taxAmount));
