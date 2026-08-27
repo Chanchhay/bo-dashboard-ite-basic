@@ -7,7 +7,6 @@ import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag } from "lucide-react"
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import { itemThumbnail, itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
 import { attributeIcon } from "@/lib/api/attribute-icons";
-import { useGetItemGroupsQuery } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
 import { cn } from "@/lib/utils";
 
@@ -211,12 +210,22 @@ function PublicProductDetailView({
   );
 }
 
+type PublicItemGroup = {
+  id: string;
+  name: string;
+  slug: string;
+  note: string | null;
+  subGroups: { id: string; name: string; slug: string; note: string | null; parentId: string | null }[];
+};
+
 export default function PublicMenuClient({
   storeDetail,
   storeItems,
+  storeItemGroups = [],
 }: {
   storeDetail: any;
   storeItems: any[];
+  storeItemGroups?: PublicItemGroup[];
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
@@ -237,8 +246,6 @@ export default function PublicMenuClient({
 
     return `https://fluxibiz.store/store/${slug}`;
   }, [storeDetail]);
-
-  const { data: itemGroups = [] } = useGetItemGroupsQuery();
 
   const items = useMemo<MenuItemEntry[]>(() => {
     return storeItems.map((raw) => {
@@ -294,9 +301,13 @@ export default function PublicMenuClient({
     }
   };
 
+  // Categories/sub-categories come from the public item-groups endpoint
+  // passed in as a prop — this page is viewed by anonymous customers, so
+  // it must never call an authenticated dashboard endpoint (that 401s for
+  // them and bounces them to /login).
   const categories = useMemo(() => {
     const set = new Set<string>();
-    itemGroups.forEach((g) => {
+    storeItemGroups.forEach((g) => {
       if (g.name) set.add(g.name);
     });
     items.forEach((item) => {
@@ -305,12 +316,12 @@ export default function PublicMenuClient({
       }
     });
     return Array.from(set);
-  }, [itemGroups, items]);
+  }, [storeItemGroups, items]);
 
   const subCategories = useMemo(() => {
     const set = new Set<string>();
     if (selectedMainCategory !== "All" && selectedMainCategory !== "All Dishes") {
-      const matchedGroup = itemGroups.find(
+      const matchedGroup = storeItemGroups.find(
         (g) => g.name?.toLowerCase() === selectedMainCategory.toLowerCase()
       );
       if (matchedGroup && matchedGroup.subGroups) {
@@ -319,14 +330,14 @@ export default function PublicMenuClient({
         });
       }
     } else {
-      itemGroups.forEach((g) => {
+      storeItemGroups.forEach((g) => {
         (g.subGroups || []).forEach((sub) => {
           if (sub.name) set.add(sub.name);
         });
       });
     }
     return Array.from(set);
-  }, [itemGroups, selectedMainCategory]);
+  }, [storeItemGroups, selectedMainCategory]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
