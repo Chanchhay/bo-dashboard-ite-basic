@@ -286,7 +286,7 @@ export function NotificationMenu({ className }: { className?: string }) {
             >
                 <Bell className="size-5.5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white ring-2 ring-white dark:ring-[#1a1e29] shadow-xs">
+                    <span className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white ring-2 ring-white dark:ring-[#1a1e29] shadow-xs">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
