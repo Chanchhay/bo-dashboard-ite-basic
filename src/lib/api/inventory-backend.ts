@@ -23,20 +23,13 @@ export function inventoryItemsBackendPath(businessId: string) {
     return `/api/v1/businesses/${businessId}/items`;
 }
 
-/**
- * The whole catalogue, as the backend hands it over.
- *
- * `GET .../items` answers with a bare array and ignores `page`, `size` and
- * `sort` — there is no paged variant, and the `items/search` and
- * `items/filter` endpoints it used to pair with are gone (filter now answers
- * 500). So searching, sorting and paging all happen here instead.
- */
+
 export async function getAllInventoryItems(businessId: string) {
     const items = await backendRequest<InventoryItem[] | InventoryItemPage>(
         inventoryItemsBackendPath(businessId),
     );
 
-    // Tolerate the older paged envelope in case the backend brings it back.
+    
     if (Array.isArray(items)) return items;
 
     return items?.content ?? [];
@@ -61,7 +54,7 @@ function matchesQuery(item: InventoryItem, query: InventoryItemQuery) {
     }
     if (query.unitId && item.unit?.id !== query.unitId) return false;
 
-    // An item with no price can't satisfy a price bound either way.
+    
     if (query.minPrice !== undefined) {
         if (item.price == null || item.price < query.minPrice) return false;
     }
@@ -90,10 +83,7 @@ function compareItems(sort: InventoryItemQuery["sort"]) {
     };
 }
 
-/**
- * The page shape the screens consume, assembled here because the backend no
- * longer paginates. Kept as `InventoryItemPage` so callers are unchanged.
- */
+
 export async function getInventoryItemsPage(
     businessId: string,
     query: InventoryItemQuery,
@@ -106,7 +96,7 @@ export async function getInventoryItemsPage(
 
     const size = Math.max(query.size, 1);
     const totalPages = Math.max(Math.ceil(matched.length / size), 1);
-    // Guard against a page index left over from a wider result set.
+    
     const number = Math.min(Math.max(query.page, 0), totalPages - 1);
     const start = number * size;
 
@@ -128,10 +118,7 @@ export function inventoryValidationError(error: z.ZodError) {
     );
 }
 
-/**
- * Pulls the `files` parts out of a request and checks them the way the backend
- * does, so a bad pick fails before the upload is forwarded.
- */
+
 export function readItemImageFiles(formData: FormData) {
     const files = formData
         .getAll("files")
@@ -159,7 +146,7 @@ export function itemImageError(message: string) {
     return Response.json({ message }, { status: 400 });
 }
 
-/** Keeps barcode PNG bytes and the Keycloak token on the server-side BFF. */
+
 export async function inventoryBarcodeImageResponse(
     backendPath: string,
     filename: string,
@@ -179,16 +166,7 @@ export async function inventoryBarcodeImageResponse(
     });
 }
 
-/**
- * Reads a save posted by the item form: the fields as one JSON part named
- * `item`, plus any newly picked images as `files` parts. The fields stay JSON
- * on this hop so they can be validated as an object before being re-encoded as
- * the multipart body the backend takes.
- *
- * The returned `body` carries its own boundary, so callers must forward
- * `contentType` as the `Content-Type` header — `fetch` only generates one for
- * a `FormData` body.
- */
+
 export type ItemSave =
     | { error: Response; save?: undefined }
     | {

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "FluxiBiz Terminal & Business Dashboard",
+    name: "FluxiBiz",
     short_name: "FluxiBiz",
     description:
       "Powering Business Without Limits. Manage Better, Sell More, Grow Faster.",

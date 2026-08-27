@@ -47,15 +47,6 @@ export function pageQueryParams(
   return params;
 }
 
-
-/**
- * Normalises a backend list response to a flat array.
- *
- * The Spring backend returns `{ content, page }` for paginated endpoints and a
- * bare array for the rest. Route handlers that feed array-typed RTK Query
- * endpoints use this so the client always receives `T[]`, regardless of which
- * shape the backend sends.
- */
 export function unwrapList<T>(
   data: T[] | { content?: T[] } | null | undefined,
 ): T[] {
