@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
-import { getActiveDefaultTax } from "@/lib/tax-store";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { usePublishCustomerDisplayMutation } from "@/services/customerDisplayApi";
 import type {
@@ -96,14 +95,14 @@ export function useCustomerDisplaySync({
 
     const subtotal = sale?.subtotal ?? order?.subtotal ?? 0;
     const discountAmount = sale?.discountAmount ?? order?.discountAmount ?? 0;
+    const discountLabel = sale?.discountLabel ?? order?.discountLabel ?? null;
 
-    const activeTax = getActiveDefaultTax();
-    const isTaxActive = activeTax?.isActive ?? false;
-    const taxRate = isTaxActive ? (sale?.taxRate ?? order?.taxRate ?? activeTax?.taxRate ?? 0) : 0;
-
-    const computedTax = isTaxActive
-      ? (sale?.taxAmount ?? order?.taxAmount ?? (subtotal - discountAmount) * (taxRate / 100))
-      : 0;
+    // Tax was already computed server-side when the order was created —
+    // read directly rather than re-derived, so the customer-facing screen
+    // never shows a different number than the receipt will.
+    const computedTax = sale?.taxAmount ?? order?.taxAmount ?? 0;
+    const taxRate = sale?.taxRate ?? order?.taxRate ?? 0;
+    const taxInclusionType = sale?.taxInclusionType ?? order?.taxInclusionType ?? null;
 
     const payload: CustomerDisplayPayload = {
       terminalId,
@@ -115,8 +114,10 @@ export function useCustomerDisplaySync({
       items,
       subtotal,
       discountAmount,
+      discountLabel,
       tax: Math.max(0, computedTax),
       taxRate,
+      taxInclusionType,
       total: sale?.totalAmount ?? order?.total ?? Math.max(0, subtotal - discountAmount + computedTax),
       currency: sale?.currency ?? order?.currency ?? "USD",
       invoiceNumber: sale?.invoiceNumber || order?.invoiceNumber || null,

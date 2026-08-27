@@ -8,6 +8,8 @@ export type BusinessSubCategory = {
     slug?: string;
 };
 
+export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
+
 export type BusinessCategory = {
     id?: string;
     name?: string;
@@ -39,6 +41,11 @@ export type Business = {
     category?: BusinessSubCategory;
     baseCurrency?: string;
     displayCurrency?: string;
+    /** The one tax rate this business charges — applied the same way on every sales channel. */
+    taxEnabled?: boolean;
+    taxRate?: number;
+    taxInclusionType?: TaxInclusionType;
+    taxLabel?: string;
 };
 
 export type StorefrontRequirement = {
@@ -217,5 +224,47 @@ export function toUpdateBusinessInput(
         ...(input.communeName ? { communeName: input.communeName } : {}),
         ...(input.latitude ? { latitude: Number(input.latitude) } : {}),
         ...(input.longitude ? { longitude: Number(input.longitude) } : {}),
+    };
+}
+
+/** Sale Management's Tax Settings page — a separate save from the general
+ * business profile, since it lives on its own page there. */
+export const taxSettingsSchema = z.object({
+    taxEnabled: z.boolean(),
+    taxRate: z
+        .string()
+        .trim()
+        .refine(
+            (value) =>
+                value === "" ||
+                (!Number.isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 100),
+            "Tax rate must be a number between 0 and 100.",
+        ),
+    taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]),
+    taxLabel: z
+        .string()
+        .trim()
+        .max(30, "Tax label must be 30 characters or fewer."),
+});
+
+export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
+
+/** Same `UpdateBusinessRequest` endpoint, but with only the tax fields set —
+ * every other field stays null so nothing else on the profile is touched. */
+export type UpdateBusinessTaxInput = {
+    taxEnabled: boolean;
+    taxRate?: number;
+    taxInclusionType: TaxInclusionType;
+    taxLabel?: string;
+};
+
+export function toUpdateBusinessTaxInput(
+    input: TaxSettingsInput,
+): UpdateBusinessTaxInput {
+    return {
+        taxEnabled: input.taxEnabled,
+        taxInclusionType: input.taxInclusionType,
+        ...(input.taxRate !== "" ? { taxRate: Number(input.taxRate) } : {}),
+        ...(input.taxLabel ? { taxLabel: input.taxLabel } : {}),
     };
 }
