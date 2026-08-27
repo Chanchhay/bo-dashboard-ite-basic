@@ -426,7 +426,7 @@ export function ReceiptTicket({
           <div className="flex justify-between gap-4 font-medium text-[#006b26]">
             <dt className="flex items-center gap-1">
               +
-              {effectiveTaxName.includes("VAT") ? "VAT" : (effectiveTaxName.split("(")[0]?.trim() || effectiveTaxName)}
+              {effectiveTaxName}
               {effectiveTaxRate > 0 ? ` (${effectiveTaxRate}%)` : ""} / អាករ
             </dt>
             <dd className="font-mono font-bold">
@@ -439,7 +439,7 @@ export function ReceiptTicket({
       <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">
         <div className="flex items-center justify-between gap-4">
           <dt className="text-sm font-bold uppercase">
-            Total {!isTaxInclusive && effectiveShowTax && taxAmount > 0 ? "(Incl. Tax)" : ""} / សរុប{!isTaxInclusive && effectiveShowTax && taxAmount > 0 ? "រួមអាករ" : ""}
+            Total / សរុប
           </dt>
           <dd className="font-mono text-xl font-bold leading-none">
             {formatMoney(total, currency)}
@@ -459,7 +459,7 @@ export function ReceiptTicket({
 
       {isTaxActive && isTaxInclusive && (
         <p className="mt-2 text-center text-[11px] font-medium text-[#3d4a3c] italic">
-          * Product prices include {effectiveTaxName.includes("VAT") ? "VAT" : effectiveTaxName} {effectiveTaxRate > 0 ? `(${effectiveTaxRate}%)` : ""} · តម្លៃរួមបញ្ចូលអាកររួចជាស្រេច
+          * Product prices include {effectiveTaxName} {effectiveTaxRate > 0 ? `(${effectiveTaxRate}%)` : ""} · តម្លៃរួមបញ្ចូលអាកររួចជាស្រេច
         </p>
       )}
 
