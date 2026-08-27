@@ -25,17 +25,13 @@ export type Business = {
     phoneNumber?: string;
     googleMap?: string;
     address?: string;
-    /** @deprecated superseded by {@link provinceName}; still returned during the transition. */
+    
     cityOrProvince?: string;
-    /**
-     * Province/city, district/khan, commune/sangkat — filled in from a map
-     * geocoder when the owner drops the pin, not typed by hand. Plain text
-     * rather than an id: nobody here maintains a seeded division table.
-     */
+    
     provinceName?: string;
     districtName?: string;
     communeName?: string;
-    /** The shopfront's exact map pin, same source as the names above. */
+    
     latitude?: number;
     longitude?: number;
     website?: string;
@@ -172,7 +168,6 @@ export const businessProfileSchema = z.object({
     longitude: optionalCoordinateSchema("longitude", "longitude"),
 });
 
-/** Matches the backend's upload limits for `POST /businesses/{id}/logo`. */
 export const businessLogoRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp,image/svg+xml",
     maxBytes: 5 * 1024 * 1024,
@@ -180,7 +175,6 @@ export const businessLogoRules = imageUploadRules({
     formats: "PNG, JPG, WebP or SVG",
 });
 
-/** The storefront cover, behind `POST /businesses/{id}/thumbnail`. */
 export const businessThumbnailRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp",
     maxBytes: 5 * 1024 * 1024,
@@ -190,8 +184,6 @@ export const businessThumbnailRules = imageUploadRules({
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 
-// `UpdateBusinessRequest` carries no logo: the image is owned by the
-// `/logo` upload and delete endpoints instead.
 export type UpdateBusinessInput = {
     name: string;
     categoryId?: string;

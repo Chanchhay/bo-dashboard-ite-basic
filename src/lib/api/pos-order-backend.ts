@@ -12,20 +12,14 @@ export function ordersPath(businessId: string, suffix = "") {
     return `/api/v1/businesses/${businessId}/orders${suffix}`;
 }
 
-/** One filter clause of the backend's search DTO. */
+
 export type OrderFilter = {
     column: string;
     value: string;
     operation: string;
 };
 
-/**
- * A page of orders as the backend sends it.
- *
- * `page` carries the page index in the documented `PageResponse`, but older
- * builds sent a nested Spring `page` object or a bare `number` instead. All
- * three are accepted here so the browser only ever sees one shape.
- */
+
 type BackendOrderPage = {
     content?: PosOrder[];
     page?: number | Partial<PosOrderPage["page"]>;
@@ -64,7 +58,7 @@ function normalisePage(
     };
 }
 
-/** One page of orders matching `filters`, newest first. */
+
 export async function filterOrders(
     businessId: string,
     filters: OrderFilter[],
@@ -87,7 +81,7 @@ export async function filterOrders(
     };
 }
 
-/** A shift is a working day at most, and so is the cart inside it. */
+
 const ORDER_COOKIE_MAX_AGE = 60 * 60 * 16;
 
 export async function rememberOrder(orderId: string) {
@@ -112,13 +106,7 @@ export async function readOrderId() {
     return cookieStore.get(POS_ORDER_COOKIE)?.value;
 }
 
-/**
- * The cart this browser is building, or `null` when there isn't one.
- *
- * An order that has been paid or cancelled is no longer a cart — it is
- * forgotten rather than returned, so the terminal starts a fresh one instead
- * of ringing items into a closed sale.
- */
+
 export async function getCurrentOrder(): Promise<PosOrder | null> {
     const orderId = await readOrderId();
 
@@ -138,7 +126,7 @@ export async function getCurrentOrder(): Promise<PosOrder | null> {
 
         return order;
     } catch (error) {
-        // A cart the backend no longer has is the same as no cart at all.
+        
         if (
             error instanceof BackendApiError &&
             (error.status === 404 || error.status === 400)
@@ -151,10 +139,7 @@ export async function getCurrentOrder(): Promise<PosOrder | null> {
     }
 }
 
-/**
- * The cart to add to, creating one if this is the first item of the sale.
- * Empty orders are allowed, so the cart is a real order from the first tap.
- */
+
 export async function ensureCurrentOrder(businessId: string) {
     const existing = await getCurrentOrder();
 

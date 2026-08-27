@@ -29,7 +29,6 @@ export async function getAllInventoryItems(businessId: string) {
         `${inventoryItemsBackendPath(businessId)}?page=0&size=10000&sort=name,asc`,
     );
 
-   
     if (Array.isArray(items)) return items;
 
     return items?.content ?? [];
@@ -54,7 +53,7 @@ function matchesQuery(item: InventoryItem, query: InventoryItemQuery) {
     }
     if (query.unitId && item.unit?.id !== query.unitId) return false;
 
-    // An item with no price can't satisfy a price bound either way.
+    
     if (query.minPrice !== undefined) {
         if (item.price == null || item.price < query.minPrice) return false;
     }

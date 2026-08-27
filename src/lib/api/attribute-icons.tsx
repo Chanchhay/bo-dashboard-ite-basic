@@ -26,12 +26,6 @@ import {
     type LucideIcon,
 } from "lucide-react";
 
-/**
- * The API stores an opaque icon key; this file is the only place that decides
- * what it looks like. Adding a glyph is a frontend change alone, and an
- * unrecognised key degrades to a neutral dot rather than breaking the page —
- * which is why the backend deliberately does not validate against an enum.
- */
 const iconsByKey: Record<string, LucideIcon> = {
     TRUCK: Truck,
     SHIELD: ShieldCheck,
@@ -57,21 +51,12 @@ const iconsByKey: Record<string, LucideIcon> = {
     THERMOMETER: Thermometer,
 };
 
-/** Ordered for the icon picker; the keys the backend spec publishes. */
 export const attributeIconKeys = Object.keys(iconsByKey);
 
 export function attributeIcon(key: string | undefined): LucideIcon {
     return (key && iconsByKey[key]) || Circle;
 }
 
-/**
- * Renders an attribute's glyph.
- *
- * The icon is looked up from a fixed table, not constructed — but binding the
- * result to a capitalized local inside a component reads as creating a
- * component during render, which is a real footgun elsewhere and so is linted
- * against. `createElement` keeps the distinction unambiguous.
- */
 export function AttributeIcon({
     icon,
     className,
