@@ -171,6 +171,23 @@ export function NotificationMenu({ className }: { className?: string }) {
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const { data: session } = authClient.useSession();
 
+    const [isOnline, setIsOnline] = React.useState<boolean>(() =>
+        typeof window !== "undefined" ? navigator.onLine : true
+    );
+
+    React.useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
+    }, []);
+
     React.useEffect(() => {
         if (session?.user?.id) {
             notificationSocket.connect({
@@ -269,7 +286,7 @@ export function NotificationMenu({ className }: { className?: string }) {
             >
                 <Bell className="size-5.5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white ring-2 ring-white dark:ring-[#1a1e29] shadow-xs">
+                    <span className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white ring-2 ring-white dark:ring-[#1a1e29] shadow-xs">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
@@ -338,9 +355,13 @@ export function NotificationMenu({ className }: { className?: string }) {
                         </div>
                     )}
 
-                    {isError && !isLoading && (
+                    {(isError || !isOnline) && !isLoading && (
                         <div className="flex flex-col items-center justify-center py-10 px-5 text-center gap-2.5">
-                            <p className="text-base text-red-500 font-bold">Failed to load notifications.</p>
+                            <p className="text-base text-red-500 font-bold max-w-[280px]">
+                                {!isOnline
+                                    ? "Please connect to the internet to view notifications."
+                                    : "Failed to load notifications."}
+                            </p>
                             <button
                                 type="button"
                                 onClick={() => refetch()}

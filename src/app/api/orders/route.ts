@@ -5,12 +5,13 @@ import {
     isRealOrder,
     orderFiltersFromQuery,
 } from "@/lib/api/order-filters";
-import type { PosOrderPage } from "@/lib/api/pos-order";
+import type { PosOrder, PosOrderPage } from "@/lib/api/pos-order";
 import { filterOrders } from "@/lib/api/pos-order-backend";
+
+import { getSyncedOrders } from "@/lib/synced-orders-store";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
-
 
 export async function GET(request: Request) {
     try {
@@ -24,16 +25,30 @@ export async function GET(request: Request) {
             { min: 1, max: MAX_PAGE_SIZE },
         );
         const businessId = await getCurrentBusinessId();
-        const result = await filterOrders(
-            businessId,
-            orderFiltersFromQuery(url),
-            { page, size },
-        );
+        let resultContent: PosOrder[] = [];
+        let resultPage = { number: page, size, totalElements: 0, totalPages: 1 };
+
+        try {
+            const result = await filterOrders(
+                businessId,
+                orderFiltersFromQuery(url),
+                { page, size },
+            );
+            resultContent = result.content.filter(isRealOrder);
+            resultPage = result.page;
+        } catch {
+            // Fallback if backend server endpoint fails or is un-configured
+        }
+
+        const synced = getSyncedOrders(url);
+        const combinedContent = [...synced, ...resultContent];
 
         return Response.json({
-          
-            content: result.content.filter(isRealOrder),
-            page: result.page,
+            content: combinedContent,
+            page: {
+                ...resultPage,
+                totalElements: (resultPage.totalElements || 0) + synced.length,
+            },
         } satisfies PosOrderPage);
     } catch (error) {
         return backendErrorResponse(error);

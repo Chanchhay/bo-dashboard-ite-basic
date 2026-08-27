@@ -10,6 +10,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useCustomerDisplayListener } from "@/hooks/useCustomerDisplayListener";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useMoney } from "@/hooks/useMoney";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
@@ -311,7 +312,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             )}
           </div>
 
-          {/* Header Controls (Light/Dark mode + Status) */}
+          {/* Header Controls (Light/Dark mode) */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -321,11 +322,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-
-            <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              Live Connected
-            </div>
           </div>
         </div>
 

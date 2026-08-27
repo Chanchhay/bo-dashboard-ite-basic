@@ -17,7 +17,7 @@ import { soldAsLabel } from "@/lib/pos/sold-as-label";
 import { cn } from "@/lib/utils";
 
 interface ReceiptTicketProps {
-  business: Business;
+  business?: Business | null;
   order: PosOrder;
   receipt?: PosReceipt | null;
   /** Present immediately after payment; historical sale lookup is not exposed. */
@@ -26,7 +26,8 @@ interface ReceiptTicketProps {
   className?: string;
 }
 
-function businessInitials(name: string) {
+function businessInitials(name?: string | null) {
+  if (!name) return "";
   return name
     .split(/\s+/)
     .filter(Boolean)
@@ -133,7 +134,7 @@ export function ReceiptTicket({
 }: ReceiptTicketProps) {
   const { data: customers = [] } = useGetCustomersQuery();
   const customer = customers.find((c) => c.id === order.customerId);
-  const businessName = business.name?.trim() || "Your business";
+  const businessName = business?.name?.trim() || "Your business";
   const invoiceNumber =
     receipt?.invoiceNumber || sale?.invoiceNumber || order.invoiceNumber || "—";
   const issuedAtValue = sale?.soldAt || receipt?.issuedAt || order.createdDate;
@@ -150,14 +151,102 @@ export function ReceiptTicket({
   // order's own record of how it was paid.
   const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
 
-  // Tax was computed once, server-side, when the order was created (or last
-  // repriced) — reading it straight off the record matches every other
-  // channel and never drifts from what was actually charged.
-  const isTaxInclusive = (sale?.taxInclusionType ?? order?.taxInclusionType) === "INCLUSIVE";
-  const taxAmount = sale?.taxAmount ?? order?.taxAmount ?? 0;
-  const effectiveTaxRate = sale?.taxRate ?? order?.taxRate ?? 0;
-  const isTaxActive = taxAmount > 0;
-  const effectiveTaxName = business.taxLabel || "VAT";
+  const storedTaxRule = useMemo(() => {
+    const id = sale?.orderId || order?.id;
+    if (!id || typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(`pos_order_tax_rule_${id}`);
+      if (raw) return JSON.parse(raw);
+    } catch { }
+    return null;
+  }, [sale?.orderId, order?.id]);
+
+  let isTaxActive = false;
+  let isTaxInclusive = false;
+  let effectiveTaxRate = 0;
+  let taxAmount = 0;
+
+  const recordTaxInclusionType = sale?.taxInclusionType || order?.taxInclusionType;
+
+  if (taxConfig !== undefined && taxConfig !== null) {
+    // Explicit preview mode override (e.g. Tax Settings preview card)
+    isTaxActive = taxConfig.isActive ?? false;
+    isTaxInclusive = taxConfig.isTaxInclusive ?? false;
+    effectiveTaxRate = isTaxActive ? (taxConfig.taxRate ?? 0) : 0;
+    taxAmount = isTaxActive
+      ? (isTaxInclusive
+        ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+        : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+      : 0;
+  } else if (recordTaxInclusionType) {
+    // Direct from Spring backend API (OrderResponse / SaleResponse)
+    isTaxActive = (sale?.taxAmount && sale.taxAmount > 0) || (order?.taxAmount && order.taxAmount > 0) || (activeTaxConfig?.isActive ?? false);
+    isTaxInclusive = recordTaxInclusionType === "INCLUSIVE";
+    effectiveTaxRate = (sale?.taxRate || order?.taxRate) && (sale?.taxRate || order?.taxRate)! > 0
+      ? (sale?.taxRate || order?.taxRate)!
+      : (activeTaxConfig?.taxRate ?? 10);
+    taxAmount = (sale?.taxAmount && sale.taxAmount > 0)
+      ? sale.taxAmount
+      : (order?.taxAmount && order.taxAmount > 0)
+        ? order.taxAmount
+        : (isTaxInclusive
+          ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+          : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)));
+  } else if (storedTaxRule !== null) {
+    // Historical frozen tax rule snapshot
+    isTaxActive = storedTaxRule.isTaxActive ?? false;
+    isTaxInclusive = storedTaxRule.taxInclusionType
+      ? storedTaxRule.taxInclusionType === "INCLUSIVE"
+      : (storedTaxRule.isTaxInclusive ?? false);
+    effectiveTaxRate = storedTaxRule.taxRate ?? 0;
+    taxAmount = storedTaxRule.taxAmount ?? 0;
+  } else {
+    // Check live store default tax settings
+    const liveTaxActive = activeTaxConfig?.isActive ?? false;
+    const liveTaxInclusive = activeTaxConfig?.isTaxInclusive ?? false;
+    const liveTaxRate = activeTaxConfig?.taxRate ?? 10;
+
+    if (isHistoricalSale && sale) {
+      const saleTaxAmt = sale.taxAmount ?? 0;
+      const saleTaxRate = sale.taxRate ?? 0;
+
+      if (sale.totalAmount > afterDiscount + 0.01) {
+        isTaxActive = true;
+        isTaxInclusive = false;
+        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
+        taxAmount = saleTaxAmt > 0 ? saleTaxAmt : parseFloat((sale.totalAmount - afterDiscount).toFixed(2));
+      } else if (saleTaxAmt > 0 || saleTaxRate > 0) {
+        isTaxActive = true;
+        isTaxInclusive = true;
+        effectiveTaxRate = saleTaxRate > 0 ? saleTaxRate : liveTaxRate;
+        taxAmount = saleTaxAmt;
+      } else {
+        isTaxActive = false;
+        isTaxInclusive = false;
+        effectiveTaxRate = 0;
+        taxAmount = 0;
+      }
+    } else {
+      // Current open cart
+      isTaxActive = liveTaxActive;
+      isTaxInclusive = liveTaxInclusive;
+      effectiveTaxRate = isTaxActive
+        ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : liveTaxRate)
+        : 0;
+
+      const calculatedTax = isTaxActive
+        ? (isTaxInclusive
+          ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
+          : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
+        : 0;
+
+      taxAmount = isTaxActive
+        ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
+        : 0;
+    }
+  }
+
+  const effectiveTaxName = activeTaxConfig?.taxName ?? "VAT";
   const effectiveShowTax = isTaxActive;
 
   const total = sale?.totalAmount ?? order?.total ?? (isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + taxAmount));
@@ -172,7 +261,7 @@ export function ReceiptTicket({
         localStorage.getItem(`pos_order_discount_rule_${id}`) ||
         localStorage.getItem(`pos_cart_discount_${id}`);
       if (raw) return JSON.parse(raw);
-    } catch {}
+    } catch { }
     return null;
   }, [sale?.orderId, sale?.id, order?.id]);
 
@@ -194,7 +283,7 @@ export function ReceiptTicket({
   const displayTotal =
     getRecordedSecondaryAmount(total, record, currencies) ??
     getSecondaryAmount(total, currencyCode, currencies);
-  const locationStr = [business.address, business.cityOrProvince]
+  const locationStr = [business?.address, business?.cityOrProvince]
     .filter(Boolean)
     .join(", ");
   const statusStr = String(order.status || "");
@@ -202,13 +291,13 @@ export function ReceiptTicket({
   const documentTitle = isUnpaid
     ? "UNPAID ORDER TICKET"
     : receipt?.vatNumber
-    ? "Tax invoice"
-    : "Receipt";
+      ? "Tax invoice"
+      : "Receipt";
   const documentTitleKhmer = isUnpaid
     ? "វិក្កយបត្រ (មិនទាន់ទូទាត់)"
     : receipt?.vatNumber
-    ? "វិក្កយបត្រ"
-    : "បង្កាន់ដៃ";
+      ? "វិក្កយបត្រ"
+      : "បង្កាន់ដៃ";
 
   return (
     <article
@@ -219,7 +308,7 @@ export function ReceiptTicket({
     >
       <header className="flex flex-col items-center pb-[14px] text-center">
         <span className="grid size-[50px] place-items-center overflow-hidden rounded-lg bg-primary/5 text-base font-black text-primary">
-          {business.logo ? (
+          {business?.logo ? (
             // The owner controls this URL through the business-profile API.
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -241,7 +330,7 @@ export function ReceiptTicket({
             {locationStr}
           </p>
         )}
-        {business.phoneNumber && (
+        {business?.phoneNumber && (
           <p className="text-[13px] leading-[1.45] text-[#3d4a3c]">
             Tel: {business.phoneNumber}
           </p>
@@ -291,9 +380,9 @@ export function ReceiptTicket({
         <dd className="text-right font-mono text-[#0e140e]">
           {issuedAt
             ? `${issuedAt.toLocaleDateString("en-GB")} · ${issuedAt.toLocaleTimeString(
-                [],
-                { hour: "2-digit", minute: "2-digit" },
-              )}`
+              [],
+              { hour: "2-digit", minute: "2-digit" },
+            )}`
             : "—"}
         </dd>
         <dt>Ref / លេខយោង</dt>
@@ -510,7 +599,7 @@ export function ReceiptTicket({
         <p className="text-[13px] font-bold leading-[1.45] text-[#0e140e]">
           Thank you! · អរគុណ
         </p>
-        {business.website && (
+        {business?.website && (
           <p className="mt-0.5 text-[11px] leading-[1.45] text-[#3d4a3c]">
             {business.website}
           </p>

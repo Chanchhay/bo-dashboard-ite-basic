@@ -229,18 +229,47 @@ export const posOrderApi = baseApi.injectEndpoints({
                         "getCurrentOrder",
                         undefined,
                         (draft) => {
-                            if (!draft) return;
+                            let currentDraft = draft;
+                            if (!currentDraft) {
+                                return {
+                                    id: `offline-${Date.now()}`,
+                                    businessId: "1",
+                                    customerId: null,
+                                    invoiceNumber: null,
+                                    channel: "POS",
+                                    status: "PENDING",
+                                    currency: "USD",
+                                    displayCurrency: null,
+                                    displayExchangeRate: null,
+                                    note: null,
+                                    createdDate: null,
+                                    items: [
+                                        {
+                                            id: `temp-${Date.now()}-${Math.random()}`,
+                                            itemId: arg.itemId,
+                                            variantId: arg.variantId ?? null,
+                                            unitId: arg.unitId ?? null,
+                                            itemName: arg.itemName ?? "Item",
+                                            quantity: arg.quantity || 1,
+                                            unitPrice: arg.unitPrice ?? 0,
+                                            discountAmount: 0,
+                                            lineTotal: (arg.quantity || 1) * (arg.unitPrice ?? 0),
+                                        },
+                                    ],
+                                    subtotal: (arg.quantity || 1) * (arg.unitPrice ?? 0),
+                                    discountAmount: 0,
+                                    taxAmount: 0,
+                                    total: (arg.quantity || 1) * (arg.unitPrice ?? 0),
+                                } satisfies PosOrder;
+                            }
                             const addQty = arg.quantity || 1;
-                            const existingIndex = draft.items.findIndex(
+                            const existingIndex = currentDraft.items.findIndex(
                                 (item) =>
                                     item.itemId === arg.itemId &&
                                     (!arg.variantId ||
                                         item.variantId === arg.variantId) &&
-                                    // A case and a can are different lines:
-                                    // different prices, different stock.
                                     (item.unitId ?? undefined) ===
                                     arg.unitId &&
-                                    // Different extras, different line.
                                     (item.addOns || [])
                                         .map((addOn) => addOn.addOnId)
                                         .sort()
@@ -251,7 +280,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                             );
 
                             if (existingIndex !== -1) {
-                                const existing = draft.items[existingIndex];
+                                const existing = currentDraft.items[existingIndex];
                                 existing.quantity += addQty;
                                 existing.lineTotal =
                                     existing.quantity * existing.unitPrice -
@@ -259,7 +288,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                             } else {
                                 const unitPrice = arg.unitPrice ?? 0;
                                 const lineTotal = addQty * unitPrice;
-                                draft.items.push({
+                                currentDraft.items.push({
                                     id: `temp-${Date.now()}-${Math.random()}`,
                                     itemId: arg.itemId,
                                     variantId: arg.variantId ?? null,
@@ -272,18 +301,18 @@ export const posOrderApi = baseApi.injectEndpoints({
                                 });
                             }
 
-                            draft.subtotal = draft.items.reduce(
+                            currentDraft.subtotal = currentDraft.items.reduce(
                                 (sum, i) => sum + i.lineTotal + i.discountAmount,
                                 0,
                             );
                             const { taxAmount, total } = optimisticTotal(
-                                draft.subtotal,
-                                draft.discountAmount,
-                                draft.taxRate,
-                                draft.taxInclusionType,
+                                currentDraft.subtotal,
+                                currentDraft.discountAmount,
+                                currentDraft.taxRate,
+                                currentDraft.taxInclusionType,
                             );
-                            draft.taxAmount = taxAmount;
-                            draft.total = total;
+                            currentDraft.taxAmount = taxAmount;
+                            currentDraft.total = total;
                         },
                     ),
                 );
@@ -294,7 +323,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                     handleFulfilled(dispatch, data);
                 } catch {
                     inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0) {
+                    if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
                         patchResult.undo();
                     }
                 }
@@ -346,7 +375,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                     handleFulfilled(dispatch, data);
                 } catch {
                     inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0) {
+                    if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
                         patchResult.undo();
                     }
                 }
@@ -389,7 +418,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                     handleFulfilled(dispatch, data);
                 } catch {
                     inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0) {
+                    if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
                         patchResult.undo();
                     }
                 }

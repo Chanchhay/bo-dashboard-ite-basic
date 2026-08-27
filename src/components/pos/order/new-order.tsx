@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ClipboardList, X } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +14,7 @@ export interface NewOrderDialogProps {
   itemCount: number;
   onCreate: (data: { name: string }) => void;
   isCreating?: boolean;
+  defaultName?: string;
 }
 
 export function NewOrder({
@@ -22,9 +23,17 @@ export function NewOrder({
   itemCount,
   onCreate,
   isCreating,
+  defaultName = "",
 }: NewOrderDialogProps) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setName(defaultName);
+      setError("");
+    }
+  }, [open, defaultName]);
 
   const handleCreate = () => {
     if (!name.trim()) {
