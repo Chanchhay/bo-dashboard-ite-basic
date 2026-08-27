@@ -25,11 +25,10 @@ export function inventoryItemsBackendPath(businessId: string) {
 
 
 export async function getAllInventoryItems(businessId: string) {
-    const items = await backendRequest<InventoryItem[] | InventoryItemPage>(
-        inventoryItemsBackendPath(businessId),
+    const items = await backendRequest<InventoryItem[] | { content?: InventoryItem[] }>(
+        `${inventoryItemsBackendPath(businessId)}?page=0&size=10000&sort=name,asc`,
     );
 
-    
     if (Array.isArray(items)) return items;
 
     return items?.content ?? [];
@@ -88,6 +87,67 @@ export async function getInventoryItemsPage(
     businessId: string,
     query: InventoryItemQuery,
 ): Promise<InventoryItemPage> {
+    const hasLocalFilters = Boolean(
+        query.keyword ||
+        query.status ||
+        query.itemType ||
+        query.itemGroupId ||
+        query.unitId ||
+        query.minPrice !== undefined ||
+        query.maxPrice !== undefined ||
+        query.sku ||
+        query.barcode
+    );
+
+   
+    if (!hasLocalFilters) {
+        try {
+            const params = new URLSearchParams();
+            params.set("page", String(query.page ?? 0));
+            params.set("size", String(query.size ?? 20));
+            if (query.sort) {
+                params.set("sort", query.sort);
+            }
+
+            const response = await backendRequest<any>(
+                `${inventoryItemsBackendPath(businessId)}?${params.toString()}`,
+            );
+
+            if (response && !Array.isArray(response) && "content" in response) {
+                const totalElements =
+                    typeof response.totalElements === "number"
+                        ? response.totalElements
+                        : (response.content?.length ?? 0);
+                const size =
+                    typeof response.size === "number"
+                        ? response.size
+                        : (query.size || 20);
+                const totalPages =
+                    typeof response.totalPages === "number"
+                        ? response.totalPages
+                        : Math.max(1, Math.ceil(totalElements / (size || 1)));
+                const number =
+                    typeof response.number === "number"
+                        ? response.number
+                        : typeof response.page === "number"
+                        ? response.page
+                        : (query.page ?? 0);
+
+                return {
+                    content: response.content ?? [],
+                    page: {
+                        size,
+                        number,
+                        totalElements,
+                        totalPages,
+                    },
+                };
+            }
+        } catch {
+           
+        }
+    }
+
     const all = await getAllInventoryItems(businessId);
 
     const matched = all
