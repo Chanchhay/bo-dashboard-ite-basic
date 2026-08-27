@@ -114,27 +114,40 @@ export async function getInventoryItemsPage(
             );
 
             if (response && !Array.isArray(response) && "content" in response) {
+                // Spring serialises `Page` either flat (the fields sit on the
+                // response) or nested under `page` — Boot 4 defaults to the
+                // nested DTO. Read both, or `totalPages` lands on 1 and the
+                // next-page button stays disabled.
+                const nested =
+                    typeof response.page === "object" && response.page !== null
+                        ? response.page
+                        : null;
+                const content: InventoryItem[] = response.content ?? [];
                 const totalElements =
-                    typeof response.totalElements === "number"
+                    nested?.totalElements ??
+                    (typeof response.totalElements === "number"
                         ? response.totalElements
-                        : (response.content?.length ?? 0);
+                        : content.length);
                 const size =
-                    typeof response.size === "number"
+                    nested?.size ??
+                    (typeof response.size === "number"
                         ? response.size
-                        : (query.size || 20);
+                        : (query.size || 20));
                 const totalPages =
-                    typeof response.totalPages === "number"
+                    nested?.totalPages ??
+                    (typeof response.totalPages === "number"
                         ? response.totalPages
-                        : Math.max(1, Math.ceil(totalElements / (size || 1)));
+                        : Math.max(1, Math.ceil(totalElements / (size || 1))));
                 const number =
-                    typeof response.number === "number"
+                    nested?.number ??
+                    (typeof response.number === "number"
                         ? response.number
                         : typeof response.page === "number"
                         ? response.page
-                        : (query.page ?? 0);
+                        : (query.page ?? 0));
 
                 return {
-                    content: response.content ?? [],
+                    content,
                     page: {
                         size,
                         number,
