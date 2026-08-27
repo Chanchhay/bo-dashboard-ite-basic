@@ -176,13 +176,18 @@ export function ReceiptTicket({
     return null;
   }, [sale?.orderId, sale?.id, order?.id]);
 
+  // The backend names the discount the same way on every channel — prefer
+  // that over the locally-stored rule, which only exists on the device that
+  // applied it and is never populated at all on the customer display.
   const discountLabel = useMemo(() => {
+    if (sale?.discountLabel) return sale.discountLabel;
+    if (order?.discountLabel) return order.discountLabel;
     if (storedRule?.label) return storedRule.label;
     if (discount > 0) {
       return discountPercent > 0 ? `${discountPercent.toFixed(0)}% OFF` : "Savings";
     }
     return null;
-  }, [storedRule, discount, discountPercent]);
+  }, [sale?.discountLabel, order?.discountLabel, storedRule, discount, discountPercent]);
   // The settled record carries the rate it was priced at; only an order still
   // open has to fall back to whatever is configured right now.
   const record = sale ?? order;

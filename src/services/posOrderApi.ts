@@ -40,6 +40,35 @@ function orderFilterParams(input: OrderHistoryQuery | void | null) {
 
 let inFlightCount = 0;
 
+/**
+ * Mirrors the backend's TaxCalculator so an optimistic cart edit never shows
+ * a tax-free total for the instant before the real response lands — the
+ * order's own taxRate/taxInclusionType carry over unchanged by a line edit,
+ * only the amount they apply to does.
+ */
+function optimisticTotal(
+    subtotal: number,
+    discountAmount: number,
+    taxRate: number | null | undefined,
+    taxInclusionType: string | null | undefined,
+): { taxAmount: number; total: number } {
+    const round2 = (value: number) => Math.round(value * 100) / 100;
+    const net = Math.max(0, subtotal - discountAmount);
+    const rate = taxRate ?? 0;
+
+    if (!rate) {
+        return { taxAmount: 0, total: round2(net) };
+    }
+
+    if (taxInclusionType === "INCLUSIVE") {
+        const pretax = net / (1 + rate / 100);
+        return { taxAmount: round2(net - pretax), total: round2(net) };
+    }
+
+    const taxAmount = round2(net * (rate / 100));
+    return { taxAmount, total: round2(net + taxAmount) };
+}
+
 function handleFulfilled(dispatch: any, data: PosOrder | null) {
     if (inFlightCount <= 0 && data) {
         dispatch(
@@ -247,7 +276,14 @@ export const posOrderApi = baseApi.injectEndpoints({
                                 (sum, i) => sum + i.lineTotal + i.discountAmount,
                                 0,
                             );
-                            draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                            const { taxAmount, total } = optimisticTotal(
+                                draft.subtotal,
+                                draft.discountAmount,
+                                draft.taxRate,
+                                draft.taxInclusionType,
+                            );
+                            draft.taxAmount = taxAmount;
+                            draft.total = total;
                         },
                     ),
                 );
@@ -291,7 +327,14 @@ export const posOrderApi = baseApi.injectEndpoints({
                                     (sum, i) => sum + i.lineTotal + i.discountAmount,
                                     0,
                                 );
-                                draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                                const { taxAmount, total } = optimisticTotal(
+                                    draft.subtotal,
+                                    draft.discountAmount,
+                                    draft.taxRate,
+                                    draft.taxInclusionType,
+                                );
+                                draft.taxAmount = taxAmount;
+                                draft.total = total;
                             }
                         },
                     ),
@@ -328,7 +371,14 @@ export const posOrderApi = baseApi.injectEndpoints({
                                 (sum, i) => sum + i.lineTotal + i.discountAmount,
                                 0,
                             );
-                            draft.total = Math.max(0, draft.subtotal - draft.discountAmount);
+                            const { taxAmount, total } = optimisticTotal(
+                                draft.subtotal,
+                                draft.discountAmount,
+                                draft.taxRate,
+                                draft.taxInclusionType,
+                            );
+                            draft.taxAmount = taxAmount;
+                            draft.total = total;
                         },
                     ),
                 );
@@ -455,7 +505,14 @@ export const posOrderApi = baseApi.injectEndpoints({
                         (draft) => {
                             if (!draft) return;
                             draft.discountAmount = body.discountAmount;
-                            draft.total = Math.max(0, draft.subtotal - body.discountAmount);
+                            const { taxAmount, total } = optimisticTotal(
+                                draft.subtotal,
+                                body.discountAmount,
+                                draft.taxRate,
+                                draft.taxInclusionType,
+                            );
+                            draft.taxAmount = taxAmount;
+                            draft.total = total;
                         },
                     ),
                 );

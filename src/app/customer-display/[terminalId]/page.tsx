@@ -38,7 +38,12 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
   const total = displayData?.total ?? 0;
   const subtotal = displayData?.subtotal ?? 0;
   const discount = displayData?.discountAmount ?? 0;
+  const discountLabel = displayData?.discountLabel ?? null;
   const currency = displayData?.currency ?? "USD";
+  const tax = displayData?.tax ?? 0;
+  const taxRate = displayData?.taxRate ?? 0;
+  const isTaxInclusive = displayData?.taxInclusionType === "INCLUSIVE";
+  const taxLabel = businessProfile?.taxLabel || "VAT";
 
   // Real business name, logo & thumbnail from database / published state
   const storeName =
@@ -76,6 +81,10 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
         currency: currency,
         subtotal: subtotal,
         discountAmount: discount,
+        discountLabel: discountLabel,
+        taxRate: taxRate,
+        taxAmount: tax,
+        taxInclusionType: displayData?.taxInclusionType ?? null,
         total: total,
         createdDate: displayData?.updatedAt,
         items: items.map((i) => ({
@@ -100,9 +109,13 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
       businessProfile?.id,
       displayData?.invoiceNumber,
       displayData?.updatedAt,
+      displayData?.taxInclusionType,
       currency,
       subtotal,
       discount,
+      discountLabel,
+      taxRate,
+      tax,
       total,
       items,
     ],
@@ -119,6 +132,10 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
       changeAmount: displayData?.changeAmount ?? 0,
       subtotal: subtotal,
       discountAmount: discount,
+      discountLabel: discountLabel,
+      taxRate: taxRate,
+      taxAmount: tax,
+      taxInclusionType: displayData?.taxInclusionType ?? null,
       totalAmount: total,
       currency: currency,
       soldAt: displayData?.updatedAt || new Date().toISOString(),
@@ -130,8 +147,12 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
     displayData?.paidAmount,
     displayData?.changeAmount,
     displayData?.updatedAt,
+    displayData?.taxInclusionType,
     subtotal,
     discount,
+    discountLabel,
+    taxRate,
+    tax,
     total,
     currency,
   ]);
@@ -457,6 +478,28 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     -{format(discount, currency)}
                   </span>
                 </div>
+                {tax > 0 && !isTaxInclusive && (
+                  <div className="flex justify-between">
+                    <span>
+                      +{taxLabel.includes("VAT") ? "VAT" : taxLabel}
+                      {taxRate > 0 ? ` (${taxRate}%)` : ""} (Tax):
+                    </span>
+                    <span className="font-bold text-primary dark:text-sky-400">
+                      +{format(tax, currency)}
+                    </span>
+                  </div>
+                )}
+                {tax > 0 && isTaxInclusive && (
+                  <div className="flex justify-between italic text-slate-400">
+                    <span>
+                      Incl. {taxLabel.includes("VAT") ? "VAT" : taxLabel}
+                      {taxRate > 0 ? ` (${taxRate}%)` : ""}:
+                    </span>
+                    <span className="font-mono font-bold">
+                      ({format(tax, currency)})
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Right Grand Total Box */}
