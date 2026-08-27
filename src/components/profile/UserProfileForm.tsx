@@ -599,7 +599,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         type="submit"
                         disabled={isSaving}
                         size="lg"
-                            className="min-w-28"
+                        className="min-w-28"
                     >
                         {isSaving ? "Saving…" : "Save changes"}
                     </Button>

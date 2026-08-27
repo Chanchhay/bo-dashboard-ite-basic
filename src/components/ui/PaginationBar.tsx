@@ -41,8 +41,8 @@ export function PaginationBar({
   onPageChange,
   onSizeChange,
   isLoading = false,
-  sizeOptions = [10, 25, 50, 100],
-  itemLabel = "item",
+  sizeOptions = [10, 20, 25, 50, 100],
+  itemLabel = "row",
   itemLabelPlural,
   className,
 }: PaginationBarProps) {
@@ -61,14 +61,14 @@ export function PaginationBar({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 border-t border-border bg-card px-4 py-3.5 sm:px-6",
+        "flex w-full flex-col gap-3 border-t border-border bg-card px-4 py-3 sm:px-6",
         "sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
       {/* Left: rows per page */}
-      <div className="flex items-center gap-2.5">
-        <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
           Items per page
         </span>
         <Select
@@ -79,10 +79,10 @@ export function PaginationBar({
           }}
           disabled={isLoading}
         >
-          <SelectTrigger className="h-9 w-[4.5rem] rounded-xl border border-border bg-card px-3 text-xs sm:text-sm font-bold text-foreground shadow-2xs hover:bg-muted/40 transition-colors cursor-pointer">
+          <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[4.25rem] rounded-xl border border-border/90 bg-card px-3 text-xs sm:text-sm font-bold text-foreground shadow-2xs hover:bg-muted/40 transition-colors cursor-pointer gap-2">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="start" className="min-w-[4.5rem]">
             {sizeOptions.map((option) => (
               <SelectItem key={option} value={String(option)} className="font-semibold text-xs sm:text-sm">
                 {option}
@@ -93,9 +93,9 @@ export function PaginationBar({
       </div>
 
       {/* Right: range readout and page stepper */}
-      <div className="flex items-center gap-3 sm:gap-5">
-        <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
-          <span className="font-bold text-foreground">
+      <div className="flex items-center gap-4 sm:gap-6">
+        <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
+          <span className="font-semibold text-foreground">
             {firstRow}
             {lastRow > firstRow ? `\u2013${lastRow}` : ""}
           </span>{" "}
@@ -103,12 +103,12 @@ export function PaginationBar({
           {noun}
         </span>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
-            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30"
+            size="icon"
+            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30 disabled:pointer-events-none"
             aria-label="Previous page"
             disabled={!canGoBack}
             onClick={() => onPageChange(currentPage - 1)}
@@ -116,15 +116,15 @@ export function PaginationBar({
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <span className="text-xs sm:text-sm font-bold whitespace-nowrap text-foreground">
+          <span className="text-xs sm:text-sm font-bold whitespace-nowrap text-foreground tracking-tight">
             Page {currentPage + 1} of {safeTotalPages}
           </span>
 
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
-            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30"
+            size="icon"
+            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30 disabled:pointer-events-none"
             aria-label="Next page"
             disabled={!canGoForward}
             onClick={() => onPageChange(currentPage + 1)}

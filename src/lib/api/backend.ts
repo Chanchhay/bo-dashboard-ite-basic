@@ -22,11 +22,6 @@ export class BackendApiError extends Error {
     constructor(
         message: string,
         readonly status: number,
-        /**
-         * The sign-in itself is over — not merely this request refused. The
-         * browser is told so it can restart OAuth rather than offer a retry
-         * that cannot succeed.
-         */
         readonly sessionExpired = false,
     ) {
         super(message);
@@ -47,18 +42,8 @@ function getApiBaseUrl() {
     return baseUrl;
 }
 
-/**
- * A usable Keycloak access token, refreshed when needed and persisted here so
- * the browser converges on the rotated cookie. All rotation lives in
- * `@/lib/auth/keycloak-token`; nothing in this file may refresh on its own.
- */
 async function getKeycloakAccessToken(renew = false) {
     const requestHeaders = await headers();
-
-    // The account cookie holds the Keycloak tokens, but the session cookie is
-    // what says this browser is still signed in. Both are written and expired
-    // together, so a live account cookie without a session means a sign-out
-    // this request must not be allowed to outlive.
     const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session) {
@@ -89,12 +74,6 @@ async function getKeycloakAccessToken(renew = false) {
     }
 }
 
-/**
- * Whether the request can be sent a second time. A 401 means the backend
- * rejected the token before reading the body, so replaying is safe — but only
- * for a body we can hand to `fetch` twice. A stream is consumed by the first
- * attempt and cannot be.
- */
 function isReplayable(body: RequestInit["body"]) {
     return (
         body === undefined ||
@@ -133,7 +112,6 @@ export async function backendResponse(
         requestHeaders.set("Accept", "application/json");
     }
 
-    // `FormData` bodies must keep the boundary `fetch` generates for them.
     if (
         typeof init?.body === "string" &&
         !requestHeaders.has("Content-Type")
@@ -153,12 +131,6 @@ export async function backendResponse(
 
     let response = await send(await getKeycloakAccessToken());
 
-    /*
-     * The backend is the only party that can tell us a token it was given is
-     * no longer good. Access tokens are short enough that one can expire
-     * between being resolved and being read, so a 401 earns a forced refresh
-     * and one replay rather than an error the user has to click through.
-     */
     if (response.status === 401 && isReplayable(init?.body)) {
         response = await send(await getKeycloakAccessToken(true));
     }
@@ -180,9 +152,9 @@ export async function backendRequest<T>(
 ) {
     const response = await backendResponse(path, init);
 
-    // Several endpoints answer 200/201 with an empty body (creating or
-    // updating staff and roles, for instance). `response.json()` throws on
-    // those, so read the text first and only parse when there is something.
+    
+    
+    
     const text = await response.text();
 
     return (text ? JSON.parse(text) : undefined) as T;
