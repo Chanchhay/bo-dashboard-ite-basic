@@ -14,6 +14,9 @@ import { type ImportRow } from "@/lib/api/data-import";
 const SHOWN_VALUES = [
     { key: "name", label: "Name" },
     { key: "itemName", label: "Item" },
+    // On a file listing one row per option, the name repeats down the page and
+    // this is the only column that tells one row from the next.
+    { key: "option", label: "Option" },
     { key: "sku", label: "SKU" },
     { key: "itemGroup", label: "Category" },
     { key: "price", label: "Price" },
