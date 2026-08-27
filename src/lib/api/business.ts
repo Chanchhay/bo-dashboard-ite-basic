@@ -82,6 +82,40 @@ const optionalPhoneSchema = z
         "Use 8–30 characters containing only numbers, spaces, and an optional +.",
     );
 
+const optionalUrlSchema = z
+    .string()
+    .trim()
+    .max(255, "Website must be 255 characters or fewer.")
+    .refine(
+        (value) => {
+            if (!value) return true;
+            try {
+                const url = new URL(value);
+                return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+                return false;
+            }
+        },
+        "Enter a valid website link (e.g. https://example.com).",
+    );
+
+const optionalGoogleMapUrlSchema = z
+    .string()
+    .trim()
+    .max(255, "Google Map URL must be 255 characters or fewer.")
+    .refine(
+        (value) => {
+            if (!value) return true;
+            try {
+                const url = new URL(value);
+                return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+                return false;
+            }
+        },
+        "Enter a valid Google Map link (e.g. https://maps.app.goo.gl/...).",
+    );
+
 /** Cambodia's bounding box, padded — catches a mis-dropped pin, not a precise fence. */
 const coordinateBounds = { latitude: [9, 15], longitude: [102, 108] } as const;
 
@@ -112,19 +146,13 @@ export const businessProfileSchema = z.object({
         .trim()
         .max(255, "Description must be 255 characters or fewer."),
     email: optionalEmailSchema,
-    website: z
-        .string()
-        .trim()
-        .max(255, "Website must be 255 characters or fewer."),
+    website: optionalUrlSchema,
     phoneNumber: optionalPhoneSchema,
     address: z
         .string()
         .trim()
         .max(255, "Address must be 255 characters or fewer."),
-    googleMap: z
-        .string()
-        .trim()
-        .max(255, "Google Map URL must be 255 characters or fewer."),
+    googleMap: optionalGoogleMapUrlSchema,
     provinceName: z
         .string()
         .trim()

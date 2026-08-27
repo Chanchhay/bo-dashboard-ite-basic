@@ -351,7 +351,7 @@ function AccountForm({
                     )}
                 </div>
 
-                <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border pt-5">
+                <div className="sticky -bottom-8 z-30 -mx-5 -mb-5 mt-6 flex flex-wrap items-center justify-end gap-3 rounded-b-2xl border-t border-border bg-card px-5 py-4">
                     {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
@@ -389,7 +389,7 @@ function PreviewCard({ khqr }: { khqr: Khqr }) {
                         this is only to confirm the details are accepted.
                     </p>
                     {khqr.qrImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                        
                         <img
                             src={khqr.qrImage}
                             alt="Test KHQR code"

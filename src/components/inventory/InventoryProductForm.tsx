@@ -2175,7 +2175,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         ) : null}
       </div>
 
-      <div className="-mx-5 flex shrink-0 flex-row items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-4 lg:-mx-8 lg:px-8 sm:gap-3">
+      <div className="sticky -bottom-8 z-30 -mx-5 flex shrink-0 flex-row items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8 sm:gap-3">
         <Button
           variant="outline"
           render={<Link href="/inventory" />}

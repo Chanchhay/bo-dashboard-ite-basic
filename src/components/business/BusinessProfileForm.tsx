@@ -56,7 +56,7 @@ import {
 } from "@/services/businessApi";
 import { useAppDispatch } from "@/store/hooks";
 
-// Leaflet touches `window` at module load, so this can only ever run client-side.
+
 const LocationMapPicker = dynamic(
     () =>
         import("@/components/business/LocationMapPicker").then(
@@ -236,11 +236,10 @@ function StagedImageField({
                             onClick={
                                 staged.isDirty ? staged.reset : staged.remove
                             }
-                            className={`h-auto px-2 py-1 text-xs font-medium ${
-                                staged.isDirty
-                                    ? "text-[#4b5563] dark:text-[#94a3b8] hover:text-primary"
-                                    : "text-danger hover:text-danger"
-                            }`}
+                            className={`h-auto px-2 py-1 text-xs font-medium ${staged.isDirty
+                                ? "text-[#4b5563] dark:text-[#94a3b8] hover:text-primary"
+                                : "text-danger hover:text-danger"
+                                }`}
                         >
                             {staged.isDirty
                                 ? `Undo ${noun.toLowerCase()} change`
@@ -285,23 +284,16 @@ function BusinessProfileEditor({
         business.thumbnail || "",
     );
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-    // The map picker holds its own React state, so a native form.reset()
-    // can't touch it — bumping this key remounts it, re-reading `initial`.
+
     const [locationResetKey, setLocationResetKey] = useState(0);
-    // Set once "Use this link" resolves; overrides `business`'s saved
-    // location as the picker's `initial` until cancelled or saved over.
+ 
     const [locationOverride, setLocationOverride] = useState<LocationValue | null>(
         null,
     );
     const [isLinkingLocation, setIsLinkingLocation] = useState(false);
-    // Guards against re-detecting on every blur when the field hasn't
-    // actually changed since the last successful (or failed) attempt.
+ 
     const lastDetectedLinkRef = useRef<string | null>(business.googleMap || null);
-    // The Address field is an uncontrolled defaultValue like the rest of the
-    // form; this forces it to remount with a new one once detection resolves
-    // — the same trick as `locationResetKey`, for the same reason (a plain
-    // ref-set wouldn't survive a re-render, and there's no controlled state
-    // to push into otherwise).
+
     const [detectedAddress, setDetectedAddress] = useState<string | null>(null);
 
     function handleCancel() {
@@ -314,7 +306,7 @@ function BusinessProfileEditor({
         setLocationResetKey((key) => key + 1);
     }
 
-    /** Fires on blur — no button to click, the business just pastes the link and moves on. */
+ 
     async function autoDetectLocationFromLink(
         event: FocusEvent<HTMLInputElement>,
     ) {
@@ -353,8 +345,7 @@ function BusinessProfileEditor({
             });
             setLocationResetKey((key) => key + 1);
             if (data.label) {
-                // The address field validates at 255 characters; Nominatim's
-                // full display_name can run longer than that.
+               
                 setDetectedAddress((data.label as string).slice(0, 255));
             }
             toast({
@@ -472,7 +463,7 @@ function BusinessProfileEditor({
                         preview={
                             <span className="flex size-24 sm:size-32 items-center justify-center overflow-hidden rounded-full bg-[#e8e8e8] dark:bg-[#252a38]">
                                 {logo.preview ? (
-                                    
+
                                     <Image
                                         src={logo.preview}
                                         alt="Business logo preview"
@@ -601,6 +592,7 @@ function BusinessProfileEditor({
                                 id="website"
                                 name="website"
                                 type="url"
+                                placeholder="https://example.com"
                                 defaultValue={business.website || ""}
                                 maxLength={255}
                                 aria-invalid={Boolean(fieldErrors.website)}
@@ -656,6 +648,7 @@ function BusinessProfileEditor({
                                 id="googleMap"
                                 name="googleMap"
                                 type="url"
+                                placeholder="https://maps.app.goo.gl/..."
                                 defaultValue={business.googleMap || ""}
                                 maxLength={255}
                                 aria-invalid={Boolean(fieldErrors.googleMap)}
@@ -686,14 +679,12 @@ function BusinessProfileEditor({
                         }
                     }
                     onChange={() => {
-                        // The picker's own inputs carry `name=` attributes and
-                        // feed the surrounding <form>'s FormData directly —
-                        // nothing else needs to track the live value.
+                        
                     }}
                 />
             </section>
 
-            <div className="flex flex-col gap-2 pt-0 sm:flex-row sm:items-center sm:justify-between">
+            <div className="sticky -bottom-8 z-30 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 rounded-b-xl border-t border-gray-100 dark:border-[#242937] bg-white dark:bg-[#1a1e29] px-4 py-3.5 sm:px-6 sm:py-4">
                 <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto" data-tour="profile-save">
                     <Button
                         type="button"

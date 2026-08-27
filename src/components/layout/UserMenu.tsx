@@ -67,7 +67,7 @@ export default function UserMenu({
                         className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-[13px] font-medium text-white"
                     >
                         {picture ? (
-                            // eslint-disable-next-line @next/next/no-img-element
+                            
                             <img
                                 src={picture}
                                 alt=""
