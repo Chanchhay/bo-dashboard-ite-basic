@@ -1,13 +1,5 @@
 import { z } from "zod";
 
-/**
- * Bringing a shop's data across from whatever it used before.
- *
- * The words on screen are deliberately not the words in the backend. A
- * shopkeeper is doing five things — upload, match, check, review, import —
- * and nothing here should ever say staging, canonical or commit at them.
- */
-
 export const IMPORT_TARGET_TYPES = [
     "ITEM_GROUP",
     "ITEM",
@@ -89,7 +81,7 @@ export type ImportField = {
 export type ImportColumns = {
     sourceColumns: string[];
     targetFields: ImportField[];
-    /** Column heading to field name, worked out from the heading's wording. */
+    
     suggestions: Record<string, string>;
     currentMappings: Record<string, string>;
     sampleRows: Record<string, string>[];
@@ -189,8 +181,6 @@ export const importMappingSchema = z.object({
 
 export type ImportMappingInput = z.infer<typeof importMappingSchema>;
 
-// --- what the screens say -----------------------------------------------------------
-
 export const IMPORT_TARGET_LABELS: Record<ImportTargetType, string> = {
     ITEM_GROUP: "Categories",
     ITEM: "Items",
@@ -205,7 +195,6 @@ export const IMPORT_TARGET_DESCRIPTIONS: Record<ImportTargetType, string> = {
         "How much of each item you have right now. Your items must already be in FluxiBiz.",
 };
 
-/** Plain words for a status, so no screen has to show an enum. */
 export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
     UPLOADED: "Uploaded",
     MAPPED: "Columns matched",
@@ -232,7 +221,6 @@ export const ACCEPTED_IMPORT_EXTENSIONS = [".csv", ".xlsx"] as const;
 export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 20_000;
 
-/** Whether the server is still working, and the screen should keep watching. */
 export function isImportRunning(status: ImportStatus) {
     return status === "VALIDATING" || status === "COMMITTING";
 }
