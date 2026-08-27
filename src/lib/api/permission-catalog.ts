@@ -1,32 +1,8 @@
-/**
- * The permission vocabulary, mirrored from the Keycloak client-role export in
- * `api-docs/keycloak-client-role.json` (client `fluxipos-backend`). Keycloak
- * remains the source of truth; this file gives the same names human labels, a
- * stable grouping, and — through the `Permission` union below — compile-time
- * checking wherever the app names one.
- *
- * There is only one permission vocabulary in this app. A business role is a
- * composite of these names, the access token carries the ones a user was
- * granted, and the navigation gates on them directly. Nothing translates
- * between two sets of names, so a permission added in Keycloak reaches the UI
- * by being added to this list and nowhere else.
- *
- * `scope: "platform"` covers the `admin-*` roles, which belong to platform
- * administration (`/api/v1/platform/roles`) rather than to a business role, so
- * the business role editor leaves them out.
- */
+
 export type PermissionOption = {
     readonly value: string;
     readonly label: string;
-    /**
-     * Mirrors `businessStaffAssignable` / `platformStaffAssignable` on the
-     * backend's `PermissionCode` enum. `KeycloakRoleAdapter` rejects anything
-     * a role editor is not allowed to grant with a 403, and rolls the whole
-     * role back, so offering one of these in the picker produces a role that
-     * cannot be saved. Some permissions are assignable to neither: they reach
-     * a user through a built-in realm role instead — `profile:*` through
-     * `USER`, `business:create` / `business:delete` through `BUSINESS`.
-     */
+    
     readonly businessAssignable: boolean;
     readonly platformAssignable: boolean;
 };
@@ -34,16 +10,12 @@ export type PermissionOption = {
 export type PermissionGroup = {
     readonly id: string;
     readonly label: string;
-    /** Which editor the group belongs in; assignability is per permission. */
+    
     readonly scope: "business" | "platform";
     readonly permissions: readonly PermissionOption[];
 };
 
-/**
- * `as const satisfies` is load-bearing: it keeps every `value` a string
- * literal so `Permission` below is a union of the real names, which is what
- * turns a typo in a navigation gate into a build error.
- */
+
 export const PERMISSION_GROUPS = [
     {
         id: "admin-audit",
@@ -497,21 +469,11 @@ export const PERMISSION_GROUPS = [
     },
 ] as const satisfies readonly PermissionGroup[];
 
-/**
- * Every permission Keycloak can grant, as a union. Anything that names a
- * permission — a navigation gate, a page guard — should use this type rather
- * than `string`, so a rename in Keycloak surfaces here as a type error instead
- * of as a menu that silently stops appearing.
- */
+
 export type Permission =
     (typeof PERMISSION_GROUPS)[number]["permissions"][number]["value"];
 
-/**
- * What the business role editor may offer: business-scoped groups, minus the
- * individual permissions the backend refuses to assign to business staff.
- * Filtering per permission rather than per group matters — `business:read` is
- * assignable while `business:create` in the same group is not.
- */
+
 export const BUSINESS_PERMISSION_GROUPS: readonly PermissionGroup[] =
     PERMISSION_GROUPS.filter((group) => group.scope === "business")
         .map((group) => ({
@@ -535,7 +497,7 @@ const PERMISSION_LABELS = new Map<string, string>(
     ),
 );
 
-/** Falls back to the raw value so a permission added in Keycloak still renders. */
+
 export function describePermission(value: string) {
     return PERMISSION_LABELS.get(value) ?? value;
 }

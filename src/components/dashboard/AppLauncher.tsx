@@ -62,7 +62,7 @@ export default function AppLauncher({
                         label="Install App"
                         variant="default"
                         size="sm"
-                        className="hidden sm:inline-flex bg-[#00932a] text-white hover:bg-[#00932a]/90"
+                        className="hidden sm:inline-flex bg-white text-primary border-primary rounded-4xl hover:bg-white hover:scale-103 transition-transform duration-200"
                     />
 
                     <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">

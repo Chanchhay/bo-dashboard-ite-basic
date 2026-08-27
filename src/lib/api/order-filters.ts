@@ -18,12 +18,7 @@ function validIsoDate(value: string | null) {
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-/**
- * The search clauses behind Sale Management's filter bar.
- *
- * The list and the totals must agree on which orders exist, so both read the
- * same query string through here rather than each building their own.
- */
+
 export function orderFiltersFromQuery(url: URL): OrderFilter[] {
     const status = oneOf(url.searchParams.get("status"), STATUSES);
     const channel = oneOf(url.searchParams.get("channel"), CHANNELS);
@@ -58,11 +53,7 @@ export function orderFiltersFromQuery(url: URL): OrderFilter[] {
     ];
 }
 
-/**
- * A cart the cashier opened and never rang anything into is not an order any
- * owner would recognise, so it stays out of the history the way it stays out
- * of the open-orders list.
- */
+
 export function isRealOrder(order: PosOrder) {
     return (
         order.status !== "PENDING" ||
@@ -71,7 +62,7 @@ export function isRealOrder(order: PosOrder) {
     );
 }
 
-/** Clamps a page number or size from the query string. */
+
 export function boundedInteger(
     value: string | null,
     fallback: number,

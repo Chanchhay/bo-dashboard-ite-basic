@@ -4,13 +4,7 @@ export const bakongAccountTypes = ["INDIVIDUAL", "MERCHANT"] as const;
 
 export type BakongAccountType = (typeof bakongAccountTypes)[number];
 
-/**
- * What the backend reports back.
- *
- * There is no `apiToken` here by design: the token is write-only, and only
- * whether one exists comes back. Never render a placeholder that could pass
- * for the real secret.
- */
+
 export type BakongSettings = {
     id?: string;
     businessId?: string;
@@ -26,7 +20,7 @@ export type BakongSettings = {
     active?: boolean;
 };
 
-/** `configured` is false when the business has never set Bakong up. */
+
 export type BakongState = {
     configured: boolean;
     settings: BakongSettings | null;
@@ -57,10 +51,7 @@ export const bakongSettingsSchema = z.object({
     acquiringBank: optionalText(120),
     mobileNumber: optionalText(40),
     storeLabel: optionalText(120),
-    /**
-     * Omitted rather than sent empty when the merchant isn't replacing it —
-     * an empty string would wipe a working token and break KHQR silently.
-     */
+    
     apiToken: optionalText(500),
 });
 
@@ -77,7 +68,7 @@ export const khqrPreviewSchema = z.object({
 
 export type KhqrPreviewInput = z.infer<typeof khqrPreviewSchema>;
 
-/** Blank form values, used before anything has been configured. */
+
 export const emptyBakongSettings: BakongSettingsInput = {
     accountType: "INDIVIDUAL",
     bakongAccountId: "",

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PageResult } from "./pagination";
 
-/* ------------------------------ Staff ------------------------------- */
+
 export const staffStatuses = ["ACTIVE", "INACTIVE"] as const;
 export type StaffStatus = (typeof staffStatuses)[number];
 
@@ -24,7 +24,7 @@ export const genders = ["MALE", "FEMALE", "OTHER", "UNSPECIFIED"] as const;
 const requiredText = (max: number, message: string) =>
     z.string().trim().min(1, message).max(max, `Use ${max} characters or fewer.`);
 
-/** Matches CreateStaffRequest in the OpenAPI document. */
+
 export const createStaffSchema = z.object({
     username: requiredText(255, "Username is required."),
     email: z.email("Enter a valid email address."),
@@ -44,7 +44,7 @@ export const createStaffSchema = z.object({
     roleId: z.string().trim(),
 });
 
-/** Matches UpdateStaffRequest — no username, email or password. */
+
 export const updateStaffSchema = createStaffSchema.omit({
     username: true,
     email: true,
@@ -59,7 +59,7 @@ export type CreateStaffInput = z.infer<typeof createStaffSchema>;
 export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 export type StaffStatusInput = z.infer<typeof staffStatusSchema>;
 
-/** The backend rejects an empty `roleId`, so send it only when chosen. */
+
 export function toStaffRequest<T extends { roleId: string }>(input: T) {
     const { roleId, ...rest } = input;
     return roleId ? { ...rest, roleId } : rest;
@@ -74,7 +74,7 @@ export function staffFullName(staff: Staff) {
     return name || staff.username || staff.email || "Unnamed user";
 }
 
-/* ------------------------------ Roles ------------------------------- */
+
 export type BusinessRole = {
     id: string;
     name?: string;
@@ -90,7 +90,7 @@ export const businessRoleSchema = z.object({
 
 export type BusinessRoleInput = z.infer<typeof businessRoleSchema>;
 
-/* ---------------------------- Audit logs ---------------------------- */
+
 export const auditActionTypes = [
     "BUSINESS_ACTIVATED",
     "BUSINESS_SUSPENDED",
@@ -160,7 +160,7 @@ export type AuditLogQuery = {
     size?: number;
 };
 
-/** `BUSINESS_CATEGORY_UPDATED` → `Business category updated`. */
+
 export function humanizeEnum(value: string | undefined) {
     if (!value) return "—";
 
