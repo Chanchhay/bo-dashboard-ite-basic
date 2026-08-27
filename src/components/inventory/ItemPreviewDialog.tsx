@@ -779,6 +779,18 @@ function SpecGrid({ specs }: { specs: PreviewAttribute[] }) {
     );
 }
 
+/** The card shown when there is nothing to show. */
+function NoImage() {
+    return (
+        <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center shadow-xs">
+            <div className="flex flex-col items-center gap-2 text-[#a3aca1] dark:text-[#64748b]">
+                <ImageOff className="size-8" />
+                <p className="text-sm font-medium">No image available</p>
+            </div>
+        </div>
+    );
+}
+
 function Gallery({
     images,
     name,
@@ -790,23 +802,33 @@ function Gallery({
     index: number;
     onSelect: (index: number) => void;
 }) {
-    if (!images.length) {
-        return (
-            <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center shadow-xs">
-                <div className="flex flex-col items-center gap-2 text-[#a3aca1] dark:text-[#64748b]">
-                    <ImageOff className="size-8" />
-                    <p className="text-sm font-medium">No image available</p>
-                </div>
-            </div>
+    /*
+     * An address is not a picture. Items brought in from another system carry
+     * links to that system's images, and those are as likely as not to be
+     * unreachable from here — a private CDN, a host that has moved on, a URL
+     * that was only ever a placeholder. A broken <img> renders as an empty box
+     * with no hint of why, so anything that fails to load is dropped and the
+     * gallery falls back to saying plainly that there is no picture.
+     */
+    const [broken, setBroken] = useState<string[]>([]);
+    const usable = images.filter((image) => !broken.includes(image));
+
+    function markBroken(image: string) {
+        setBroken((previous) =>
+            previous.includes(image) ? previous : [...previous, image],
         );
     }
 
-    const active = images[Math.min(index, images.length - 1)];
+    if (!usable.length) {
+        return <NoImage />;
+    }
+
+    const active = usable[Math.min(index, usable.length - 1)];
 
     return (
         <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex flex-row sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-w-full shrink-0">
-                {images.map((image, position) => (
+                {usable.map((image, position) => (
                     <button
                         key={`${image}-${position}`}
                         type="button"
@@ -824,6 +846,7 @@ function Gallery({
                             src={image}
                             alt=""
                             className="size-full object-cover"
+                            onError={() => markBroken(image)}
                         />
                     </button>
                 ))}
@@ -833,6 +856,7 @@ function Gallery({
                     src={active}
                     alt={name || "Item image"}
                     className="size-full object-cover transition-all duration-300"
+                    onError={() => markBroken(active)}
                 />
             </div>
         </div>
