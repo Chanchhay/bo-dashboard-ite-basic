@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Lock, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select-field";
+import { cn } from "@/lib/utils";
 import {
     EmptyState,
     ErrorState,
@@ -153,9 +154,9 @@ export default function AuditsTab({
                 </div>
             </div>
 
-            {auditQuery.isLoading ? (
+            {auditQuery.isLoading && !auditQuery.data ? (
                 <LoadingState label="Loading audits" />
-            ) : auditQuery.error ? (
+            ) : auditQuery.error && !auditQuery.data ? (
                 <ErrorState
                     message={getApiErrorMessage(
                         auditQuery.error,
@@ -174,7 +175,12 @@ export default function AuditsTab({
                 />
             ) : (
                 <>
-                    <div className="mt-5 overflow-x-auto">
+                    <div
+                        className={cn(
+                            "mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
+                            auditQuery.isFetching && "opacity-60 pointer-events-none",
+                        )}
+                    >
                         <table className="w-full min-w-[760px] border-collapse text-left">
                             <caption className="sr-only">
                                 Administrative audit entries
@@ -238,23 +244,21 @@ export default function AuditsTab({
                         </table>
                     </div>
 
-                    <nav
-                        aria-label="Audit pages"
-                        className="mt-5 flex flex-wrap items-center justify-between gap-3"
-                    >
-                        <PaginationBar
-                            page={page}
-                            size={pageSize}
-                            totalElements={totalElements}
-                            totalPages={totalPages}
-                            onPageChange={setPage}
-                            onSizeChange={setPageSize}
-                            isLoading={auditQuery.isFetching}
-                            itemLabel="entry"
-                            itemLabelPlural="entries"
-                            className="mt-5 rounded-xl border border-border"
-                        />
-                    </nav>
+                    <PaginationBar
+                        page={page}
+                        size={pageSize}
+                        totalElements={totalElements}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        onSizeChange={(next) => {
+                            setPageSize(next);
+                            setPage(0);
+                        }}
+                        sizeOptions={[1, 2, 5, 10, 20, 50]}
+                        isLoading={auditQuery.isFetching}
+                        itemLabel="entry"
+                        itemLabelPlural="entries"
+                    />
                 </>
             )}
         </Panel>

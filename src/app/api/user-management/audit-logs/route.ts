@@ -1,4 +1,5 @@
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { toPageResult } from "@/lib/api/pagination";
 import type { AuditLogPage } from "@/lib/api/user-management";
 
 /** Only the filters the Audits tab exposes are forwarded. */
@@ -27,11 +28,11 @@ export async function GET(request: Request) {
         // `sort` is repeatable, so it can't come through the loop above.
         if (!query.has("sort")) query.set("sort", "createdAt,desc");
 
-        const logs = await backendRequest<AuditLogPage>(
+        const logs = await backendRequest<any>(
             `/api/v1/admin/audit-logs?${query.toString()}`,
         );
 
-        return Response.json(logs);
+        return Response.json(toPageResult(logs));
     } catch (error) {
         return backendErrorResponse(error);
     }

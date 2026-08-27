@@ -3,13 +3,7 @@ import { z } from "zod";
 import { dayKeys } from "@/lib/sale-pricing/schedule";
 import { overrideKinds } from "@/lib/sale-pricing/pricing";
 
-/**
- * What one sales channel does differently.
- *
- * The catalogue is not repeated here — the screen already has every item and
- * its business price. A channel only ever adds three things: what it sells,
- * what it charges instead, and when it is open.
- */
+
 
 const timeWindowSchema = z.object({
     /** `HH:MM`, 24-hour. */

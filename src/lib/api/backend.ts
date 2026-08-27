@@ -22,11 +22,7 @@ export class BackendApiError extends Error {
     constructor(
         message: string,
         readonly status: number,
-        /**
-         * The sign-in itself is over — not merely this request refused. The
-         * browser is told so it can restart OAuth rather than offer a retry
-         * that cannot succeed.
-         */
+      
         readonly sessionExpired = false,
     ) {
         super(message);

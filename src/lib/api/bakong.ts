@@ -4,13 +4,7 @@ export const bakongAccountTypes = ["INDIVIDUAL", "MERCHANT"] as const;
 
 export type BakongAccountType = (typeof bakongAccountTypes)[number];
 
-/**
- * What the backend reports back.
- *
- * There is no `apiToken` here by design: the token is write-only, and only
- * whether one exists comes back. Never render a placeholder that could pass
- * for the real secret.
- */
+
 export type BakongSettings = {
     id?: string;
     businessId?: string;

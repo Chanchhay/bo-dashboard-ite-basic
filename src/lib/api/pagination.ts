@@ -18,14 +18,86 @@ type SpringPage<T> = {
   totalPages: number;
 };
 
-export function toPageResult<T>(springPage: SpringPage<T>): PageResult<T> {
+export function toPageResult<T>(
+  springPage: any,
+  searchParams?:
+    | URLSearchParams
+    | { page?: number | string; size?: number | string },
+): PageResult<T> {
+  if (!springPage) {
+    return {
+      content: [],
+      page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+    };
+  }
+
+  const reqPage =
+    typeof searchParams === "object" && searchParams !== null
+      ? searchParams instanceof URLSearchParams
+        ? Number(searchParams.get("page") ?? 0)
+        : Number(searchParams.page ?? 0)
+      : 0;
+
+  const reqSize =
+    typeof searchParams === "object" && searchParams !== null
+      ? searchParams instanceof URLSearchParams
+        ? Number(searchParams.get("size") ?? 20)
+        : Number(searchParams.size ?? 20)
+      : 20;
+
+  if (Array.isArray(springPage)) {
+    const totalElements = springPage.length;
+    const size = Math.max(1, reqSize || 20);
+    const totalPages = Math.max(1, Math.ceil(totalElements / size));
+    const number = Math.min(Math.max(0, reqPage || 0), totalPages - 1);
+    const start = number * size;
+
+    return {
+      content: springPage.slice(start, start + size),
+      page: {
+        size,
+        number,
+        totalElements,
+        totalPages,
+      },
+    };
+  }
+
+  const content = springPage.content ?? [];
+  const size =
+    typeof springPage.size === "number"
+      ? springPage.size
+      : (springPage.pageable?.pageSize ?? reqSize ?? 20);
+  const number =
+    typeof springPage.number === "number"
+      ? springPage.number
+      : typeof springPage.page === "number"
+        ? springPage.page
+        : typeof springPage.page?.number === "number"
+          ? springPage.page.number
+          : (springPage.pageable?.pageNumber ?? reqPage ?? 0);
+  const totalElements =
+    typeof springPage.totalElements === "number"
+      ? springPage.totalElements
+      : typeof springPage.page?.totalElements === "number"
+        ? springPage.page.totalElements
+        : typeof springPage.total === "number"
+          ? springPage.total
+          : content.length;
+  const totalPages =
+    typeof springPage.totalPages === "number"
+      ? springPage.totalPages
+      : typeof springPage.page?.totalPages === "number"
+        ? springPage.page.totalPages
+        : Math.max(1, Math.ceil(totalElements / (size || 1)));
+
   return {
-    content: springPage.content,
+    content,
     page: {
-      size: springPage.size,
-      number: springPage.number,
-      totalElements: springPage.totalElements,
-      totalPages: springPage.totalPages,
+      size,
+      number,
+      totalElements,
+      totalPages,
     },
   };
 }

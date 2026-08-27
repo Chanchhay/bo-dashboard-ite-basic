@@ -610,6 +610,7 @@ function BusinessProfileEditor({
                                     id="phoneNumber"
                                     name="phoneNumber"
                                     type="tel"
+                                    placeholder="012 345 678"
                                     defaultValue={business.phoneNumber || ""}
                                     maxLength={30}
                                     aria-invalid={Boolean(

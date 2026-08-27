@@ -62,7 +62,7 @@ export function PaginationBar({
     <div
       className={cn(
         "flex w-full flex-col gap-3 border-t border-border bg-card px-4 py-3 sm:px-6",
-        "sm:flex-row sm:items-center sm:justify-between",
+        "sm:flex-row sm:items-center sm:justify-between transition-all duration-200",
         className,
       )}
     >
@@ -84,7 +84,11 @@ export function PaginationBar({
           </SelectTrigger>
           <SelectContent align="start" className="min-w-[4.5rem]">
             {sizeOptions.map((option) => (
-              <SelectItem key={option} value={String(option)} className="font-semibold text-xs sm:text-sm">
+              <SelectItem
+                key={option}
+                value={String(option)}
+                className="font-semibold text-xs sm:text-sm cursor-pointer"
+              >
                 {option}
               </SelectItem>
             ))}
@@ -108,7 +112,7 @@ export function PaginationBar({
             type="button"
             variant="outline"
             size="icon"
-            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30 disabled:pointer-events-none"
+            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground active:scale-90 transition-all duration-150 cursor-pointer shadow-2xs disabled:opacity-30 disabled:pointer-events-none disabled:active:scale-100"
             aria-label="Previous page"
             disabled={!canGoBack}
             onClick={() => onPageChange(currentPage - 1)}
@@ -116,7 +120,7 @@ export function PaginationBar({
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <span className="text-xs sm:text-sm font-bold whitespace-nowrap text-foreground tracking-tight">
+          <span className="text-xs sm:text-sm font-bold whitespace-nowrap text-foreground tracking-tight select-none">
             Page {currentPage + 1} of {safeTotalPages}
           </span>
 
@@ -124,7 +128,7 @@ export function PaginationBar({
             type="button"
             variant="outline"
             size="icon"
-            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30 disabled:pointer-events-none"
+            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground active:scale-90 transition-all duration-150 cursor-pointer shadow-2xs disabled:opacity-30 disabled:pointer-events-none disabled:active:scale-100"
             aria-label="Next page"
             disabled={!canGoForward}
             onClick={() => onPageChange(currentPage + 1)}

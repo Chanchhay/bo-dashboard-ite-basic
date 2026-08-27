@@ -24,6 +24,7 @@ import {
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import {
     EmptyState,
     ErrorState,
@@ -155,6 +156,7 @@ export default function StaffTab() {
         setSearch("");
         setRoleFilter("ALL");
         setStatusFilter("ALL");
+        setStaffPage(0);
     };
 
     const hasActiveFilters = Boolean(search || roleFilter !== "ALL" || statusFilter !== "ALL");
@@ -586,14 +588,20 @@ export default function StaffTab() {
                                 id="staff-search"
                                 type="search"
                                 value={search}
-                                onChange={(event) => setSearch(event.target.value)}
+                                onChange={(event) => {
+                                    setSearch(event.target.value);
+                                    setStaffPage(0);
+                                }}
                                 placeholder="Search by name, email, or phone..."
                                 className="h-10 w-full rounded-xl border border-border bg-card pr-8 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                             />
                             {search && (
                                 <button
                                     type="button"
-                                    onClick={() => setSearch("")}
+                                    onClick={() => {
+                                        setSearch("");
+                                        setStaffPage(0);
+                                    }}
                                     aria-label="Clear search"
                                     className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
                                 >
@@ -606,7 +614,10 @@ export default function StaffTab() {
                             <SelectField
                                 id="staff-role-filter"
                                 value={roleFilter}
-                                onValueChange={setRoleFilter}
+                                onValueChange={(val) => {
+                                    setRoleFilter(val);
+                                    setStaffPage(0);
+                                }}
                                 size="sm"
                                 className="h-10 text-xs sm:text-sm shadow-xs"
                                 options={[
@@ -624,7 +635,10 @@ export default function StaffTab() {
                             <SelectField
                                 id="staff-status-filter"
                                 value={statusFilter}
-                                onValueChange={setStatusFilter}
+                                onValueChange={(val) => {
+                                    setStatusFilter(val);
+                                    setStaffPage(0);
+                                }}
                                 size="sm"
                                 className="h-10 text-xs sm:text-sm shadow-xs"
                                 options={[
@@ -658,9 +672,9 @@ export default function StaffTab() {
                     </div>
                 </div>
 
-                {staffQuery.isLoading ? (
+                {staffQuery.isLoading && !staffQuery.data ? (
                     <LoadingState label="Loading users" />
-                ) : staffQuery.error ? (
+                ) : staffQuery.error && !staffQuery.data ? (
                     <ErrorState
                         message={getApiErrorMessage(
                             staffQuery.error,
@@ -690,7 +704,12 @@ export default function StaffTab() {
                         }
                     />
                 ) : (
-                    <div className="mt-5 overflow-x-auto">
+                    <div
+                        className={cn(
+                            "mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
+                            staffQuery.isFetching && "opacity-60 pointer-events-none",
+                        )}
+                    >
                         <table className="w-full min-w-[720px] border-collapse text-left">
                             <caption className="sr-only">Users in this business</caption>
                             <thead>
@@ -879,7 +898,11 @@ export default function StaffTab() {
                         totalElements={staffTotalElements}
                         totalPages={staffTotalPages}
                         onPageChange={setStaffPage}
-                        onSizeChange={setStaffPageSize}
+                        onSizeChange={(next) => {
+                            setStaffPageSize(next);
+                            setStaffPage(0);
+                        }}
+                        sizeOptions={[1, 2, 5, 10, 20, 50]}
                         isLoading={staffQuery.isFetching}
                         itemLabel="user"
                     />

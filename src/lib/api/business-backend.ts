@@ -17,11 +17,7 @@ export async function getCurrentBusinessId() {
     return encodeURIComponent(business?.id);
 }
 
-/**
- * Builds the handlers for one of the business's pictures. The logo and the
- * storefront cover differ only in their path segment and their limits, and
- * both answer with the updated business.
- */
+
 export function businessImageRoutes({
     segment,
     rules,
@@ -57,8 +53,7 @@ export function businessImageRoutes({
                 }
 
                 const businessId = await getCurrentBusinessId();
-                // Rebuild the payload so only the `file` part the backend
-                // expects is forwarded, whatever else the browser sent.
+              
                 const upload = new FormData();
                 upload.append("file", file, file.name);
 
