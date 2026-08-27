@@ -7,7 +7,7 @@ import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag } from "lucide-react"
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import { itemThumbnail, itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
 import { attributeIcon } from "@/lib/api/attribute-icons";
-import { useMoney } from "@/hooks/useMoney";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 export type MenuItemEntry = {
@@ -30,7 +30,10 @@ function PublicProductDetailView({
   orderUrl: string;
   onBack: () => void;
 }) {
-  const { format: formatMoney } = useMoney();
+  // Plain currency-code formatting from the public store payload — never
+  // the authenticated /api/business-currencies endpoint (useMoney), which
+  // 401s for an anonymous visitor and bounces them to /login.
+  const currencyCode = storeDetail?.displayCurrency || storeDetail?.baseCurrency || "USD";
   const rawItem = entry.rawItem as InventoryItem;
   const gallery = itemImageUrls(rawItem);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -140,7 +143,7 @@ function PublicProductDetailView({
                 {entry.name}
               </h1>
               <p className="text-3xl font-black text-[#d14341] dark:text-[#f87171] mt-3">
-                {formatMoney(price)}
+                {formatMoney(price, currencyCode)}
               </p>
             </div>
 
