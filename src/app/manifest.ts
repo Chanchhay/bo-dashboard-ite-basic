@@ -1,7 +1,5 @@
 import type { MetadataRoute } from "next";
 
-// Served at /manifest.webmanifest; Next injects the <link rel="manifest"> tag.
-// Colors mirror the tokens in globals.css (--brand-green, --background).
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "FluxiBiz Terminal & Business Dashboard",
