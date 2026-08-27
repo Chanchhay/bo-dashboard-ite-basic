@@ -531,10 +531,8 @@ export default function PublicMenuClient({
                     category={item.category}
                     price={item.price}
                     image={item.image as string}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenDetail(item);
-                    }}
+                    navigate={false}
+                    onClick={() => handleOpenDetail(item)}
                   />
                 ))}
               </div>
