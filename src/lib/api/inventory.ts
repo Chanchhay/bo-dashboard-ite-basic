@@ -377,6 +377,11 @@ export type InventoryItem = {
     badge?: string;
     barcode?: string;
     price?: number | null;
+    /**
+     * What the item cost before a running discount, worked out by the
+     * storefront. Read-only: nothing sets this, and it is null unless a
+     * discount is active.
+     */
     compareAtPrice?: number | null;
     itemType?: StoredItemType;
     trackInventory?: boolean;
@@ -1015,7 +1020,6 @@ export const inventoryItemSchema = z.object({
         "Barcode must be 100 characters or fewer.",
     ),
     price: optionalMoney("Price cannot be negative."),
-    compareAtPrice: optionalMoney("Compare-at price cannot be negative."),
     itemType: z.enum(storedItemTypes),
     attributes: z
         .array(itemAttributeSchema)
@@ -1107,10 +1111,6 @@ export type ItemVariantInput = z.infer<typeof itemVariantSchema>;
  */
 export const itemPricingSchema = z.object({
     price: z.number().min(0, "Price cannot be negative.").optional(),
-    compareAtPrice: z
-        .number()
-        .min(0, "Compare-at price cannot be negative.")
-        .optional(),
     variants: itemVariantsSchema.optional(),
     /**
      * What each larger unit sells for. Sent whole, like variants: the update
@@ -1463,9 +1463,6 @@ export function toItemRequest(input: InventoryItemInput) {
         lowStockDefault: input.lowStockDefault,
         status: input.status,
         ...(input.price === undefined ? {} : { price: input.price }),
-        ...(input.compareAtPrice === undefined
-            ? {}
-            : { compareAtPrice: input.compareAtPrice }),
         itemGroupId: input.itemGroupId,
         unitId: input.unitId,
     };
@@ -1618,11 +1615,6 @@ export function toItemPricingMultipart(
     if (input.price !== undefined) {
         openPart(['Content-Disposition: form-data; name="price"']);
         parts.push(String(input.price), multipartLineBreak);
-    }
-
-    if (input.compareAtPrice !== undefined) {
-        openPart(['Content-Disposition: form-data; name="compareAtPrice"']);
-        parts.push(String(input.compareAtPrice), multipartLineBreak);
     }
 
     if (input.variants) {
