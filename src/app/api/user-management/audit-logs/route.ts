@@ -2,7 +2,7 @@ import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { toPageResult } from "@/lib/api/pagination";
 import type { AuditLogPage } from "@/lib/api/user-management";
 
-/** Only the filters the Audits tab exposes are forwarded. */
+
 const FORWARDED_PARAMS = [
     "actionType",
     "targetType",
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
             if (value) query.set(key, value);
         }
 
-        // `sort` is repeatable, so it can't come through the loop above.
+        
         if (!query.has("sort")) query.set("sort", "createdAt,desc");
 
         const logs = await backendRequest<any>(

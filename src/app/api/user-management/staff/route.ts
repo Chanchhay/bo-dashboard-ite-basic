@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
         const page = await backendRequest<{
             content: Staff[];
-            number: number;
+            page: number;
             size: number;
             totalElements: number;
             totalPages: number;
