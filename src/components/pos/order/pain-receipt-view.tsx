@@ -49,7 +49,7 @@ export function PaidReceiptView({
       )}
       <ReceiptTicket
         business={businessQuery.data ?? null}
-        order={receiptQuery.data?.order ?? order}
+        order={order || receiptQuery.data?.order}
         receipt={receiptQuery.data?.receipt}
         sale={sale}
         currencies={currenciesQuery.data}

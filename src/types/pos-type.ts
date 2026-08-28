@@ -19,6 +19,8 @@ export type Item = {
    * cashier who only sees a dimmed card has to go and find out which.
    */
   unavailableReason?: string;
+  discountBadge?: string;
+  discountedPrice?: string;
 };
 
 export type AppliedDiscount = {

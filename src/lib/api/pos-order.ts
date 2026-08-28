@@ -19,6 +19,8 @@ export type PosOrderItem = {
     quantity: number;
     unitPrice: number;
     discountAmount: number;
+    /** Name of the discount that produced discountAmount for this line, if any. */
+    discountLabel?: string | null;
     lineTotal: number;
     trackInventory?: boolean | null;
 };

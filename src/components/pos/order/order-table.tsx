@@ -6,6 +6,7 @@ import {
   Minus,
   Plus,
   Tag,
+  Ticket,
   Trash2,
   User,
   UserPlus,
@@ -23,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetDiscountsQuery } from "@/services/discountApi";
+import type { DiscountResponse } from "@/lib/api/discount";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import {
   posOrderApi,
@@ -49,6 +51,9 @@ export interface OrderTableProps {
   isEditingOrder?: boolean;
   discountModalOpen?: boolean;
   onDiscountModalOpenChange?: (open: boolean) => void;
+  discountModalMode?: "COUPON" | "CUSTOM";
+  customerModalOpen?: boolean;
+  onCustomerModalOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -112,22 +117,82 @@ function isRuleConditionMet(orderVal: PosOrder | null, rule: AppliedDiscountRule
   return true;
 }
 
+function findMatchingPosDiscount(
+  item: PosOrderItem,
+  activePosDiscounts: DiscountResponse[]
+): DiscountResponse | null {
+  // 1. Check specific item targets first
+  const itemMatch = activePosDiscounts.find((d) => {
+    if (d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM") {
+      return d.targets?.some((t) => t.targetType === "ITEM" && t.targetId === item.itemId);
+    }
+    return false;
+  });
+  if (itemMatch) return itemMatch;
+
+  // 2. Check specific category targets second
+  const categoryMatch = activePosDiscounts.find((d) => {
+    if (d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY") {
+      return d.targets?.some((t) => t.targetType === "ITEM_GROUP");
+    }
+    return false;
+  });
+  if (categoryMatch) return categoryMatch;
+
+  // 3. Check storewide (ALL_ITEMS) discounts third
+  const storewideMatch = activePosDiscounts.find((d) => d.scope === "ALL_ITEMS" || !d.scope);
+  return storewideMatch || null;
+}
+
+function discountResponseToRule(d: DiscountResponse): AppliedDiscountRule {
+  return {
+    type: d.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
+    value: d.value,
+    maxDiscountAmount: d.maxDiscountAmount,
+    discountId: d.id,
+    label: d.name,
+    scope: d.scope,
+    targetItemIds: d.targets
+      ?.filter((t) => t.targetType === "ITEM")
+      .map((t) => t.targetId),
+    targetItemGroupIds: d.targets
+      ?.filter((t) => t.targetType === "ITEM_GROUP")
+      .map((t) => t.targetId),
+    minOrderAmount: d.minOrderAmount,
+    minQuantity: d.minQuantity,
+    buyQuantity: d.buyQuantity,
+    getQuantity: d.getQuantity,
+  };
+}
+
 function computeItemDiscount(
   item: PosOrderItem,
   orderVal: PosOrder | null,
-  rule: AppliedDiscountRule | null
+  rule: AppliedDiscountRule | null,
+  activePosDiscounts: DiscountResponse[] = []
 ): { discountAmount: number; label?: string } {
-  if (!rule || !orderVal) {
-    return { discountAmount: item.discountAmount ?? 0 };
+  let effectiveRule = rule;
+
+  if (!effectiveRule && activePosDiscounts.length > 0) {
+    const match = findMatchingPosDiscount(item, activePosDiscounts);
+    if (match) {
+      effectiveRule = discountResponseToRule(match);
+    }
   }
 
-  if (!isRuleConditionMet(orderVal, rule)) {
+  if (!effectiveRule || !orderVal) {
+    // No live rule selection to preview — show whatever the server last
+    // persisted, including the real discount name it recorded per line.
+    return { discountAmount: item.discountAmount ?? 0, label: item.discountLabel ?? undefined };
+  }
+
+  if (!isRuleConditionMet(orderVal, effectiveRule)) {
     return { discountAmount: 0 };
   }
 
   let isEligible = true;
-  if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
-    const targetIds = new Set(rule.targetItemIds || []);
+  if (effectiveRule.scope === "SPECIFIC_ITEMS" || effectiveRule.scope === "ITEM") {
+    const targetIds = new Set(effectiveRule.targetItemIds || []);
     if (targetIds.size > 0 && !targetIds.has(item.itemId)) {
       isEligible = false;
     }
@@ -140,12 +205,12 @@ function computeItemDiscount(
   const lineSubtotal = item.unitPrice * item.quantity;
   if (lineSubtotal <= 0) return { discountAmount: 0 };
 
-  const targetIds = (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM")
-    ? new Set(rule.targetItemIds || [])
+  const targetIds = (effectiveRule.scope === "SPECIFIC_ITEMS" || effectiveRule.scope === "ITEM")
+    ? new Set(effectiveRule.targetItemIds || [])
     : null;
 
   // Handle Buy X Get Y discount scope calculation (cheapest eligible items become FREE)
-  if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+  if (effectiveRule.buyQuantity && effectiveRule.getQuantity && effectiveRule.buyQuantity > 0 && effectiveRule.getQuantity > 0) {
     const eligibleUnits: { itemId: string; unitPrice: number }[] = [];
     for (const orderItem of orderVal.items || []) {
       if (!targetIds || targetIds.has(orderItem.itemId)) {
@@ -157,7 +222,7 @@ function computeItemDiscount(
 
     eligibleUnits.sort((a, b) => a.unitPrice - b.unitPrice);
 
-    const freeCount = Math.floor(eligibleUnits.length / (rule.buyQuantity + rule.getQuantity)) * rule.getQuantity;
+    const freeCount = Math.floor(eligibleUnits.length / (effectiveRule.buyQuantity + effectiveRule.getQuantity)) * effectiveRule.getQuantity;
     if (freeCount <= 0) {
       return { discountAmount: 0 };
     }
@@ -169,7 +234,7 @@ function computeItemDiscount(
     if (itemFreeQty > 0) {
       return {
         discountAmount: freeDiscount,
-        label: `🎁 ${itemFreeQty} Free`,
+        label: effectiveRule.label ? `${itemFreeQty} Free · ${effectiveRule.label}` : `${itemFreeQty} Free`,
       };
     }
 
@@ -186,19 +251,19 @@ function computeItemDiscount(
   if (eligibleSubtotal <= 0) return { discountAmount: 0 };
 
   let disc = 0;
-  if (rule.type === "PERCENTAGE") {
-    disc = (lineSubtotal * rule.value) / 100;
-    if (rule.maxDiscountAmount) {
-      const totalPercentageDisc = (eligibleSubtotal * rule.value) / 100;
-      if (totalPercentageDisc > rule.maxDiscountAmount) {
-        disc = (lineSubtotal / eligibleSubtotal) * rule.maxDiscountAmount;
+  if (effectiveRule.type === "PERCENTAGE") {
+    disc = (lineSubtotal * effectiveRule.value) / 100;
+    if (effectiveRule.maxDiscountAmount) {
+      const totalPercentageDisc = (eligibleSubtotal * effectiveRule.value) / 100;
+      if (totalPercentageDisc > effectiveRule.maxDiscountAmount) {
+        disc = (lineSubtotal / eligibleSubtotal) * effectiveRule.maxDiscountAmount;
       }
     }
-  } else if (rule.type === "FINAL_PRICE") {
-    const targetAmount = Math.max(0, eligibleSubtotal - rule.value);
+  } else if (effectiveRule.type === "FINAL_PRICE") {
+    const targetAmount = Math.max(0, eligibleSubtotal - effectiveRule.value);
     disc = (lineSubtotal / eligibleSubtotal) * targetAmount;
   } else {
-    const totalDisc = Math.min(eligibleSubtotal, rule.value);
+    const totalDisc = Math.min(eligibleSubtotal, effectiveRule.value * item.quantity);
     disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
   }
 
@@ -206,28 +271,66 @@ function computeItemDiscount(
 
   return {
     discountAmount: disc,
-    label: rule.discountCode
-      ? `Code: ${rule.discountCode}`
-      : rule.type === "PERCENTAGE"
-      ? `${rule.value}% OFF`
-      : undefined,
+    label: effectiveRule.label
+      ?? (effectiveRule.discountCode
+        ? `Code: ${effectiveRule.discountCode}`
+        : effectiveRule.type === "PERCENTAGE"
+        ? `${effectiveRule.value}% OFF`
+        : undefined),
   };
 }
 
-function legacyOrderShape(order: PosOrder): Order {
-  const subtotalNum = order.subtotal ?? 0;
-  const discountNum = order.discountAmount ?? 0;
+function legacyOrderShape(
+  order: PosOrder,
+  activePosDiscounts: DiscountResponse[] = [],
+  activeDiscountRule: AppliedDiscountRule | null = null
+): Order {
+  const subtotalNum = order.subtotal ?? (order.items || []).reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
 
-  // Tax and the total were already computed server-side when this order was
-  // created or last repriced — carried through as-is rather than re-derived,
-  // so the payment dialog never disagrees with what will actually be charged.
-  const computedTotal = order.total ?? subtotalNum;
+  let storedRule = activeDiscountRule;
+  if (!storedRule) {
+    try {
+      const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
+      if (raw) storedRule = JSON.parse(raw);
+    } catch {}
+  }
 
-  let storedRule: AppliedDiscountRule | null = null;
-  try {
-    const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
-    if (raw) storedRule = JSON.parse(raw);
-  } catch {}
+  let calculatedItemsDiscount = 0;
+  const shapedItems = (order.items || []).map((line) => {
+    const disc = computeItemDiscount(line, order, storedRule, activePosDiscounts);
+    calculatedItemsDiscount += disc.discountAmount;
+    return {
+      id: line.id,
+      business_owner_id: order.businessId,
+      order_id: order.id,
+      product_id: line.itemId,
+      variant_id: line.variantId,
+      product_name: line.itemName,
+      variant_name: line.variantName ?? null,
+      unit_name: line.unitName ?? null,
+      unit_factor: line.unitFactor ?? null,
+      add_ons: (line.addOns || []).map((addOn) => ({ name: addOn.name })),
+      quantity: line.quantity,
+      unit_price: String(line.unitPrice),
+      unit_cost: "0",
+      discount_amount: String(disc.discountAmount),
+      applied_discount: null,
+    };
+  });
+
+  const discountNum = Math.max(order.discountAmount ?? 0, calculatedItemsDiscount);
+  const afterDiscount = Math.max(0, subtotalNum - discountNum);
+
+  const taxRate = order.taxRate ?? 0;
+  const isTaxActive = (order.taxAmount ?? 0) > 0 || taxRate > 0;
+  const isTaxInclusive = order.taxInclusionType === "INCLUSIVE";
+  const taxAmount = isTaxActive
+    ? (isTaxInclusive
+      ? Math.round((afterDiscount - afterDiscount / (1 + taxRate / 100)) * 100) / 100
+      : Math.round(afterDiscount * (taxRate / 100) * 100) / 100)
+    : 0;
+
+  const computedTotal = isTaxInclusive ? afterDiscount : (afterDiscount + taxAmount);
 
   return {
     id: order.id,
@@ -241,7 +344,7 @@ function legacyOrderShape(order: PosOrder): Order {
     discount_amount: String(discountNum),
     applied_discounts: null,
     tax_rate: order.taxRate ?? null,
-    tax_amount: order.taxAmount ?? null,
+    tax_amount: taxAmount,
     tax_inclusion_type: order.taxInclusionType ?? null,
     total: String(computedTotal),
     currency: order.currency,
@@ -249,26 +352,7 @@ function legacyOrderShape(order: PosOrder): Order {
     comment: null,
     created_at: order.createdDate ?? "",
     updated_at: null,
-    items: order.items.map((line) => {
-      const disc = computeItemDiscount(line, order, storedRule);
-      return {
-        id: line.id,
-        business_owner_id: order.businessId,
-        order_id: order.id,
-        product_id: line.itemId,
-        variant_id: line.variantId,
-        product_name: line.itemName,
-        variant_name: line.variantName ?? null,
-        unit_name: line.unitName ?? null,
-        unit_factor: line.unitFactor ?? null,
-        add_ons: (line.addOns || []).map((addOn) => ({ name: addOn.name })),
-        quantity: line.quantity,
-        unit_price: String(line.unitPrice),
-        unit_cost: "0",
-        discount_amount: String(disc.discountAmount),
-        applied_discount: null,
-      };
-    }),
+    items: shapedItems,
   };
 }
 
@@ -330,6 +414,13 @@ const ItemRow = memo(function ItemRow({
             {item.selections
               .map((selection) => `${selection.attributeName}: ${selection.label}`)
               .join(" · ")}
+          </span>
+        ) : null}
+        {/* Which promo cut this line's price, so the cashier (and the
+            receipt) can say why it's discounted, not just by how much. */}
+        {lineDiscount > 0 && discountInfo?.label ? (
+          <span className="mt-0.5 block text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            {discountInfo.label}
           </span>
         ) : null}
 
@@ -407,6 +498,9 @@ export function OrderTable({
   isEditingOrder = false,
   discountModalOpen: externalDiscountModalOpen,
   onDiscountModalOpenChange,
+  discountModalMode,
+  customerModalOpen: externalCustomerModalOpen,
+  onCustomerModalOpenChange,
 }: OrderTableProps) {
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
@@ -429,8 +523,14 @@ export function OrderTable({
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
-  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [internalCustomerModalOpen, setInternalCustomerModalOpen] = useState(false);
   const [internalDiscountModalOpen, setInternalDiscountModalOpen] = useState(false);
+
+  const isCustomerModalOpen = externalCustomerModalOpen ?? internalCustomerModalOpen;
+  const setCustomerModalOpen = (open: boolean) => {
+    setInternalCustomerModalOpen(open);
+    onCustomerModalOpenChange?.(open);
+  };
 
   const isDiscountModalOpen = externalDiscountModalOpen ?? internalDiscountModalOpen;
   const setDiscountModalOpen = (open: boolean) => {
@@ -540,98 +640,128 @@ export function OrderTable({
       return null;
     });
 
-  const computeTargetDiscountAmount = (orderVal: PosOrder, rule: AppliedDiscountRule): number => {
-    if (!isRuleConditionMet(orderVal, rule)) {
-      return 0;
-    }
+  const [channelDiscountsVer, setChannelDiscountsVer] = useState(0);
 
-    // Handle Buy X Get Y promotion discount calculation independently of rule.value or percentage
-    if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
-      const totalBuyXGetYDisc = (orderVal.items || []).reduce((sum, item) => {
-        const itemDisc = computeItemDiscount(item, orderVal, rule);
-        return sum + itemDisc.discountAmount;
-      }, 0);
-      return Math.max(0, parseFloat(totalBuyXGetYDisc.toFixed(2)));
-    }
+  useEffect(() => {
+    const handleUpdate = () => setChannelDiscountsVer((v) => v + 1);
+    window.addEventListener("channel_discounts_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("channel_discounts_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
 
-    let eligibleSubtotal = orderVal.subtotal;
-
-    if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
-      const targetIds = new Set(rule.targetItemIds || []);
-      if (targetIds.size > 0) {
-        eligibleSubtotal = orderVal.items.reduce((sum, item) => {
-          if (targetIds.has(item.itemId)) {
-            return sum + item.unitPrice * item.quantity;
-          }
-          return sum;
-        }, 0);
-      }
-    }
-
-    if (eligibleSubtotal <= 0) return 0;
-
-    let targetAmount = 0;
-    if (rule.type === "PERCENTAGE") {
-      targetAmount = (eligibleSubtotal * rule.value) / 100;
-      if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
-        targetAmount = rule.maxDiscountAmount;
-      }
-    } else if (rule.type === "FINAL_PRICE") {
-      targetAmount = Math.max(0, eligibleSubtotal - rule.value);
-    } else {
-      targetAmount = Math.min(eligibleSubtotal, rule.value);
-    }
-
-    return Math.min(
-      eligibleSubtotal,
-      Math.max(0, parseFloat(targetAmount.toFixed(2)))
-    );
-  };
-
-  const boPosDefaultRule = useMemo<AppliedDiscountRule | null>(() => {
-    let selectedPosDiscountId: string | null = null;
+  const activePosDiscounts = useMemo(() => {
+    let permittedIds: string[] = [];
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("channel_active_applied_discounts");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          selectedPosDiscountId = parsed?.POS || null;
+        const savedMulti = localStorage.getItem("channel_active_applied_discounts_multi");
+        if (savedMulti) {
+          const parsed = JSON.parse(savedMulti);
+          permittedIds = Array.isArray(parsed?.POS) ? parsed.POS : [];
+        } else {
+          const legacy = localStorage.getItem("channel_active_applied_discounts");
+          if (legacy) {
+            const parsed = JSON.parse(legacy);
+            if (parsed?.POS && parsed.POS !== "NONE") {
+              permittedIds = [parsed.POS];
+            }
+          }
         }
       } catch (e) {}
     }
 
-    if (!selectedPosDiscountId || selectedPosDiscountId === "NONE") {
-      return null;
+    // If no discounts are clicked/checked for the POS channel in BO, no discounts apply to POS items
+    if (permittedIds.length === 0) {
+      return [];
     }
 
-    const activeRule = discounts.find(
-      (d) =>
-        d.id === selectedPosDiscountId &&
-        d.status === "ACTIVE" &&
-        !d.requiresCoupon &&
-        (d.applicableChannels && d.applicableChannels.length > 0 ? d.applicableChannels.includes("POS") : false)
-    );
-    if (!activeRule) return null;
+    const permittedIdSet = new Set(permittedIds);
 
-    return {
-      type: activeRule.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
-      value: activeRule.value,
-      maxDiscountAmount: activeRule.maxDiscountAmount,
-      discountId: activeRule.id,
-      label: activeRule.name,
-      scope: activeRule.scope,
-      targetItemIds: activeRule.targets
-        ?.filter((t) => t.targetType === "ITEM")
-        .map((t) => t.targetId),
-      targetItemGroupIds: activeRule.targets
-        ?.filter((t) => t.targetType === "ITEM_GROUP")
-        .map((t) => t.targetId),
-      minOrderAmount: activeRule.minOrderAmount,
-      minQuantity: activeRule.minQuantity,
-      buyQuantity: activeRule.buyQuantity,
-      getQuantity: activeRule.getQuantity,
-    };
-  }, [discounts]);
+    return discounts.filter((d) => {
+      if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
+      if (!permittedIdSet.has(d.id)) return false;
+      if (d.applicableChannels && d.applicableChannels.length > 0) {
+        return d.applicableChannels.includes("POS");
+      }
+      return true;
+    });
+  }, [discounts, channelDiscountsVer]);
+
+  const computeTargetDiscountAmount = (
+    orderVal: PosOrder,
+    rule: AppliedDiscountRule | null
+  ): number => {
+    if (rule) {
+      if (!isRuleConditionMet(orderVal, rule)) {
+        return 0;
+      }
+
+      // Handle Buy X Get Y promotion discount calculation independently of rule.value or percentage
+      if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
+        const totalBuyXGetYDisc = (orderVal.items || []).reduce((sum, item) => {
+          const itemDisc = computeItemDiscount(item, orderVal, rule, activePosDiscounts);
+          return sum + itemDisc.discountAmount;
+        }, 0);
+        return Math.max(0, parseFloat(totalBuyXGetYDisc.toFixed(2)));
+      }
+
+      let eligibleSubtotal = orderVal.subtotal;
+
+      if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+        const targetIds = new Set(rule.targetItemIds || []);
+        if (targetIds.size > 0) {
+          eligibleSubtotal = orderVal.items.reduce((sum, item) => {
+            if (targetIds.has(item.itemId)) {
+              return sum + item.unitPrice * item.quantity;
+            }
+            return sum;
+          }, 0);
+        }
+      }
+
+      if (eligibleSubtotal <= 0) return 0;
+
+      let targetAmount = 0;
+      if (rule.type === "PERCENTAGE") {
+        targetAmount = (eligibleSubtotal * rule.value) / 100;
+        if (rule.maxDiscountAmount && targetAmount > rule.maxDiscountAmount) {
+          targetAmount = rule.maxDiscountAmount;
+        }
+      } else if (rule.type === "FINAL_PRICE") {
+        targetAmount = Math.max(0, eligibleSubtotal - rule.value);
+      } else {
+        targetAmount = Math.min(eligibleSubtotal, rule.value);
+      }
+
+      return Math.min(
+        eligibleSubtotal,
+        Math.max(0, parseFloat(targetAmount.toFixed(2)))
+      );
+    }
+
+    // Automatically sum discounts from all items matching active BO POS rules
+    if (activePosDiscounts.length > 0 && orderVal.items && orderVal.items.length > 0) {
+      const totalAuto = orderVal.items.reduce((sum, item) => {
+        const itemDisc = computeItemDiscount(item, orderVal, null, activePosDiscounts);
+        return sum + itemDisc.discountAmount;
+      }, 0);
+      return Math.min(orderVal.subtotal || totalAuto, Math.max(0, parseFloat(totalAuto.toFixed(2))));
+    }
+
+    return 0;
+  };
+
+  const boPosDefaultRule = useMemo<AppliedDiscountRule | null>(() => {
+    const storewideRule = activePosDiscounts.find(
+      (d) => d.scope === "ALL_ITEMS" || !d.scope
+    );
+    if (storewideRule) {
+      return discountResponseToRule(storewideRule);
+    }
+    return null;
+  }, [activePosDiscounts]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -675,29 +805,20 @@ export function OrderTable({
       }
     }
 
-    if (rule) {
-      setActiveDiscountRule(rule);
-      if (order?.id) {
-        const targetAmount = computeTargetDiscountAmount(order, rule);
-        const needsIdSync = Boolean(rule.discountId && order.discountId !== rule.discountId);
-        const needsCodeSync = Boolean(rule.discountCode && order.discountCode !== rule.discountCode);
-        const needsAmountSync = Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001;
+    setActiveDiscountRule(rule);
 
-        if (needsAmountSync || needsIdSync || needsCodeSync) {
-          void setOrderDiscount({
-            discountAmount: targetAmount,
-            discountId: rule.discountId,
-            discountCode: rule.discountCode,
-          });
-        }
-      }
-    } else {
-      setActiveDiscountRule(null);
-      if (order?.id && (order.discountAmount ?? 0) > 0) {
+    if (order?.id) {
+      const targetAmount = computeTargetDiscountAmount(order, rule);
+      const primaryDiscountId = rule?.discountId || (activePosDiscounts.length === 1 ? activePosDiscounts[0].id : null);
+      const needsIdSync = Boolean(rule?.discountId && order.discountId !== rule.discountId);
+      const needsCodeSync = Boolean(rule?.discountCode && order.discountCode !== rule.discountCode);
+      const needsAmountSync = Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001;
+
+      if (needsAmountSync || needsIdSync || needsCodeSync) {
         void setOrderDiscount({
-          discountAmount: 0,
-          discountId: null,
-          discountCode: null,
+          discountAmount: targetAmount,
+          discountId: primaryDiscountId,
+          discountCode: rule?.discountCode || null,
         });
       }
     }
@@ -710,15 +831,47 @@ export function OrderTable({
     order?.items,
     setOrderDiscount,
     boPosDefaultRule,
+    activePosDiscounts,
   ]);
 
+  const [attachedCustomerId, setAttachedCustomerId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("pos_active_customer_id") || null;
+      } catch {}
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (order?.customerId) {
+      setAttachedCustomerId(order.customerId);
+      try {
+        localStorage.setItem("pos_active_customer_id", order.customerId);
+      } catch {}
+    }
+  }, [order?.customerId]);
+
+  const effectiveCustomerId = order?.customerId || attachedCustomerId;
+
   const selectedCustomer = useMemo(() => {
-    if (!order?.customerId) return null;
-    return customers.find((c) => c.id === order.customerId) ?? null;
-  }, [customers, order?.customerId]);
+    if (!effectiveCustomerId) return null;
+    return customers.find((c) => c.id === effectiveCustomerId) ?? null;
+  }, [customers, effectiveCustomerId]);
 
   const handleSelectCustomer = async (customerId: string | null) => {
     try {
+      setAttachedCustomerId(customerId);
+      if (customerId) {
+        try {
+          localStorage.setItem("pos_active_customer_id", customerId);
+        } catch {}
+      } else {
+        try {
+          localStorage.removeItem("pos_active_customer_id");
+        } catch {}
+      }
+
       await setOrderCustomer({ customerId }).unwrap();
 
       if (customerId) {
@@ -763,6 +916,15 @@ export function OrderTable({
           });
           return;
         }
+      } else {
+        if (activeDiscountRule?.isMembership) {
+          await handleApplyDiscountRule(null);
+        }
+        toast({
+          tone: "info",
+          title: "Customer Removed",
+          description: "Customer has been detached from this order.",
+        });
       }
 
       if (activeDiscountRule?.isCoupon || activeDiscountRule?.discountCode) {
@@ -878,7 +1040,8 @@ export function OrderTable({
   const effectiveOrder = order || fallbackOrder;
   const items = effectiveOrder.items ?? [];
   const subtotalNum = effectiveOrder.subtotal ?? 0;
-  const discountNum = effectiveOrder.discountAmount ?? 0;
+  const autoTotalDiscount = computeTargetDiscountAmount(effectiveOrder, activeDiscountRule);
+  const discountNum = autoTotalDiscount > 0 ? autoTotalDiscount : (effectiveOrder.discountAmount ?? 0);
   const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
   // Tax was already computed server-side against this order's own items and
@@ -897,7 +1060,7 @@ export function OrderTable({
     taxAmount: taxAmount,
     isTaxActive,
     isTaxInclusive,
-    total: order?.total ?? subtotalNum,
+    total: order?.total ?? Math.max(0, subtotalNum - discountNum),
   };
   const totalSecondary = secondaryFor(summary.total, order);
 
@@ -906,6 +1069,10 @@ export function OrderTable({
       if (order?.id) {
         localStorage.removeItem(`pos_cart_discount_${order.id}`);
       }
+      setAttachedCustomerId(null);
+      try {
+        localStorage.removeItem("pos_active_customer_id");
+      } catch {}
       await parkOrder({ note: data.name.trim() }).unwrap();
 
       setNewOrderOpen(false);
@@ -921,6 +1088,10 @@ export function OrderTable({
 
   const handleSaveEdit = async () => {
     try {
+      setAttachedCustomerId(null);
+      try {
+        localStorage.removeItem("pos_active_customer_id");
+      } catch {}
       await parkOrder({}).unwrap();
       onOrderCreated?.();
     } catch (cause) {
@@ -1038,10 +1209,40 @@ export function OrderTable({
       setActiveDiscountRule(defaultRule);
 
       // Reset attached customer so next order starts fresh
+      setAttachedCustomerId(null);
+      try {
+        localStorage.removeItem("pos_active_customer_id");
+      } catch {}
       void setOrderCustomer({ customerId: null });
 
+      const itemsWithDiscounts = (sold.items || []).map((item) => {
+        const itemDisc = computeItemDiscount(item, sold, activeDiscountRule, activePosDiscounts);
+        return {
+          ...item,
+          discountAmount: itemDisc.discountAmount,
+          discountLabel: itemDisc.label,
+        };
+      });
+
+      const soldWithDiscounts: PosOrder = {
+        ...sold,
+        items: itemsWithDiscounts,
+        subtotal: summary.subtotal,
+        discountAmount: summary.discount,
+        taxAmount: summary.taxAmount,
+        total: summary.total,
+      };
+
+      const finalSale: Sale = {
+        ...sale,
+        subtotal: summary.subtotal,
+        discountAmount: summary.discount,
+        taxAmount: summary.taxAmount,
+        totalAmount: summary.total,
+      };
+
       setPaymentOpen(false);
-      onPaymentSuccess?.(sold, sale);
+      onPaymentSuccess?.(soldWithDiscounts, finalSale);
     } catch (cause) {
       toast({
         tone: "error",
@@ -1060,7 +1261,7 @@ export function OrderTable({
       onIncrease={handleIncrease}
       onDecrease={handleDecrease}
       onRemove={handleRemove}
-      discountInfo={computeItemDiscount(item, order ?? null, activeDiscountRule)}
+      discountInfo={computeItemDiscount(item, order ?? null, activeDiscountRule, activePosDiscounts)}
     />
   );
 
@@ -1119,21 +1320,22 @@ export function OrderTable({
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0 ml-2">
+            <div className="flex items-center gap-1.5 shrink-0 ml-2">
               <button
                 type="button"
                 onClick={() => setCustomerModalOpen(true)}
-                className="text-xs font-semibold text-primary hover:underline px-1.5 py-0.5"
+                className="text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1 rounded-lg border border-primary/20 transition-colors"
               >
                 Change
               </button>
               <button
                 type="button"
                 onClick={() => void handleSelectCustomer(null)}
-                className="grid size-6 place-items-center rounded-full text-gray-400 hover:bg-red-50 hover:text-brand-red"
-                title="Detach Customer"
+                className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1 rounded-lg transition-colors"
+                title="Cancel Customer"
               >
                 <X className="h-3.5 w-3.5" />
+                Cancel
               </button>
             </div>
           </div>
@@ -1143,15 +1345,6 @@ export function OrderTable({
               <User className="h-3.5 w-3.5 text-gray-400" />
               No customer attached
             </span>
-            <button
-              type="button"
-              data-tour="pos-select-customer"
-              onClick={() => setCustomerModalOpen(true)}
-              className="flex items-center gap-1 text-xs font-bold text-primary hover:bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/30 transition-all"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              + Add Customer
-            </button>
           </div>
         )}
       </div>
@@ -1202,19 +1395,19 @@ export function OrderTable({
               Discount
             </span>
             <div className="flex items-center gap-1.5">
-              {activeDiscountRule?.label && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
-                  {activeDiscountRule.label}
-                </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                {activeDiscountRule?.label || "Auto Applied"}
+              </span>
+              {activeDiscountRule && (
+                <button
+                  type="button"
+                  onClick={() => void handleApplyDiscountRule(null)}
+                  className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 rounded border border-red-200 transition-colors"
+                  title="Cancel manual discount on this order"
+                >
+                  ✕ Cancel
+                </button>
               )}
-              <button
-                type="button"
-                onClick={() => void handleApplyDiscountRule(null)}
-                className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 rounded border border-red-200 transition-colors"
-                title="Cancel discount on this order"
-              >
-                ✕ Cancel
-              </button>
             </div>
             <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-semibold min-[1025px]:leading-7 font-bold">
               -{format(summary.discount, order?.currency)}
@@ -1297,7 +1490,7 @@ export function OrderTable({
 
       {/* Customer select modal */}
       <CustomerSelectModal
-        open={customerModalOpen}
+        open={isCustomerModalOpen}
         onOpenChange={setCustomerModalOpen}
         selectedCustomerId={order?.customerId}
         onSelectCustomer={handleSelectCustomer}
@@ -1313,13 +1506,14 @@ export function OrderTable({
         currentDiscountAmount={summary.discount}
         activeRule={activeDiscountRule}
         onApplyDiscountRule={handleApplyDiscountRule}
+        mode={discountModalMode}
       />
 
       {paymentOpen && order && (
         <Payment
           open={paymentOpen}
           onOpenChange={setPaymentOpen}
-          order={legacyOrderShape(order)}
+          order={legacyOrderShape(order, activePosDiscounts, activeDiscountRule)}
           onValidate={handleValidatePayment}
           onDigitalPaid={(sale) => {
             if (order.id) {
@@ -1338,8 +1532,34 @@ export function OrderTable({
               }
               setActiveDiscountRule(defaultRule);
             }
+            const itemsWithDiscounts = (order.items || []).map((item) => {
+              const itemDisc = computeItemDiscount(item, order, activeDiscountRule, activePosDiscounts);
+              return {
+                ...item,
+                discountAmount: itemDisc.discountAmount,
+                discountLabel: itemDisc.label,
+              };
+            });
+
+            const orderWithDiscounts: PosOrder = {
+              ...order,
+              items: itemsWithDiscounts,
+              subtotal: summary.subtotal,
+              discountAmount: summary.discount,
+              taxAmount: summary.taxAmount,
+              total: summary.total,
+            };
+
+            const finalSale: Sale = {
+              ...sale,
+              subtotal: summary.subtotal,
+              discountAmount: summary.discount,
+              taxAmount: summary.taxAmount,
+              totalAmount: summary.total,
+            };
+
             setPaymentOpen(false);
-            onPaymentSuccess?.(order, sale);
+            onPaymentSuccess?.(orderWithDiscounts, finalSale);
           }}
           isProcessing={isPaying}
         />

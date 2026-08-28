@@ -142,29 +142,6 @@ export function ReceiptTicket({
   const currencyCode = sale?.currency || order.currency;
   // Prefer the business's own symbol and decimal places over the CLDR default.
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
-  const subtotal = sale?.subtotal ?? order.subtotal;
-  const discount = sale?.discountAmount ?? order.discountAmount;
-  const afterDiscount = Math.max(0, subtotal - discount);
-
-  // `sale` is only ever passed right after a live payment; every other
-  // viewer (Sales history, a reopened receipt) has to fall back to the
-  // order's own record of how it was paid.
-  const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
-
-  // Tax was computed once, server-side, when the order was created (or last
-  // repriced) — reading it straight off the record matches every other
-  // channel and never drifts from what was actually charged.
-  const isTaxInclusive = (sale?.taxInclusionType ?? order?.taxInclusionType) === "INCLUSIVE";
-  const taxAmount = sale?.taxAmount ?? order?.taxAmount ?? 0;
-  const effectiveTaxRate = sale?.taxRate ?? order?.taxRate ?? 0;
-  const isTaxActive = taxAmount > 0;
-  const effectiveTaxName = business?.taxLabel || "VAT";
-  const effectiveShowTax = isTaxActive;
-
-  const total = sale?.totalAmount ?? order?.total ?? (isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + taxAmount));
-  const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
-  const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
-
   const storedRule = useMemo(() => {
     const id = sale?.orderId || sale?.id || order?.id;
     if (!id || typeof window === "undefined") return null;
@@ -176,6 +153,46 @@ export function ReceiptTicket({
     } catch { }
     return null;
   }, [sale?.orderId, sale?.id, order?.id]);
+
+  const rawSubtotal = sale?.subtotal ?? order.subtotal ?? 0;
+  const itemsDiscountSum = (order.items || []).reduce((sum, item) => {
+    let itemDisc = item.discountAmount ?? 0;
+    if (itemDisc <= 0 && storedRule) {
+      itemDisc = computeItemDiscountFromRule(item, order.items, storedRule);
+    }
+    return sum + itemDisc;
+  }, 0);
+
+  const rawDiscount = sale?.discountAmount ?? order.discountAmount ?? 0;
+  const discount = Math.max(rawDiscount, itemsDiscountSum);
+  const subtotal = rawSubtotal > 0 ? rawSubtotal : (order.items || []).reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const afterDiscount = Math.max(0, subtotal - discount);
+
+  // `sale` is only ever passed right after a live payment; every other
+  // viewer (Sales history, a reopened receipt) has to fall back to the
+  // order's own record of how it was paid.
+  const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
+
+  // Tax was computed once, server-side, when the order was created (or last
+  // repriced) — reading it straight off the record matches every other
+  // channel and never drifts from what was actually charged.
+  const isTaxInclusive = (sale?.taxInclusionType ?? order?.taxInclusionType) === "INCLUSIVE";
+  const effectiveTaxRate = sale?.taxRate ?? order?.taxRate ?? 0;
+  const isTaxActive = (sale?.taxAmount ?? order?.taxAmount ?? 0) > 0 || effectiveTaxRate > 0;
+  const effectiveTaxName = business?.taxLabel || "VAT";
+  const effectiveShowTax = isTaxActive;
+
+  const taxAmount = isTaxActive
+    ? (isTaxInclusive
+      ? Math.round((afterDiscount - afterDiscount / (1 + effectiveTaxRate / 100)) * 100) / 100
+      : Math.round(afterDiscount * (effectiveTaxRate / 100) * 100) / 100)
+    : 0;
+
+  const total = isTaxInclusive
+    ? afterDiscount
+    : Math.max(0, afterDiscount + taxAmount);
+  const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
+  const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
 
   // The backend names the discount the same way on every channel — prefer
   // that over the locally-stored rule, which only exists on the device that
@@ -316,6 +333,9 @@ export function ReceiptTicket({
           if (itemDisc <= 0 && storedRule) {
             itemDisc = computeItemDiscountFromRule(item, order.items, storedRule);
           }
+          if (itemDisc <= 0 && discount > 0 && subtotal > 0) {
+            itemDisc = parseFloat(((grossAmount / subtotal) * discount).toFixed(2));
+          }
           const netAmount = Math.max(0, grossAmount - itemDisc);
           const itemDiscPercent = grossAmount > 0 && itemDisc > 0 ? Math.round((itemDisc / grossAmount) * 100) : 0;
 
@@ -328,10 +348,6 @@ export function ReceiptTicket({
                 <p className="truncate text-sm font-medium leading-[1.45] text-[#0e140e]">
                   {item.itemName}
                 </p>
-                {/* Exactly what was sold. A receipt is the record a refund is
-                    argued from, and "Coke" alone cannot tell a single can from
-                    a six pack — the two are different money and different
-                    stock. */}
                 {soldAsLabel(item) ? (
                   <p className="text-[11px] leading-[1.45] text-[#3d4a3c]">
                     {soldAsLabel(item)}
@@ -342,8 +358,6 @@ export function ReceiptTicket({
                     {item.addOns.map((addOn) => `+ ${addOn.name}`).join(", ")}
                   </p>
                 ) : null}
-                {/* How it was made. Free, so it never shows in the money, but
-                    a refund argued from this receipt turns on it. */}
                 {item.selections?.length ? (
                   <p className="text-[11px] leading-[1.45] text-[#6d7a77]">
                     {item.selections
@@ -353,19 +367,19 @@ export function ReceiptTicket({
                 ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
-                  {itemDisc > 0 && (storedRule?.buyQuantity && storedRule?.getQuantity) ? (
-                    <span className="ml-1.5 font-bold text-[#006b26]">
-                      (FREE ITEM)
+                  {itemDisc > 0 && (
+                    <span className="ml-1.5 font-bold text-[#d14341]">
+                      {item.discountLabel
+                        ? `(${item.discountLabel})`
+                        : storedRule?.label
+                          ? `(${storedRule.label})`
+                          : discountLabel
+                            ? `(${discountLabel})`
+                            : itemDiscPercent > 0
+                              ? `(${itemDiscPercent}% OFF)`
+                              : `(-${formatMoney(itemDisc, currency)})`}
                     </span>
-                  ) : itemDiscPercent > 0 && storedRule?.type === "PERCENTAGE" ? (
-                    <span className="ml-1.5 font-bold text-[#006b26]">
-                      ({itemDiscPercent}% OFF)
-                    </span>
-                  ) : itemDisc > 0 ? (
-                    <span className="ml-1.5 font-bold text-[#006b26]">
-                      (-{formatMoney(itemDisc, currency)})
-                    </span>
-                  ) : null}
+                  )}
                 </p>
               </div>
               <span className="text-center font-mono text-sm leading-[1.45] text-[#0e140e]">
@@ -374,7 +388,7 @@ export function ReceiptTicket({
               <span className="text-right font-mono text-sm font-medium leading-[1.45] text-[#0e140e]">
                 {itemDisc > 0 ? (
                   <div className="flex flex-col items-end leading-tight">
-                    <span className="text-[11px] font-normal text-gray-400 line-through">
+                    <span className="text-[11px] font-normal text-[#d14341] line-through">
                       {formatMoney(grossAmount, currency)}
                     </span>
                     <span className="font-bold text-[#006b26]">
@@ -499,7 +513,12 @@ export function ReceiptTicket({
               <div className="flex justify-between gap-4">
                 <dt>Change / អាប់</dt>
                 <dd className="font-mono text-[#0e140e]">
-                  {formatMoney(sale.changeAmount, currency)}
+                  {formatMoney(
+                    sale.paidAmount != null && sale.paidAmount >= total
+                      ? Math.max(0, sale.paidAmount - total)
+                      : (sale.changeAmount ?? 0),
+                    currency,
+                  )}
                 </dd>
               </div>
             )}

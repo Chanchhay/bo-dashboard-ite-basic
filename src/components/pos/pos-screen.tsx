@@ -35,6 +35,7 @@ import {
   variantOf,
 } from "@/lib/pos/barcode-match";
 import { playScanAccepted, playScanRejected } from "@/lib/pos/scan-sound";
+import { useGetDiscountsQuery } from "@/services/discountApi";
 import {
   useGetCurrentStockQuery,
   useLazyFindInventoryItemByBarcodeQuery,
@@ -268,6 +269,56 @@ export function PosScreen({
     [stockFor],
   );
 
+  const { data: discounts = [] } = useGetDiscountsQuery();
+  const [channelDiscountsVer, setChannelDiscountsVer] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => setChannelDiscountsVer((v) => v + 1);
+    window.addEventListener("channel_discounts_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("channel_discounts_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
+  const activePosDiscounts = useMemo(() => {
+    let permittedIds: string[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        const savedMulti = localStorage.getItem("channel_active_applied_discounts_multi");
+        if (savedMulti) {
+          const parsed = JSON.parse(savedMulti);
+          permittedIds = Array.isArray(parsed?.POS) ? parsed.POS : [];
+        } else {
+          const legacy = localStorage.getItem("channel_active_applied_discounts");
+          if (legacy) {
+            const parsed = JSON.parse(legacy);
+            if (parsed?.POS && parsed.POS !== "NONE") {
+              permittedIds = [parsed.POS];
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // If no discounts are clicked/checked for the POS channel, no discounts are applied to POS
+    if (permittedIds.length === 0) {
+      return [];
+    }
+
+    const permittedIdSet = new Set(permittedIds);
+
+    return discounts.filter((d) => {
+      if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
+      if (!permittedIdSet.has(d.id)) return false;
+      if (d.applicableChannels && d.applicableChannels.length > 0) {
+        return d.applicableChannels.includes("POS");
+      }
+      return true;
+    });
+  }, [discounts, channelDiscountsVer]);
+
   // The till sells only what is published to the POS channel. Filtering stays
   // on that API-backed set because the channel endpoint does not accept search
   // parameters yet.
@@ -306,12 +357,45 @@ export function PosScreen({
           ? Math.min(...prices)
           : (entry.item.price ?? 0);
 
+        let discountBadge: string | undefined;
+        let discountedPrice: string | undefined;
+
+        // Find active discount that targets this specific item or storewide
+        const itemDiscount = activePosDiscounts.find((d) => {
+          if (d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM") {
+            return d.targets?.some((t) => t.targetType === "ITEM" && t.targetId === entry.item.id);
+          }
+          if (d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY") {
+            const itemGroupId = entry.item.itemGroup?.id;
+            return d.targets?.some((t) => t.targetType === "ITEM_GROUP" && t.targetId === itemGroupId);
+          }
+          return d.scope === "ALL_ITEMS" || !d.scope;
+        });
+
+        if (itemDiscount && lowest > 0) {
+          if (itemDiscount.type === "PERCENTAGE" && itemDiscount.value > 0) {
+            discountBadge = `-${itemDiscount.value}%`;
+            const reduced = Math.max(0, lowest * (1 - itemDiscount.value / 100));
+            discountedPrice = format(reduced);
+          } else if (itemDiscount.type === "FIXED_AMOUNT" || (itemDiscount.type as any) === "FIXED") {
+            if (itemDiscount.value > 0) {
+              discountBadge = `-${format(itemDiscount.value)}`;
+              const reduced = Math.max(0, lowest - itemDiscount.value);
+              discountedPrice = format(reduced);
+            }
+          } else if (itemDiscount.ruleType === "BUY_X_GET_Y" || (itemDiscount.buyQuantity && itemDiscount.getQuantity)) {
+            discountBadge = `Buy ${itemDiscount.buyQuantity} Get ${itemDiscount.getQuantity}`;
+          }
+        }
+
         return {
           id: entry.item.id,
           business_owner_id: "",
           name: entry.item.name ?? "Unnamed",
           image_url: thumbnail ?? null,
           price: String(lowest),
+          discountBadge,
+          discountedPrice,
           is_available:
             entry.item.status === "INACTIVE" || outOfStock(entry)
               ? "INACTIVE"
@@ -324,7 +408,7 @@ export function PosScreen({
                 : undefined,
         };
       });
-  }, [channelItems, searchQuery, selectedCategoryId, outOfStock]);
+  }, [channelItems, searchQuery, selectedCategoryId, outOfStock, activePosDiscounts, format]);
 
   const filtersAreActive =
     searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
@@ -706,6 +790,9 @@ export function PosScreen({
     setEditingOrderId(null);
   };
 
+  const [discountModalMode, setDiscountModalMode] = useState<"COUPON" | "CUSTOM">("COUPON");
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f5f5f5] min-[1025px]:flex-row">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -808,15 +895,23 @@ export function PosScreen({
 
         <PosButton
           active={activeTab}
-          activeDiscountLabel={activeDiscountLabel}
           onChange={(tab) => {
-            if (tab === "Discount") {
-              setActiveTab("Point of Sale");
-              setDiscountModalOpen(true);
-              return;
-            }
             setActiveTab(tab);
             setOpenReceiptId(null);
+          }}
+          onOpenCoupon={() => {
+            setActiveTab("Point of Sale");
+            setDiscountModalMode("COUPON");
+            setDiscountModalOpen(true);
+          }}
+          onOpenCustomDiscount={() => {
+            setActiveTab("Point of Sale");
+            setDiscountModalMode("CUSTOM");
+            setDiscountModalOpen(true);
+          }}
+          onOpenCustomer={() => {
+            setActiveTab("Point of Sale");
+            setCustomerModalOpen(true);
           }}
         />
       </div>
@@ -829,6 +924,9 @@ export function PosScreen({
             isEditingOrder={editingOrderId !== null}
             discountModalOpen={discountModalOpen}
             onDiscountModalOpenChange={setDiscountModalOpen}
+            discountModalMode={discountModalMode}
+            customerModalOpen={customerModalOpen}
+            onCustomerModalOpenChange={setCustomerModalOpen}
           />
         </div>
       )}
@@ -867,6 +965,9 @@ export function PosScreen({
               isEditingOrder={editingOrderId !== null}
               discountModalOpen={discountModalOpen}
               onDiscountModalOpenChange={setDiscountModalOpen}
+              discountModalMode={discountModalMode}
+              customerModalOpen={customerModalOpen}
+              onCustomerModalOpenChange={setCustomerModalOpen}
             />
           </div>
         </div>
