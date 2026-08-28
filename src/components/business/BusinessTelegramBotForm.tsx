@@ -255,42 +255,42 @@ function AccountForm({
                         />
                     </div>
                 </div>
-
-                <div className="mt-6 flex items-center justify-end gap-3 border-t border-border pt-5">
-                    {isConfigured && (
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={isDisconnecting || isSaving}
-                            onClick={async () => {
-                                if (confirm("Are you sure you want to disconnect this bot?")) {
-                                    try {
-                                        await onDisconnect();
-                                    } catch (cause) {
-                                        toast({
-                                            tone: "error",
-                                            title: "Could not disconnect",
-                                            description: getApiErrorMessage(cause, "Please try again."),
-                                        });
-                                    }
-                                }
-                            }}
-                        >
-                            Disconnect
-                        </Button>
-                    )}
-
-                    <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
-                        {isSaving && (
-                            <LoaderCircle
-                                className="-ml-1 mr-2 size-4 animate-spin"
-                                aria-hidden="true"
-                            />
-                        )}
-                        {isConfigured ? "Update Settings" : "Connect Bot"}
-                    </Button>
-                </div>
             </section>
+
+            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8">
+                {isConfigured && (
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={isDisconnecting || isSaving}
+                        onClick={async () => {
+                            if (confirm("Are you sure you want to disconnect this bot?")) {
+                                try {
+                                    await onDisconnect();
+                                } catch (cause) {
+                                    toast({
+                                        tone: "error",
+                                        title: "Could not disconnect",
+                                        description: getApiErrorMessage(cause, "Please try again."),
+                                    });
+                                }
+                            }
+                        }}
+                    >
+                        Disconnect
+                    </Button>
+                )}
+
+                <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
+                    {isSaving && (
+                        <LoaderCircle
+                            className="-ml-1 mr-2 size-4 animate-spin"
+                            aria-hidden="true"
+                        />
+                    )}
+                    {isConfigured ? "Update Settings" : "Connect Bot"}
+                </Button>
+            </div>
         </form>
     );
 }

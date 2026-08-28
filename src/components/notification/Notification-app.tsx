@@ -221,78 +221,81 @@ export default function NotificationsApp() {
 
     return (
         <div className="flex flex-col gap-6 pb-8">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        View and manage real-time system alerts, order updates, and inventory notifications.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <TourButton />
-                    {stats.unread > 0 && (
-                        <Button
-                            type="button"
-                            onClick={() => markAllAsRead()}
-                            disabled={isMarkingAll}
-                            size="sm"
-                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl h-10 px-4 shadow-xs shrink-0 self-start sm:self-auto"
-                        >
-                            <CheckCheck className="size-4" />
-                            <span>Mark all as read ({stats.unread})</span>
-                        </Button>
-                    )}
-                </div>
-            </div>
-
-            {/* Stat Cards */}
-            <div data-tour="notifications-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <Bell className="size-5" />
-                    </div>
+            {/* Sticky Top: Header & Stat Cards */}
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <p className="text-xs font-medium text-muted-foreground">Total Notifications</p>
-                        <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                        <p className="text-sm text-muted-foreground">
+                            View and manage real-time system alerts, order updates, and inventory notifications.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        <TourButton />
+                        {stats.unread > 0 && (
+                            <Button
+                                type="button"
+                                onClick={() => markAllAsRead()}
+                                disabled={isMarkingAll}
+                                size="sm"
+                                className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl h-9 sm:h-10 px-3.5 sm:px-4 shadow-xs shrink-0 self-start sm:self-auto"
+                            >
+                                <CheckCheck className="size-4" />
+                                <span>Mark all as read ({stats.unread})</span>
+                            </Button>
+                        )}
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        <CheckCheck className="size-5" />
+                {/* Stat Cards */}
+                <div data-tour="notifications-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                            <Bell className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Total Notifications</p>
+                            <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Unread Alerts</p>
-                        <p className="text-xl font-bold text-foreground">{stats.unread}</p>
-                    </div>
-                </div>
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                        <ShoppingBag className="size-5" />
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <CheckCheck className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Unread Alerts</p>
+                            <p className="text-xl font-bold text-foreground">{stats.unread}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Order Updates</p>
-                        <p className="text-xl font-bold text-foreground">{stats.orders}</p>
-                    </div>
-                </div>
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                        <Package className="size-5" />
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                            <ShoppingBag className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Order Updates</p>
+                            <p className="text-xl font-bold text-foreground">{stats.orders}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Stock Warnings</p>
-                        <p className="text-xl font-bold text-foreground">{stats.stockAlerts}</p>
+
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <Package className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Stock Warnings</p>
+                            <p className="text-xl font-bold text-foreground">{stats.stockAlerts}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
                 {/* Control Bar */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3 bg-card shrink-0">
                     <div data-tour="notifications-search" className="relative w-full sm:w-80">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                         <Input
@@ -323,8 +326,8 @@ export default function NotificationsApp() {
                                 onClick={() => setActiveTab(tab.id)}
                                 aria-pressed={activeTab === tab.id}
                                 className={`rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${activeTab === tab.id
-                                        ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
-                                        : "text-muted-foreground hover:text-foreground"
+                                    ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                                    : "text-muted-foreground hover:text-foreground"
                                     }`}
                             >
                                 {tab.label}
@@ -334,7 +337,7 @@ export default function NotificationsApp() {
                 </div>
 
                 {/* List Container */}
-                <div data-tour="notifications-list" className="divide-y divide-border">
+                <div data-tour="notifications-list" className="overflow-y-auto max-h-[calc(100dvh-350px)] sm:max-h-[calc(100dvh-370px)] divide-y divide-border">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
                             <Loader2 className="size-7 animate-spin text-primary" />
@@ -403,8 +406,8 @@ export default function NotificationsApp() {
                                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                                 <span
                                                     className={`text-sm sm:text-base leading-snug truncate ${isUnread
-                                                            ? "font-bold text-gray-900 dark:text-[#f8fafc]"
-                                                            : "font-bold text-gray-800 dark:text-slate-200"
+                                                        ? "font-bold text-gray-900 dark:text-[#f8fafc]"
+                                                        : "font-bold text-gray-800 dark:text-slate-200"
                                                         }`}
                                                 >
                                                     {notification.title || "Notification Alert"}

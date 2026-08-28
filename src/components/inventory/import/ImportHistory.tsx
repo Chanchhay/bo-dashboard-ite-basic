@@ -73,16 +73,19 @@ export function ImportHistory() {
 
     return (
         <div className="flex flex-col gap-6">
-            <InventoryPageHeader
-                title="Import history"
-                description="Every file you have brought into FluxiBiz, newest first. Open one to see what it did and anything it could not import."
-                action={
-                    <Link href="/inventory/import" className={buttonVariants()}>
-                        <Plus className="size-4" />
-                        New import
-                    </Link>
-                }
-            />
+            {/* Sticky Header Section */}
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all">
+                <InventoryPageHeader
+                    title="Import history"
+                    description="Every file you have brought into FluxiBiz, newest first. Open one to see what it did and anything it could not import."
+                    action={
+                        <Link href="/inventory/import" className={buttonVariants()}>
+                            <Plus className="size-4" />
+                            New import
+                        </Link>
+                    }
+                />
+            </div>
 
             {jobs.length === 0 ? (
                 <InventoryEmpty
@@ -91,16 +94,16 @@ export function ImportHistory() {
                 />
             ) : (
                 <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-auto max-h-[calc(100dvh-260px)] sm:max-h-[calc(100dvh-280px)]">
                         <table className="w-full min-w-160 border-collapse text-sm">
-                            <thead>
-                                <tr className="border-b border-border bg-muted/40 text-left">
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">File</th>
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">Rows</th>
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">Started by</th>
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">Uploaded</th>
+                            <thead className="sticky top-0 z-10 bg-card border-b border-border shadow-xs">
+                                <tr className="text-left">
+                                    <th className="px-4 py-3 font-medium text-muted-foreground bg-card">File</th>
+                                    <th className="px-4 py-3 font-medium text-muted-foreground bg-card">Type</th>
+                                    <th className="px-4 py-3 font-medium text-muted-foreground bg-card">Status</th>
+                                    <th className="px-4 py-3 font-medium text-muted-foreground bg-card">Rows</th>
+                                    <th className="px-4 py-3 font-medium text-muted-foreground bg-card">Started by</th>
+                                    <th className="px-4 py-3 font-medium text-muted-foreground bg-card">Uploaded</th>
                                 </tr>
                             </thead>
                             <tbody>

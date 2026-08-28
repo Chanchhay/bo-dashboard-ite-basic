@@ -297,7 +297,7 @@ function TaxesEditor({
   return (
     <div className="space-y-6 pb-12">
       {/* Top Banner & Header */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Receipt className="h-6 w-6 text-primary" />
@@ -510,7 +510,7 @@ function TaxesEditor({
 
         {/* Authentic Receipt Ticket Preview Panel */}
         <div data-tour="tax-receipt-preview" className="lg:col-span-5 space-y-4">
-          <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-6">
+          <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-[86px]">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-primary" /> Receipt Preview

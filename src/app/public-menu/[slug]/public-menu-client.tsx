@@ -332,10 +332,7 @@ export default function PublicMenuClient({
     }
   };
 
-  // Categories/sub-categories come from the public item-groups endpoint
-  // passed in as a prop — this page is viewed by anonymous customers, so
-  // it must never call an authenticated dashboard endpoint (that 401s for
-  // them and bounces them to /login).
+ 
   const categories = useMemo(() => {
     const set = new Set<string>();
     storeItemGroups.forEach((g) => {
