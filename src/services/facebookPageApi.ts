@@ -8,6 +8,9 @@ export type FacebookPageSetting = {
     connected: boolean;
     active: boolean;
     welcomeMessage: string | null;
+    miniAppEnabled: boolean;
+    /** Where the persistent menu's "Open Shop" button points when miniAppEnabled — null otherwise. */
+    miniAppUrl: string | null;
 };
 
 export const facebookPageApi = baseApi.injectEndpoints({
@@ -26,6 +29,27 @@ export const facebookPageApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["FacebookPage"],
         }),
+        activateFacebookPage: build.mutation<FacebookPageSetting, void>({
+            query: () => ({
+                url: "/businesses/social-settings/facebook/activate",
+                method: "PATCH",
+            }),
+            invalidatesTags: ["FacebookPage"],
+        }),
+        deactivateFacebookPage: build.mutation<FacebookPageSetting, void>({
+            query: () => ({
+                url: "/businesses/social-settings/facebook/deactivate",
+                method: "PATCH",
+            }),
+            invalidatesTags: ["FacebookPage"],
+        }),
+        setFacebookMiniAppEnabled: build.mutation<FacebookPageSetting, boolean>({
+            query: (enabled) => ({
+                url: `/businesses/social-settings/facebook/mini-app?enabled=${enabled}`,
+                method: "PATCH",
+            }),
+            invalidatesTags: ["FacebookPage"],
+        }),
     }),
 });
 
@@ -33,4 +57,7 @@ export const {
     useGetFacebookPageSettingQuery,
     useLazyGetFacebookConnectUrlQuery,
     useDisconnectFacebookPageMutation,
+    useActivateFacebookPageMutation,
+    useDeactivateFacebookPageMutation,
+    useSetFacebookMiniAppEnabledMutation,
 } = facebookPageApi;
