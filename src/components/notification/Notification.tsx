@@ -109,68 +109,54 @@ function getNotificationIcon(type?: string | null, title?: string | null) {
 }
 
 function getNotificationLink(notification: Notification): string {
+    // 1. Prioritize explicit deepLink if provided
+    if (notification.deepLink && notification.deepLink.startsWith("/") && notification.deepLink !== "#") {
+        return notification.deepLink;
+    }
+
     const type = notification.type?.toUpperCase() || "";
     const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
-    const deepLink = (notification.deepLink || "").toLowerCase();
 
-    if (
-        type === "ORDER" ||
-        type === "PAYMENT" ||
-        type === "SUCCESS" ||
-        text.includes("sale") ||
-        text.includes("inv-") ||
-        text.includes("order") ||
-        deepLink.includes("order") ||
-        deepLink.includes("sale") ||
-        deepLink.includes("pos")
-    ) {
-        return "/sales/orders";
+    // 2. Specific feature fallbacks based on content / type
+    if (text.includes("discount") || text.includes("coupon") || type === "PROMOTION") {
+        return "/sales/discounts";
+    }
+
+    if (text.includes("employee") || text.includes("staff") || text.includes("signed in") || text.includes("login")) {
+        return "/employees";
     }
 
     if (
         type === "INVENTORY" ||
         type === "LOW_STOCK" ||
-        type === "WARNING" ||
-        type === "ALERT" ||
+        text.includes("low stock") ||
         text.includes("stock") ||
-        text.includes("item") ||
-        deepLink.includes("inventory") ||
-        deepLink.includes("stock")
+        text.includes("restock")
     ) {
         return "/inventory/stock";
     }
 
-    if (text.includes("customer") || deepLink.includes("customer")) {
+    if (text.includes("customer")) {
         return "/sales/customers";
     }
 
-    if (text.includes("discount") || text.includes("coupon") || deepLink.includes("discount")) {
-        return "/sales/discounts";
-    }
-
-    if (text.includes("session") || text.includes("till") || deepLink.includes("session")) {
+    if (text.includes("session") || text.includes("till") || text.includes("cash drawer")) {
         return "/sales/sessions";
     }
 
-    if (text.includes("tax") || deepLink.includes("tax")) {
+    if (text.includes("tax")) {
         return "/sales/taxes";
     }
 
-    if (text.includes("employee") || text.includes("staff") || deepLink.includes("employee")) {
-        return "/employees";
-    }
-
-    if (notification.deepLink && notification.deepLink !== "#") {
-        const link = notification.deepLink;
-        if (
-            link.startsWith("/sales") ||
-            link.startsWith("/inventory") ||
-            link.startsWith("/business") ||
-            link.startsWith("/employees") ||
-            link.startsWith("/analytics")
-        ) {
-            return link;
-        }
+    if (
+        type === "ORDER" ||
+        type === "PAYMENT" ||
+        type === "SUCCESS" ||
+        text.includes("inv-") ||
+        text.includes("order") ||
+        text.includes("receipt")
+    ) {
+        return "/sales/orders";
     }
 
     return "/sales/orders";
