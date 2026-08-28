@@ -390,7 +390,6 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     { id: "name", label: "Name", visible: true },
     { id: "category", label: "Category", visible: true },
     { id: "type", label: "Type", visible: true },
-    { id: "price", label: "Price", visible: true },
     { id: "unit", label: "Unit", visible: true },
     { id: "status", label: "Status", visible: true },
     { id: "actions", label: "Actions", visible: true },
@@ -1202,7 +1201,6 @@ export function InventoryProductList() {
                                     {isColVisible("name") && <th className="px-5 py-3">Name</th>}
                                     {isColVisible("category") && <th className="px-5 py-3">Category</th>}
                                     {isColVisible("type") && <th className="px-5 py-3">Type</th>}
-                                    {isColVisible("price") && <th className="px-5 py-3">Price</th>}
                                     {isColVisible("unit") && <th className="px-5 py-3">Unit</th>}
                                     {isColVisible("status") && <th className="px-5 py-3">Status</th>}
                                     {isColVisible("actions") && (
@@ -1267,19 +1265,6 @@ export function InventoryProductList() {
                                             {isColVisible("type") && (
                                                 <td className="px-5 py-4 text-muted-foreground">
                                                     {item.itemType ? titleCase(item.itemType) : "—"}
-                                                </td>
-                                            )}
-                                            {isColVisible("price") && (
-                                                <td
-                                                    className={
-                                                        item.price === undefined || item.price === null
-                                                            ? "px-5 py-4 text-muted-foreground"
-                                                            : "px-5 py-4 font-semibold"
-                                                    }
-                                                >
-                                                    {formatMoney(item.price, undefined, {
-                                                        fallback: "Not set",
-                                                    })}
                                                 </td>
                                             )}
                                             {isColVisible("unit") && (

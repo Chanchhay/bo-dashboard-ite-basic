@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 function getPageItems(currentPage: number, totalPages: number): (number | null)[] {
   const siblingCount = 1;
-  const totalVisible = siblingCount * 2 + 5; 
+  const totalVisible = siblingCount * 2 + 5;
 
   if (totalPages <= totalVisible) {
     return Array.from({ length: totalPages }, (_, i) => i);
@@ -53,19 +53,19 @@ function getPageItems(currentPage: number, totalPages: number): (number | null)[
 export type PaginationBarProps = {
 
   page: number;
- 
+
   size: number;
-  
+
   totalElements: number;
-  
+
   totalPages: number;
   onPageChange: (page: number) => void;
   onSizeChange: (size: number) => void;
-  
+
   isLoading?: boolean;
-  
+
   sizeOptions?: number[];
-  
+
   itemLabel?: string;
   itemLabelPlural?: string;
   className?: string;
@@ -121,8 +121,7 @@ export function PaginationBar({
               onSizeChange(Number(value));
               onPageChange(0);
             }}
-            disabled={isLoading}
-          >
+            disabled={isLoading} >
             <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[4.25rem] rounded-lg border border-border bg-background px-3 text-xs sm:text-sm font-semibold text-foreground shadow-none hover:bg-muted/50 transition-colors cursor-pointer gap-2">
               <SelectValue />
             </SelectTrigger>
@@ -152,7 +151,7 @@ export function PaginationBar({
         </span>
       </div>
 
-   
+
       <div className="flex items-center gap-1 self-end sm:self-auto">
         <Button
           type="button"

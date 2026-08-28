@@ -46,11 +46,11 @@ export type Business = {
     socialLinks?: SocialLink[];
 
     cityOrProvince?: string;
-    
+
     provinceName?: string;
     districtName?: string;
     communeName?: string;
-    
+
     latitude?: number;
     longitude?: number;
     website?: string;
@@ -58,7 +58,7 @@ export type Business = {
     category?: BusinessSubCategory;
     baseCurrency?: string;
     displayCurrency?: string;
-   
+
     taxEnabled?: boolean;
     taxRate?: number;
     taxInclusionType?: TaxInclusionType;

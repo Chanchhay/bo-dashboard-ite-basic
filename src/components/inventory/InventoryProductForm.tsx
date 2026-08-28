@@ -1411,25 +1411,16 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 </SelectContent>
               </Select>
             </Field>
-            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-3.5">
-              <div className="space-y-0.5">
-                <Label
-                  htmlFor="trackInventorySwitch"
-                  className="text-sm font-semibold text-foreground cursor-pointer"
-                >
-                  Track Inventory / Stock
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Enable stock tracking, low-stock warnings, and inventory
-                  deductions upon checkout.
-                </p>
-              </div>
-              <Switch
-                id="trackInventorySwitch"
-                checked={trackInventory}
-                onCheckedChange={setTrackInventory}
+            <Field label="Store badge" name="badge" error={fieldErrors.badge}>
+              <Input
+                id="badge"
+                name="badge"
+                defaultValue={initialItem?.badge}
+                placeholder="NEW ARRIVAL"
+                aria-invalid={Boolean(fieldErrors.badge)}
+                className={inventoryControlClassName}
               />
-            </div>
+            </Field>
             <div data-tour="item-form-status">
               <Field label="Status *" name="status" error={fieldErrors.status}>
                 <Select
@@ -1453,16 +1444,25 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 </Select>
               </Field>
             </div>
-            <Field label="Store badge" name="badge" error={fieldErrors.badge}>
-              <Input
-                id="badge"
-                name="badge"
-                defaultValue={initialItem?.badge}
-                placeholder="NEW ARRIVAL"
-                aria-invalid={Boolean(fieldErrors.badge)}
-                className={inventoryControlClassName}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-3.5">
+              <div className="space-y-0.5">
+                <Label
+                  htmlFor="trackInventorySwitch"
+                  className="text-sm font-semibold text-foreground cursor-pointer"
+                >
+                  Track Inventory / Stock
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Enable stock tracking, low-stock warnings, and inventory
+                  deductions upon checkout.
+                </p>
+              </div>
+              <Switch
+                id="trackInventorySwitch"
+                checked={trackInventory}
+                onCheckedChange={setTrackInventory}
               />
-            </Field>
+            </div>
             <div className="md:col-span-2">
               <Field
                 label="Description"
