@@ -18,13 +18,13 @@ export async function GET(request: Request) {
 
         const page = await backendRequest<{
             content: Staff[];
-            number: number;
+            page: number;
             size: number;
             totalElements: number;
             totalPages: number;
         }>(`/api/v1/businesses/${businessId}/staff?${params.toString()}`);
 
-        return Response.json(toPageResult(page));
+        return Response.json(toPageResult(page, searchParams));
     } catch (error) {
         return backendErrorResponse(error);
     }
