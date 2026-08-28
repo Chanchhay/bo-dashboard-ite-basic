@@ -6,7 +6,6 @@ import {
     getCurrentOrder,
     ordersPath,
 } from "@/lib/api/pos-order-backend";
-import { getActiveDefaultTax } from "@/lib/tax-store";
 
 /**
  * Settles the sale.
@@ -53,27 +52,6 @@ export async function POST(request: Request) {
         );
         const subtotal = Math.max(0, grossSubtotal - itemDiscount);
         const discountAmount = Math.max(0, order.discountAmount ?? 0);
-        const afterDiscount = Math.max(0, subtotal - discountAmount);
-
-        const activeTax = getActiveDefaultTax();
-        const isTaxActive = result.data.isTaxActive ?? activeTax?.isActive ?? false;
-        const isTaxInclusive = isTaxActive
-            ? (result.data.isTaxInclusive ?? activeTax?.isTaxInclusive ?? false)
-            : false;
-
-        const effectiveTaxRate = isTaxActive
-            ? (result.data.taxRate !== undefined ? result.data.taxRate : ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0)))
-            : 0;
-
-        const calculatedTaxAmount = isTaxActive
-            ? (isTaxInclusive
-                ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-                : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2)))
-            : 0;
-
-        const taxAmount = isTaxActive
-            ? (result.data.taxAmount !== undefined ? result.data.taxAmount : ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTaxAmount))
-            : 0;
 
         const targetDiscountId = result.data.discountId || order.discountId;
         const targetDiscountCode = result.data.discountCode || order.discountCode;
@@ -129,12 +107,10 @@ export async function POST(request: Request) {
             } catch {}
         }
 
-        const effectiveTotal = Math.max(
-            0,
-            parseFloat(
-                (isTaxInclusive ? afterDiscount : (afterDiscount + taxAmount)).toFixed(2)
-            )
-        );
+        // The discount patch above refreshes order.total from the backend,
+        // which already has this business's tax rate folded in — that is
+        // what is actually owed, not something to recompute here.
+        const effectiveTotal = Math.max(0, order.total ?? subtotal);
 
         const userReceived = result.data.receivedAmount;
         const isPayLater = result.data.paymentMethod === "PAY_LATER";
@@ -174,9 +150,9 @@ export async function POST(request: Request) {
             }
         }
 
-        const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
-
-        // Send payment to Spring Java backend
+        // Send payment to Spring Java backend. Tax is not sent — the backend
+        // already applied the business's configured rate when the order was
+        // created, and settling just charges whatever order.total says.
         const sale = await backendRequest<Sale>(
             ordersPath(businessId, `/${encodeURIComponent(order.id)}/pay`),
             {
@@ -185,9 +161,6 @@ export async function POST(request: Request) {
                     paymentMethod: result.data.paymentMethod,
                     note: result.data.note,
                     receivedAmount: paidVal,
-                    taxInclusionType,
-                    taxRate: effectiveTaxRate,
-                    taxAmount,
                 }),
             }
         );
@@ -206,10 +179,6 @@ export async function POST(request: Request) {
             ...sale,
             subtotal,
             discountAmount,
-            taxRate: effectiveTaxRate,
-            taxAmount,
-            taxInclusionType,
-            totalAmount: effectiveTotal,
             paidAmount: paidVal,
             changeAmount: changeVal,
         };

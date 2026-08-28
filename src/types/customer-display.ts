@@ -37,8 +37,10 @@ export interface CustomerDisplayPayload {
   items: CustomerDisplayItem[];
   subtotal: number;
   discountAmount: number;
+  discountLabel?: string | null;
   tax: number;
   taxRate?: number | null;
+  taxInclusionType?: "INCLUSIVE" | "EXCLUSIVE" | null;
   total: number;
   currency: string;
   invoiceNumber?: string | null;

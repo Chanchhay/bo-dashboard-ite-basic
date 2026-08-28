@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetDiscountsQuery } from "@/services/discountApi";
+import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import {
   posOrderApi,
   useGetCurrentOrderQuery,
@@ -53,7 +54,6 @@ export interface OrderTableProps {
 /**
  * The payment dialog still speaks the older snake_case `Order`.
  */
-import { getActiveDefaultTax } from "@/lib/tax-store";
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
   if (!phoneStr) return "";
@@ -217,29 +217,11 @@ function computeItemDiscount(
 function legacyOrderShape(order: PosOrder): Order {
   const subtotalNum = order.subtotal ?? 0;
   const discountNum = order.discountAmount ?? 0;
-  const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
-  const activeTax = getActiveDefaultTax();
-  const isTaxActive = activeTax?.isActive ?? false;
-  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
-
-  const effectiveTaxRate = isTaxActive
-    ? ((order.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
-    : 0;
-
-  const calculatedTax = isTaxActive
-    ? isTaxInclusive
-      ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-      : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2))
-    : 0;
-
-  const taxAmount = isTaxActive
-    ? ((order.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
-    : 0;
-
-  const computedTotal = isTaxInclusive
-    ? afterDiscount
-    : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
+  // Tax and the total were already computed server-side when this order was
+  // created or last repriced — carried through as-is rather than re-derived,
+  // so the payment dialog never disagrees with what will actually be charged.
+  const computedTotal = order.total ?? subtotalNum;
 
   let storedRule: AppliedDiscountRule | null = null;
   try {
@@ -258,6 +240,9 @@ function legacyOrderShape(order: PosOrder): Order {
     subtotal: String(subtotalNum),
     discount_amount: String(discountNum),
     applied_discounts: null,
+    tax_rate: order.taxRate ?? null,
+    tax_amount: order.taxAmount ?? null,
+    tax_inclusion_type: order.taxInclusionType ?? null,
     total: String(computedTotal),
     currency: order.currency,
     note: order.note,
@@ -430,6 +415,7 @@ export function OrderTable({
   const { data: order, isLoading, error } = useGetCurrentOrderQuery();
   const { data: customers = [] } = useGetCustomersQuery();
   const { data: discounts = [] } = useGetDiscountsQuery();
+  const { data: business } = useGetBusinessProfileQuery();
 
   const [updateOrderItem] = useUpdateOrderItemMutation();
   const [removeOrderItem] = useRemoveOrderItemMutation();
@@ -602,33 +588,89 @@ export function OrderTable({
     );
   };
 
+  const boPosDefaultRule = useMemo<AppliedDiscountRule | null>(() => {
+    let selectedPosDiscountId: string | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("channel_active_applied_discounts");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          selectedPosDiscountId = parsed?.POS || null;
+        }
+      } catch (e) {}
+    }
+
+    if (!selectedPosDiscountId || selectedPosDiscountId === "NONE") {
+      return null;
+    }
+
+    const activeRule = discounts.find(
+      (d) =>
+        d.id === selectedPosDiscountId &&
+        d.status === "ACTIVE" &&
+        !d.requiresCoupon &&
+        (d.applicableChannels && d.applicableChannels.length > 0 ? d.applicableChannels.includes("POS") : false)
+    );
+    if (!activeRule) return null;
+
+    return {
+      type: activeRule.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
+      value: activeRule.value,
+      maxDiscountAmount: activeRule.maxDiscountAmount,
+      discountId: activeRule.id,
+      label: activeRule.name,
+      scope: activeRule.scope,
+      targetItemIds: activeRule.targets
+        ?.filter((t) => t.targetType === "ITEM")
+        .map((t) => t.targetId),
+      targetItemGroupIds: activeRule.targets
+        ?.filter((t) => t.targetType === "ITEM_GROUP")
+        .map((t) => t.targetId),
+      minOrderAmount: activeRule.minOrderAmount,
+      minQuantity: activeRule.minQuantity,
+      buyQuantity: activeRule.buyQuantity,
+      getQuantity: activeRule.getQuantity,
+    };
+  }, [discounts]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
     let rule: AppliedDiscountRule | null = null;
-
-    if (storeDefaultRaw) {
-      try {
-        const parsed = JSON.parse(storeDefaultRaw);
-        if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed)) {
-          localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
-        } else {
-          rule = parsed;
-        }
-      } catch {}
-    }
+    let explicitlyDisabled = false;
 
     if (order?.id) {
       const cartKey = `pos_cart_discount_${order.id}`;
       const cartRaw = localStorage.getItem(cartKey);
-      if (cartRaw) {
+      if (cartRaw === "NONE") {
+        explicitlyDisabled = true;
+      } else if (cartRaw) {
         try {
           rule = JSON.parse(cartRaw);
         } catch {}
-      } else if (rule) {
+      }
+    }
+
+    if (!rule && !explicitlyDisabled) {
+      const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
+      if (storeDefaultRaw) {
         try {
-          localStorage.setItem(cartKey, JSON.stringify(rule));
+          const parsed = JSON.parse(storeDefaultRaw);
+          if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed)) {
+            localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
+          } else {
+            rule = parsed;
+          }
+        } catch {}
+      }
+
+      if (!rule && boPosDefaultRule) {
+        rule = boPosDefaultRule;
+      }
+
+      if (rule && order?.id) {
+        try {
+          localStorage.setItem(`pos_cart_discount_${order.id}`, JSON.stringify(rule));
         } catch {}
       }
     }
@@ -651,8 +693,24 @@ export function OrderTable({
       }
     } else {
       setActiveDiscountRule(null);
+      if (order?.id && (order.discountAmount ?? 0) > 0) {
+        void setOrderDiscount({
+          discountAmount: 0,
+          discountId: null,
+          discountCode: null,
+        });
+      }
     }
-  }, [order?.id, order?.subtotal, order?.discountAmount, order?.discountId, order?.discountCode, order?.items, setOrderDiscount]);
+  }, [
+    order?.id,
+    order?.subtotal,
+    order?.discountAmount,
+    order?.discountId,
+    order?.discountCode,
+    order?.items,
+    setOrderDiscount,
+    boPosDefaultRule,
+  ]);
 
   const selectedCustomer = useMemo(() => {
     if (!order?.customerId) return null;
@@ -725,7 +783,7 @@ export function OrderTable({
     if (!rule) {
       localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
       if (order?.id) {
-        localStorage.removeItem(`pos_cart_discount_${order.id}`);
+        localStorage.setItem(`pos_cart_discount_${order.id}`, "NONE");
       }
       setActiveDiscountRule(null);
       if (order?.id) {
@@ -735,6 +793,11 @@ export function OrderTable({
           discountCode: null,
         }).unwrap();
       }
+      toast({
+        tone: "info",
+        title: "Discount Removed",
+        description: "Discount has been removed from this order.",
+      });
       return;
     }
 
@@ -818,37 +881,23 @@ export function OrderTable({
   const discountNum = effectiveOrder.discountAmount ?? 0;
   const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
-  const activeTax = getActiveDefaultTax();
-  const isTaxActive = activeTax?.isActive ?? false;
-  const isTaxInclusive = activeTax?.isTaxInclusive ?? false;
-
-  const effectiveTaxRate = isTaxActive
-    ? ((order?.taxRate && order.taxRate > 0) ? order.taxRate : (activeTax?.taxRate ?? 0))
-    : 0;
-
-  const calculatedTax = isTaxActive
-    ? isTaxInclusive
-      ? (afterDiscount > 0 && effectiveTaxRate > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (effectiveTaxRate / 100)))).toFixed(2)) : 0)
-      : parseFloat((afterDiscount * (effectiveTaxRate / 100)).toFixed(2))
-    : 0;
-
-  const taxAmount = isTaxActive
-    ? ((order?.taxAmount && order.taxAmount > 0) ? order.taxAmount : calculatedTax)
-    : 0;
-
-  const computedCartTotal = isTaxInclusive
-    ? afterDiscount
-    : Math.max(0, parseFloat((afterDiscount + taxAmount).toFixed(2)));
+  // Tax was already computed server-side against this order's own items and
+  // the business's configured rate — read directly rather than re-derived,
+  // so the cart summary never disagrees with what payment will actually charge.
+  const taxAmount = order?.taxAmount ?? 0;
+  const isTaxActive = taxAmount > 0;
+  const isTaxInclusive = order?.taxInclusionType === "INCLUSIVE";
+  const effectiveTaxRate = order?.taxRate ?? 0;
 
   const summary = {
     subtotal: subtotalNum,
     discount: discountNum,
-    taxName: activeTax?.taxName ?? "VAT",
+    taxName: business?.taxLabel || "VAT",
     taxRate: effectiveTaxRate,
     taxAmount: taxAmount,
     isTaxActive,
     isTaxInclusive,
-    total: computedCartTotal,
+    total: order?.total ?? subtotalNum,
   };
   const totalSecondary = secondaryFor(summary.total, order);
 
@@ -971,16 +1020,6 @@ export function OrderTable({
           } catch {}
         }
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
-        try {
-          localStorage.setItem(`pos_order_tax_rule_${sold.id}`, JSON.stringify({
-            isTaxActive,
-            isTaxInclusive,
-            taxInclusionType,
-            taxRate: effectiveTaxRate,
-            taxAmount: summary.taxAmount,
-            totalAmount: summary.total,
-          }));
-        } catch {}
       }
 
       // Revert discount to previous normal store default discount (or clear if none)
@@ -1162,28 +1201,24 @@ export function OrderTable({
             <span className="text-primary min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">
               Discount
             </span>
-            {activeDiscountRule?.label && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
-                {activeDiscountRule.label}
-                <button
-                  type="button"
-                  onClick={() => void handleApplyDiscountRule(null)}
-                  className="hover:text-brand-red ml-0.5"
-                  title="Remove Discount"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            <button
-              type="button"
-              data-tour="pos-cart-discount"
-              onClick={() => setDiscountModalOpen(true)}
-              className="text-xs font-bold text-primary hover:bg-primary/10 px-2 py-0.5 rounded-md border border-primary/30 flex items-center gap-1 transition-all"
-            >
-              <Tag className="h-3 w-3" />
-              {summary.discount > 0 ? "Edit" : "+ Apply"}
-            </button>
+            <div className="flex items-center gap-1.5">
+              {activeDiscountRule?.label && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
+                  {activeDiscountRule.label}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleApplyDiscountRule(null)}
+                className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-1.5 py-0.5 rounded border border-red-200 transition-colors"
+                title="Cancel discount on this order"
+              >
+                ✕ Cancel
+              </button>
+            </div>
+            <span className="tabular-nums text-primary min-[1025px]:text-[25px] min-[1025px]:font-semibold min-[1025px]:leading-7 font-bold">
+              -{format(summary.discount, order?.currency)}
+            </span>
           </div>
         )}
 
