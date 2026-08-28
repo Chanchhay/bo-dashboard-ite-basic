@@ -8,7 +8,7 @@ type CurrentBusiness = {
     id: string;
 };
 
-/** The signed-in user's business, URL-encoded for path interpolation. */
+
 export async function getCurrentBusinessId() {
     const business = await backendRequest<CurrentBusiness>(
         "/api/v1/businesses/me",
@@ -53,7 +53,8 @@ export function businessImageRoutes({
                 }
 
                 const businessId = await getCurrentBusinessId();
-              
+                
+                
                 const upload = new FormData();
                 upload.append("file", file, file.name);
 

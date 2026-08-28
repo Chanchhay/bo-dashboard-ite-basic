@@ -78,10 +78,8 @@ export function CustomerSelectModal({
     // Create form states
     const [fullName, setFullName] = useState("");
     const [phone, setPhone] = useState("");
-    const [email, setEmail] = useState("");
     const [membershipTypeId, setMembershipTypeId] = useState("");
     const [salesChannelId, setSalesChannelId] = useState("");
-    const [address, setAddress] = useState("");
     const [formError, setFormError] = useState("");
 
     const filteredCustomers = useMemo(() => {
@@ -102,11 +100,9 @@ export function CustomerSelectModal({
             if (isPhoneMatch) return true;
 
             const name = c.globalCustomer?.fullName?.toLowerCase() || "";
-            const mail = c.globalCustomer?.email?.toLowerCase() || "";
             const tier = c.membershipType?.typeName?.toLowerCase() || "";
             return (
                 name.includes(q) ||
-                mail.includes(q) ||
                 tier.includes(q)
             );
         });
@@ -132,8 +128,8 @@ export function CustomerSelectModal({
         e.preventDefault();
         setFormError("");
 
-        if (!fullName.trim() && !phone.trim() && !email.trim()) {
-            setFormError("Please enter a name, phone number, or email.");
+        if (!fullName.trim() && !phone.trim()) {
+            setFormError("Please enter a name or phone number.");
             return;
         }
 
@@ -146,10 +142,8 @@ export function CustomerSelectModal({
             const newCust = await createCustomer({
                 fullName: fullName.trim() || undefined,
                 phoneNumber: phone.trim() || undefined,
-                email: email.trim() || undefined,
                 membershipTypeId: membershipTypeId || undefined,
                 salesChannelId: effectiveChannelId,
-                address: address.trim() || undefined,
                 active: true,
             }).unwrap();
 
@@ -165,17 +159,15 @@ export function CustomerSelectModal({
             // Reset form
             setFullName("");
             setPhone("");
-            setEmail("");
             setMembershipTypeId("");
             setSalesChannelId("");
-            setAddress("");
             setTab("SELECT");
         } catch (err) {
             setFormError(
                 getApiErrorMessage(
                     err,
                     "Could not create customer.",
-                    "This phone number or email is already registered to another customer.",
+                    "This phone number is already registered to another customer.",
                 ),
             );
         }
@@ -297,7 +289,6 @@ export function CustomerSelectModal({
                                     const isSelected = selectedCustomerId === c.id;
                                     const name = c.globalCustomer?.fullName || "Unnamed Customer";
                                     const phoneNum = formatLocalPhone(c.globalCustomer?.phoneNumber);
-                                    const emailAddr = c.globalCustomer?.email;
                                     const tier = c.membershipType?.typeName;
                                     const channel = c.salesChannel?.name;
 
@@ -338,10 +329,11 @@ export function CustomerSelectModal({
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 flex items-center gap-3">
-                                                        {phoneNum && <span>{phoneNum}</span>}
-                                                        {emailAddr && <span>{emailAddr}</span>}
-                                                    </div>
+                                                    {phoneNum && (
+                                                        <div className="text-xs text-gray-500">
+                                                            {phoneNum}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -390,32 +382,17 @@ export function CustomerSelectModal({
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="quick-phone" className="text-xs font-bold text-gray-700">
-                                    Phone Number
-                                </Label>
-                                <Input
-                                    id="quick-phone"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="012 345 678"
-                                    className="h-10 text-sm rounded-xl"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label htmlFor="quick-email" className="text-xs font-bold text-gray-700">
-                                    Email Address
-                                </Label>
-                                <Input
-                                    id="quick-email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="customer@example.com"
-                                    className="h-10 text-sm rounded-xl"
-                                />
-                            </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="quick-phone" className="text-xs font-bold text-gray-700">
+                                Phone Number
+                            </Label>
+                            <Input
+                                id="quick-phone"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="012 345 678"
+                                className="h-10 text-sm rounded-xl"
+                            />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -474,19 +451,6 @@ export function CustomerSelectModal({
                                     </Select>
                                 )}
                             </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="quick-address" className="text-xs font-bold text-gray-700">
-                                Delivery Address / Note
-                            </Label>
-                            <Input
-                                id="quick-address"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                                placeholder="Street, City..."
-                                className="h-10 text-sm rounded-xl"
-                            />
                         </div>
 
                         <div className="flex gap-3 pt-3 border-t border-gray-100">

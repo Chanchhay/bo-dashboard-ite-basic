@@ -19,7 +19,10 @@ export function parseNominatimAddress(address: NominatimAddress | undefined): Ge
 
     return {
         provinceName: address.state || address.province || address.city || undefined,
-   
+        
+        
+        
+        
         districtName:
             address.city_district ||
             address.county ||
@@ -33,7 +36,7 @@ export function parseNominatimAddress(address: NominatimAddress | undefined): Ge
 
 const SHORT_LINK_HOSTS = ["maps.app.goo.gl", "goo.gl"];
 
-/** Short links (maps.app.goo.gl, goo.gl/maps) carry no coordinates in the URL itself — only the redirect they resolve to does. */
+
 export function isShortGoogleMapsLink(url: string): boolean {
     try {
         const host = new URL(url).hostname;
@@ -47,10 +50,10 @@ export function isShortGoogleMapsLink(url: string): boolean {
 export function extractLatLngFromGoogleMapsUrl(input: string): { lat: number; lng: number } | null {
     const text = input.trim();
     const patterns = [
-        /!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/, 
-        /[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/, // ?q=11.5564,104.9282
-        /@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/, 
-        /^(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/, 
+        /!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/,
+        /[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/,
+        /@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/,
+        /^(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/,
     ];
 
     for (const pattern of patterns) {

@@ -12,7 +12,7 @@ export interface CurrencyMetadata {
     flag: string;
 }
 
-// Map common currency codes to country codes and primary names
+
 const CURRENCY_TO_COUNTRY: Record<string, { country: string; countryCode: string; flagEmoji?: string }> = {
     USD: { country: "United States", countryCode: "us", flagEmoji: "🇺🇸" },
     EUR: { country: "European Union", countryCode: "eu", flagEmoji: "🇪🇺" },
@@ -239,7 +239,7 @@ export async function fetchFrankfurterRates(baseCurrency: string = "USD"): Promi
         headers: {
             Accept: "application/json",
         },
-        next: { revalidate: 3600 }, // cache for 1 hour on server if SSR/RSC
+        next: { revalidate: 3600 },
     });
 
     if (!response.ok) {
@@ -262,7 +262,7 @@ export async function fetchFrankfurterRates(baseCurrency: string = "USD"): Promi
         }
     }
 
-    // Always include base currency itself at rate 1.0
+    
     rates[base] = 1.0;
 
     return {

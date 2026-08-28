@@ -1,16 +1,11 @@
-/**
- * One description of what an image picker accepts, shared by the control that
- * picks the file and the route handler that forwards it — so the browser, the
- * client check and the server check can never drift apart, and every picker in
- * the app rejects a file with the same sentence.
- */
+
 export type ImageUploadRules = {
-    /** For the file input's `accept`. */
+    
     accept: string;
     maxBytes: number;
-    /** One line of guidance to render under the picker. */
+    
     hint: string;
-    /** The message to show, or `undefined` when the file is fine. */
+    
     validate: (file: File) => string | undefined;
 };
 
@@ -30,9 +25,9 @@ export function imageUploadRules({
 }: {
     accept: string;
     maxBytes: number;
-    /** Lowercase and article-first: "the logo", "your profile picture". */
+    
     subject: string;
-    /** Human-readable formats for the hint: "PNG, JPG or WebP". */
+    
     formats: string;
 }): ImageUploadRules {
     const limit = formatBytes(maxBytes);

@@ -78,7 +78,7 @@ export function InstallPrompt() {
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-2">
         <Smartphone className="size-4 text-primary" aria-hidden="true" />
-        <h3 className="text-base font-semibold text-foreground">
+        <h3 className="text-base font-semibold text-primary">
           Install App
         </h3>
       </div>

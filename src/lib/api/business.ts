@@ -8,6 +8,8 @@ export type BusinessSubCategory = {
     slug?: string;
 };
 
+export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
+
 export type BusinessCategory = {
     id?: string;
     name?: string;
@@ -25,17 +27,13 @@ export type Business = {
     phoneNumber?: string;
     googleMap?: string;
     address?: string;
-    /** @deprecated superseded by {@link provinceName}; still returned during the transition. */
+    
     cityOrProvince?: string;
-    /**
-     * Province/city, district/khan, commune/sangkat — filled in from a map
-     * geocoder when the owner drops the pin, not typed by hand. Plain text
-     * rather than an id: nobody here maintains a seeded division table.
-     */
+    
     provinceName?: string;
     districtName?: string;
     communeName?: string;
-    /** The shopfront's exact map pin, same source as the names above. */
+    
     latitude?: number;
     longitude?: number;
     website?: string;
@@ -43,6 +41,11 @@ export type Business = {
     category?: BusinessSubCategory;
     baseCurrency?: string;
     displayCurrency?: string;
+    /** The one tax rate this business charges — applied the same way on every sales channel. */
+    taxEnabled?: boolean;
+    taxRate?: number;
+    taxInclusionType?: TaxInclusionType;
+    taxLabel?: string;
 };
 
 export type StorefrontRequirement = {
@@ -172,7 +175,6 @@ export const businessProfileSchema = z.object({
     longitude: optionalCoordinateSchema("longitude", "longitude"),
 });
 
-/** Matches the backend's upload limits for `POST /businesses/{id}/logo`. */
 export const businessLogoRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp,image/svg+xml",
     maxBytes: 5 * 1024 * 1024,
@@ -180,7 +182,6 @@ export const businessLogoRules = imageUploadRules({
     formats: "PNG, JPG, WebP or SVG",
 });
 
-/** The storefront cover, behind `POST /businesses/{id}/thumbnail`. */
 export const businessThumbnailRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp",
     maxBytes: 5 * 1024 * 1024,
@@ -190,8 +191,6 @@ export const businessThumbnailRules = imageUploadRules({
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 
-// `UpdateBusinessRequest` carries no logo: the image is owned by the
-// `/logo` upload and delete endpoints instead.
 export type UpdateBusinessInput = {
     name: string;
     categoryId?: string;
@@ -225,5 +224,47 @@ export function toUpdateBusinessInput(
         ...(input.communeName ? { communeName: input.communeName } : {}),
         ...(input.latitude ? { latitude: Number(input.latitude) } : {}),
         ...(input.longitude ? { longitude: Number(input.longitude) } : {}),
+    };
+}
+
+/** Sale Management's Tax Settings page — a separate save from the general
+ * business profile, since it lives on its own page there. */
+export const taxSettingsSchema = z.object({
+    taxEnabled: z.boolean(),
+    taxRate: z
+        .string()
+        .trim()
+        .refine(
+            (value) =>
+                value === "" ||
+                (!Number.isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 100),
+            "Tax rate must be a number between 0 and 100.",
+        ),
+    taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]),
+    taxLabel: z
+        .string()
+        .trim()
+        .max(30, "Tax label must be 30 characters or fewer."),
+});
+
+export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
+
+/** Same `UpdateBusinessRequest` endpoint, but with only the tax fields set —
+ * every other field stays null so nothing else on the profile is touched. */
+export type UpdateBusinessTaxInput = {
+    taxEnabled: boolean;
+    taxRate?: number;
+    taxInclusionType: TaxInclusionType;
+    taxLabel?: string;
+};
+
+export function toUpdateBusinessTaxInput(
+    input: TaxSettingsInput,
+): UpdateBusinessTaxInput {
+    return {
+        taxEnabled: input.taxEnabled,
+        taxInclusionType: input.taxInclusionType,
+        ...(input.taxRate !== "" ? { taxRate: Number(input.taxRate) } : {}),
+        ...(input.taxLabel ? { taxLabel: input.taxLabel } : {}),
     };
 }
