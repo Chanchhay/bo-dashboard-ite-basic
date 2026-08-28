@@ -100,11 +100,12 @@ function formatDateTimeForInput(dateStr?: string | null): string {
 export default function DiscountsAndCouponsPage() {
     const { format, base } = useMoney();
     const baseSymbol = base?.symbol ?? base?.code ?? "";
-    const [activeTab, setActiveTab] = useState<"discounts" | "coupons" | "channels">("discounts");
+    const [activeTab, setActiveTab] = useState<"discounts" | "coupons" | "channels" | "discounted-items">("discounts");
     const [searchQuery, setSearchQuery] = useState("");
     const [discountFilter, setDiscountFilter] = useState<"ALL" | "AUTO" | "COUPON">("ALL");
     const [selectedStatusFilter, setSelectedStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
     const [selectedChannelFilter, setSelectedChannelFilter] = useState<"ALL" | "WEB" | "TELEGRAM" | "MESSENGER" | "POS">("ALL");
+    const [selectedItemCategoryFilter, setSelectedItemCategoryFilter] = useState<string>("ALL");
 
     // --- Column Visibility States ---
     const [discountCols, setDiscountCols] = useState([
@@ -372,49 +373,117 @@ export default function DiscountsAndCouponsPage() {
         return map;
     }, [discounts, editingDiscount]);
 
-    // --- Multi-Discount Channel Selection State ---
-    const [channelSelectedDiscounts, setChannelSelectedDiscounts] = useState<Record<OrderChannel, string[]>>({
-        WEB: [],
-        TELEGRAM: [],
-        MESSENGER: [],
-        POS: [],
-    });
+    // --- List of All Items with an Active Discount Applied ---
+    const discountedItemsList = useMemo(() => {
+        const activeAutoDiscounts = discounts.filter(
+            (d) => d.status === "ACTIVE" && !d.requiresCoupon
+        );
+        if (activeAutoDiscounts.length === 0) return [];
 
-    useEffect(() => {
-        try {
-            const saved = localStorage.getItem("channel_active_applied_discounts_multi");
-            if (saved) {
-                setChannelSelectedDiscounts(JSON.parse(saved));
-            } else {
-                const legacy = localStorage.getItem("channel_active_applied_discounts");
-                if (legacy) {
-                    const parsed = JSON.parse(legacy);
-                    const migrated: Record<OrderChannel, string[]> = { WEB: [], TELEGRAM: [], MESSENGER: [], POS: [] };
-                    (Object.keys(parsed) as OrderChannel[]).forEach((ch) => {
-                        if (parsed[ch] && parsed[ch] !== "NONE") {
-                            migrated[ch] = [parsed[ch]];
-                        }
-                    });
-                    setChannelSelectedDiscounts(migrated);
+        const result: Array<{
+            item: typeof items[0];
+            discount: DiscountResponse;
+            originalPrice: number;
+            discountedPrice: number;
+            discountRateLabel: string;
+        }> = [];
+
+        items.forEach((item) => {
+            const origPrice = Number(item.price) || 0;
+
+            // 1. Specific item discount match
+            let matchedDisc = activeAutoDiscounts.find((d) => {
+                if (d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM") {
+                    const ids = d.targets?.map((t) => t.targetId) || (d as any).targetItemIds || [];
+                    return ids.includes(item.id);
                 }
-            }
-        } catch (e) {}
-    }, []);
+                return false;
+            });
 
-    const handleToggleChannelDiscount = (channel: OrderChannel, discountId: string) => {
-        setChannelSelectedDiscounts((prev) => {
-            const current = prev[channel] || [];
-            const updated = current.includes(discountId)
-                ? current.filter((id) => id !== discountId)
-                : [...current, discountId];
-            const next = { ...prev, [channel]: updated };
-            try {
-                localStorage.setItem("channel_active_applied_discounts_multi", JSON.stringify(next));
-                window.dispatchEvent(new Event("channel_discounts_updated"));
-            } catch (e) {}
-            return next;
+            // 2. Category discount match
+            if (!matchedDisc && item.itemGroup?.id) {
+                const itemGroupId = item.itemGroup.id;
+                matchedDisc = activeAutoDiscounts.find((d) => {
+                    if (d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY") {
+                        const groupIds = d.targets?.map((t) => t.targetId) || [];
+                        return groupIds.includes(itemGroupId);
+                    }
+                    return false;
+                });
+            }
+
+            // 3. Storewide discount match
+            if (!matchedDisc) {
+                matchedDisc = activeAutoDiscounts.find(
+                    (d) => d.scope === "ALL_ITEMS" || d.scope === "ORDER" || !d.scope
+                );
+            }
+
+            if (matchedDisc) {
+                let discPrice = origPrice;
+                let rateLabel = "";
+
+                if (matchedDisc.type === "PERCENTAGE") {
+                    const val = matchedDisc.value ?? 0;
+                    rateLabel = `${val}% OFF`;
+                    discPrice = Math.max(0, origPrice * (1 - val / 100));
+                } else if (matchedDisc.type === "FIXED_AMOUNT" || (matchedDisc.type as any) === "FIXED") {
+                    const val = matchedDisc.value ?? 0;
+                    rateLabel = `-${format(val)}`;
+                    discPrice = Math.max(0, origPrice - val);
+                } else if (matchedDisc.ruleType === "BUY_X_GET_Y" || (matchedDisc.buyQuantity && matchedDisc.getQuantity)) {
+                    rateLabel = `Buy ${matchedDisc.buyQuantity} Get ${matchedDisc.getQuantity}`;
+                } else {
+                    rateLabel = `${matchedDisc.value ?? 0}% OFF`;
+                    discPrice = Math.max(0, origPrice * (1 - (matchedDisc.value ?? 0) / 100));
+                }
+
+                result.push({
+                    item,
+                    discount: matchedDisc,
+                    originalPrice: origPrice,
+                    discountedPrice: discPrice,
+                    discountRateLabel: rateLabel,
+                });
+            }
         });
-    };
+
+        return result;
+    }, [items, discounts, format]);
+
+    const filteredDiscountedItems = useMemo(() => {
+        let list = discountedItemsList;
+        if (selectedItemCategoryFilter !== "ALL") {
+            const cat = availableCategoryOptions.find((c) => c.id === selectedItemCategoryFilter);
+            if (cat) {
+                list = list.filter((di) => {
+                    if (!di.item.itemGroup) return false;
+                    return (
+                        cat.matchingIds.has(di.item.itemGroup.id) ||
+                        (di.item.itemGroup.parentId && cat.matchingIds.has(di.item.itemGroup.parentId)) ||
+                        (di.item.itemGroup.name && di.item.itemGroup.name.toLowerCase() === cat.name.toLowerCase())
+                    );
+                });
+            }
+        }
+        if (selectedChannelFilter !== "ALL") {
+            list = list.filter((di) =>
+                !di.discount.applicableChannels ||
+                di.discount.applicableChannels.length === 0 ||
+                di.discount.applicableChannels.includes(selectedChannelFilter as OrderChannel)
+            );
+        }
+        if (!searchQuery.trim()) return list;
+        const q = searchQuery.toLowerCase();
+        return list.filter(
+            (di) =>
+                di.item.name?.toLowerCase().includes(q) ||
+                di.item.sku?.toLowerCase().includes(q) ||
+                di.item.barcode?.toLowerCase().includes(q) ||
+                di.discount.name.toLowerCase().includes(q) ||
+                di.item.itemGroup?.name?.toLowerCase().includes(q)
+        );
+    }, [discountedItemsList, selectedItemCategoryFilter, availableCategoryOptions, selectedChannelFilter, searchQuery]);
 
     // --- Storewide Pause Prompt Dialog State ---
     const [isStorewidePromptOpen, setIsStorewidePromptOpen] = useState(false);
@@ -758,6 +827,17 @@ export default function DiscountsAndCouponsPage() {
                         <Layers className="h-4 w-4" />
                         Channel Discounts
                     </button>
+                    <button
+                        onClick={() => setActiveTab("discounted-items")}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            activeTab === "discounted-items"
+                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                                : "text-muted-foreground hover:text-foreground"
+                        }`}
+                    >
+                        <Package className="h-4 w-4" />
+                        Discounted Items ({discountedItemsList.length})
+                    </button>
                 </div>
 
                 <div data-tour="discounts-search-bar" className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
@@ -766,7 +846,7 @@ export default function DiscountsAndCouponsPage() {
                         <Input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={`Search ${activeTab === "channels" ? "channel rules" : activeTab}...`}
+                            placeholder={`Search ${activeTab === "channels" ? "channel rules" : activeTab === "discounted-items" ? "discounted items" : activeTab}...`}
                             className="!h-10 pl-9 pr-8 text-sm rounded-xl border border-border bg-card shadow-2xs font-medium"
                         />
                         {searchQuery && (
@@ -781,7 +861,7 @@ export default function DiscountsAndCouponsPage() {
                     </div>
 
                     {/* Status Filter */}
-                    {activeTab !== "channels" && (
+                    {activeTab !== "channels" && activeTab !== "discounted-items" && (
                         <div className="w-36 shrink-0">
                             <SelectField
                                 size="sm"
@@ -797,8 +877,27 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     )}
 
-                    {/* Channel Filter (for Discounts) */}
-                    {activeTab === "discounts" && (
+                    {/* Category Filter for Discounted Items */}
+                    {activeTab === "discounted-items" && (
+                        <div className="w-44 shrink-0">
+                            <SelectField
+                                size="sm"
+                                value={selectedItemCategoryFilter}
+                                onValueChange={(val) => setSelectedItemCategoryFilter(val)}
+                                options={[
+                                    { value: "ALL", label: "All Categories" },
+                                    ...availableCategoryOptions.map((c) => ({
+                                        value: c.id,
+                                        label: `${c.name} (${categoryItemCountMap[c.id] || 0})`,
+                                    })),
+                                ]}
+                                className="!h-10 rounded-xl text-sm border-border bg-card shadow-2xs font-medium"
+                            />
+                        </div>
+                    )}
+
+                    {/* Channel Filter (for Discounts & Discounted Items) */}
+                    {(activeTab === "discounts" || activeTab === "discounted-items") && (
                         <div className="w-40 shrink-0">
                             <SelectField
                                 size="sm"
@@ -816,7 +915,7 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     )}
 
-                    {activeTab !== "channels" && (
+                    {activeTab !== "channels" && activeTab !== "discounted-items" && (
                         <ColumnSelectDropdown
                             columns={activeTab === "discounts" ? discountCols : couponCols}
                             onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
@@ -1108,7 +1207,7 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             )}
 
-            {/* Channel Discounts Multi-Selection Table */}
+            {/* Channel Discounts Overview Table (View Only) */}
             {activeTab === "channels" && (
                 <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
@@ -1118,7 +1217,7 @@ export default function DiscountsAndCouponsPage() {
                             <TableHeader>
                                 <TableRow className="bg-muted/40">
                                     <TableHead className="w-1/3">Sales Channel</TableHead>
-                                    <TableHead className="w-1/2">Active Applied Discounts (Select multiple)</TableHead>
+                                    <TableHead className="w-1/2">Active Applied Promotions</TableHead>
                                     <TableHead className="text-right">Channel Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -1129,96 +1228,168 @@ export default function DiscountsAndCouponsPage() {
                                     { channel: "MESSENGER" as OrderChannel, title: "Messenger Bot", subtitle: "Facebook Messenger checkout", icon: MessageSquare, color: "text-purple-500 bg-purple-500/10" },
                                     { channel: "POS" as OrderChannel, title: "POS Terminal", subtitle: "In-store cashier checkout", icon: Monitor, color: "text-amber-500 bg-amber-500/10" },
                                 ].map(({ channel, title, subtitle, icon: Icon, color }) => {
-                                    const appliedDiscountIds = channelSelectedDiscounts[channel] || [];
-
-                                    // Filter ONLY discounts where this channel was selected during discount creation
-                                    const channelPermittedDiscounts = discounts.filter(
+                                    const channelDiscounts = discounts.filter(
                                         (d) =>
                                             d.status === "ACTIVE" &&
                                             !d.requiresCoupon &&
                                             (!d.applicableChannels || d.applicableChannels.length === 0 || d.applicableChannels.includes(channel))
                                     );
 
-                                    const activeAssignedCount = channelPermittedDiscounts.filter((d) =>
-                                        appliedDiscountIds.includes(d.id)
-                                    ).length;
-
                                     return (
                                         <TableRow key={channel} className="hover:bg-muted/30 transition-colors">
                                             <TableCell className="align-top py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-lg shrink-0 ${color}`}>
-                                                        <Icon className="h-4 w-4" />
+                                                    <div className={`p-2.5 rounded-xl shrink-0 ${color}`}>
+                                                        <Icon className="h-5 w-5" />
                                                     </div>
                                                     <div>
-                                                        <div className="font-semibold text-foreground">{title}</div>
+                                                        <div className="font-semibold text-foreground text-sm">{title}</div>
                                                         <div className="text-xs text-muted-foreground">{subtitle}</div>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="align-top py-4">
-                                                {channelPermittedDiscounts.length === 0 ? (
+                                                {channelDiscounts.length === 0 ? (
                                                     <p className="text-xs text-muted-foreground italic py-1">
-                                                        No active discounts configured for this channel under the Discounts tab.
+                                                        No active promotions assigned to this channel.
                                                     </p>
                                                 ) : (
                                                     <div className="space-y-2">
-                                                        <div className="grid grid-cols-1 gap-2">
-                                                            {channelPermittedDiscounts.map((d) => {
-                                                                const isApplied = appliedDiscountIds.includes(d.id);
-                                                                return (
-                                                                    <label
-                                                                        key={d.id}
-                                                                        onClick={() => handleToggleChannelDiscount(channel, d.id)}
-                                                                        className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
-                                                                            isApplied
-                                                                                ? "bg-primary/5 border-primary/40 text-foreground font-medium shadow-2xs"
-                                                                                : "bg-background border-border text-muted-foreground hover:bg-muted/40"
-                                                                        }`}
-                                                                    >
-                                                                        <div className="flex items-center gap-2.5 min-w-0">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={isApplied}
-                                                                                onChange={() => {}}
-                                                                                className="h-4 w-4 rounded border-input text-primary accent-primary focus:ring-primary"
-                                                                            />
-                                                                            <span className="truncate font-semibold text-foreground">
-                                                                                {d.name}
-                                                                            </span>
-                                                                            <span className="text-[11px] text-muted-foreground">
-                                                                                ({d.scope === "ALL_ITEMS" || d.scope === "ORDER" ? "Storewide" : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM" ? "Specific Items" : d.scope})
-                                                                            </span>
-                                                                        </div>
-                                                                        <span className="font-bold text-primary shrink-0">
-                                                                            {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
-                                                                                ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
-                                                                                : d.type === "PERCENTAGE"
-                                                                                ? `${d.value}% OFF`
-                                                                                : format(d.value)}
-                                                                        </span>
-                                                                    </label>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                        {channelDiscounts.map((d) => (
+                                                            <div
+                                                                key={d.id}
+                                                                className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20 text-xs"
+                                                            >
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <span className="font-semibold text-foreground truncate">
+                                                                        {d.name}
+                                                                    </span>
+                                                                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20 shrink-0">
+                                                                        {d.scope === "ALL_ITEMS" || d.scope === "ORDER" ? "Storewide" : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM" ? "Specific Items" : d.scope}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="font-bold text-primary shrink-0">
+                                                                    {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                                        ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
+                                                                        : d.type === "PERCENTAGE"
+                                                                        ? `${d.value}% OFF`
+                                                                        : format(d.value)}
+                                                                </span>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right align-top py-4 whitespace-nowrap">
-                                                {activeAssignedCount > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                                        <CheckCircle2 className="h-3 w-3" />
-                                                        {activeAssignedCount} {activeAssignedCount === 1 ? "Discount Applied" : "Discounts Applied"}
+                                                {channelDiscounts.length > 0 ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                                        {channelDiscounts.length} {channelDiscounts.length === 1 ? "Promotion Active" : "Promotions Active"}
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                                                        Standard Price (None)
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                                        Standard Price (No discounts)
                                                     </span>
                                                 )}
                                             </TableCell>
                                         </TableRow>
                                     );
                                 })}
+                            </TableBody>
+                        </Table>
+                    )}
+                </div>
+            )}
+
+            {/* Discounted Items Tab (View All Products with Active Discounts) */}
+            {activeTab === "discounted-items" && (
+                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                    {isDiscountsLoading ? (
+                        <TableSkeleton rows={5} cols={7} />
+                    ) : filteredDiscountedItems.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <Package className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                            <p className="text-sm font-semibold text-foreground">No Discounted Items Found</p>
+                            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                                Create and activate a promotional discount targeting products to see them listed here.
+                            </p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/40">
+                                    <TableHead className="w-[30%]">Product</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Original Price</TableHead>
+                                    <TableHead>Active Promotion</TableHead>
+                                    <TableHead>Discount Rate</TableHead>
+                                    <TableHead>Discounted Price</TableHead>
+                                    <TableHead>Channels</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredDiscountedItems.map(({ item, discount, originalPrice, discountedPrice, discountRateLabel }) => (
+                                    <TableRow key={`${item.id}-${discount.id}`} className="hover:bg-muted/30 transition-colors">
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <div className="size-10 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
+                                                    {itemThumbnail(item) ? (
+                                                        <img
+                                                            src={itemThumbnail(item)!}
+                                                            alt={item.name || "Product"}
+                                                            className="size-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <Package className="h-5 w-5 text-muted-foreground/60" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="font-semibold text-foreground text-sm truncate">{item.name || "Unnamed"}</div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {item.barcode ? `Barcode: ${item.barcode}` : item.sku ? `SKU: ${item.sku}` : `ID: ${item.id.slice(0, 8)}`}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-xs text-muted-foreground">
+                                                {item.itemGroup?.name || "Uncategorized"}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="font-mono text-xs text-muted-foreground line-through">
+                                                {format(originalPrice)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="space-y-0.5">
+                                                <div className="font-semibold text-xs text-foreground truncate max-w-[180px]">{discount.name}</div>
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                                                    {discount.scope === "ALL_ITEMS" || discount.scope === "ORDER" ? "Storewide" : discount.scope === "SPECIFIC_ITEMS" || discount.scope === "ITEM" ? "Specific Items" : "Category"}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="inline-flex items-center font-bold text-xs text-[#d14341]">
+                                                {discountRateLabel}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="font-mono font-bold text-sm text-[#006b26]">
+                                                {format(discountedPrice)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap gap-1">
+                                                {(discount.applicableChannels && discount.applicableChannels.length > 0 ? discount.applicableChannels : ["POS", "WEB"]).map((ch) => (
+                                                    <span key={ch} className="px-1.5 py-0.5 text-[10px] font-semibold bg-muted border border-border rounded text-muted-foreground">
+                                                        {ch}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
                             </TableBody>
                         </Table>
                     )}

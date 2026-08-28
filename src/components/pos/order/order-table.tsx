@@ -263,8 +263,12 @@ function computeItemDiscount(
     const targetAmount = Math.max(0, eligibleSubtotal - effectiveRule.value);
     disc = (lineSubtotal / eligibleSubtotal) * targetAmount;
   } else {
-    const totalDisc = Math.min(eligibleSubtotal, effectiveRule.value * item.quantity);
-    disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+    if (effectiveRule.scope === "SPECIFIC_ITEMS" || effectiveRule.scope === "ITEM") {
+      disc = Math.min(lineSubtotal, effectiveRule.value * item.quantity);
+    } else {
+      const totalDisc = Math.min(eligibleSubtotal, effectiveRule.value);
+      disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+    }
   }
 
   disc = Math.min(lineSubtotal, Math.max(0, parseFloat(disc.toFixed(2))));
@@ -640,54 +644,15 @@ export function OrderTable({
       return null;
     });
 
-  const [channelDiscountsVer, setChannelDiscountsVer] = useState(0);
-
-  useEffect(() => {
-    const handleUpdate = () => setChannelDiscountsVer((v) => v + 1);
-    window.addEventListener("channel_discounts_updated", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
-    return () => {
-      window.removeEventListener("channel_discounts_updated", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
-    };
-  }, []);
-
   const activePosDiscounts = useMemo(() => {
-    let permittedIds: string[] = [];
-    if (typeof window !== "undefined") {
-      try {
-        const savedMulti = localStorage.getItem("channel_active_applied_discounts_multi");
-        if (savedMulti) {
-          const parsed = JSON.parse(savedMulti);
-          permittedIds = Array.isArray(parsed?.POS) ? parsed.POS : [];
-        } else {
-          const legacy = localStorage.getItem("channel_active_applied_discounts");
-          if (legacy) {
-            const parsed = JSON.parse(legacy);
-            if (parsed?.POS && parsed.POS !== "NONE") {
-              permittedIds = [parsed.POS];
-            }
-          }
-        }
-      } catch (e) {}
-    }
-
-    // If no discounts are clicked/checked for the POS channel in BO, no discounts apply to POS items
-    if (permittedIds.length === 0) {
-      return [];
-    }
-
-    const permittedIdSet = new Set(permittedIds);
-
     return discounts.filter((d) => {
       if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
-      if (!permittedIdSet.has(d.id)) return false;
       if (d.applicableChannels && d.applicableChannels.length > 0) {
         return d.applicableChannels.includes("POS");
       }
       return true;
     });
-  }, [discounts, channelDiscountsVer]);
+  }, [discounts]);
 
   const computeTargetDiscountAmount = (
     orderVal: PosOrder,

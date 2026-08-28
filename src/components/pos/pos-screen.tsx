@@ -270,54 +270,16 @@ export function PosScreen({
   );
 
   const { data: discounts = [] } = useGetDiscountsQuery();
-  const [channelDiscountsVer, setChannelDiscountsVer] = useState(0);
-
-  useEffect(() => {
-    const handleUpdate = () => setChannelDiscountsVer((v) => v + 1);
-    window.addEventListener("channel_discounts_updated", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
-    return () => {
-      window.removeEventListener("channel_discounts_updated", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
-    };
-  }, []);
 
   const activePosDiscounts = useMemo(() => {
-    let permittedIds: string[] = [];
-    if (typeof window !== "undefined") {
-      try {
-        const savedMulti = localStorage.getItem("channel_active_applied_discounts_multi");
-        if (savedMulti) {
-          const parsed = JSON.parse(savedMulti);
-          permittedIds = Array.isArray(parsed?.POS) ? parsed.POS : [];
-        } else {
-          const legacy = localStorage.getItem("channel_active_applied_discounts");
-          if (legacy) {
-            const parsed = JSON.parse(legacy);
-            if (parsed?.POS && parsed.POS !== "NONE") {
-              permittedIds = [parsed.POS];
-            }
-          }
-        }
-      } catch (e) {}
-    }
-
-    // If no discounts are clicked/checked for the POS channel, no discounts are applied to POS
-    if (permittedIds.length === 0) {
-      return [];
-    }
-
-    const permittedIdSet = new Set(permittedIds);
-
     return discounts.filter((d) => {
       if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
-      if (!permittedIdSet.has(d.id)) return false;
       if (d.applicableChannels && d.applicableChannels.length > 0) {
         return d.applicableChannels.includes("POS");
       }
       return true;
     });
-  }, [discounts, channelDiscountsVer]);
+  }, [discounts]);
 
   // The till sells only what is published to the POS channel. Filtering stays
   // on that API-backed set because the channel endpoint does not accept search

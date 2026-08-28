@@ -117,8 +117,12 @@ function computeItemDiscountFromRule(
     const targetAmount = Math.max(0, eligibleSubtotal - rule.value);
     disc = (lineSubtotal / eligibleSubtotal) * targetAmount;
   } else {
-    const totalDisc = Math.min(eligibleSubtotal, rule.value);
-    disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+    if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
+      disc = Math.min(lineSubtotal, rule.value * item.quantity);
+    } else {
+      const totalDisc = Math.min(eligibleSubtotal, rule.value);
+      disc = (lineSubtotal / eligibleSubtotal) * totalDisc;
+    }
   }
 
   return Math.min(lineSubtotal, Math.max(0, parseFloat(disc.toFixed(2))));
