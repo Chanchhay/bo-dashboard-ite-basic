@@ -24,10 +24,30 @@ export function BusinessTelegramBotForm() {
     const [activate, { isLoading: isActivating }] = telegramBotApi.useActivateTelegramBotMutation();
     const [deactivate, { isLoading: isDeactivating }] = telegramBotApi.useDeactivateTelegramBotMutation();
     const [disconnect, { isLoading: isDisconnecting }] = telegramBotApi.useDisconnectTelegramBotMutation();
+    const [setMiniAppEnabled, { isLoading: isTogglingMiniApp }] =
+        telegramBotApi.useSetTelegramMiniAppEnabledMutation();
 
     const isToggling = isActivating || isDeactivating;
     const isConfigured = data?.botTokenConfigured;
     const isActive = data?.active;
+
+    async function handleMiniAppToggle(next: boolean) {
+        try {
+            await setMiniAppEnabled(next).unwrap();
+            toast({
+                tone: "success",
+                title: next
+                    ? "Mini App enabled — the bot's menu button now opens your shop"
+                    : "Mini App disabled",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not toggle Mini App",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        }
+    }
 
     async function handleToggle(next: boolean) {
         try {
@@ -73,6 +93,33 @@ export function BusinessTelegramBotForm() {
                         disabled={!isConfigured || isToggling}
                         onCheckedChange={handleToggle}
                         aria-label="Enable Telegram Bot"
+                    />
+                </div>
+            </section>
+
+            <section data-tour="telegram-mini-app-toggle" className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-semibold text-foreground">
+                            Mini App (Open Shop button)
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {data?.miniAppEnabled
+                                ? "Customers see an \"Open Shop\" button in the bot that opens your full storefront inside Telegram."
+                                : "When on, the bot's menu button opens your shop as a real, graphical app inside Telegram instead of the usual text/button chat."}
+                        </p>
+                        {data?.miniAppEnabled && data?.miniAppUrl && (
+                            <p className="mt-1 text-xs text-muted-foreground break-all">
+                                {data.miniAppUrl}
+                            </p>
+                        )}
+                    </div>
+
+                    <Switch
+                        checked={Boolean(data?.miniAppEnabled)}
+                        disabled={!isConfigured || !isActive || isTogglingMiniApp}
+                        onCheckedChange={handleMiniAppToggle}
+                        aria-label="Enable Telegram Mini App"
                     />
                 </div>
             </section>

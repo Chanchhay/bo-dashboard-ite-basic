@@ -13,6 +13,7 @@ import {
     type ImportTargetType,
 } from "@/lib/api/data-import";
 import { cn } from "@/lib/utils";
+import { useGetImportSamplesQuery } from "@/services/dataImportApi";
 
 /**
  * Picking the file, with the limits said up front rather than discovered.
@@ -34,6 +35,8 @@ export function StepUploadFile({
     uploading: boolean;
     uploadError?: string;
 }) {
+    const samples = useGetImportSamplesQuery(targetType);
+
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragging, setDragging] = useState(false);
     const [localError, setLocalError] = useState<string>();
@@ -72,27 +75,65 @@ export function StepUploadFile({
              * file built from it arrives already matched — which is a far
              * better first attempt than guessing at our column names.
              */}
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                        Not sure what your file should look like?
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                        Download our sample file, replace the example rows with your own,
-                        and upload it back. Its columns will be matched for you.
-                    </p>
+            <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <p className="text-sm font-medium text-foreground">
+                    Not sure what your file should look like?
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                    Start from the sample closest to your shop, replace the example rows
+                    with your own, and upload it back. Its columns will be matched for you.
+                </p>
+
+                <div className="mt-3 flex flex-col gap-2">
+                    {samples.data?.map((sample) => (
+                        <div
+                            key={sample.sample}
+                            className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                            <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground">
+                                    {sample.label}
+                                </p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {sample.description}
+                                </p>
+                                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/80">
+                                    {sample.columns.join(" · ")}
+                                </p>
+                            </div>
+                            <a
+                                href={`/api/inventory/imports/template?sample=${encodeURIComponent(sample.sample)}`}
+                                download
+                                className={cn(
+                                    buttonVariants({ variant: "outline", size: "sm" }),
+                                    "shrink-0",
+                                )}
+                            >
+                                <Download className="size-4" />
+                                Download
+                            </a>
+                        </div>
+                    ))}
+
+                    {samples.isLoading ? (
+                        <p className="text-xs text-muted-foreground">Loading samples…</p>
+                    ) : null}
+
+                    {/* A list we could not load is no reason to block an upload. */}
+                    {samples.error ? (
+                        <a
+                            href={`/api/inventory/imports/template?targetType=${targetType}`}
+                            download
+                            className={cn(
+                                buttonVariants({ variant: "outline", size: "sm" }),
+                                "self-start",
+                            )}
+                        >
+                            <Download className="size-4" />
+                            Sample file
+                        </a>
+                    ) : null}
                 </div>
-                <a
-                    href={`/api/inventory/imports/template?targetType=${targetType}`}
-                    download
-                    className={cn(
-                        buttonVariants({ variant: "outline", size: "sm" }),
-                        "shrink-0",
-                    )}
-                >
-                    <Download className="size-4" />
-                    Sample file
-                </a>
             </div>
 
             {file ? (

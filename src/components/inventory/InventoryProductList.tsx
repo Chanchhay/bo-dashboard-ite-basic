@@ -23,6 +23,10 @@ import {
 } from "lucide-react";
 
 import { BarcodeScannerOverlay } from "@/components/inventory/BarcodeScannerOverlay";
+import {
+    ColumnSelectDropdown,
+    type ColumnConfig,
+} from "@/components/ui/ColumnSelectDropdown";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
     ItemPreviewDialog,
@@ -381,6 +385,16 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     );
 }
 
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+    { id: "number", label: "#", visible: true },
+    { id: "name", label: "Name", visible: true },
+    { id: "category", label: "Category", visible: true },
+    { id: "type", label: "Type", visible: true },
+    { id: "unit", label: "Unit", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "actions", label: "Actions", visible: true },
+];
+
 export function InventoryProductList() {
     const { format: formatMoney } = useMoney();
     const dispatch = useAppDispatch();
@@ -402,6 +416,25 @@ export function InventoryProductList() {
     const [expandedAddOnItemIds, setExpandedAddOnItemIds] = useState<Set<string>>(
         new Set(),
     );
+    const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
+
+    const toggleColumn = (id: string) => {
+        setColumnConfigs((prev) =>
+            prev.map((col) =>
+                col.id === id ? { ...col, visible: !col.visible } : col,
+            ),
+        );
+    };
+
+    const resetColumnDefaults = () => {
+        setColumnConfigs(DEFAULT_COLUMNS);
+    };
+
+    const isColVisible = (id: string) => {
+        return columnConfigs.find((col) => col.id === id)?.visible ?? true;
+    };
+
+    const visibleColCount = Math.max(1, columnConfigs.filter((c) => c.visible).length);
 
     const toggleAddOnTree = (itemId: string) => {
         setExpandedAddOnItemIds((prev) => {
@@ -842,25 +875,11 @@ export function InventoryProductList() {
                                 <span className="hidden sm:inline">Scan Barcode</span>
                             </Button>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                data-tour="export-excel"
-                                aria-label="Export to Excel"
-                                onClick={handleExportExcel}
-                                disabled={!items.length || isExporting}
-                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
-                            >
-                                {isExporting ? (
-                                    <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                    <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                )}
-                                <span className="hidden sm:inline">
-                                    {isExporting ? "Exporting..." : "Export Excel"}
-                                </span>
-                            </Button>
+                            <ColumnSelectDropdown
+                                columns={columnConfigs}
+                                onToggleColumn={toggleColumn}
+                                onResetDefaults={resetColumnDefaults}
+                            />
                         </div>
                     </div>
 
@@ -1176,14 +1195,17 @@ export function InventoryProductList() {
                         <table className="w-full min-w-[820px] text-left text-sm">
                             <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                 <tr>
-                                    <th className="w-14 px-5 py-3 text-muted-foreground">#</th>
-                                    <th className="px-5 py-3">Name</th>
-                                    <th className="px-5 py-3">Category</th>
-                                    <th className="px-5 py-3">Type</th>
-                                    <th className="px-5 py-3">Price</th>
-                                    <th className="px-5 py-3">Unit</th>
-                                    <th className="px-5 py-3">Status</th>
-                                    <th className="px-5 py-3 text-right">Actions</th>
+                                    {isColVisible("number") && (
+                                        <th className="w-14 px-5 py-3 text-muted-foreground">#</th>
+                                    )}
+                                    {isColVisible("name") && <th className="px-5 py-3">Name</th>}
+                                    {isColVisible("category") && <th className="px-5 py-3">Category</th>}
+                                    {isColVisible("type") && <th className="px-5 py-3">Type</th>}
+                                    {isColVisible("unit") && <th className="px-5 py-3">Unit</th>}
+                                    {isColVisible("status") && <th className="px-5 py-3">Status</th>}
+                                    {isColVisible("actions") && (
+                                        <th className="px-5 py-3 text-right">Actions</th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -1199,107 +1221,110 @@ export function InventoryProductList() {
                                                 isExpanded && "bg-muted/30 font-medium",
                                             )}
                                         >
-                                            <td className="px-5 py-4 text-xs font-semibold tabular-nums text-muted-foreground">
-                                                {itemNumber}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <p className="font-semibold text-foreground">
-                                                            {item.name || "Unnamed"}
+                                            {isColVisible("number") && (
+                                                <td className="px-5 py-4 text-xs font-semibold tabular-nums text-muted-foreground">
+                                                    {itemNumber}
+                                                </td>
+                                            )}
+                                            {isColVisible("name") && (
+                                                <td className="px-5 py-4">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <p className="font-semibold text-foreground">
+                                                                {item.name || "Unnamed"}
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleAddOnTree(item.id)}
+                                                                aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
+                                                                aria-expanded={isExpanded}
+                                                                className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
+                                                                title="View options and add-ons"
+                                                            >
+                                                                <ChevronDown
+                                                                    className={cn(
+                                                                        "size-4 transition-transform duration-200",
+                                                                        isExpanded
+                                                                            ? "rotate-180 text-primary"
+                                                                            : "rotate-0",
+                                                                    )}
+                                                                />
+                                                            </button>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.sku || item.barcode || "No SKU or barcode"}
                                                         </p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleAddOnTree(item.id)}
-                                                            aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
-                                                            aria-expanded={isExpanded}
-                                                            className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
-                                                            title="View options and add-ons"
-                                                        >
-                                                            <ChevronDown
-                                                                className={cn(
-                                                                    "size-4 transition-transform duration-200",
-                                                                    isExpanded
-                                                                        ? "rotate-180 text-primary"
-                                                                        : "rotate-0",
-                                                                )}
-                                                            />
-                                                        </button>
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.sku || item.barcode || "No SKU or barcode"}
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {item.itemGroup?.name || "—"}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {item.itemType ? titleCase(item.itemType) : "—"}
-                                            </td>
-                                            <td
-                                                className={
-                                                    item.price === undefined || item.price === null
-                                                        ? "px-5 py-4 text-muted-foreground"
-                                                        : "px-5 py-4 font-semibold"
-                                                }
-                                            >
-                                                {formatMoney(item.price, undefined, {
-                                                    fallback: "Not set",
-                                                })}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {item.unit?.name || "—"}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
-                                                >
-                                                    {item.status || "INACTIVE"}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <div data-tour={items.indexOf(item) === 0 ? "item-actions" : undefined} className="flex justify-end gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        aria-label={`Preview ${item.name || "item"} in the store`}
-                                                        onClick={() => setPreviewItem(toPreviewItem(item))}
+                                                </td>
+                                            )}
+                                            {isColVisible("category") && (
+                                                <td className="px-5 py-4 text-muted-foreground">
+                                                    {item.itemGroup?.name || "—"}
+                                                </td>
+                                            )}
+                                            {isColVisible("type") && (
+                                                <td className="px-5 py-4 text-muted-foreground">
+                                                    {item.itemType ? titleCase(item.itemType) : "—"}
+                                                </td>
+                                            )}
+                                            {isColVisible("unit") && (
+                                                <td className="px-5 py-4 text-muted-foreground">
+                                                    {item.unit?.name || "—"}
+                                                </td>
+                                            )}
+                                            {isColVisible("status") && (
+                                                <td className="px-5 py-4">
+                                                    <span
+                                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
                                                     >
-                                                        <Eye />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        render={
-                                                            <Link
-                                                                href={`/inventory/${item.id}/edit`}
-                                                                aria-label={`Edit ${item.name || "item"}`}
-                                                            />
-                                                        }
-                                                        nativeButton={false}
-                                                    >
-                                                        <Edit3 />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                        aria-label={`Delete ${item.name || "item"}`}
-                                                        disabled={deleteState.isLoading}
-                                                        onClick={() =>
-                                                            setDeleteTarget({
-                                                                id: item.id,
-                                                                name: item.name,
-                                                            })
-                                                        }
-                                                    >
-                                                        <Trash2 className="size-4 text-brand-red" />
-                                                    </Button>
-                                                </div>
-                                            </td>
+                                                        {item.status || "INACTIVE"}
+                                                    </span>
+                                                </td>
+                                            )}
+                                            {isColVisible("actions") && (
+                                                <td className="px-5 py-4">
+                                                    <div data-tour={items.indexOf(item) === 0 ? "item-actions" : undefined} className="flex justify-end gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            aria-label={`Preview ${item.name || "item"} in the store`}
+                                                            onClick={() => setPreviewItem(toPreviewItem(item))}
+                                                        >
+                                                            <Eye />
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            render={
+                                                                <Link
+                                                                    href={`/inventory/${item.id}/edit`}
+                                                                    aria-label={`Edit ${item.name || "item"}`}
+                                                                />
+                                                            }
+                                                            nativeButton={false}
+                                                        >
+                                                            <Edit3 />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                            aria-label={`Delete ${item.name || "item"}`}
+                                                            disabled={deleteState.isLoading}
+                                                            onClick={() =>
+                                                                setDeleteTarget({
+                                                                    id: item.id,
+                                                                    name: item.name,
+                                                                })
+                                                            }
+                                                        >
+                                                            <Trash2 className="size-4 text-brand-red" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     );
 
@@ -1308,7 +1333,7 @@ export function InventoryProductList() {
                                     const treeRow = (
                                         <tr key={`${item.id}-addons-tree`} className="bg-muted/20">
                                             <td
-                                                colSpan={8}
+                                                colSpan={visibleColCount}
                                                 className="border-b border-border px-5 py-4"
                                             >
                                                 <ItemOptionsTree item={item} />

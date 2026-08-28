@@ -10,6 +10,22 @@ export type BusinessSubCategory = {
 
 export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
 
+export type SocialLink = {
+    platform: string;
+    url: string;
+};
+
+
+export const FACEBOOK_SOCIAL_LINK_PLATFORM = "facebook";
+
+export function facebookPageUrl(business: Pick<Business, "socialLinks">) {
+    return (
+        business.socialLinks?.find(
+            (link) => link.platform === FACEBOOK_SOCIAL_LINK_PLATFORM,
+        )?.url ?? ""
+    );
+}
+
 export type BusinessCategory = {
     id?: string;
     name?: string;
@@ -27,13 +43,14 @@ export type Business = {
     phoneNumber?: string;
     googleMap?: string;
     address?: string;
-    
+    socialLinks?: SocialLink[];
+
     cityOrProvince?: string;
-    
+
     provinceName?: string;
     districtName?: string;
     communeName?: string;
-    
+
     latitude?: number;
     longitude?: number;
     website?: string;
@@ -41,7 +58,7 @@ export type Business = {
     category?: BusinessSubCategory;
     baseCurrency?: string;
     displayCurrency?: string;
-    /** The one tax rate this business charges — applied the same way on every sales channel. */
+
     taxEnabled?: boolean;
     taxRate?: number;
     taxInclusionType?: TaxInclusionType;
@@ -85,22 +102,27 @@ const optionalPhoneSchema = z
         "Use 8–30 characters containing only numbers, spaces, and an optional +.",
     );
 
-const optionalUrlSchema = z
-    .string()
-    .trim()
-    .max(255, "Website must be 255 characters or fewer.")
-    .refine(
-        (value) => {
-            if (!value) return true;
-            try {
-                const url = new URL(value);
-                return url.protocol === "http:" || url.protocol === "https:";
-            } catch {
-                return false;
-            }
-        },
-        "Enter a valid website link (e.g. https://example.com).",
-    );
+function optionalUrlSchema(
+    label: string,
+    example = "https://example.com",
+) {
+    return z
+        .string()
+        .trim()
+        .max(255, `${label} must be 255 characters or fewer.`)
+        .refine(
+            (value) => {
+                if (!value) return true;
+                try {
+                    const url = new URL(value);
+                    return url.protocol === "http:" || url.protocol === "https:";
+                } catch {
+                    return false;
+                }
+            },
+            `Enter a valid ${label.toLowerCase()} link (e.g. ${example}).`,
+        );
+}
 
 const optionalGoogleMapUrlSchema = z
     .string()
@@ -149,13 +171,17 @@ export const businessProfileSchema = z.object({
         .trim()
         .max(255, "Description must be 255 characters or fewer."),
     email: optionalEmailSchema,
-    website: optionalUrlSchema,
+    website: optionalUrlSchema("Website"),
     phoneNumber: optionalPhoneSchema,
     address: z
         .string()
         .trim()
         .max(255, "Address must be 255 characters or fewer."),
     googleMap: optionalGoogleMapUrlSchema,
+    facebookPage: optionalUrlSchema(
+        "Facebook Page",
+        "https://facebook.com/yourpage",
+    ),
     provinceName: z
         .string()
         .trim()
@@ -200,6 +226,7 @@ export type UpdateBusinessInput = {
     phoneNumber?: string;
     googleMap: string;
     website: string;
+    socialLinks?: SocialLink[];
     provinceName?: string;
     districtName?: string;
     communeName?: string;
@@ -207,8 +234,32 @@ export type UpdateBusinessInput = {
     longitude?: number;
 };
 
+/**
+ * Merges the form's single Facebook Page field into the business's existing
+ * `socialLinks`, so saving the profile doesn't clobber other platforms a
+ * future editor adds to that same list.
+ */
+function mergedSocialLinks(
+    facebookPage: string,
+    existingLinks: SocialLink[] | undefined,
+): SocialLink[] {
+    const otherLinks = (existingLinks ?? []).filter(
+        (link) => link.platform !== FACEBOOK_SOCIAL_LINK_PLATFORM,
+    );
+
+    if (!facebookPage) {
+        return otherLinks;
+    }
+
+    return [
+        ...otherLinks,
+        { platform: FACEBOOK_SOCIAL_LINK_PLATFORM, url: facebookPage },
+    ];
+}
+
 export function toUpdateBusinessInput(
     input: BusinessProfileInput,
+    existing?: Pick<Business, "socialLinks">,
 ): UpdateBusinessInput {
     return {
         name: input.name,
@@ -216,6 +267,10 @@ export function toUpdateBusinessInput(
         address: input.address,
         googleMap: input.googleMap,
         website: input.website,
+        socialLinks: mergedSocialLinks(
+            input.facebookPage,
+            existing?.socialLinks,
+        ),
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         ...(input.email ? { email: input.email } : {}),
         ...(input.phoneNumber ? { phoneNumber: input.phoneNumber } : {}),

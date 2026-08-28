@@ -38,6 +38,14 @@ function outcome(job: ImportJob) {
         )} not`;
     }
 
+    if (job.status === "REVERTED") {
+        return `Undone (${formatRowCount(job.createdRows)} removed)`;
+    }
+
+    if (job.status === "REVERTING") {
+        return "Loading…";
+    }
+
     return job.totalRows > 0 ? `${formatRowCount(job.totalRows)} rows` : "—";
 }
 

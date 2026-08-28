@@ -47,5 +47,17 @@ export default async function PublicMenu({
 
   const storeItems = itemsRes.ok ? await itemsRes.json() : [];
 
-  return <PublicMenuClient storeDetail={storeDetail} storeItems={storeItems} />;
+  const itemGroupsRes = await fetch(`${baseUrl}/api/v1/public/stores/${slug}/item-groups`, {
+    cache: "no-store",
+  });
+
+  const storeItemGroups = itemGroupsRes.ok ? await itemGroupsRes.json() : [];
+
+  return (
+    <PublicMenuClient
+      storeDetail={storeDetail}
+      storeItems={storeItems}
+      storeItemGroups={storeItemGroups}
+    />
+  );
 }

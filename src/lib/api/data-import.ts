@@ -16,6 +16,8 @@ export type ImportStatus =
     | "VALIDATION_FAILED"
     | "COMMITTING"
     | "COMMITTED"
+    | "REVERTING"
+    | "REVERTED"
     | "FAILED";
 
 export type ImportRowStatus =
@@ -26,6 +28,7 @@ export type ImportRowStatus =
     | "CREATED"
     | "UPDATED"
     | "SKIPPED"
+    | "REVERTED"
     | "FAILED";
 
 export type ImportDuplicateStrategy = "SKIP" | "UPDATE_EXISTING";
@@ -66,8 +69,29 @@ export type ImportJob = {
     validationCompletedAt: string | null;
     commitStartedAt: string | null;
     commitCompletedAt: string | null;
+    revertedAt: string | null;
     failureMessage: string | null;
     committable: boolean;
+
+    /**
+     * Whether this import can still be taken back out. False once it has been,
+     * and false for one that created nothing — there is nothing to undo.
+     */
+    revertable: boolean;
+};
+
+/**
+ * One starting file a shop can download.
+ *
+ * Served by the backend rather than written out here, so the words describing
+ * a sample and the columns inside it cannot drift apart.
+ */
+export type ImportSample = {
+    sample: string;
+    label: string;
+    description: string;
+    fileName: string;
+    columns: string[];
 };
 
 export type ImportField = {
@@ -92,7 +116,11 @@ export type ImportIssue = {
     field: string | null;
     code: string;
     message: string;
-    severity: "ERROR" | "WARNING";
+    /**
+     * INFO is what the import will do — a category or unit it will create.
+     * WARNING is worth a look but still imports. ERROR stops the row.
+     */
+    severity: "INFO" | "WARNING" | "ERROR";
 };
 
 export type ImportRow = {
@@ -122,7 +150,17 @@ export type ImportPreview = {
     willFail: number;
     itemGroupsToCreate: number;
     openingStockToRecord: number;
+    units: ImportUnitSummary;
     committable: boolean;
+};
+
+/** What the import will do about the units its rows are counted in. */
+export type ImportUnitSummary = {
+    reused: number;
+    created: number;
+    conflicts: number;
+    toReuse: string[];
+    toCreate: string[];
 };
 
 export type ImportErrorSummary = {
@@ -203,6 +241,8 @@ export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
     VALIDATION_FAILED: "Check failed",
     COMMITTING: "Importing",
     COMMITTED: "Imported",
+    REVERTING: "Loading",
+    REVERTED: "Undone",
     FAILED: "Failed",
 };
 
@@ -214,6 +254,7 @@ export const IMPORT_ROW_STATUS_LABELS: Record<ImportRowStatus, string> = {
     CREATED: "Created",
     UPDATED: "Updated",
     SKIPPED: "Skipped",
+    REVERTED: "Removed by undo",
     FAILED: "Failed",
 };
 
@@ -222,11 +263,13 @@ export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 20_000;
 
 export function isImportRunning(status: ImportStatus) {
-    return status === "VALIDATING" || status === "COMMITTING";
+    return (
+        status === "VALIDATING" || status === "COMMITTING" || status === "REVERTING"
+    );
 }
 
 export function isImportFinished(status: ImportStatus) {
-    return status === "COMMITTED" || status === "FAILED";
+    return status === "COMMITTED" || status === "REVERTED" || status === "FAILED";
 }
 
 export function importFileError(file: File) {
