@@ -3,13 +3,41 @@
 import { useEffect, useMemo, useState } from "react";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
-import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag } from "lucide-react";
+import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag, Phone, Clock } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import { itemThumbnail, itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
 import { attributeIcon } from "@/lib/api/attribute-icons";
+import { facebookPageUrl } from "@/lib/api/business";
 import { useGetItemGroupsQuery } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
 import { cn } from "@/lib/utils";
+
+function FacebookIcon({ className = "size-3.5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+}
+
+function getFacebookDisplayText(url: string) {
+  if (!url) return "Facebook";
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    const pathname = parsed.pathname.replace(/^\/+|\/+$/g, "");
+    if (pathname && pathname !== "profile.php") {
+      return pathname.startsWith("@") ? pathname : `@${pathname}`;
+    }
+  } catch {
+    // fallback
+  }
+  return "Facebook";
+}
 
 export type MenuItemEntry = {
   id: string;
@@ -362,6 +390,24 @@ export default function PublicMenuClient({
     });
   }, [items, selectedMainCategory, selectedSubCategory, searchQuery]);
 
+  const facebookUrl = useMemo(() => {
+    return (
+      (storeDetail?.socialLinks && facebookPageUrl(storeDetail)) ||
+      storeDetail?.facebookPage ||
+      storeDetail?.facebookUrl ||
+      storeDetail?.facebook ||
+      ""
+    );
+  }, [storeDetail]);
+
+  const categoryName = useMemo(() => {
+    return (
+      storeDetail?.category?.name ||
+      storeDetail?.categoryName ||
+      (typeof storeDetail?.category === "string" ? storeDetail.category : "")
+    );
+  }, [storeDetail]);
+
   // If a product is selected or opened via URL, render the FULL PAGE SCREEN of its detail!
   if (selectedItemEntry) {
     return (
@@ -394,15 +440,46 @@ export default function PublicMenuClient({
                 </div>
               )}
               <div className="min-w-0 flex-1">
+                {categoryName ? (
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+                    {categoryName}
+                  </p>
+                ) : null}
                 <h1 className="text-base sm:text-2xl font-bold text-gray-900 dark:text-white mb-0.5 truncate">
                   {storeDetail.displayName || storeDetail.name}
                 </h1>
-                <div className="flex items-center text-gray-500 dark:text-gray-400 gap-1 sm:gap-1.5">
+                <div className="flex items-center text-gray-500 dark:text-gray-400 gap-1 sm:gap-1.5 text-xs sm:text-sm">
                   <MapPin className="w-3 sm:w-3.5 h-3 sm:h-3.5 shrink-0" />
-                  <span className="text-xs sm:text-sm truncate">
+                  <span className="truncate">
                     {storeDetail.address || storeDetail.cityOrProvince || "No location provided"}
                   </span>
                 </div>
+
+                {(storeDetail.phoneNumber || facebookUrl) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm">
+                    {storeDetail.phoneNumber ? (
+                      <a
+                        href={`tel:${storeDetail.phoneNumber}`}
+                        className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                      >
+                        <Phone className="w-3 sm:w-3.5 h-3 sm:h-3.5 shrink-0" />
+                        <span>{storeDetail.phoneNumber}</span>
+                      </a>
+                    ) : null}
+
+                    {facebookUrl ? (
+                      <a
+                        href={facebookUrl.startsWith("http") ? facebookUrl : `https://${facebookUrl}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[#1877F2] dark:text-[#4294ff] hover:underline font-medium"
+                      >
+                        <FacebookIcon className="w-3.5 h-3.5 shrink-0 text-[#1877F2] dark:text-[#4294ff]" />
+                        <span>{getFacebookDisplayText(facebookUrl)}</span>
+                      </a>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -480,8 +557,8 @@ export default function PublicMenuClient({
               {selectedMainCategory === "All"
                 ? "All Products"
                 : selectedSubCategory !== "All"
-                ? `${selectedMainCategory} › ${selectedSubCategory}`
-                : selectedMainCategory}
+                  ? `${selectedMainCategory} › ${selectedSubCategory}`
+                  : selectedMainCategory}
             </h2>
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
               {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
