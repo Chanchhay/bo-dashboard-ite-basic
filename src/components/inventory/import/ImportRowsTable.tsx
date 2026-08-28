@@ -124,10 +124,19 @@ export function ImportRowsTable({
                                                 {row.issues.map((issue, index) => (
                                                     <li
                                                         key={`${issue.code}-${index}`}
+                                                        /*
+                                                         * "The unit Kilogram will be created" is
+                                                         * the import saying what it will do, not a
+                                                         * problem. Showing it in the same amber as
+                                                         * a real warning taught people to read past
+                                                         * the colour altogether.
+                                                         */
                                                         className={
                                                             issue.severity === "ERROR"
                                                                 ? "text-[var(--destructive)]"
-                                                                : "text-[var(--warning)]"
+                                                                : issue.severity === "WARNING"
+                                                                  ? "text-[var(--warning)]"
+                                                                  : "text-muted-foreground"
                                                         }
                                                     >
                                                         {issue.message}

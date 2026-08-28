@@ -8,6 +8,7 @@ import type {
     ImportReport,
     ImportRowPage,
     ImportRowStatus,
+    ImportSample,
     ImportTargetType,
 } from "@/lib/api/data-import";
 
@@ -136,9 +137,43 @@ export const dataImportApi = baseApi.injectEndpoints({
          * back on its item list after an import must see what just arrived,
          * not a cached list from before it.
          */
+        /**
+         * The starting files on offer for one kind of import.
+         *
+         * Untagged: the samples are the same for every shop and change only
+         * when we ship a new one, so there is nothing here to go stale.
+         */
+        getImportSamples: builder.query<ImportSample[], ImportTargetType>({
+            query: (targetType) =>
+                `/inventory/imports/samples?targetType=${encodeURIComponent(targetType)}`,
+        }),
+
         commitImport: builder.mutation<ImportJob, string>({
             query: (importId) => ({
                 url: `/inventory/imports/${encodeURIComponent(importId)}/commit`,
+                method: "POST",
+            }),
+            invalidatesTags: (_result, _error, importId) => [
+                ...importTags(importId),
+                "InventoryItems",
+                "InventoryItemGroups",
+                "InventoryStock",
+                "InventoryStockEntries",
+                "ItemChannels",
+            ],
+        }),
+
+        /**
+         * Undoes a committed import.
+         *
+         * Invalidates exactly what committing does, and for the same reason
+         * read backwards: items, categories and stock have just disappeared,
+         * and a cached list showing them would offer the shop things that are
+         * no longer there.
+         */
+        revertImport: builder.mutation<ImportJob, string>({
+            query: (importId) => ({
+                url: `/inventory/imports/${encodeURIComponent(importId)}/revert`,
                 method: "POST",
             }),
             invalidatesTags: (_result, _error, importId) => [
@@ -164,5 +199,7 @@ export const {
     useUploadImportMutation,
     useSaveImportMappingMutation,
     useValidateImportMutation,
+    useGetImportSamplesQuery,
     useCommitImportMutation,
+    useRevertImportMutation,
 } = dataImportApi;
