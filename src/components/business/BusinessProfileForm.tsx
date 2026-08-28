@@ -37,6 +37,7 @@ import {
     businessLogoRules,
     businessProfileSchema,
     businessThumbnailRules,
+    facebookPageUrl,
     type Business,
     type BusinessCategory,
     type BusinessProfileInput,
@@ -378,6 +379,7 @@ function BusinessProfileEditor({
             phoneNumber: String(formData.get("phoneNumber") || ""),
             address: String(formData.get("address") || ""),
             googleMap: String(formData.get("googleMap") || ""),
+            facebookPage: String(formData.get("facebookPage") || ""),
             provinceName: String(formData.get("provinceName") || ""),
             districtName: String(formData.get("districtName") || ""),
             communeName: String(formData.get("communeName") || ""),
@@ -620,6 +622,25 @@ function BusinessProfileEditor({
                                 />
                             </Field>
                         </div>
+
+                        <div data-tour="profile-facebook-page">
+                            <Field
+                                label="Facebook Page"
+                                name="facebookPage"
+                                error={fieldErrors.facebookPage}>
+                                <Input
+                                    id="facebookPage"
+                                    name="facebookPage"
+                                    type="url"
+                                    placeholder="https://facebook.com/yourpage"
+                                    defaultValue={facebookPageUrl(business)}
+                                    maxLength={255}
+                                    aria-invalid={Boolean(
+                                        fieldErrors.facebookPage,
+                                    )}
+                                    className={`${inputClassName} text-[#6b7280]`} />
+                            </Field>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-3">
@@ -785,6 +806,7 @@ export default function BusinessProfileForm() {
         business.phoneNumber,
         business.address,
         business.googleMap,
+        facebookPageUrl(business),
         business.provinceName,
         business.districtName,
         business.communeName,

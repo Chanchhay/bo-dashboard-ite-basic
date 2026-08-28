@@ -42,7 +42,9 @@ export async function PUT(request: Request) {
             `/api/v1/businesses/${encodeURIComponent(business.id)}`,
             {
                 method: "PUT",
-                body: JSON.stringify(toUpdateBusinessInput(result.data)),
+                body: JSON.stringify(
+                    toUpdateBusinessInput(result.data, business),
+                ),
             },
         );
 
