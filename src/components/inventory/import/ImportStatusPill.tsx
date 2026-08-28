@@ -28,6 +28,8 @@ const JOB_TONES: Record<ImportStatus, keyof typeof TONE> = {
     VALIDATION_FAILED: "bad",
     COMMITTING: "progress",
     COMMITTED: "good",
+    REVERTING: "progress",
+    REVERTED: "neutral",
     FAILED: "bad",
 };
 
@@ -39,6 +41,7 @@ const ROW_TONES: Record<ImportRowStatus, keyof typeof TONE> = {
     CREATED: "good",
     UPDATED: "good",
     SKIPPED: "neutral",
+    REVERTED: "neutral",
     FAILED: "bad",
 };
 
