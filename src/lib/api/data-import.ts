@@ -241,7 +241,7 @@ export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
     VALIDATION_FAILED: "Check failed",
     COMMITTING: "Importing",
     COMMITTED: "Imported",
-    REVERTING: "Undoing",
+    REVERTING: "Loading",
     REVERTED: "Undone",
     FAILED: "Failed",
 };

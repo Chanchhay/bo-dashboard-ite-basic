@@ -87,6 +87,7 @@ export function ImportReportView({ importId }: { importId: string }) {
 
     const detail = report.data;
     const errorPage = errors.data?.page;
+    const isUndoing = job.data.status === "REVERTING" || revertState.isLoading;
     const finished = isImportFinished(job.data.status);
     const created = job.data.createdRows;
 
@@ -94,6 +95,8 @@ export function ImportReportView({ importId }: { importId: string }) {
         try {
             await revertImport(importId).unwrap();
             setUndoing(false);
+            void job.refetch();
+            void report.refetch();
             toast({
                 tone: "success",
                 title: "Undoing this import",
@@ -119,7 +122,7 @@ export function ImportReportView({ importId }: { importId: string }) {
                 description={`${IMPORT_TARGET_LABELS[detail.targetType]} import`}
                 action={
                     <div className="flex items-center gap-2">
-                        {job.data.revertable ? (
+                        {job.data.revertable && !isUndoing && job.data.status !== "REVERTED" ? (
                             <Button
                                 variant="outline"
                                 onClick={() => setUndoing(true)}
@@ -141,8 +144,14 @@ export function ImportReportView({ importId }: { importId: string }) {
             />
 
             <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-                {finished || job.data.status === "COMMITTING" ? (
-                    <ImportResult job={job.data} />
+                {finished || job.data.status === "COMMITTING" || isUndoing ? (
+                    <ImportResult
+                        job={
+                            isUndoing && job.data.status !== "REVERTING"
+                                ? { ...job.data, status: "REVERTING" }
+                                : job.data
+                        }
+                    />
                 ) : (
                     <div className="flex flex-col gap-2">
                         <ImportStatusPill status={job.data.status} />
