@@ -274,6 +274,15 @@ export type InventoryItem = {
     sku?: string;
     code?: string;
     description?: string;
+
+    /**
+     * The item's own picture, as a plain link.
+     *
+     * Distinct from `images`, which holds files uploaded into our asset store.
+     * An imported item's picture is still hosted by the shop's old system and
+     * only ever arrives here.
+     */
+    imageUrl?: string | null;
     images?: ItemImage[];
     badge?: string;
     barcode?: string;
@@ -294,12 +303,22 @@ export type InventoryItem = {
 };
 
 export function itemImageUrls(
-    item: Pick<InventoryItem, "images" | "colors" | "variants">,
+    item: Pick<InventoryItem, "imageUrl" | "images" | "colors" | "variants">,
 ): string[] {
     const gallery: string[] = [];
     const push = (url?: string | null) => {
         if (url && !gallery.includes(url)) gallery.push(url);
     };
+
+    /*
+     * The item's own picture comes first, and it is the only one that can be a
+     * plain link. Uploaded images live in `images` as keys into our asset
+     * store; an imported item has never been near it, and its picture is a URL
+     * on the shop's old system sitting in `imageUrl` alone. Leaving that out
+     * meant an imported item with options showed pictures — those hang off the
+     * options — and an imported item without them showed none at all.
+     */
+    push(item.imageUrl);
 
     [...(item.images || [])]
         .sort((left, right) => (left.position ?? 0) - (right.position ?? 0))
@@ -311,7 +330,7 @@ export function itemImageUrls(
 }
 
 export function itemThumbnail(
-    item: Pick<InventoryItem, "images" | "colors" | "variants">,
+    item: Pick<InventoryItem, "imageUrl" | "images" | "colors" | "variants">,
 ): string | undefined {
     return itemImageUrls(item)[0];
 }
