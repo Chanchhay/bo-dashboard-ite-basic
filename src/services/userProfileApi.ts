@@ -47,6 +47,12 @@ export const userProfileApi = baseApi.injectEndpoints({
                 method: "DELETE",
             }),
         }),
+        notifyStaffLogin: builder.mutation<void, void>({
+            query: () => ({
+                url: "/user-profile/login-notify",
+                method: "POST",
+            }),
+        }),
     }),
 });
 
@@ -54,4 +60,5 @@ export const {
     useGetUserProfileQuery,
     useUpdateUserProfileMutation,
     useDeleteProfilePictureMutation,
+    useNotifyStaffLoginMutation,
 } = userProfileApi;

@@ -17,6 +17,7 @@ import {
     CreditCard,
     Package,
     Tag,
+    UserCheck,
 } from "lucide-react"
 
 import {
@@ -49,8 +50,18 @@ function formatTimeAgo(dateStr?: string | null): string {
     return `${diffDays}d ago`;
 }
 
-function getNotificationIcon(type?: string | null) {
+function getNotificationIcon(type?: string | null, title?: string | null) {
     const t = type?.toUpperCase();
+    const titleLower = (title || "").toLowerCase();
+
+    if (titleLower.includes("staff") || titleLower.includes("signed in") || titleLower.includes("login") || titleLower.includes("user")) {
+        return (
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100/80 dark:border-indigo-900/50">
+                <UserCheck className="size-5.5" />
+            </div>
+        );
+    }
+
     switch (t) {
         case "ORDER":
         case "SUCCESS":
@@ -473,7 +484,7 @@ function NotificationItem({
                     : "bg-white dark:bg-[#1a1e29] hover:bg-[#f7f7f6] dark:hover:bg-[#252a38]"
             }`}
         >
-            {getNotificationIcon(notification.type)}
+            {getNotificationIcon(notification.type, notification.title)}
 
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                 <div className="flex items-start justify-between gap-2.5">

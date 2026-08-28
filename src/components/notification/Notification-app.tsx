@@ -18,6 +18,7 @@ import {
     Check,
     ExternalLink,
     Filter,
+    UserCheck,
 } from "lucide-react";
 
 import {
@@ -46,8 +47,18 @@ function formatTimeAgo(dateStr?: string | null): string {
     return `${diffDays}d ago`;
 }
 
-function getNotificationIcon(type?: string | null) {
+function getNotificationIcon(type?: string | null, title?: string | null) {
     const t = type?.toUpperCase();
+    const titleLower = (title || "").toLowerCase();
+
+    if (titleLower.includes("staff") || titleLower.includes("signed in") || titleLower.includes("login") || titleLower.includes("user")) {
+        return (
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-100/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 shadow-2xs">
+                <UserCheck className="size-5.5" />
+            </div>
+        );
+    }
+
     switch (t) {
         case "ORDER":
         case "SUCCESS":
@@ -396,7 +407,7 @@ export default function NotificationsApp() {
                                             : "bg-card hover:bg-muted/50"
                                         }`}
                                 >
-                                    {getNotificationIcon(notification.type)}
+                                    {getNotificationIcon(notification.type, notification.title)}
 
                                     <div className="flex-1 min-w-0 flex flex-col gap-1">
                                         <div className="flex items-start justify-between gap-2.5">
