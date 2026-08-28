@@ -774,7 +774,15 @@ export function OrderTable({
 
     if (order?.id) {
       const targetAmount = computeTargetDiscountAmount(order, rule);
-      const primaryDiscountId = rule?.discountId || (activePosDiscounts.length === 1 ? activePosDiscounts[0].id : null);
+      // No single rule picked, but more than one catalog discount is
+      // simultaneously active: each may auto-match a different line, so all
+      // of them are sent for the backend to attribute per item rather than
+      // collapsing to a single (or no) id.
+      const autoDiscountIds = !rule && activePosDiscounts.length > 0
+        ? activePosDiscounts.map((d) => d.id)
+        : [];
+      const primaryDiscountId = rule?.discountId || (autoDiscountIds.length === 1 ? autoDiscountIds[0] : null);
+      const discountIds = autoDiscountIds.length > 1 ? autoDiscountIds : null;
       const needsIdSync = Boolean(rule?.discountId && order.discountId !== rule.discountId);
       const needsCodeSync = Boolean(rule?.discountCode && order.discountCode !== rule.discountCode);
       const needsAmountSync = Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001;
@@ -784,6 +792,7 @@ export function OrderTable({
           discountAmount: targetAmount,
           discountId: primaryDiscountId,
           discountCode: rule?.discountCode || null,
+          discountIds,
         });
       }
     }
