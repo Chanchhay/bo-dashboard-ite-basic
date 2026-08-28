@@ -680,22 +680,22 @@ export function PosScreen({
     setMobileCartOpen(false);
     setEditingOrderId(null);
 
-    // Dispatch Sale Completed notification to POS / Business users
+    // Dispatch Payment Received / Sale Completed notification to POS / Business users
     if (subject) {
       const orderRef = order.invoiceNumber || (order.id ? order.id.slice(0, 8) : "POS");
       const totalVal = sale.totalAmount ?? order.total ?? 0;
       const formattedTotal = format(totalVal, sale.currency ?? order.currency);
       const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || order.items?.length || 0;
 
-      // 1. Dispatch Sale Completed Notification
+      // 1. Dispatch Payment Received Notification
       createNotification({
         senderId: subject,
         senderName: session?.user?.name || "POS Cashier",
         receiverIds: [subject],
-        type: "ORDER",
-        title: `Sale Completed (#${orderRef})`,
-        content: `Completed sale of ${itemCount} item(s) total ${formattedTotal}.`,
-        deepLink: "/dashboard/pos",
+        type: "PAYMENT",
+        title: `Payment Successful (#${orderRef})`,
+        content: `Payment received for sale of ${itemCount} item(s) total ${formattedTotal}.`,
+        deepLink: "/sales/orders",
       }).catch(() => {});
 
       // 2. Check sold items for ACTUAL low stock warnings
@@ -750,6 +750,18 @@ export function PosScreen({
     setMobileCartOpen(false);
     setOpenReceiptId(null);
     setEditingOrderId(null);
+
+    if (subject) {
+      createNotification({
+        senderId: subject,
+        senderName: session?.user?.name || "POS Cashier",
+        receiverIds: [subject],
+        type: "ORDER",
+        title: "New Pending Order Placed",
+        content: "A new pending order has been parked/created in POS.",
+        deepLink: "/sales/orders",
+      }).catch(() => {});
+    }
   };
 
   const [discountModalMode, setDiscountModalMode] = useState<"COUPON" | "CUSTOM">("COUPON");

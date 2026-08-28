@@ -189,21 +189,58 @@ export default function NotificationsApp() {
     const stats = useMemo(() => {
         const total = notifications.length;
         const unread = notifications.filter((n) => !n.read).length;
-        const orders = notifications.filter((n) => n.type?.toUpperCase() === "ORDER").length;
-        const stockAlerts = notifications.filter((n) =>
-            ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(n.type?.toUpperCase() || "")
-        ).length;
+        const orders = notifications.filter((n) => {
+            const t = (n.type || "").toUpperCase();
+            const text = `${n.title || ""} ${n.content || ""}`.toLowerCase();
+            return t === "ORDER" || text.includes("order") || text.includes("pending");
+        }).length;
+        const stockAlerts = notifications.filter((n) => {
+            const t = (n.type || "").toUpperCase();
+            const text = `${n.title || ""} ${n.content || ""}`.toLowerCase();
+            return ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(t) || text.includes("stock");
+        }).length;
         return { total, unread, orders, stockAlerts };
     }, [notifications]);
 
     const filteredNotifications = useMemo(() => {
         return notifications.filter((item) => {
-            const matchesTab =
-                activeTab === "ALL"
-                    ? true
-                    : activeTab === "UNREAD"
-                        ? !item.read
-                        : item.type?.toUpperCase() === activeTab;
+            const t = (item.type || "").toUpperCase();
+            const text = `${item.title || ""} ${item.content || ""}`.toLowerCase();
+
+            let matchesTab = true;
+            if (activeTab === "UNREAD") {
+                matchesTab = !item.read;
+            } else if (activeTab === "ORDER") {
+                matchesTab = t === "ORDER" || text.includes("order") || text.includes("pending");
+            } else if (activeTab === "INVENTORY") {
+                matchesTab =
+                    ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(t) ||
+                    text.includes("stock") ||
+                    text.includes("inventory") ||
+                    text.includes("restock");
+            } else if (activeTab === "PAYMENT") {
+                matchesTab =
+                    t === "PAYMENT" ||
+                    text.includes("payment") ||
+                    text.includes("paid") ||
+                    text.includes("pay success") ||
+                    text.includes("sale");
+            } else if (activeTab === "PROMOTION") {
+                matchesTab =
+                    t === "PROMOTION" ||
+                    text.includes("discount") ||
+                    text.includes("coupon") ||
+                    text.includes("promotion") ||
+                    text.includes("promo");
+            } else if (activeTab === "SYSTEM") {
+                matchesTab =
+                    t === "SYSTEM" ||
+                    t === "GENERAL" ||
+                    text.includes("staff") ||
+                    text.includes("login") ||
+                    text.includes("signed in") ||
+                    text.includes("user");
+            }
 
             const q = searchQuery.trim().toLowerCase();
             const matchesQuery =
@@ -312,6 +349,7 @@ export default function NotificationsApp() {
                             { id: "ORDER", label: "Orders" },
                             { id: "INVENTORY", label: "Inventory" },
                             { id: "PAYMENT", label: "Payments" },
+                            { id: "PROMOTION", label: "Promotions" },
                             { id: "SYSTEM", label: "System" },
                         ].map((tab) => (
                             <button
