@@ -12,6 +12,7 @@ import {
     Clock,
     Package,
     PackageCheck,
+    Phone,
     User,
     QrCode,
     X,
@@ -655,6 +656,12 @@ function OrderCard({
                                     ({noteName})
                                 </span>
                             )}
+                        </p>
+                    )}
+                    {order.customerPhone && (
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                            <Phone className="size-3 shrink-0" aria-hidden="true" />
+                            <span>{order.customerPhone}</span>
                         </p>
                     )}
                 </div>
