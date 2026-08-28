@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,6 +27,7 @@ import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
 import { useToast } from "@/components/ui/toast";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
+import { cn } from "@/lib/utils";
 
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
@@ -407,7 +409,10 @@ export default function SalesOrdersPage() {
                             <EmptyState searching={Boolean(search)} />
                         ) : (
                             <div
-                                className="flex flex-col gap-3 p-3.5 sm:p-4"
+                                className={cn(
+                                    "flex flex-col gap-3 p-3.5 sm:p-4 transition-opacity duration-200 ease-in-out",
+                                    isFetching && "opacity-60 pointer-events-none",
+                                )}
                                 aria-busy={isFetching}
                             >
                                 {rows.map((order) => (
@@ -427,22 +432,19 @@ export default function SalesOrdersPage() {
                         )}
 
                         <div className="border-t border-border bg-card rounded-b-2xl">
-                            <Pager
+                            <PaginationBar
                                 page={page}
-                                pageCount={pageCount}
-                                pageSize={pageSize}
-                                first={firstRow}
-                                last={lastRow}
-                                total={totalElements}
-                                busy={isFetching}
-                                filtered={
-                                    search ? orders.length - rows.length : 0
-                                }
-                                onPage={setPage}
-                                onPageSize={(next) => {
+                                size={pageSize}
+                                totalElements={totalElements}
+                                totalPages={pageCount}
+                                onPageChange={setPage}
+                                onSizeChange={(next) => {
                                     setPageSize(next);
                                     setPage(0);
                                 }}
+                                sizeOptions={[1, 2, 5, 10, 20, 25, 50, 100]}
+                                isLoading={isFetching}
+                                itemLabel="order"
                             />
                         </div>
                     </div>
@@ -534,91 +536,6 @@ export default function SalesOrdersPage() {
                 onClose={() => setIsQrModalOpen(false)}
                 menuUrl={subdomainUrl}
             />
-        </div>
-    );
-}
-
-
-function Pager({
-    page,
-    pageCount,
-    pageSize,
-    first,
-    last,
-    total,
-    busy,
-    filtered,
-    onPage,
-    onPageSize,
-}: {
-    page: number;
-    pageCount: number;
-    pageSize: number;
-    first: number;
-    last: number;
-    total: number;
-    busy: boolean;
-
-    filtered: number;
-    onPage: (next: number) => void;
-    onPageSize: (next: number) => void;
-}) {
-    return (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-            <p className="text-[13px] text-muted-foreground">
-                {total === 0
-                    ? "No orders"
-                    : `Showing ${first}–${last} of ${total}`}
-                {filtered > 0
-                    ? ` — ${filtered} hidden by the search on this page`
-                    : ""}
-            </p>
-
-            <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                    Rows
-                    <select
-                        value={pageSize}
-                        onChange={(event) =>
-                            onPageSize(Number(event.target.value))
-                        }
-                        className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                        {ORDER_PAGE_SIZES.map((size) => (
-                            <option key={size} value={size}>
-                                {size}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={() => onPage(Math.max(0, page - 1))}
-                        disabled={page === 0 || busy}
-                        aria-label="Previous page"
-                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                        <ChevronLeft className="size-4" aria-hidden="true" />
-                    </button>
-                    <span
-                        className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground"
-                        aria-live="polite"
-                    >
-                        Page {page + 1} of {pageCount}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => onPage(page + 1)}
-                        disabled={page + 1 >= pageCount || busy}
-                        aria-label="Next page"
-                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                        <ChevronRight className="size-4" aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }

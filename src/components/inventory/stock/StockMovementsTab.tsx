@@ -6,8 +6,6 @@ import {
     ArrowDownToLine,
     ArrowUpFromLine,
     Calendar,
-    ChevronLeft,
-    ChevronRight,
     Search,
     SlidersHorizontal,
 } from "lucide-react";
@@ -20,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
-import { SelectField } from "@/components/ui/select-field";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import {
     entryLotNumber,
     stockEntryTypeLabels,
@@ -855,65 +853,18 @@ export function StockMovementsTab({
 
             {/* Pagination */}
             {filteredRows.length ? (
-                <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Rows per page</span>
-                        <SelectField
-                            id="movements-page-size"
-                            name="movements-page-size"
-                            value={String(pageSize)}
-                            onValueChange={(value) =>
-                                applyFilter(() => setPageSize(Number(value)))
-                            }
-                            options={pageSizes.map((size) => ({
-                                value: String(size),
-                                label: String(size),
-                            }))}
-                            className="h-9 w-20 rounded-xl"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <p className="text-sm text-muted-foreground">
-                            {firstIndex + 1}–
-                            {firstIndex + pageRows.length} of{" "}
-                            {filteredRows.length}
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon-sm"
-                                aria-label="Previous page"
-                                disabled={currentPage <= 1}
-                                onClick={() =>
-                                    setPage((current) =>
-                                        Math.max(1, current - 1),
-                                    )
-                                }
-                            >
-                                <ChevronLeft />
-                            </Button>
-                            <span className="text-sm font-medium text-foreground">
-                                Page {currentPage} of {pageCount}
-                            </span>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon-sm"
-                                aria-label="Next page"
-                                disabled={currentPage >= pageCount}
-                                onClick={() =>
-                                    setPage((current) =>
-                                        Math.min(pageCount, current + 1),
-                                    )
-                                }
-                            >
-                                <ChevronRight />
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                <PaginationBar
+                    page={currentPage - 1}
+                    size={pageSize}
+                    totalElements={filteredRows.length}
+                    totalPages={pageCount}
+                    onPageChange={(nextPage) => setPage(nextPage + 1)}
+                    onSizeChange={(nextSize) =>
+                        applyFilter(() => setPageSize(nextSize))
+                    }
+                    sizeOptions={pageSizes}
+                    itemLabel="movement"
+                />
             ) : null}
 
             <StockMovementDetailDialog

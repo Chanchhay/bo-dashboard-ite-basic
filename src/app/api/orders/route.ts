@@ -42,12 +42,18 @@ export async function GET(request: Request) {
 
         const synced = getSyncedOrders(url);
         const combinedContent = [...synced, ...resultContent];
+        const totalElements = (resultPage.totalElements || 0) + synced.length;
+        const totalPages = Math.max(
+            1,
+            Math.ceil(totalElements / Math.max(size, 1)),
+        );
 
         return Response.json({
             content: combinedContent,
             page: {
                 ...resultPage,
-                totalElements: (resultPage.totalElements || 0) + synced.length,
+                totalElements,
+                totalPages,
             },
         } satisfies PosOrderPage);
     } catch (error) {

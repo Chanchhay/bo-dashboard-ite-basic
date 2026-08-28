@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Pencil, Plus, Search, Trash2, X } from "lucide-
 import { Button } from "@/components/ui/button";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import {
     EmptyState,
     ErrorState,
@@ -380,15 +381,18 @@ export default function RolesTab() {
                         id="roles-search"
                         type="search"
                         value={search}
-                        onChange={(event) => setSearch(event.target.value)}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setRolesPage(0);
+                        }}
                         placeholder="Search roles or permissions..."
                         className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
                 </div>
 
-                {rolesQuery.isLoading ? (
+                {rolesQuery.isLoading && !rolesQuery.data ? (
                     <LoadingState label="Loading roles" />
-                ) : rolesQuery.error ? (
+                ) : rolesQuery.error && !rolesQuery.data ? (
                     <ErrorState
                         message={getApiErrorMessage(
                             rolesQuery.error,
@@ -406,7 +410,12 @@ export default function RolesTab() {
                         }
                     />
                 ) : (
-                    <ul className="mt-6 flex flex-col gap-3">
+                    <ul
+                        className={cn(
+                            "mt-6 flex flex-col gap-3 transition-opacity duration-200 ease-in-out",
+                            rolesQuery.isFetching && "opacity-60 pointer-events-none",
+                        )}
+                    >
                         {filteredRoles.map((role: BusinessRole, index: number) => {
                             const permissions = role.permissions || [];
                             const assigned = assignedCounts.get(role.id) || 0;
@@ -562,7 +571,11 @@ export default function RolesTab() {
                         totalElements={rolesTotalElements}
                         totalPages={rolesTotalPages}
                         onPageChange={setRolesPage}
-                        onSizeChange={setRolesPageSize}
+                        onSizeChange={(next) => {
+                            setRolesPageSize(next);
+                            setRolesPage(0);
+                        }}
+                        sizeOptions={[1, 2, 5, 10, 20, 50]}
                         isLoading={rolesQuery.isFetching}
                         itemLabel="role"
                     />

@@ -516,6 +516,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                 id="phoneNumber"
                                 name="phoneNumber"
                                 type="tel"
+                                placeholder="012 345 678"
                                 defaultValue={profile.phoneNumber || ""}
                                 maxLength={30}
                                 autoComplete="tel"
