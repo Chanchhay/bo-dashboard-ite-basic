@@ -15,7 +15,7 @@ export default async function BusinessCurrencyPage() {
     }
 
     return (
-        <div className="pb-4">
+        <div>
             <div className="flex items-center justify-between gap-4">
                 <p className="max-w-2xl text-[15px] text-muted-foreground">
                     Configure the currencies your business trades in.

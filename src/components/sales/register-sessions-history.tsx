@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 
 import { TourButton } from "@/components/onboarding/TourButton";
+import { PaginationBar } from "@/components/ui/PaginationBar";
+import { cn } from "@/lib/utils";
 import { useMoney } from "@/hooks/useMoney";
 import type {
   RegisterSession,
@@ -44,8 +46,8 @@ type StatusFilter = (typeof STATUS_OPTIONS)[number];
 const DATE_RANGES = ["Today", "7 days", "30 days", "All time"] as const;
 type DateRange = (typeof DATE_RANGES)[number];
 
-/** Rows per request. Matches the backend's own default page size. */
-const PAGE_SIZE = 20;
+/** Default rows per request. */
+const DEFAULT_PAGE_SIZE = 10;
 
 export type SessionColumnKey =
   | "sessionId"
@@ -93,6 +95,7 @@ export function RegisterSessionsHistory() {
   // Summing the rows on screen would total whichever twenty happened to be
   // showing, which is not what a total means.
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageMeta, setPageMeta] = useState({ totalElements: 0, totalPages: 1 });
   const [metrics, setMetrics] = useState<RegisterSessionMetrics>({
     activeCount: 0,
@@ -194,7 +197,7 @@ export function RegisterSessionsHistory() {
       try {
         const params = new URLSearchParams({
           page: String(page),
-          size: String(PAGE_SIZE),
+          size: String(pageSize),
           status: statusFilter,
           range: dateRange,
           t: String(Date.now()),
@@ -230,7 +233,7 @@ export function RegisterSessionsHistory() {
         setIsRefreshing(false);
       }
     },
-    [page, statusFilter, dateRange, query],
+    [page, pageSize, statusFilter, dateRange, query],
   );
 
   // Debounced, because `query` changes on every keystroke and each change is
@@ -516,7 +519,13 @@ export function RegisterSessionsHistory() {
       </div>
 
       {/* History Table */}
-      <div data-tour="sessions-table-container" className="rounded-2xl border border-border/70 bg-card overflow-hidden">
+      <div
+        data-tour="sessions-table-container"
+        className={cn(
+          "rounded-2xl border border-border/70 bg-card overflow-hidden transition-opacity duration-200 ease-in-out",
+          (isLoading || isRefreshing) && "opacity-60 pointer-events-none",
+        )}
+      >
         <div className="overflow-x-auto min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="bg-muted/50 dark:bg-[#0f1520]">
@@ -732,40 +741,22 @@ export function RegisterSessionsHistory() {
           </Table>
         </div>
 
-        {/* Pager. The counts describe the whole filtered history, not the rows
-            on screen, because the filtering happened on the server. */}
-        {pageMeta.totalElements > 0 && (
-          <div className="flex flex-col gap-3 border-t border-border dark:border-slate-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground dark:text-slate-400">
-              {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + sessions.length} of{" "}
-              {pageMeta.totalElements}
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Previous page"
-                disabled={page <= 0 || isLoading || isRefreshing}
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
-                className="rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 py-1.5 text-xs font-semibold text-foreground dark:text-slate-200 hover:bg-accent dark:hover:bg-[#1c2638] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-muted-foreground dark:text-slate-400">
-                Page {page + 1} of {pageMeta.totalPages}
-              </span>
-              <button
-                type="button"
-                aria-label="Next page"
-                disabled={
-                  page >= pageMeta.totalPages - 1 || isLoading || isRefreshing
-                }
-                onClick={() => setPage((current) => current + 1)}
-                className="rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 py-1.5 text-xs font-semibold text-foreground dark:text-slate-200 hover:bg-accent dark:hover:bg-[#1c2638] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+        {pageMeta.totalPages > 0 && (
+          <div className="border-t border-border dark:border-slate-800 bg-card">
+            <PaginationBar
+              page={page}
+              size={pageSize}
+              totalElements={pageMeta.totalElements}
+              totalPages={pageMeta.totalPages}
+              onPageChange={setPage}
+              onSizeChange={(next) => {
+                setPageSize(next);
+                setPage(0);
+              }}
+              sizeOptions={[1, 2, 5, 10, 20, 50]}
+              isLoading={isLoading || isRefreshing}
+              itemLabel="session"
+            />
           </div>
         )}
       </div>

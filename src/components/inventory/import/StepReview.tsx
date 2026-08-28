@@ -1,6 +1,14 @@
 "use client";
 
-import { AlertTriangle, FolderPlus, Minus, Pencil, Plus, Warehouse } from "lucide-react";
+import {
+    AlertTriangle,
+    FolderPlus,
+    Minus,
+    Pencil,
+    Plus,
+    Ruler,
+    Warehouse,
+} from "lucide-react";
 
 import {
     IMPORT_TARGET_LABELS,
@@ -79,6 +87,14 @@ export function StepReview({
     confirmed: boolean;
     onConfirmedChange: (next: boolean) => void;
 }) {
+    const units = preview.units ?? {
+        reused: 0,
+        created: 0,
+        conflicts: 0,
+        toReuse: [],
+        toCreate: [],
+    };
+
     const nothingToDo = preview.willCreate === 0 && preview.willUpdate === 0;
 
     return (
@@ -133,6 +149,35 @@ export function StepReview({
                                 tone="info"
                                 text={`${preview.openingStockToRecord === 1 ? "item" : "items"} will be given a starting stock quantity`}
                             />
+                        </ul>
+                    </li>
+                ) : null}
+
+                {/*
+                 * Units come first in what an import actually does — every item
+                 * is counted in one, and an item whose unit cannot be resolved
+                 * never gets created. Worth seeing before agreeing, rather than
+                 * in the report afterwards.
+                 */}
+                {units.created > 0 || units.reused > 0 ? (
+                    <li className="mt-1 border-t border-border pt-3">
+                        <ul className="flex flex-col gap-3">
+                            {units.created > 0 ? (
+                                <Consequence
+                                    icon={Ruler}
+                                    count={units.created}
+                                    tone="info"
+                                    text={`new ${units.created === 1 ? "unit" : "units"} will be created — ${units.toCreate.join(", ")}`}
+                                />
+                            ) : null}
+                            {units.reused > 0 ? (
+                                <Consequence
+                                    icon={Ruler}
+                                    count={units.reused}
+                                    tone="info"
+                                    text={`${units.reused === 1 ? "unit you already have" : "units you already have"} will be used — ${units.toReuse.join(", ")}`}
+                                />
+                            ) : null}
                         </ul>
                     </li>
                 ) : null}

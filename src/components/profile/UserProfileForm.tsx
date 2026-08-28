@@ -516,6 +516,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                 id="phoneNumber"
                                 name="phoneNumber"
                                 type="tel"
+                                placeholder="012 345 678"
                                 defaultValue={profile.phoneNumber || ""}
                                 maxLength={30}
                                 autoComplete="tel"
@@ -599,7 +600,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         type="submit"
                         disabled={isSaving}
                         size="lg"
-                            className="min-w-28"
+                        className="min-w-28"
                     >
                         {isSaving ? "Saving…" : "Save changes"}
                     </Button>

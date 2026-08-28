@@ -10,8 +10,6 @@ import {
     Edit2,
     Trash2,
     Loader2,
-    Mail,
-    MapPin,
     Crown,
     Filter,
     Calendar,
@@ -82,11 +80,10 @@ export default function CustomerManagement() {
 
     // --- Column Visibility State ---
     const [customerCols, setCustomerCols] = useState([
-        { id: "customerInfo", label: "Customer Name & Email", visible: true },
+        { id: "customerInfo", label: "Customer Name", visible: true },
         { id: "phoneNumber", label: "Phone Number", visible: true },
         { id: "membershipType", label: "Membership Type", visible: true },
         { id: "salesChannel", label: "Sales Channel", visible: true },
-        { id: "address", label: "Address", visible: true },
         { id: "totalSpend", label: "Total Spend", visible: true },
         { id: "status", label: "Status", visible: true },
     ]);
@@ -137,9 +134,7 @@ export default function CustomerManagement() {
 
     // Form inputs
     const [fullName, setFullName] = useState("");
-    const [email, setEmail] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
-    const [address, setAddress] = useState("");
     const [membershipTypeId, setMembershipTypeId] = useState("");
     const [salesChannelId, setSalesChannelId] = useState("");
     const [totalSpend, setTotalSpend] = useState<number | "">("");
@@ -236,14 +231,10 @@ export default function CustomerManagement() {
             if (isPhoneMatch) return true;
 
             const name = c.globalCustomer?.fullName?.toLowerCase() || "";
-            const mail = c.globalCustomer?.email?.toLowerCase() || "";
-            const addr = c.address?.toLowerCase() || "";
             const tier = c.membershipType?.typeName?.toLowerCase() || "";
             const channel = c.salesChannel?.name?.toLowerCase() || "";
             return (
                 name.includes(q) ||
-                mail.includes(q) ||
-                addr.includes(q) ||
                 tier.includes(q) ||
                 channel.includes(q)
             );
@@ -254,9 +245,7 @@ export default function CustomerManagement() {
         setEditingCustomer(null);
         setFormError("");
         setFullName("");
-        setEmail("");
         setPhoneNumber("");
-        setAddress("");
         setMembershipTypeId("");
         const posChannel = salesChannels.find(
             (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
@@ -271,9 +260,7 @@ export default function CustomerManagement() {
         setEditingCustomer(c);
         setFormError("");
         setFullName(c.globalCustomer?.fullName || "");
-        setEmail(c.globalCustomer?.email || "");
         setPhoneNumber(c.globalCustomer?.phoneNumber || "");
-        setAddress(c.address || "");
         setMembershipTypeId(c.membershipType?.id || "");
         setSalesChannelId(c.salesChannel?.id || "");
         setTotalSpend(c.totalSpend !== undefined ? c.totalSpend : "");
@@ -283,8 +270,8 @@ export default function CustomerManagement() {
 
     const handleSave = async () => {
         setFormError("");
-        if (!fullName.trim() && !email.trim() && !phoneNumber.trim()) {
-            setFormError("Please provide at least a name, email, or phone number.");
+        if (!fullName.trim() && !phoneNumber.trim()) {
+            setFormError("Please provide at least a customer name or phone number.");
             return;
         }
 
@@ -296,9 +283,7 @@ export default function CustomerManagement() {
 
             const payload = {
                 fullName: fullName.trim() || undefined,
-                email: email.trim() || undefined,
                 phoneNumber: phoneNumber.trim() || undefined,
-                address: address.trim() || undefined,
                 membershipTypeId: membershipTypeId || undefined,
                 salesChannelId: effectiveChannelId,
                 totalSpend:
@@ -412,7 +397,7 @@ export default function CustomerManagement() {
                                 <Input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search by name, email, phone..."
+                                    placeholder="Search by name or phone..."
                                     className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
                                 />
                             </div>
@@ -528,20 +513,19 @@ export default function CustomerManagement() {
                         <TableHeader>
                             <TableRow className="bg-muted/40">
                                 {isColVisible("customerInfo") && (
-                                    <TableHead>Customer</TableHead>
+                                    <TableHead>Customer Name</TableHead>
                                 )}
-                {isColVisible("phoneNumber") && <TableHead>Phone</TableHead>}
+                                {isColVisible("phoneNumber") && <TableHead>Phone Number</TableHead>}
                                 {isColVisible("membershipType") && (
                                     <TableHead>Membership Type</TableHead>
                                 )}
                                 {isColVisible("salesChannel") && (
                                     <TableHead>Sales Channel</TableHead>
                                 )}
-                {isColVisible("address") && <TableHead>Address</TableHead>}
                                 {isColVisible("totalSpend") && (
                                     <TableHead>Total Spend</TableHead>
                                 )}
-                {isColVisible("status") && <TableHead>Status</TableHead>}
+                                {isColVisible("status") && <TableHead>Status</TableHead>}
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -549,7 +533,6 @@ export default function CustomerManagement() {
                             {filteredCustomers.map((c) => {
                                 const displayName =
                                     c.globalCustomer?.fullName || "Unnamed Customer";
-                                const displayEmail = c.globalCustomer?.email;
                                 const displayPhone = formatLocalPhone(c.globalCustomer?.phoneNumber);
 
                                 return (
@@ -559,16 +542,8 @@ export default function CustomerManagement() {
                                     >
                                         {isColVisible("customerInfo") && (
                                             <TableCell>
-                                                <div>
-                                                    <div className="font-bold text-foreground text-sm">
-                                                        {displayName}
-                                                    </div>
-                                                    {displayEmail && (
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Mail className="h-3 w-3" />
-                                                            {displayEmail}
-                                                        </div>
-                                                    )}
+                                                <div className="font-bold text-foreground text-sm">
+                                                    {displayName}
                                                 </div>
                                             </TableCell>
                                         )}
@@ -604,23 +579,6 @@ export default function CustomerManagement() {
                                                 {c.salesChannel ? (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
                                                         {c.salesChannel.name}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        —
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        {isColVisible("address") && (
-                                            <TableCell>
-                                                {c.address ? (
-                          <span
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground max-w-[180px] truncate"
-                            title={c.address}
-                          >
-                                                        <MapPin className="h-3 w-3 shrink-0" />
-                                                        {c.address}
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">
@@ -716,36 +674,13 @@ export default function CustomerManagement() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="email">Email Address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="john@example.com"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <Label htmlFor="phoneNumber">Phone Number</Label>
-                                <Input
-                                    id="phoneNumber"
-                                    value={phoneNumber}
-                                    onChange={(e) => setPhoneNumber(e.target.value)}
-                                    placeholder="012 345 678"
-                                />
-                            </div>
-                        </div>
-
                         <div className="space-y-1.5">
-                            <Label htmlFor="address">Address</Label>
+                            <Label htmlFor="phoneNumber">Phone Number</Label>
                             <Input
-                                id="address"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                                placeholder="Street, City, Country..."
+                                id="phoneNumber"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                placeholder="012 345 678"
                             />
                         </div>
 

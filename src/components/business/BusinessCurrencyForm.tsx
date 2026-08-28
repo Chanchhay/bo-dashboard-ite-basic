@@ -722,7 +722,7 @@ function CurrencyEditor({
                 onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
             />
 
-            <div className="mt-auto flex flex-wrap items-center justify-end gap-3 pt-6">
+            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8">
                 <Button
                     type="button"
                     variant="outline"

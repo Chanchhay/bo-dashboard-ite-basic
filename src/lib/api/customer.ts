@@ -27,26 +27,20 @@ export type CustomerResponse = {
 export type CustomerPage = PageResult<CustomerResponse>;
 
 export type CreateCustomerInput = {
-    keycloakUserId?: string;
-    email?: string;
     fullName?: string;
     phoneNumber?: string;
     membershipTypeId?: string;
     salesChannelId?: string;
-    address?: string;
     totalSpend?: number;
     becameMembershipAt?: string;
     active?: boolean;
 };
 
 export type UpdateCustomerInput = {
-    keycloakUserId?: string;
-    email?: string;
     fullName?: string;
     phoneNumber?: string;
     membershipTypeId?: string;
     salesChannelId?: string;
-    address?: string;
     totalSpend?: number;
     becameMembershipAt?: string;
     active?: boolean;

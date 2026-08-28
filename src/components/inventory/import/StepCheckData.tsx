@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -175,6 +176,25 @@ export function StepCheckData({ job, stalled }: { job: ImportJob; stalled?: bool
                     onClick={() => choose("INVALID")}
                 />
             </div>
+
+            {/*
+             * A way out for the one error the shop cannot fix in the file: a
+             * unit we have never heard of and the workbook never described.
+             * Either they add it to the Units sheet, or they add it here.
+             */}
+            {job.invalidRows > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                    Rows refused for a unit we do not recognise can be fixed by adding it to
+                    the Units sheet of your file, or by adding it in{" "}
+                    <Link
+                        href="/inventory/config/units"
+                        className="font-medium text-primary underline underline-offset-2"
+                    >
+                        Item config → Units
+                    </Link>
+                    .
+                </p>
+            ) : null}
 
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
                 <ImportRowsTable

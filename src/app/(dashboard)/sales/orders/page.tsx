@@ -14,16 +14,20 @@ import {
     PackageCheck,
     User,
     QrCode,
+    X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
 import { useToast } from "@/components/ui/toast";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
+import { cn } from "@/lib/utils";
 
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
@@ -33,6 +37,7 @@ import { usePendingOfflineOrders } from "@/lib/offline-orders";
 import { itemThumbnail } from "@/lib/api/inventory";
 import {
     useApprovePayLaterOrderMutation,
+    useCancelOpenOrderMutation,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
@@ -102,7 +107,10 @@ export default function SalesOrdersPage() {
     const { format } = useMoney();
     const { toast } = useToast();
     const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
+    const [cancelOpenOrder] = useCancelOpenOrderMutation();
     const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
+    const [orderToCancel, setOrderToCancel] = useState<PosOrder | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
 
     async function handleApprovePayLaterOrder(order: PosOrder) {
         setConfirmingOrderId(order.id);
@@ -121,6 +129,27 @@ export default function SalesOrdersPage() {
             });
         } finally {
             setConfirmingOrderId(null);
+        }
+    }
+
+    async function handleCancelOrder(order: PosOrder) {
+        setIsCancelling(true);
+        try {
+            await cancelOpenOrder(order.id).unwrap();
+            setOrderToCancel(null);
+            toast({
+                tone: "success",
+                title: "Order cancelled",
+                description: `${order.invoiceNumber ?? "This order"} has been cancelled.`,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not cancel the order",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        } finally {
+            setIsCancelling(false);
         }
     }
 
@@ -380,7 +409,10 @@ export default function SalesOrdersPage() {
                             <EmptyState searching={Boolean(search)} />
                         ) : (
                             <div
-                                className="flex flex-col gap-3 p-3.5 sm:p-4"
+                                className={cn(
+                                    "flex flex-col gap-3 p-3.5 sm:p-4 transition-opacity duration-200 ease-in-out",
+                                    isFetching && "opacity-60 pointer-events-none",
+                                )}
                                 aria-busy={isFetching}
                             >
                                 {rows.map((order) => (
@@ -391,29 +423,28 @@ export default function SalesOrdersPage() {
                                         itemThumbnailById={itemThumbnailById}
                                         customerNameById={customerNameById}
                                         onApprovePayLater={() => void handleApprovePayLaterOrder(order)}
+                                        onCancelOrder={() => setOrderToCancel(order)}
                                         isConfirming={confirmingOrderId === order.id}
+                                        isCancelling={isCancelling && orderToCancel?.id === order.id}
                                     />
                                 ))}
                             </div>
                         )}
 
                         <div className="border-t border-border bg-card rounded-b-2xl">
-                            <Pager
+                            <PaginationBar
                                 page={page}
-                                pageCount={pageCount}
-                                pageSize={pageSize}
-                                first={firstRow}
-                                last={lastRow}
-                                total={totalElements}
-                                busy={isFetching}
-                                filtered={
-                                    search ? orders.length - rows.length : 0
-                                }
-                                onPage={setPage}
-                                onPageSize={(next) => {
+                                size={pageSize}
+                                totalElements={totalElements}
+                                totalPages={pageCount}
+                                onPageChange={setPage}
+                                onSizeChange={(next) => {
                                     setPageSize(next);
                                     setPage(0);
                                 }}
+                                sizeOptions={[1, 2, 5, 10, 20, 25, 50, 100]}
+                                isLoading={isFetching}
+                                itemLabel="order"
                             />
                         </div>
                     </div>
@@ -439,13 +470,44 @@ export default function SalesOrdersPage() {
                             Loading details...
                         </div>
                     ) : displayOrder ? (
-                        <div className="py-2">
+                        <div className="py-2 flex flex-col gap-4">
                             <ReceiptTicket
                                 business={businessQuery.data ?? null}
                                 order={displayOrder}
                                 receipt={displayReceipt}
                                 currencies={currenciesQuery.data}
                             />
+                            {displayOrder.status === "PENDING" && (
+                                <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            const target = displayOrder;
+                                            setSelectedOrderId(null);
+                                            setOrderToCancel(target);
+                                        }}
+                                        className="border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs font-bold"
+                                    >
+                                        <X className="size-3.5 mr-1" />
+                                        Cancel order
+                                    </Button>
+                                    {displayOrder.awaitingPayLaterApproval && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                                void handleApprovePayLaterOrder(displayOrder);
+                                                setSelectedOrderId(null);
+                                            }}
+                                            disabled={confirmingOrderId === displayOrder.id}
+                                            className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold"
+                                        >
+                                            <PackageCheck className="size-3.5 mr-1" />
+                                            {confirmingOrderId === displayOrder.id ? "Approving…" : "Approve order"}
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="py-8 text-center text-sm text-destructive">
@@ -455,97 +517,25 @@ export default function SalesOrdersPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Cancel Order Confirmation Modal */}
+            <CancelOrderDialog
+                open={Boolean(orderToCancel)}
+                orderName={orderToCancel?.invoiceNumber || orderToCancel?.note?.trim() || "This order"}
+                isCancelling={isCancelling}
+                onOpenChange={(open) => {
+                    if (!open) setOrderToCancel(null);
+                }}
+                onConfirm={() => {
+                    if (orderToCancel) void handleCancelOrder(orderToCancel);
+                }}
+            />
+
             {/* Digital Menu QR Code Modal */}
             <MenuQRModal
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
                 menuUrl={subdomainUrl}
             />
-        </div>
-    );
-}
-
-
-function Pager({
-    page,
-    pageCount,
-    pageSize,
-    first,
-    last,
-    total,
-    busy,
-    filtered,
-    onPage,
-    onPageSize,
-}: {
-    page: number;
-    pageCount: number;
-    pageSize: number;
-    first: number;
-    last: number;
-    total: number;
-    busy: boolean;
-
-    filtered: number;
-    onPage: (next: number) => void;
-    onPageSize: (next: number) => void;
-}) {
-    return (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-            <p className="text-[13px] text-muted-foreground">
-                {total === 0
-                    ? "No orders"
-                    : `Showing ${first}–${last} of ${total}`}
-                {filtered > 0
-                    ? ` — ${filtered} hidden by the search on this page`
-                    : ""}
-            </p>
-
-            <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                    Rows
-                    <select
-                        value={pageSize}
-                        onChange={(event) =>
-                            onPageSize(Number(event.target.value))
-                        }
-                        className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                        {ORDER_PAGE_SIZES.map((size) => (
-                            <option key={size} value={size}>
-                                {size}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={() => onPage(Math.max(0, page - 1))}
-                        disabled={page === 0 || busy}
-                        aria-label="Previous page"
-                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                        <ChevronLeft className="size-4" aria-hidden="true" />
-                    </button>
-                    <span
-                        className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground"
-                        aria-live="polite"
-                    >
-                        Page {page + 1} of {pageCount}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => onPage(page + 1)}
-                        disabled={page + 1 >= pageCount || busy}
-                        aria-label="Next page"
-                        className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                        <ChevronRight className="size-4" aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }
@@ -600,14 +590,18 @@ function OrderCard({
     itemThumbnailById,
     customerNameById,
     onApprovePayLater,
+    onCancelOrder,
     isConfirming,
+    isCancelling,
 }: {
     order: PosOrder;
     onClick: () => void;
     itemThumbnailById: Map<string, string | undefined>;
     customerNameById: Map<string, string>;
     onApprovePayLater: () => void;
+    onCancelOrder: () => void;
     isConfirming: boolean;
+    isCancelling?: boolean;
 }) {
     const { format } = useMoney();
 
@@ -691,25 +685,43 @@ function OrderCard({
 
             <LineItemListPanel order={order} itemThumbnailById={itemThumbnailById} />
 
-            {order.status === "PENDING" && order.awaitingPayLaterApproval && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
+            {order.status === "PENDING" && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
                     <p className="text-xs text-muted-foreground">
-                        Customer chose to pay later — approving takes stock off the shelf now.
+                        {order.awaitingPayLaterApproval
+                            ? "Customer chose to pay later — approving takes stock off the shelf now."
+                            : "Order is awaiting payment or processing."}
                     </p>
-                    <button
-                        type="button"
-                        onClick={(event) => {
-                            // The card underneath opens the receipt dialog —
-                            // this is a different action entirely.
-                            event.stopPropagation();
-                            onApprovePayLater();
-                        }}
-                        disabled={isConfirming}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
-                    >
-                        <PackageCheck className="size-3.5" aria-hidden="true" />
-                        {isConfirming ? "Approving…" : "Approve order"}
-                    </button>
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                        <button
+                            type="button"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onCancelOrder();
+                            }}
+                            disabled={isConfirming || isCancelling}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 transition-colors hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                        >
+                            <X className="size-3.5" aria-hidden="true" />
+                            {isCancelling ? "Cancelling…" : "Cancel order"}
+                        </button>
+                        {order.awaitingPayLaterApproval && (
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    // The card underneath opens the receipt dialog —
+                                    // this is a different action entirely.
+                                    event.stopPropagation();
+                                    onApprovePayLater();
+                                }}
+                                disabled={isConfirming || isCancelling}
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                            >
+                                <PackageCheck className="size-3.5" aria-hidden="true" />
+                                {isConfirming ? "Approving…" : "Approve order"}
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
