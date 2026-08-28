@@ -30,6 +30,8 @@ export type PosOrder = {
     id: string;
     businessId: string;
     customerId: string | null;
+    /** From GlobalCustomer, not the order itself — how the business can reach whoever placed it. Absent on synthetic/offline order shapes built client-side. */
+    customerPhone?: string | null;
     invoiceNumber: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     
