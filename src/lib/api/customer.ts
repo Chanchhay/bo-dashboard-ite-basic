@@ -29,7 +29,7 @@ export type CustomerPage = PageResult<CustomerResponse>;
 export type CreateCustomerInput = {
     fullName?: string;
     phoneNumber?: string;
-    membershipTypeId?: string;
+    membershipTypeId?: string | null;
     salesChannelId?: string;
     totalSpend?: number;
     becameMembershipAt?: string;
@@ -39,7 +39,7 @@ export type CreateCustomerInput = {
 export type UpdateCustomerInput = {
     fullName?: string;
     phoneNumber?: string;
-    membershipTypeId?: string;
+    membershipTypeId?: string | null;
     salesChannelId?: string;
     totalSpend?: number;
     becameMembershipAt?: string;

@@ -234,7 +234,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                                 return {
                                     id: `offline-${Date.now()}`,
                                     businessId: "1",
-                                    customerId: null,
+                                    customerId: typeof window !== "undefined" ? (localStorage.getItem("pos_active_customer_id") || null) : null,
                                     invoiceNumber: null,
                                     channel: "POS",
                                     status: "PENDING",

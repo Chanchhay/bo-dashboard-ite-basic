@@ -44,6 +44,7 @@ export async function PATCH(request: Request) {
                         discountAmount,
                         discountId: result.data.discountId,
                         discountCode: result.data.discountCode,
+                        discountIds: result.data.discountIds,
                     }),
                 }
             );
