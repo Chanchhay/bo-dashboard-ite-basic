@@ -32,11 +32,14 @@ export function InventoryStockMovements() {
 
     return (
         <div data-tour="stock-movements-ledger" className="flex flex-col gap-6">
-            <InventoryPageHeader
-                title="Movements"
-                description="Every stock in, stock out and adjustment, newest first. A recorded movement is never edited — it is corrected with an adjustment."
-                action={<TourButton />}
-            />
+            {/* Sticky Header Section */}
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all">
+                <InventoryPageHeader
+                    title="Movements"
+                    description="Every stock in, stock out and adjustment, newest first. A recorded movement is never edited — it is corrected with an adjustment."
+                    action={<TourButton />}
+                />
+            </div>
 
             <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <StockMovementsTab
