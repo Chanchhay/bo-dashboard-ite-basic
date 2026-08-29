@@ -284,7 +284,7 @@ export default function CustomerManagement() {
             const payload = {
                 fullName: fullName.trim() || undefined,
                 phoneNumber: phoneNumber.trim() || undefined,
-                membershipTypeId: membershipTypeId || undefined,
+                membershipTypeId: membershipTypeId ? membershipTypeId : null,
                 salesChannelId: effectiveChannelId,
                 totalSpend:
                     totalSpend !== "" && !isNaN(Number(totalSpend))

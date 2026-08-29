@@ -19,6 +19,8 @@ export type PosOrderItem = {
     quantity: number;
     unitPrice: number;
     discountAmount: number;
+    /** Name of the discount that produced discountAmount for this line, if any. */
+    discountLabel?: string | null;
     lineTotal: number;
     trackInventory?: boolean | null;
 };
@@ -190,6 +192,8 @@ export const setOrderDiscountSchema = z.object({
     discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
     discountId: z.string().nullable().optional(),
     discountCode: z.string().nullable().optional(),
+    /** More than one simultaneously-active discount, each auto-matched to its own line. */
+    discountIds: z.array(z.string()).nullable().optional(),
 });
 
 export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;
