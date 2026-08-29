@@ -18,6 +18,7 @@ import {
     Check,
     ExternalLink,
     Filter,
+    UserCheck,
 } from "lucide-react";
 
 import {
@@ -46,8 +47,18 @@ function formatTimeAgo(dateStr?: string | null): string {
     return `${diffDays}d ago`;
 }
 
-function getNotificationIcon(type?: string | null) {
+function getNotificationIcon(type?: string | null, title?: string | null) {
     const t = type?.toUpperCase();
+    const titleLower = (title || "").toLowerCase();
+
+    if (titleLower.includes("staff") || titleLower.includes("signed in") || titleLower.includes("login") || titleLower.includes("user")) {
+        return (
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-100/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 shadow-2xs">
+                <UserCheck className="size-5.5" />
+            </div>
+        );
+    }
+
     switch (t) {
         case "ORDER":
         case "SUCCESS":
@@ -88,68 +99,54 @@ function getNotificationIcon(type?: string | null) {
 }
 
 function getNotificationLink(notification: Notification): string {
+    // 1. Prioritize explicit deepLink if provided
+    if (notification.deepLink && notification.deepLink.startsWith("/") && notification.deepLink !== "#") {
+        return notification.deepLink;
+    }
+
     const type = notification.type?.toUpperCase() || "";
     const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
-    const deepLink = (notification.deepLink || "").toLowerCase();
 
-    if (
-        type === "ORDER" ||
-        type === "PAYMENT" ||
-        type === "SUCCESS" ||
-        text.includes("sale") ||
-        text.includes("inv-") ||
-        text.includes("order") ||
-        deepLink.includes("order") ||
-        deepLink.includes("sale") ||
-        deepLink.includes("pos")
-    ) {
-        return "/sales/orders";
+    // 2. Specific feature fallbacks based on content / type
+    if (text.includes("discount") || text.includes("coupon") || type === "PROMOTION") {
+        return "/sales/discounts";
+    }
+
+    if (text.includes("employee") || text.includes("staff") || text.includes("signed in") || text.includes("login")) {
+        return "/employees";
     }
 
     if (
         type === "INVENTORY" ||
         type === "LOW_STOCK" ||
-        type === "WARNING" ||
-        type === "ALERT" ||
+        text.includes("low stock") ||
         text.includes("stock") ||
-        text.includes("item") ||
-        deepLink.includes("inventory") ||
-        deepLink.includes("stock")
+        text.includes("restock")
     ) {
         return "/inventory/stock";
     }
 
-    if (text.includes("customer") || deepLink.includes("customer")) {
+    if (text.includes("customer")) {
         return "/sales/customers";
     }
 
-    if (text.includes("discount") || text.includes("coupon") || deepLink.includes("discount")) {
-        return "/sales/discounts";
-    }
-
-    if (text.includes("session") || text.includes("till") || deepLink.includes("session")) {
+    if (text.includes("session") || text.includes("till") || text.includes("cash drawer")) {
         return "/sales/sessions";
     }
 
-    if (text.includes("tax") || deepLink.includes("tax")) {
+    if (text.includes("tax")) {
         return "/sales/taxes";
     }
 
-    if (text.includes("employee") || text.includes("staff") || deepLink.includes("employee")) {
-        return "/employees";
-    }
-
-    if (notification.deepLink && notification.deepLink !== "#") {
-        const link = notification.deepLink;
-        if (
-            link.startsWith("/sales") ||
-            link.startsWith("/inventory") ||
-            link.startsWith("/business") ||
-            link.startsWith("/employees") ||
-            link.startsWith("/analytics")
-        ) {
-            return link;
-        }
+    if (
+        type === "ORDER" ||
+        type === "PAYMENT" ||
+        type === "SUCCESS" ||
+        text.includes("inv-") ||
+        text.includes("order") ||
+        text.includes("receipt")
+    ) {
+        return "/sales/orders";
     }
 
     return "/sales/orders";
@@ -192,21 +189,58 @@ export default function NotificationsApp() {
     const stats = useMemo(() => {
         const total = notifications.length;
         const unread = notifications.filter((n) => !n.read).length;
-        const orders = notifications.filter((n) => n.type?.toUpperCase() === "ORDER").length;
-        const stockAlerts = notifications.filter((n) =>
-            ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(n.type?.toUpperCase() || "")
-        ).length;
+        const orders = notifications.filter((n) => {
+            const t = (n.type || "").toUpperCase();
+            const text = `${n.title || ""} ${n.content || ""}`.toLowerCase();
+            return t === "ORDER" || text.includes("order") || text.includes("pending");
+        }).length;
+        const stockAlerts = notifications.filter((n) => {
+            const t = (n.type || "").toUpperCase();
+            const text = `${n.title || ""} ${n.content || ""}`.toLowerCase();
+            return ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(t) || text.includes("stock");
+        }).length;
         return { total, unread, orders, stockAlerts };
     }, [notifications]);
 
     const filteredNotifications = useMemo(() => {
         return notifications.filter((item) => {
-            const matchesTab =
-                activeTab === "ALL"
-                    ? true
-                    : activeTab === "UNREAD"
-                        ? !item.read
-                        : item.type?.toUpperCase() === activeTab;
+            const t = (item.type || "").toUpperCase();
+            const text = `${item.title || ""} ${item.content || ""}`.toLowerCase();
+
+            let matchesTab = true;
+            if (activeTab === "UNREAD") {
+                matchesTab = !item.read;
+            } else if (activeTab === "ORDER") {
+                matchesTab = t === "ORDER" || text.includes("order") || text.includes("pending");
+            } else if (activeTab === "INVENTORY") {
+                matchesTab =
+                    ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(t) ||
+                    text.includes("stock") ||
+                    text.includes("inventory") ||
+                    text.includes("restock");
+            } else if (activeTab === "PAYMENT") {
+                matchesTab =
+                    t === "PAYMENT" ||
+                    text.includes("payment") ||
+                    text.includes("paid") ||
+                    text.includes("pay success") ||
+                    text.includes("sale");
+            } else if (activeTab === "PROMOTION") {
+                matchesTab =
+                    t === "PROMOTION" ||
+                    text.includes("discount") ||
+                    text.includes("coupon") ||
+                    text.includes("promotion") ||
+                    text.includes("promo");
+            } else if (activeTab === "SYSTEM") {
+                matchesTab =
+                    t === "SYSTEM" ||
+                    t === "GENERAL" ||
+                    text.includes("staff") ||
+                    text.includes("login") ||
+                    text.includes("signed in") ||
+                    text.includes("user");
+            }
 
             const q = searchQuery.trim().toLowerCase();
             const matchesQuery =
@@ -318,6 +352,7 @@ export default function NotificationsApp() {
                             { id: "ORDER", label: "Orders" },
                             { id: "INVENTORY", label: "Inventory" },
                             { id: "PAYMENT", label: "Payments" },
+                            { id: "PROMOTION", label: "Promotions" },
                             { id: "SYSTEM", label: "System" },
                         ].map((tab) => (
                             <button
@@ -399,7 +434,7 @@ export default function NotificationsApp() {
                                             : "bg-card hover:bg-muted/50"
                                         }`}
                                 >
-                                    {getNotificationIcon(notification.type)}
+                                    {getNotificationIcon(notification.type, notification.title)}
 
                                     <div className="flex-1 min-w-0 flex flex-col gap-1">
                                         <div className="flex items-start justify-between gap-2.5">

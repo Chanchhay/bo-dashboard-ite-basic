@@ -45,6 +45,13 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
       }`}
     >
       <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
+        {/* Discount Badge on the card image */}
+        {item.discountBadge && !isDisabled && (
+          <span className="absolute top-2 right-2 z-10 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white/50">
+            {item.discountBadge}
+          </span>
+        )}
+
         {/* Why it is dimmed. "Out of stock" needs a delivery and
             "Unavailable" needs a switch flipped in Inventory — a cashier
             cannot tell those apart from a faded card alone. */}
@@ -70,8 +77,21 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
         <span className="truncate text-[15px] font-semibold leading-8 tracking-[-0.24px] text-[#636b74]">
           {item.name}
         </span>
-        <span className="text-base font-bold leading-7 text-brand-red">
-          {displayPrice}
+        <span className="flex items-baseline gap-1.5 leading-7">
+          {item.discountedPrice ? (
+            <>
+              <span className="text-xs font-semibold text-gray-400 line-through">
+                {displayPrice}
+              </span>
+              <span className="text-base font-bold text-brand-red">
+                {item.discountedPrice}
+              </span>
+            </>
+          ) : (
+            <span className="text-base font-bold text-brand-red">
+              {displayPrice}
+            </span>
+          )}
         </span>
       </span>
     </button>
@@ -83,6 +103,8 @@ export const PosCard = memo(
   (prev, next) =>
     prev.item.id === next.item.id &&
     prev.item.price === next.item.price &&
+    prev.item.discountBadge === next.item.discountBadge &&
+    prev.item.discountedPrice === next.item.discountedPrice &&
     prev.item.is_available === next.item.is_available &&
     prev.item.unavailableReason === next.item.unavailableReason &&
     prev.formattedPrice === next.formattedPrice &&
