@@ -158,10 +158,20 @@ export function ReceiptTicket({
     return null;
   }, [sale?.orderId, sale?.id, order?.id]);
 
+  // Once the backend has attributed the discount to specific lines (any line
+  // carries its own non-zero discountAmount), that breakdown is authoritative
+  // — a line the backend left at zero really got nothing, most commonly a
+  // storewide Buy X Get Y that gave its free unit to a different, cheaper
+  // line entirely. Only a fully legacy order with no per-line breakdown at
+  // all falls back to guessing a proportional split.
+  const hasExplicitLineDiscounts = (order.items || []).some(
+    (item) => (item.discountAmount ?? 0) > 0,
+  );
+
   const rawSubtotal = sale?.subtotal ?? order.subtotal ?? 0;
   const itemsDiscountSum = (order.items || []).reduce((sum, item) => {
     let itemDisc = item.discountAmount ?? 0;
-    if (itemDisc <= 0 && storedRule) {
+    if (itemDisc <= 0 && !hasExplicitLineDiscounts && storedRule) {
       itemDisc = computeItemDiscountFromRule(item, order.items, storedRule);
     }
     return sum + itemDisc;
@@ -204,12 +214,22 @@ export function ReceiptTicket({
   const discountLabel = useMemo(() => {
     if (sale?.discountLabel) return sale.discountLabel;
     if (order?.discountLabel) return order.discountLabel;
+    // The order/sale record itself often has no aggregate label even though
+    // the backend already named the discount on whichever line(s) it
+    // actually applied to — reuse that real name instead of fabricating a
+    // percentage that may not even describe the discount (e.g. a Buy X Get Y
+    // showing up as "27% OFF", which is just discount÷subtotal, not what the
+    // discount actually is).
+    const firstLineLabel = (order.items || []).find(
+      (item) => (item.discountAmount ?? 0) > 0 && item.discountLabel,
+    )?.discountLabel;
+    if (firstLineLabel) return firstLineLabel;
     if (storedRule?.label) return storedRule.label;
     if (discount > 0) {
       return discountPercent > 0 ? `${discountPercent.toFixed(0)}% OFF` : "Savings";
     }
     return null;
-  }, [sale?.discountLabel, order?.discountLabel, storedRule, discount, discountPercent]);
+  }, [sale?.discountLabel, order?.discountLabel, order.items, storedRule, discount, discountPercent]);
   // The settled record carries the rate it was priced at; only an order still
   // open has to fall back to whatever is configured right now.
   const record = sale ?? order;
@@ -342,10 +362,10 @@ export function ReceiptTicket({
         {order.items.map((item) => {
           const grossAmount = item.unitPrice * item.quantity;
           let itemDisc = item.discountAmount ?? 0;
-          if (itemDisc <= 0 && storedRule) {
+          if (itemDisc <= 0 && !hasExplicitLineDiscounts && storedRule) {
             itemDisc = computeItemDiscountFromRule(item, order.items, storedRule);
           }
-          if (itemDisc <= 0 && discount > 0 && subtotal > 0) {
+          if (itemDisc <= 0 && !hasExplicitLineDiscounts && discount > 0 && subtotal > 0) {
             itemDisc = parseFloat(((grossAmount / subtotal) * discount).toFixed(2));
           }
           const netAmount = Math.max(0, grossAmount - itemDisc);
