@@ -288,6 +288,14 @@ export function ReceiptTicket({
             </dd>
           </>
         )}
+        {(customer?.globalCustomer?.phoneNumber || order.customerPhone) && (
+          <>
+            <dt>Phone / លេខទូរស័ព្ទ</dt>
+            <dd className="truncate text-right font-mono text-[#0e140e]">
+              {customer?.globalCustomer?.phoneNumber || order.customerPhone}
+            </dd>
+          </>
+        )}
         <dt>Date / កាលបរិច្ឆេទ</dt>
         <dd className="text-right font-mono text-[#0e140e]">
           {issuedAt
