@@ -765,43 +765,46 @@ export function InventoryProductList() {
 
     return (
         <div className="flex flex-col gap-6">
-            <InventoryPageHeader
-                title="Master Items"
-                description="Manage the items and services available to your business."
-                action={
-                    <div className="flex items-center gap-2">
-                        <div data-tour="export-header-excel" className="inline-flex">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={handleExportExcel}
-                                disabled={!items.length || isExporting}
-                                className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                            >
-                                {isExporting ? (
-                                    <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                    <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                )}
-                                <span>{isExporting ? "Exporting..." : "Export Excel"}</span>
-                            </Button>
+            {/* Sticky Header Section */}
+            <div className="sticky top-0 z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all">
+                <InventoryPageHeader
+                    title="Master Items"
+                    description="Manage the items and services available to your business."
+                    action={
+                        <div className="flex items-center gap-2">
+                            <div data-tour="export-header-excel" className="inline-flex">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleExportExcel}
+                                    disabled={!items.length || isExporting}
+                                    className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                                >
+                                    {isExporting ? (
+                                        <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                                    ) : (
+                                        <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                    )}
+                                    <span>{isExporting ? "Exporting..." : "Export Excel"}</span>
+                                </Button>
+                            </div>
+                            <div data-tour="add-item" className="inline-flex">
+                                <Button
+                                    render={<Link href="/inventory/new" />}
+                                    nativeButton={false}
+                                    className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                                >
+                                    <PackagePlus className="size-4 shrink-0" />
+                                    <span>Create Master Item</span>
+                                </Button>
+                            </div>
                         </div>
-                        <div data-tour="add-item" className="inline-flex">
-                            <Button
-                                render={<Link href="/inventory/new" />}
-                                nativeButton={false}
-                                className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
-                            >
-                                <PackagePlus className="size-4 shrink-0" />
-                                <span>Create Master Item</span>
-                            </Button>
-                        </div>
-                    </div>
-                }
-            />
+                    }
+                />
+            </div>
 
             <section data-tour="item-list" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="flex flex-col gap-3 border-b border-border p-4">
+                <div className="flex flex-col gap-3 border-b border-border bg-card p-3.5 sm:p-4">
                     <div className="flex flex-row items-center gap-2">
                         <div className="relative min-w-0 flex-1" data-tour="item-search">
                             <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -1191,20 +1194,20 @@ export function InventoryProductList() {
                         }
                     />
                 ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-auto max-h-[calc(100dvh-290px)] sm:max-h-[calc(100dvh-300px)]">
                         <table className="w-full min-w-[820px] text-left text-sm">
-                            <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
                                 <tr>
                                     {isColVisible("number") && (
-                                        <th className="w-14 px-5 py-3 text-muted-foreground">#</th>
+                                        <th className="w-14 px-5 py-3 text-muted-foreground bg-card">#</th>
                                     )}
-                                    {isColVisible("name") && <th className="px-5 py-3">Name</th>}
-                                    {isColVisible("category") && <th className="px-5 py-3">Category</th>}
-                                    {isColVisible("type") && <th className="px-5 py-3">Type</th>}
-                                    {isColVisible("unit") && <th className="px-5 py-3">Unit</th>}
-                                    {isColVisible("status") && <th className="px-5 py-3">Status</th>}
+                                    {isColVisible("name") && <th className="px-5 py-3 bg-card">Name</th>}
+                                    {isColVisible("category") && <th className="px-5 py-3 bg-card">Category</th>}
+                                    {isColVisible("type") && <th className="px-5 py-3 bg-card">Type</th>}
+                                    {isColVisible("unit") && <th className="px-5 py-3 bg-card">Unit</th>}
+                                    {isColVisible("status") && <th className="px-5 py-3 bg-card">Status</th>}
                                     {isColVisible("actions") && (
-                                        <th className="px-5 py-3 text-right">Actions</th>
+                                        <th className="px-5 py-3 text-right bg-card">Actions</th>
                                     )}
                                 </tr>
                             </thead>

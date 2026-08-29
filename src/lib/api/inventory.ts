@@ -2,9 +2,9 @@ import { z } from "zod";
 
 import { imageUploadRules } from "@/lib/api/image-upload";
 
-export const itemTypes = ["DIGITAL", "PHYSICAL"] as const;
+export const itemTypes = ["DIGITAL", "PHYSICAL", "SERVICE"] as const;
 
-export const retiredItemTypes = ["SERVICE"] as const;
+export const retiredItemTypes = [] as const;
 
 export const storedItemTypes = [...itemTypes, ...retiredItemTypes] as const;
 
@@ -15,9 +15,6 @@ export type StoredItemType = (typeof storedItemTypes)[number];
 export const itemTypeLabels: Record<StoredItemType, string> = {
     PHYSICAL: "Physical",
     DIGITAL: "Digital",
-    
-    
-    
     SERVICE: "Service",
 };
 

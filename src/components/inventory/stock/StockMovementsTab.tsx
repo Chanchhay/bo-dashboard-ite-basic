@@ -628,19 +628,19 @@ export function StockMovementsTab({
                     No movements match your selected filter.
                 </div>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-auto max-h-[calc(100dvh-340px)] sm:max-h-[calc(100dvh-360px)]">
                     <table className="w-full min-w-[980px] text-left text-sm">
-                        <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
                             <tr>
-                                <th className="px-5 py-3">Date</th>
-                                <th className="px-5 py-3">Item</th>
-                                <th className="px-5 py-3">Movement</th>
-                                <th className="px-5 py-3 text-right">Change</th>
-                                <th className="px-5 py-3 text-right">
+                                <th className="px-5 py-3 bg-card">Date</th>
+                                <th className="px-5 py-3 bg-card">Item</th>
+                                <th className="px-5 py-3 bg-card">Movement</th>
+                                <th className="px-5 py-3 text-right bg-card">Change</th>
+                                <th className="px-5 py-3 text-right bg-card">
                                     Balance
                                 </th>
-                                <th className="px-5 py-3">Recorded by</th>
-                                <th className="px-5 py-3 text-right">
+                                <th className="px-5 py-3 bg-card">Recorded by</th>
+                                <th className="px-5 py-3 text-right bg-card">
                                     <span className="sr-only">Actions</span>
                                 </th>
                             </tr>

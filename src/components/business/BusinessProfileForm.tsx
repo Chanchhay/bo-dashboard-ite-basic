@@ -700,8 +700,10 @@ function BusinessProfileEditor({
                             communeName: business.communeName ?? "",
                         }
                     }
-                    onChange={() => {
-                        
+                    onChange={(val) => {
+                        if (val.address) {
+                            setDetectedAddress(val.address.slice(0, 255));
+                        }
                     }}
                 />
             </section>

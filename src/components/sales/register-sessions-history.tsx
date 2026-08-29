@@ -285,92 +285,103 @@ export function RegisterSessionsHistory() {
   }
 
   return (
-    <div className="flex flex-col gap-6 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-xs text-foreground">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-white tracking-tight">
-            Register Sessions
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground dark:text-slate-400 mt-1">
-            Track live and past till opens, closes, starting floats, cash sales, and shift discrepancies.
-          </p>
+    <div className="flex flex-col gap-6 text-foreground pb-8">
+      {/* Sticky Header Section: Title & Metric Cards */}
+      <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-white tracking-tight">
+              Register Sessions
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground dark:text-slate-400 mt-1">
+              Track live and past till opens, closes, starting floats, cash sales, and shift discrepancies.
+            </p>
+          </div>
+          <TourButton />
         </div>
-        <TourButton />
+
+        {/* Metric Cards */}
+        <div data-tour="sessions-header-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                Active Sessions
+              </span>
+              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
+                <Clock className="h-4 sm:h-5 w-4 sm:w-5" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+                {metrics.activeCount}
+              </span>
+              <span className="text-xs font-semibold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
+                Live Tills
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                Opening Cash
+              </span>
+              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-blue-400 dark:border dark:border-blue-800/50">
+                <Building2 className="h-4 sm:h-5 w-4 sm:w-5" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+                {format(metrics.totalOpening)}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                Total Cash Sales
+              </span>
+              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
+                <DollarSign className="h-4 sm:h-5 w-4 sm:w-5" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+                {format(metrics.totalCashSales)}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                Total Cash Discrepancy
+              </span>
+              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 dark:border dark:border-amber-800/50">
+                <AlertTriangle className="h-4 sm:h-5 w-4 sm:w-5" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+                {format(metrics.totalDiscrepancies)}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Metric Cards */}
-      <div data-tour="sessions-header-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-              Active Sessions
-            </span>
-            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
-              <Clock className="h-4 sm:h-5 w-4 sm:w-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
-              {metrics.activeCount}
-            </span>
-            <span className="text-xs font-semibold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
-              Live Tills
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-              Opening Cash
-            </span>
-            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-blue-400 dark:border dark:border-blue-800/50">
-              <Building2 className="h-4 sm:h-5 w-4 sm:w-5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
-              {format(metrics.totalOpening)}
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-              Total Cash Sales
-            </span>
-            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
-              <DollarSign className="h-4 sm:h-5 w-4 sm:w-5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
-              {format(metrics.totalCashSales)}
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-              Total Cash Discrepancy
-            </span>
-            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 dark:border dark:border-amber-800/50">
-              <AlertTriangle className="h-4 sm:h-5 w-4 sm:w-5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
-              {format(metrics.totalDiscrepancies)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters and Search Toolbar */}
-      <div data-tour="sessions-search-bar" className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-none bg-transparent p-0 shadow-none">
+      {/* Main Table Card */}
+      <div
+        data-tour="sessions-table-container"
+        className={cn(
+          "rounded-2xl border border-border bg-card shadow-xs overflow-hidden flex flex-col transition-opacity duration-200 ease-in-out",
+          (isLoading || isRefreshing) && "opacity-60 pointer-events-none",
+        )}
+      >
+        {/* Filters and Search Toolbar */}
+        <div data-tour="sessions-search-bar" className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-b border-border bg-card p-4 sm:p-5 shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -518,75 +529,67 @@ export function RegisterSessionsHistory() {
         </div>
       </div>
 
-      {/* History Table */}
-      <div
-        data-tour="sessions-table-container"
-        className={cn(
-          "rounded-2xl border border-border/70 bg-card overflow-hidden transition-opacity duration-200 ease-in-out",
-          (isLoading || isRefreshing) && "opacity-60 pointer-events-none",
-        )}
-      >
-        <div className="overflow-x-auto min-w-full">
+        <div className="overflow-auto max-h-[calc(100dvh-370px)] sm:max-h-[calc(100dvh-390px)] min-w-full">
           <Table className="w-full text-left text-sm">
-            <TableHeader className="bg-muted/50 dark:bg-[#0f1520]">
+            <TableHeader className="sticky top-0 z-10 bg-card border-b border-border shadow-xs">
               <TableRow className="border-b border-border dark:border-slate-800">
                 {visibleColumns.sessionId && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider bg-card">
                     Session ID
                   </TableHead>
                 )}
                 {visibleColumns.registerAndCashier && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider bg-card">
                     Register & Cashier
                   </TableHead>
                 )}
                 {visibleColumns.orderCount && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-center">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-center bg-card">
                     Orders
                   </TableHead>
                 )}
                 {visibleColumns.openedAt && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider bg-card">
                     Opened At
                   </TableHead>
                 )}
                 {visibleColumns.closedAt && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider bg-card">
                     Closed At
                   </TableHead>
                 )}
                 {visibleColumns.openingCash && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right bg-card">
                     Opening Cash
                   </TableHead>
                 )}
                 {visibleColumns.cashSales && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right bg-card">
                     Cash Sales
                   </TableHead>
                 )}
                 {visibleColumns.expectedTotal && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right bg-card">
                     Expected Total
                   </TableHead>
                 )}
                 {visibleColumns.actualCash && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right bg-card">
                     Counted Cash
                   </TableHead>
                 )}
                 {visibleColumns.difference && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right bg-card">
                     Difference
                   </TableHead>
                 )}
                 {visibleColumns.status && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-center">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-center bg-card">
                     Status
                   </TableHead>
                 )}
                 {visibleColumns.action && (
-                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right">
+                  <TableHead className="font-semibold text-xs text-muted-foreground dark:text-slate-400 uppercase tracking-wider text-right bg-card">
                     Action
                   </TableHead>
                 )}

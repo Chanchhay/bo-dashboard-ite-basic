@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -39,6 +39,7 @@ export interface LocationValue {
     provinceName: string;
     districtName: string;
     communeName: string;
+    address?: string;
 }
 
 /** MapContainer only sets its center once on mount — this re-centers it whenever a search result moves the pin. */
@@ -47,6 +48,15 @@ function RecenterOnChange({ center, zoom }: { center: [number, number]; zoom: nu
     useEffect(() => {
         map.flyTo(center, Math.max(map.getZoom(), zoom));
     }, [center, zoom, map]);
+    return null;
+}
+
+function MapClickHandler({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) {
+    useMapEvents({
+        click(e) {
+            onLocationSelect(e.latlng.lat, e.latlng.lng);
+        },
+    });
     return null;
 }
 
@@ -95,6 +105,7 @@ export function LocationMapPicker({
                     provinceName: matched?.nameEn ?? "",
                     districtName: result.address.districtName ?? value.districtName,
                     communeName: result.address.communeName ?? value.communeName,
+                    address: result.label || undefined,
                 });
                 return;
             }
@@ -120,6 +131,7 @@ export function LocationMapPicker({
                     >
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                         <RecenterOnChange center={center} zoom={PIN_ZOOM} />
+                        <MapClickHandler onLocationSelect={reverseGeocode} />
                         <Marker
                             position={center}
                             icon={PIN_ICON}
