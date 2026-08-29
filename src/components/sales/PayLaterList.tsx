@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+    AlertTriangle,
     Check,
     ChevronLeft,
     ChevronRight,
@@ -9,6 +10,7 @@ import {
     Columns3,
     Globe,
     MessageSquare,
+    Phone,
     Printer,
     Search,
     Send,
@@ -64,6 +66,27 @@ const channelNames: Record<string, string> = {
 const PAGE_SIZES = [10, 25, 50] as const;
 const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 10;
 
+/** A sale sitting unpaid longer than this is flagged "Overdue" instead of "Pending". */
+const OVERDUE_DAYS = 7;
+
+const CHANNEL_FILTERS = ["ALL", "POS", "WEB", "TELEGRAM", "MESSENGER"] as const;
+type ChannelFilter = (typeof CHANNEL_FILTERS)[number];
+
+type SortMode = "oldest" | "newest" | "owed";
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+    { value: "oldest", label: "Oldest first" },
+    { value: "newest", label: "Newest first" },
+    { value: "owed", label: "Highest owed" },
+];
+
+function daysSince(dateStr: string | null): number | null {
+    if (!dateStr) return null;
+    const then = new Date(dateStr).getTime();
+    if (Number.isNaN(then)) return null;
+    return Math.floor((Date.now() - then) / 86_400_000);
+}
+
 type PayLaterColumnKey =
     | "sale"
     | "customer"
@@ -111,6 +134,8 @@ export function PayLaterList() {
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
     const [query, setQuery] = useState("");
+    const [channelFilter, setChannelFilter] = useState<ChannelFilter>("ALL");
+    const [sortMode, setSortMode] = useState<SortMode>("oldest");
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(
         DEFAULT_PAGE_SIZE,
@@ -145,17 +170,35 @@ export function PayLaterList() {
 
     const filteredSales = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return sales;
 
-        return sales.filter((sale) =>
-            [
+        const matches = sales.filter((sale) => {
+            if (channelFilter !== "ALL" && sale.channel !== channelFilter) return false;
+            if (!q) return true;
+            return [
                 sale.invoiceNumber,
                 sale.customerName,
                 sale.customerPhone,
                 sale.customerEmail,
-            ].some((field) => field?.toLowerCase().includes(q)),
-        );
-    }, [sales, query]);
+            ].some((field) => field?.toLowerCase().includes(q));
+        });
+
+        const sorted = [...matches];
+        if (sortMode === "owed") {
+            sorted.sort((a, b) => (b.totalAmount - b.paidAmount) - (a.totalAmount - a.paidAmount));
+        } else {
+            // Sales with no soldAt timestamp sink to the bottom either way —
+            // there's nothing to prioritize them by.
+            sorted.sort((a, b) => {
+                if (!a.soldAt && !b.soldAt) return 0;
+                if (!a.soldAt) return 1;
+                if (!b.soldAt) return -1;
+                const diff = new Date(a.soldAt).getTime() - new Date(b.soldAt).getTime();
+                return sortMode === "oldest" ? diff : -diff;
+            });
+        }
+
+        return sorted;
+    }, [sales, query, channelFilter, sortMode]);
 
     const pageCount = Math.max(Math.ceil(filteredSales.length / pageSize), 1);
     const safePage = Math.min(page, pageCount - 1);
@@ -221,11 +264,14 @@ export function PayLaterList() {
         );
     }
 
-    const owedTotal = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    // Owed, not billed — a sale with a partial payment already collected
+    // must not count its already-paid slice toward what's still outstanding.
+    const owedTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount - sale.paidAmount), 0);
+    const overdueCount = sales.filter((sale) => (daysSince(sale.soldAt) ?? 0) > OVERDUE_DAYS).length;
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+            <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3">
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -244,6 +290,23 @@ export function PayLaterList() {
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Overdue
+                        </span>
+                        <div className="grid size-8 place-items-center rounded-xl bg-danger/10 text-danger">
+                            <AlertTriangle className="size-4" />
+                        </div>
+                    </div>
+                    <p className="mt-2 text-xl font-bold text-foreground sm:text-2xl">
+                        {overdueCount}
+                        <span className="ml-1 text-xs font-medium text-muted-foreground">
+                            {`>${OVERDUE_DAYS}d`}
+                        </span>
+                    </p>
+                </div>
+
+                <div className="col-span-2 rounded-2xl border border-border bg-card p-4 shadow-xs sm:col-span-1">
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Owed in total
@@ -285,6 +348,33 @@ export function PayLaterList() {
                         </button>
                     )}
                 </div>
+
+                <select
+                    value={channelFilter}
+                    onChange={(event) => {
+                        setChannelFilter(event.target.value as ChannelFilter);
+                        setPage(0);
+                    }}
+                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
+                >
+                    {CHANNEL_FILTERS.map((c) => (
+                        <option key={c} value={c}>
+                            {c === "ALL" ? "All channels" : channelNames[c] ?? c}
+                        </option>
+                    ))}
+                </select>
+
+                <select
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.target.value as SortMode)}
+                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
+                >
+                    {SORT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                        </option>
+                    ))}
+                </select>
 
                 <div className="relative inline-block shrink-0 text-left">
                     <button
@@ -375,9 +465,14 @@ export function PayLaterList() {
                                 pagedSales.map((sale) => {
                                     const Icon = channelIcons[sale.channel] ?? ShoppingBag;
                                     const owed = sale.totalAmount - sale.paidAmount;
+                                    const overdueBy = daysSince(sale.soldAt);
+                                    const isOverdue = (overdueBy ?? 0) > OVERDUE_DAYS;
 
                                     return (
-                                        <TableRow key={sale.id}>
+                                        <TableRow
+                                            key={sale.id}
+                                            className={isOverdue ? "bg-danger/[0.03] hover:bg-danger/[0.06]" : undefined}
+                                        >
                                             {visibleColumns.sale && (
                                                 <TableCell className="py-3">
                                                     <div className="flex items-center gap-3">
@@ -394,19 +489,30 @@ export function PayLaterList() {
                                             {visibleColumns.customer && (
                                                 <TableCell className="hidden sm:table-cell">
                                                     {sale.customerId ? (
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-medium text-foreground">
-                                                                {sale.customerName ||
-                                                                    sale.customerPhone ||
-                                                                    sale.customerEmail ||
-                                                                    "Unnamed customer"}
-                                                            </p>
-                                                            {sale.customerName &&
-                                                                (sale.customerPhone || sale.customerEmail) ? (
-                                                                <p className="truncate text-xs text-muted-foreground">
-                                                                    {sale.customerPhone || sale.customerEmail}
+                                                        <div className="flex min-w-0 items-center gap-2">
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-medium text-foreground">
+                                                                    {sale.customerName ||
+                                                                        sale.customerPhone ||
+                                                                        sale.customerEmail ||
+                                                                        "Unnamed customer"}
                                                                 </p>
-                                                            ) : null}
+                                                                {sale.customerName &&
+                                                                    (sale.customerPhone || sale.customerEmail) ? (
+                                                                    <p className="truncate text-xs text-muted-foreground">
+                                                                        {sale.customerPhone || sale.customerEmail}
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                            {sale.customerPhone && (
+                                                                <a
+                                                                    href={`tel:${sale.customerPhone}`}
+                                                                    aria-label={`Call ${sale.customerName || sale.customerPhone}`}
+                                                                    className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                                                                >
+                                                                    <Phone className="size-3.5" />
+                                                                </a>
+                                                            )}
                                                         </div>
                                                     ) : (
                                                         <span className="text-sm text-muted-foreground">
@@ -432,9 +538,16 @@ export function PayLaterList() {
 
                                             {visibleColumns.status && (
                                                 <TableCell>
-                                                    <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-medium text-warning">
-                                                        Pending
-                                                    </span>
+                                                    {isOverdue ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-md bg-danger/15 px-2 py-0.5 text-[12px] font-medium text-danger">
+                                                            <AlertTriangle className="size-3" />
+                                                            Overdue · {overdueBy}d
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-medium text-warning">
+                                                            Pending
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                             )}
 
