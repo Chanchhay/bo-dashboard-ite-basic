@@ -148,8 +148,9 @@ export function ChoiceImageField({
     }
 
     return (
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3">
             <ImagePicker
+                className="w-full flex-1"
                 rules={choiceImageRules}
                 disabled={uploading}
                 busy={uploading}

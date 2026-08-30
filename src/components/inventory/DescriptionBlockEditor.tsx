@@ -14,6 +14,11 @@ import {
 } from "lucide-react";
 
 import {
+    charCountInputClassName,
+    charCountTextareaClassName,
+    CharCountField,
+} from "@/components/inventory/CharLimit";
+import {
     getApiErrorMessage,
     inventoryControlClassName,
     inventoryTextareaClassName,
@@ -29,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import {
     blockImageRules,
+    itemLimits,
     type DescriptionBlockType,
 } from "@/lib/api/inventory";
 import {
@@ -61,6 +67,19 @@ const allTypes = [
     ...leafTypes,
     { type: "COLUMNS", label: "Two columns", icon: Columns2 },
 ] as const;
+
+/** Bullets live as one textarea, so the per-line caps are applied as it is typed. */
+function clampBullets(value: string) {
+    return value
+        .split("\n")
+        .slice(0, itemLimits.bullets)
+        .map((line) => line.slice(0, itemLimits.bulletText))
+        .join("\n");
+}
+
+function countBullets(value: string) {
+    return value.split("\n").filter((line) => line.trim()).length;
+}
 
 export function createBlockId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -205,6 +224,8 @@ export function DescriptionBlockEditor({
 
             <AddBlockRow
                 types={allTypes}
+                full={blocks.length >= itemLimits.blocks}
+                fullNote={`${itemLimits.blocks} blocks is the maximum.`}
                 onAdd={(type) => onChange([...blocks, emptyBlock(type)])}
             />
         </div>
@@ -266,6 +287,8 @@ function ColumnEditor({
             <AddBlockRow
                 types={leafTypes}
                 compact
+                full={column.blocks.length >= itemLimits.columnBlocks}
+                fullNote={`${itemLimits.columnBlocks} blocks is the maximum for a column.`}
                 onAdd={(type) =>
                     onChange([...column.blocks, emptyBlock(type)])
                 }
@@ -295,15 +318,21 @@ function BlockFields({
         return (
             <div className="flex flex-col gap-2">
                 <BlockImageField block={block} onChange={onChange} />
-                <Input
-                    value={block.caption}
-                    onChange={(event) =>
-                        onChange({ caption: event.target.value })
-                    }
-                    placeholder="Caption (optional)"
-                    aria-label="Image caption"
-                    className={inventoryControlClassName}
-                />
+                <CharCountField
+                    length={block.caption.length}
+                    max={itemLimits.caption}
+                >
+                    <Input
+                        value={block.caption}
+                        maxLength={itemLimits.caption}
+                        onChange={(event) =>
+                            onChange({ caption: event.target.value })
+                        }
+                        placeholder="Caption (optional)"
+                        aria-label="Image caption"
+                        className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                    />
+                </CharCountField>
             </div>
         );
     }
@@ -314,37 +343,54 @@ function BlockFields({
                 <Textarea
                     value={block.items}
                     onChange={(event) =>
-                        onChange({ items: event.target.value })
+                        onChange({ items: clampBullets(event.target.value) })
                     }
                     placeholder={"A17 Pro chip with 6-core GPU\n48MP Pro camera system"}
                     aria-label="Bullet list"
                     className={inventoryTextareaClassName}
                 />
-                <p className="text-xs text-[#6b7280] dark:text-[#94a3b8]">One bullet per line.</p>
+                <p className="text-xs text-[#6b7280] dark:text-[#94a3b8]">
+                    One bullet per line — {countBullets(block.items)} of{" "}
+                    {itemLimits.bullets}, up to {itemLimits.bulletText}{" "}
+                    characters each.
+                </p>
             </div>
         );
     }
 
     if (block.type === "HEADING") {
         return (
-            <Input
-                value={block.text}
-                onChange={(event) => onChange({ text: event.target.value })}
-                placeholder="Why you'll love it"
-                aria-label="Heading text"
-                className={inventoryControlClassName}
-            />
+            <CharCountField
+                length={block.text.length}
+                max={itemLimits.headingText}
+            >
+                <Input
+                    value={block.text}
+                    maxLength={itemLimits.headingText}
+                    onChange={(event) => onChange({ text: event.target.value })}
+                    placeholder="Why you'll love it"
+                    aria-label="Heading text"
+                    className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                />
+            </CharCountField>
         );
     }
 
     return (
-        <Textarea
-            value={block.text}
-            onChange={(event) => onChange({ text: event.target.value })}
-            placeholder="Crafted from high-quality materials…"
-            aria-label="Paragraph text"
-            className={inventoryTextareaClassName}
-        />
+        <CharCountField
+            length={block.text.length}
+            max={itemLimits.blockText}
+            variant="textarea"
+        >
+            <Textarea
+                value={block.text}
+                maxLength={itemLimits.blockText}
+                onChange={(event) => onChange({ text: event.target.value })}
+                placeholder="Crafted from high-quality materials…"
+                aria-label="Paragraph text"
+                className={`${inventoryTextareaClassName} ${charCountTextareaClassName}`}
+            />
+        </CharCountField>
     );
 }
 
@@ -470,30 +516,42 @@ function AddBlockRow({
     types,
     onAdd,
     compact,
+    full,
+    fullNote,
 }: {
     types: readonly { type: string; label: string }[];
     onAdd: (type: DescriptionBlockType) => void;
     compact?: boolean;
+    full?: boolean;
+    fullNote?: string;
 }) {
     return (
-        <div className="flex flex-wrap items-center gap-1.5">
-            {compact ? null : (
-                <Label className="mr-1 text-xs text-[#6b7280] dark:text-[#94a3b8]">
-                    Add block
-                </Label>
-            )}
-            {types.map((entry) => (
-                <Button
-                    key={entry.type}
-                    type="button"
-                    variant="outline"
-                    size={compact ? "xs" : "sm"}
-                    onClick={() => onAdd(entry.type as DescriptionBlockType)}
-                >
-                    <Plus />
-                    {entry.label}
-                </Button>
-            ))}
+        <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+                {compact ? null : (
+                    <Label className="mr-1 text-xs text-[#6b7280] dark:text-[#94a3b8]">
+                        Add block
+                    </Label>
+                )}
+                {types.map((entry) => (
+                    <Button
+                        key={entry.type}
+                        type="button"
+                        variant="outline"
+                        size={compact ? "xs" : "sm"}
+                        disabled={full}
+                        onClick={() => onAdd(entry.type as DescriptionBlockType)}
+                    >
+                        <Plus />
+                        {entry.label}
+                    </Button>
+                ))}
+            </div>
+            {full && fullNote ? (
+                <p className="text-xs text-[#6b7280] dark:text-[#94a3b8]">
+                    {fullNote}
+                </p>
+            ) : null}
         </div>
     );
 }
