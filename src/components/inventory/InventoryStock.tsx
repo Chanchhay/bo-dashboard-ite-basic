@@ -356,6 +356,18 @@ export function InventoryStock() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+                        <div data-tour="stock-search" className="relative w-full sm:w-48">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={stockSearch}
+                                onChange={(event) =>
+                                    dispatch(setStockSearch(event.target.value))
+                                }
+                                placeholder="Search"
+                                className="h-9 rounded-xl border border-border bg-card pl-9 text-sm text-foreground placeholder:text-muted-foreground"
+                            />
+                        </div>
+
                         {/* State Filter Pills */}
                         <div className="flex flex-wrap items-center gap-1 rounded-xl bg-muted/60 p-1">
                             <button
@@ -409,18 +421,6 @@ export function InventoryStock() {
                                 <PackageX className="size-3.5 text-danger" />
                                 Out of stock ({countState("OUT")})
                             </button>
-                        </div>
-
-                        <div data-tour="stock-search" className="relative w-full sm:w-48">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={stockSearch}
-                                onChange={(event) =>
-                                    dispatch(setStockSearch(event.target.value))
-                                }
-                                placeholder="Search"
-                                className="h-9 rounded-xl border border-border bg-card pl-9 text-sm text-foreground placeholder:text-muted-foreground"
-                            />
                         </div>
                     </div>
                 </div>

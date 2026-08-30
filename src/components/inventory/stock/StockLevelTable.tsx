@@ -1,9 +1,10 @@
 import { useState } from "react";
 import {
+    ArrowDownToLine,
+    ArrowUpFromLine,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
-    Circle,
     SlidersHorizontal,
 } from "lucide-react";
 
@@ -135,7 +136,7 @@ function StockItemAddOnsTreeRow({
                                     onClick={() => onStockIn(addOn.id)}
                                     aria-label={`Stock in ${addOn.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowDownToLine className="size-3.5" />
                                     In
                                 </Button>
                             ) : null}
@@ -153,7 +154,7 @@ function StockItemAddOnsTreeRow({
                                     onClick={() => onStockOut(addOn.id)}
                                     aria-label={`Stock out ${addOn.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowUpFromLine className="size-3.5" />
                                     Out
                                 </Button>
                             ) : null}
@@ -235,7 +236,7 @@ function StockItemOptionsRow({
                                     onClick={() => onStockIn(row.id, option.id)}
                                     aria-label={`Stock in ${row.name} ${option.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowDownToLine className="size-3.5" />
                                     In
                                 </Button>
                             ) : null}
@@ -253,7 +254,7 @@ function StockItemOptionsRow({
                                     onClick={() => onStockOut(row.id, option.id)}
                                     aria-label={`Stock out ${row.name} ${option.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowUpFromLine className="size-3.5" />
                                     Out
                                 </Button>
                             ) : null}
@@ -626,7 +627,7 @@ export function StockLevelTable({
                                                         onClick={() => onStockIn(row.id)}
                                                         aria-label={`Stock in ${row.name}`}
                                                     >
-                                                        <Circle className="size-2 fill-current text-primary" />
+                                                        <ArrowDownToLine className="size-3.5" />
                                                         In
                                                     </Button>
                                                 ) : null}
@@ -645,7 +646,7 @@ export function StockLevelTable({
                                                         onClick={() => onStockOut(row.id)}
                                                         aria-label={`Stock out ${row.name}`}
                                                     >
-                                                        <Circle className="size-2 fill-current text-primary" />
+                                                        <ArrowUpFromLine className="size-3.5" />
                                                         Out
                                                     </Button>
                                                 ) : null}
