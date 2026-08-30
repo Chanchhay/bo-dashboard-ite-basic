@@ -21,13 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
     Table,
     TableBody,
     TableCell,
@@ -126,33 +119,6 @@ function priceForMargin(cost: number, marginPercent: number): number | null {
 function marginForPrice(cost: number, price: number): number | null {
     if (price <= 0) return null;
     return ((price - cost) / price) * 100;
-}
-
-function initials(name: string): string {
-    const letters = name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((word) => word[0]?.toUpperCase() ?? "")
-        .join("");
-    return letters || "?";
-}
-
-const AVATAR_PALETTE = [
-    "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20",
-    "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border border-blue-500/20",
-    "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/20",
-    "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20",
-    "bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20",
-    "bg-cyan-500/10 text-cyan-600 dark:bg-cyan-500/20 dark:text-cyan-400 border border-cyan-500/20",
-];
-
-function avatarPaletteFor(name: string): string {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = (hash * 31 + name.charCodeAt(i)) | 0;
-    }
-    return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
 }
 
 export function SaleProfitCalculator() {
@@ -319,22 +285,6 @@ export function SaleProfitCalculator() {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <Select
-                                        value={String(targetMarginPercent)}
-                                        onValueChange={(val) => setTargetMarginPercent(Number(val))}
-                                    >
-                                        <SelectTrigger size="sm" className="h-9 w-28 rounded-xl text-xs font-bold bg-background">
-                                            <SelectValue placeholder="Select %" />
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-60">
-                                            {Array.from({ length: 99 }, (_, i) => i + 1).map((pct) => (
-                                                <SelectItem key={pct} value={String(pct)} className="text-xs font-semibold">
-                                                    {pct}%
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-
                                     <div className="relative">
                                         <Input
                                             type="number"
@@ -590,21 +540,6 @@ function PerItemTable({
                             <span className="shrink-0 text-xs font-bold text-foreground">
                                 Set all items profit percentage to:
                             </span>
-                            <Select
-                                value={String(bulkMarginPercent)}
-                                onValueChange={(val) => onBulkMarginChange(Number(val))}
-                            >
-                                <SelectTrigger size="sm" className="h-8 w-28 rounded-lg text-xs font-bold bg-background">
-                                    <SelectValue placeholder="Select %" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-60">
-                                    {Array.from({ length: 100 }, (_, i) => i + 1).map((pct) => (
-                                        <SelectItem key={pct} value={String(pct)} className="text-xs font-semibold">
-                                            {pct}%
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
                             <div className="relative">
                                 <Input
                                     type="number"
@@ -687,19 +622,9 @@ function PerItemTable({
                                     className={cn(!hasCost && "bg-muted/10")}
                                 >
                                     <TableCell className="font-semibold text-foreground">
-                                        <div className="flex items-center gap-2.5">
-                                            <span
-                                                className={cn(
-                                                    "flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow-xs",
-                                                    avatarPaletteFor(row.name),
-                                                )}
-                                            >
-                                                {initials(row.name)}
-                                            </span>
-                                            <span className="truncate font-bold">
-                                                {row.name}
-                                            </span>
-                                        </div>
+                                        <span className="truncate font-bold">
+                                            {row.name}
+                                        </span>
                                     </TableCell>
                                     <TableCell className="text-right text-sm font-semibold text-muted-foreground tabular-nums">
                                         {format(row.cost)}
@@ -803,19 +728,9 @@ function TargetTable({
                         {rows.map((row) => (
                             <TableRow key={row.id}>
                                 <TableCell className="font-bold text-foreground">
-                                    <div className="flex items-center gap-2.5">
-                                        <span
-                                            className={cn(
-                                                "flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow-xs",
-                                                avatarPaletteFor(row.name),
-                                            )}
-                                        >
-                                            {initials(row.name)}
-                                        </span>
-                                        <span className="truncate">
-                                            {row.name}
-                                        </span>
-                                    </div>
+                                    <span className="truncate font-bold">
+                                        {row.name}
+                                    </span>
                                 </TableCell>
                                 <TableCell className="text-right text-sm font-semibold text-muted-foreground tabular-nums">
                                     {format(row.cost)}
