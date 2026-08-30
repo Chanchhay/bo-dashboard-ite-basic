@@ -151,6 +151,7 @@ function asPosOrder(order: any): PosOrder {
         businessId: order.businessId || order.business_owner_id || "",
         invoiceNumber: order.invoiceNumber || order.invoice_number || null,
         customerId: order.customerId || order.customer_id || null,
+        customerPhone: order.customerPhone || order.customer_phone || null,
         channel: order.channel || "POS",
         status: order.status || "PENDING",
         subtotal,
@@ -301,6 +302,14 @@ export default function SalesOrdersPage() {
         }
         return map;
     }, [customers]);
+    const customerPhoneById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const customer of customers) {
+            const phone = customer.globalCustomer?.phoneNumber;
+            if (phone) map.set(customer.id, phone);
+        }
+        return map;
+    }, [customers]);
 
     const matchingReceipt =
         isPaid && receiptQuery.data?.order?.id === selectedOrderId
@@ -329,10 +338,10 @@ export default function SalesOrdersPage() {
         () =>
             search
                 ? orders.filter((order) =>
-                    matchesSearch(order, search, customerNameById),
+                    matchesSearch(order, search, customerNameById, customerPhoneById),
                 )
                 : orders,
-        [orders, search, customerNameById],
+        [orders, search, customerNameById, customerPhoneById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -582,14 +591,27 @@ function matchesSearch(
     order: PosOrder,
     search: string,
     customerNameById?: Map<string, string>,
+    customerPhoneById?: Map<string, string>,
 ) {
     const customerName = order.customerId
         ? (customerNameById?.get(order.customerId) ?? "")
         : "";
+    const customerPhone =
+        (order.customerPhone ?? "") ||
+        (order.customerId ? (customerPhoneById?.get(order.customerId) ?? "") : "");
+
+    const cleanSearch = search.replace(/\D/g, "");
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const phoneMatches = Boolean(
+        (customerPhone && customerPhone.toLowerCase().includes(search)) ||
+        (cleanSearch.length >= 3 && cleanPhone.includes(cleanSearch))
+    );
+
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
         customerName.toLowerCase().includes(search) ||
+        phoneMatches ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
