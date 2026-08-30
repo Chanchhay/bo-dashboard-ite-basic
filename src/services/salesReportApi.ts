@@ -7,7 +7,9 @@ import type {
     DailyChannelRevenue,
     ItemProfitReport,
     PeriodProfitReport,
+    PredictionWindow,
     ReportGranularity,
+    SalesPredictionsResponse,
     SalesProfit,
 } from "@/lib/api/sales-report";
 
@@ -95,6 +97,23 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
+        /**
+         * What's likely to sell more, run out, or need restocking next —
+         * one item's own recent average and trend, no ML. Server-computed
+         * so the dashboard tiles and the full Prediction page never
+         * disagree on the same numbers.
+         */
+        getSalesPredictions: builder.query<
+            SalesPredictionsResponse,
+            { window: PredictionWindow }
+        >({
+            query: ({ window }) => ({
+                url: "/sales/predictions",
+                params: { window },
+            }),
+            providesTags: ["SalesProfit"],
+        }),
+
         /** Every sale rung up as "Pay later" that hasn't been collected yet. */
         getPayLaterSales: builder.query<PayLaterSale[], void>({
             query: () => "/sales/pay-later",
@@ -123,4 +142,5 @@ export const {
     useGetPeriodProfitQuery,
     useGetItemProfitQuery,
     useGetDailyRevenueByChannelQuery,
+    useGetSalesPredictionsQuery,
 } = salesReportApi;

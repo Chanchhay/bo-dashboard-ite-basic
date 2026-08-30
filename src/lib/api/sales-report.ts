@@ -143,6 +143,44 @@ export type ItemProfitReport = {
     total: ItemProfit;
 };
 
+/**
+ * How far back a prediction looks. Deliberately just these two — a single
+ * day is too small a sample to trend on, and a year-long window would have
+ * "recommended restock" suggest buying a year's stock at once. Week and
+ * month are the two horizons an owner can actually act on.
+ */
+export type PredictionWindow = "WEEK" | "MONTH";
+
+/**
+ * One item's forecast for the selected window — no ML, just this item's own
+ * recent average and trend. Server-computed so the dashboard tiles and the
+ * full Prediction page always agree on the same numbers.
+ */
+export type PredictionItem = {
+    itemId: string;
+    name: string;
+    currentStock: number;
+    avgDailyDemand: number;
+    /** Naive forecast: next window assumed roughly equal to the last one. */
+    expectedDemandWindow: number;
+    /** Null when there's no prior-window baseline to compare against. */
+    trendPercent: number | null;
+    /** Null when nothing has sold recently, so a rate can't be worked out. */
+    estimatedStockoutDays: number | null;
+    recommendedRestock: number;
+    qtySold30d: number;
+};
+
+export type SalesPredictionsResponse = {
+    generatedAt: string;
+    windowDays: number;
+    risingCount: number;
+    stockoutSoonCount: number;
+    slowMoverCount: number;
+    revenueForecast: { low: number; mid: number; high: number };
+    items: PredictionItem[];
+};
+
 /** What one channel took on one day. Absent for a day it sold nothing. */
 export type DailyChannelRevenue = {
     date: string;
