@@ -911,6 +911,72 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
+  "/inventory/import": [
+    {
+      element: '[data-tour="import-stepper"]',
+      popover: {
+        title: "1. The Five Steps",
+        description: "Choose what you are importing, upload the file, match its columns, let it be checked, then review. Nothing is written to FluxiBiz until the final step.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-choose-type"]',
+      popover: {
+        title: "2. What Are You Importing?",
+        description: "Pick Items, Categories or Stock. This decides which columns the next step expects, so choose before you upload. — [Required]",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-panel"]',
+      popover: {
+        title: "3. The Working Area",
+        description: "Each step appears here in turn — the file drop zone, the column matcher, the check results, then the review table listing every row that will be added or changed.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-history-link"]',
+      popover: {
+        title: "4. Past Imports",
+        description: "Opens Import history: every file you have brought in, what it changed, and any rows it could not read.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/inventory/import/history": [
+    {
+      element: '[data-tour="import-history-list"]',
+      popover: {
+        title: "1. Import History",
+        description: "Every file you have imported, newest first. Each row shows what was brought in, when, and how many rows succeeded or failed.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-new-link"]',
+      popover: {
+        title: "2. Start a New Import",
+        description: "Begins the import wizard — choose the data type, upload a spreadsheet, match the columns and review before anything is saved.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
   "/inventory/new": [
     {
       element: '[data-tour="item-form-name"]',
@@ -1043,6 +1109,118 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
   ],
+  "/sales/orders": [
+    {
+      element: '[data-tour="orders-digital-menu"]',
+      popover: {
+        title: "1. Digital Menu",
+        description: "Publish a QR code customers scan to browse your menu and order online. The link stays live until you turn it off.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-totals"]',
+      popover: {
+        title: "2. Today's Totals",
+        description: "Order count and takings for the period in view, so you can see the day at a glance before reading individual orders.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-filters"]',
+      popover: {
+        title: "3. Search & Filter Orders",
+        description: "Find an order by invoice number, order name or an item inside it, then narrow by status or channel.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-list"]',
+      popover: {
+        title: "4. The Order List",
+        description: "Every order, newest first. Open one to see its items, payment state and receipt, or settle an order still awaiting payment.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/pay-later": [
+    {
+      element: '[data-tour="pay-later-totals"]',
+      popover: {
+        title: "1. What You Are Owed",
+        description: "How much is outstanding across all unsettled sales, so you know what is still to come in before opening a single record.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-filters"]',
+      popover: {
+        title: "2. Find a Sale",
+        description: "Search by invoice number or customer name to locate the sale you are collecting on.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-list"]',
+      popover: {
+        title: "3. Unsettled Sales",
+        description: "Sales closed without taking the money. Record a payment against one when the cash arrives and it leaves this list.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/prediction": [
+    {
+      element: '[data-tour="prediction-controls"]',
+      popover: {
+        title: "1. Filter & Period",
+        description: "Narrow the forecast to one product, and choose the period it is calculated over. Everything below re-reads from your real sales history.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group"]',
+      popover: {
+        title: "2. What to Expect",
+        description: "Each group opens to show the items behind it — what is selling faster, what is slowing down, and what is close to running out. Use it to decide what to reorder next.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/settings": [
+    {
+      element: '[data-tour="settings-profile-form"]',
+      popover: {
+        title: "1. Your Profile",
+        description: "Your picture, name and account details. These identify you on receipts, stock movements and the audit log, so keep them accurate.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
   "/pos": [
     {
       element: '[data-tour="pos-open-register"]',

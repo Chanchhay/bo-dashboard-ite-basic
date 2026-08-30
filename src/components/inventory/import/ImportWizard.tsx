@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, History, Loader2 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { TourButton } from "@/components/onboarding/TourButton";
 import { InventoryPageHeader, getApiErrorMessage } from "@/components/inventory/InventoryUi";
 import { ImportResult } from "@/components/inventory/import/ImportResult";
 import { ImportStepper } from "@/components/inventory/import/ImportStepper";
@@ -243,23 +244,29 @@ export function ImportWizard() {
                 title="Import data"
                 description="Bring your items, categories and stock across from your old system. Nothing is added until you have seen what will happen."
                 action={
-                    <Link
-                        href="/inventory/import/history"
-                        className={buttonVariants({ variant: "outline" })}
-                    >
-                        <History className="size-4" />
-                        History
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href="/inventory/import/history"
+                            data-tour="import-history-link"
+                            className={buttonVariants({ variant: "outline" })}
+                        >
+                            <History className="size-4" />
+                            History
+                        </Link>
+                        <TourButton />
+                    </div>
                 }
             />
 
-            <ImportStepper
-                current={step}
-                furthest={step === IMPORT ? IMPORT : furthest}
-                onStepClick={step === IMPORT ? undefined : setStep}
-            />
+            <div data-tour="import-stepper">
+                <ImportStepper
+                    current={step}
+                    furthest={step === IMPORT ? IMPORT : furthest}
+                    onStepClick={step === IMPORT ? undefined : setStep}
+                />
+            </div>
 
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-6 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="import-panel" className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-6 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 {step === CHOOSE ? (
                     <StepChooseData value={targetType} onChange={setTargetType} />
                 ) : null}
