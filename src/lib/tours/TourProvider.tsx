@@ -99,16 +99,48 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     } catch { }
   }, []);
 
-  // Find exact match or prefix route match for current pathname
+  // Exact match, else the LONGEST matching prefix — `find` returned whichever
+  // key happened to come first, so /inventory/import/42 inherited /inventory.
   const activeSteps = useMemo(() => {
     if (!pathname) return [];
     if (routeTourConfig[pathname]) return routeTourConfig[pathname];
 
-    const matchingKey = Object.keys(routeTourConfig).find(
-      (key) => key !== "/" && pathname.startsWith(key)
-    );
+    const matchingKey = Object.keys(routeTourConfig)
+      .filter((key) => key !== "/" && pathname.startsWith(key))
+      .sort((a, b) => b.length - a.length)[0];
+
     return matchingKey ? routeTourConfig[matchingKey] : [];
   }, [pathname]);
+
+  /**
+   * A page can inherit a parent's steps and resolve none of them, which left
+   * the help button offering a tour that did nothing. Only advertise one when
+   * at least one step is actually on screen; content can load late, so this
+   * keeps looking for a few seconds.
+   */
+  const [hasLiveStep, setHasLiveStep] = useState(false);
+
+  useEffect(() => {
+    const check = () =>
+      setHasLiveStep(
+        activeSteps.some(
+          (step) =>
+            typeof step.element !== "string" ||
+            !!document.querySelector(step.element),
+        ),
+      );
+
+    // Deferred, so nothing is set synchronously during the effect.
+    const first = setTimeout(check, 0);
+    const poll = setInterval(check, 400);
+    const stop = setTimeout(() => clearInterval(poll), 5000);
+
+    return () => {
+      clearTimeout(first);
+      clearInterval(poll);
+      clearTimeout(stop);
+    };
+  }, [activeSteps, pathname]);
 
   const saveTourProgressToBackend = useCallback(async (routePath: string) => {
     try {
@@ -254,7 +286,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     <TourContext.Provider
       value={{
         startTour,
-        isTourAvailable: activeSteps.length > 0,
+        isTourAvailable: hasLiveStep,
         isNewUser,
         markAsNewUser,
         markAsOldUser,

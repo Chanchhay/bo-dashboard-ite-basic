@@ -1,5 +1,6 @@
 import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { PayLaterList } from "@/components/sales/PayLaterList";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 
 export default function PayLaterPage() {
@@ -8,6 +9,7 @@ export default function PayLaterPage() {
             <InventoryPageHeader
                 title="Pay Later"
                 description="Sales closed without collecting money yet. Settle them here once the cash comes in."
+                action={<TourButton />}
             />
 
             <PayLaterList />

@@ -48,7 +48,7 @@ export function StepChooseData({
                 </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div data-tour="import-choose-type" className="grid gap-3 sm:grid-cols-3">
                 {order.map((type) => {
                     const Icon = ICONS[type];
                     const selected = value === type;
