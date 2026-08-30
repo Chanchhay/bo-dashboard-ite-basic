@@ -247,6 +247,10 @@ export const NAVIGATION: NavSection[] = [
         label: "Profit",
         href: "/analytics",
       },
+      {
+        label: "Prediction",
+        href: "/prediction",
+      },
     ],
     app: {
       label: "Overview Dashboard",
