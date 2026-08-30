@@ -100,6 +100,8 @@ export function PosTerminal({
           selectedCategoryId={activeCategoryId}
           onClearFilters={clearFilters}
           onSearchQueryChange={setSearchQuery}
+          categories={categories}
+          onCategoryChange={setSelectedCategoryId}
           currentRegisterUser={currentRegisterUser}
           registerCashSales={registerCashSales}
           registerCurrency={registerCurrency}

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { SW_URL } from "@/lib/pwa/sw-url";
+
 export function PwaRegister() {
   useEffect(() => {
     if (
@@ -12,7 +14,7 @@ export function PwaRegister() {
         window.location.hostname === "127.0.0.1")
     ) {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register(SW_URL, { scope: "/", updateViaCache: "none" })
         .then((reg) => {
           console.log("[PWA] Service Worker registered with scope:", reg.scope);
         })

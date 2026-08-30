@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { ImageOff } from "lucide-react";
 
+import { ItemImage } from "@/components/item/item-image";
 import { useMoney } from "@/hooks/useMoney";
 import type { Item } from "@/types/pos-type";
 
@@ -60,17 +60,12 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
             {item.unavailableReason}
           </span>
         ) : null}
-        {item.image_url ? (
-          /* Decorative — the button's aria-label already names the item. */
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.image_url}
-            alt=""
-            className="h-full w-full object-cover opacity-95 group-active:scale-105 transition-transform duration-75"
-          />
-        ) : (
-          <ImageOff className="h-8 w-8 text-gray-300" aria-hidden="true" />
-        )}
+        {/* Decorative — the button's aria-label already names the item. */}
+        <ItemImage
+          src={item.image_url}
+          className="h-full w-full"
+          imageClassName="opacity-95 group-active:scale-105 transition-transform duration-75"
+        />
       </span>
 
       <span className="flex w-full flex-col">
