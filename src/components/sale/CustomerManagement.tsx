@@ -494,7 +494,7 @@ export default function CustomerManagement() {
             </div>
 
             {/* Table */}
-            <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isCustomersLoading ? (
                     <TableSkeleton rows={6} cols={6} />
                 ) : filteredCustomers.length === 0 ? (
