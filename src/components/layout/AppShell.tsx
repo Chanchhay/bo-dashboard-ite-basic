@@ -81,7 +81,7 @@ export default function AppShell({
                     <main
                         id="main-content"
                         ref={mainRef}
-                        className="min-h-0 flex-1 overflow-y-auto scroll-pb-28 px-5 pb-8 lg:px-8"
+                        className="min-h-0 flex-1 overflow-y-auto scroll-pt-28 scroll-pb-28 px-5 pb-8 lg:px-8"
                     >
                         {children}
                     </main>

@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { PaginationBar } from "@/components/ui/PaginationBar";
+import { TourButton } from "@/components/onboarding/TourButton";
 import {
     InventoryEmpty,
     InventoryError,
@@ -79,10 +80,17 @@ export function ImportHistory() {
                     title="Import history"
                     description="Every file you have brought into FluxiBiz, newest first. Open one to see what it did and anything it could not import."
                     action={
-                        <Link href="/inventory/import" className={buttonVariants()}>
-                            <Plus className="size-4" />
-                            New import
-                        </Link>
+                        <div className="flex items-center gap-2">
+                            <Link
+                                href="/inventory/import"
+                                data-tour="import-new-link"
+                                className={buttonVariants()}
+                            >
+                                <Plus className="size-4" />
+                                New import
+                            </Link>
+                            <TourButton />
+                        </div>
                     }
                 />
             </div>
@@ -93,7 +101,7 @@ export function ImportHistory() {
                     description="When you bring a file into FluxiBiz, it will be listed here."
                 />
             ) : (
-                <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section data-tour="import-history-list" className="overflow-clip rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <div className="overflow-auto max-h-[calc(100dvh-260px)] sm:max-h-[calc(100dvh-280px)]">
                         <table className="w-full min-w-160 border-collapse text-sm">
                             <thead className="sticky top-0 z-10 bg-card border-b border-border shadow-xs">
