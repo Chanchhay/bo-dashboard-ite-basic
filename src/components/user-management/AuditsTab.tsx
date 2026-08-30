@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Lock, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select-field";
+import { cn } from "@/lib/utils";
 import {
     EmptyState,
     ErrorState,
@@ -46,10 +47,10 @@ export default function AuditsTab({
     const [targetType, setTargetType] = useState("");
     const [keyword, setKeyword] = useState("");
     const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(10);
 
     const auditQuery = useGetAuditLogsQuery(
-    { actionType, targetType, keyword, page, size: pageSize },
+        { actionType, targetType, keyword, page, size: pageSize },
         { skip: !canReadAudits },
     );
 
@@ -106,7 +107,7 @@ export default function AuditsTab({
                         id="audit-keyword"
                         type="search"
                         value={keyword}
-            onChange={(event) => resetTo(() => setKeyword(event.target.value))}
+                        onChange={(event) => resetTo(() => setKeyword(event.target.value))}
                         placeholder="Search by actor or target"
                         className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
@@ -120,7 +121,7 @@ export default function AuditsTab({
                         id="audit-action"
                         value={actionType || ALL}
                         onValueChange={(next) =>
-              resetTo(() => setActionType(next === ALL ? "" : next))
+                            resetTo(() => setActionType(next === ALL ? "" : next))
                         }
                         options={[
                             { value: ALL, label: "All actions" },
@@ -140,7 +141,7 @@ export default function AuditsTab({
                         id="audit-target"
                         value={targetType || ALL}
                         onValueChange={(next) =>
-              resetTo(() => setTargetType(next === ALL ? "" : next))
+                            resetTo(() => setTargetType(next === ALL ? "" : next))
                         }
                         options={[
                             { value: ALL, label: "All targets" },
@@ -153,9 +154,9 @@ export default function AuditsTab({
                 </div>
             </div>
 
-            {auditQuery.isLoading ? (
+            {auditQuery.isLoading && !auditQuery.data ? (
                 <LoadingState label="Loading audits" />
-            ) : auditQuery.error ? (
+            ) : auditQuery.error && !auditQuery.data ? (
                 <ErrorState
                     message={getApiErrorMessage(
                         auditQuery.error,
@@ -174,26 +175,31 @@ export default function AuditsTab({
                 />
             ) : (
                 <>
-                    <div className="mt-5 overflow-x-auto">
+                    <div
+                        className={cn(
+                            "mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
+                            auditQuery.isFetching && "opacity-60 pointer-events-none",
+                        )}
+                    >
                         <table className="w-full min-w-[760px] border-collapse text-left">
                             <caption className="sr-only">
                                 Administrative audit entries
                             </caption>
                             <thead>
                                 <tr className="border-b border-border text-[12px] text-muted-foreground">
-                  <th scope="col" className="py-3 pr-4 font-medium">
+                                    <th scope="col" className="py-3 pr-4 font-medium">
                                         When
                                     </th>
-                  <th scope="col" className="py-3 pr-4 font-medium">
+                                    <th scope="col" className="py-3 pr-4 font-medium">
                                         Actor
                                     </th>
-                  <th scope="col" className="py-3 pr-4 font-medium">
+                                    <th scope="col" className="py-3 pr-4 font-medium">
                                         Action
                                     </th>
-                  <th scope="col" className="py-3 pr-4 font-medium">
+                                    <th scope="col" className="py-3 pr-4 font-medium">
                                         Target
                                     </th>
-                  <th scope="col" className="py-3 font-medium">
+                                    <th scope="col" className="py-3 font-medium">
                                         Change
                                     </th>
                                 </tr>
@@ -208,7 +214,7 @@ export default function AuditsTab({
                                             {formatTimestamp(log.createdAt)}
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-foreground">
-                      {log.actorUsername || log.actorId || "—"}
+                                            {log.actorUsername || log.actorId || "—"}
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-foreground">
                                             {humanizeEnum(log.actionType)}
@@ -220,7 +226,7 @@ export default function AuditsTab({
                                             </p>
                                         </td>
                                         <td className="py-4 text-[13px] text-muted-foreground">
-                      {log.previousState || log.newState ? (
+                                            {log.previousState || log.newState ? (
                                                 <span>
                                                     {log.previousState || "—"}
                                                     {" → "}
@@ -238,23 +244,21 @@ export default function AuditsTab({
                         </table>
                     </div>
 
-                    <nav
-                        aria-label="Audit pages"
-                        className="mt-5 flex flex-wrap items-center justify-between gap-3"
-                    >
-            <PaginationBar
-              page={page}
-              size={pageSize}
-              totalElements={totalElements}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              onSizeChange={setPageSize}
-              isLoading={auditQuery.isFetching}
-              itemLabel="entry"
-              itemLabelPlural="entries"
-              className="mt-5 rounded-xl border border-border"
-                                />
-                    </nav>
+                    <PaginationBar
+                        page={page}
+                        size={pageSize}
+                        totalElements={totalElements}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        onSizeChange={(next) => {
+                            setPageSize(next);
+                            setPage(0);
+                        }}
+                        sizeOptions={[1, 2, 5, 10, 20, 50]}
+                        isLoading={auditQuery.isFetching}
+                        itemLabel="entry"
+                        itemLabelPlural="entries"
+                    />
                 </>
             )}
         </Panel>

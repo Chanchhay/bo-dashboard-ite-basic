@@ -41,13 +41,13 @@ import {
 import {
     ItemPricingTable,
     pageSizes,
-    TablePagination,
 } from "@/components/sales/pricing/ItemPricingTable";
 import { SetPriceDialog } from "@/components/sales/pricing/SetPriceDialog";
 import {
     soldAsKey,
     type PriceDrafts,
 } from "@/components/sales/pricing/sold-as";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { Button } from "@/components/ui/button";
 import { controlClassName } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
@@ -1023,15 +1023,18 @@ export function ItemPricingTab() {
                             onManageChannels={setPublishingItemId}
                         />
 
-                        <TablePagination
-                            total={filteredItems.length}
-                            page={currentPage}
-                            pageSize={pageSize}
-                            onPageChange={setPage}
-                            onPageSizeChange={(size) => {
+                        <PaginationBar
+                            totalElements={filteredItems.length}
+                            totalPages={pageCount}
+                            page={currentPage - 1}
+                            size={pageSize}
+                            onPageChange={(nextPage) => setPage(nextPage + 1)}
+                            onSizeChange={(size) => {
                                 setPageSize(size);
                                 setPage(1);
                             }}
+                            sizeOptions={[...pageSizes]}
+                            itemLabel="item"
                         />
                     </>
                 )}

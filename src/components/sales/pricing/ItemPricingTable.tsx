@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, PackageSearch, Pencil } from "lucide-react";
+import { PackageSearch, Pencil } from "lucide-react";
 
 import { ItemChannelChips } from "@/components/sales/pricing/ItemChannelChips";
 import {
@@ -16,14 +16,6 @@ import {
     type PriceDrafts,
 } from "@/components/sales/pricing/sold-as";
 import { Button } from "@/components/ui/button";
-import { controlClassName } from "@/components/ui/form-controls";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
     Table,
@@ -36,7 +28,6 @@ import {
 import type { InventoryItem } from "@/lib/api/inventory";
 import type { SalesChannel } from "@/lib/api/sales-channels";
 import { effectivePrice, type PriceOverride } from "@/lib/sale-pricing/pricing";
-import { cn } from "@/lib/utils";
 
 /**
  * The catalogue as a table, because a catalogue is a list of the same thing.
@@ -384,100 +375,6 @@ export function ItemPricingTable({
                     })}
                 </TableBody>
             </Table>
-        </div>
-    );
-}
-
-/**
- * Which slice of the catalogue is showing, and how to get to the next.
- *
- * Says the range rather than only the page number: "26–50 of 137" tells you
- * how much is left, which is the thing a page number never does.
- */
-export function TablePagination({
-    total,
-    page,
-    pageSize,
-    onPageChange,
-    onPageSizeChange,
-}: {
-    total: number;
-    /** One-based. */
-    page: number;
-    pageSize: number;
-    onPageChange: (page: number) => void;
-    onPageSizeChange: (size: number) => void;
-}) {
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
-    const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
-    const last = Math.min(page * pageSize, total);
-
-    return (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground sm:text-sm">
-                {total === 0
-                    ? "No items"
-                    : `${first}–${last} of ${total} item${total === 1 ? "" : "s"}`}
-            </p>
-
-            <div className="flex items-center gap-2.5">
-                <div className="w-30">
-                    <Select
-                        value={String(pageSize)}
-                        onValueChange={(value) =>
-                            onPageSizeChange(Number(value) || pageSizes[0])
-                        }
-                    >
-                        <SelectTrigger
-                            size="sm"
-                            aria-label="Rows per page"
-                            className={cn(
-                                controlClassName,
-                                "!h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold",
-                            )}
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {pageSizes.map((size) => (
-                                <SelectItem key={size} value={String(size)}>
-                                    {size} per page
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => onPageChange(page - 1)}
-                    aria-label="Previous page"
-                    className="gap-1"
-                >
-                    <ChevronLeft className="size-4" />
-                    Prev
-                </Button>
-
-                <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                    {page} / {pageCount}
-                </span>
-
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= pageCount}
-                    onClick={() => onPageChange(page + 1)}
-                    aria-label="Next page"
-                    className="gap-1"
-                >
-                    Next
-                    <ChevronRight className="size-4" />
-                </Button>
-            </div>
         </div>
     );
 }

@@ -227,12 +227,15 @@ function useCountdown(expiresAt: string | null) {
 function remaining(expiresAt: string | null) {
     if (!expiresAt) return null;
 
-    let iso = expiresAt.trim();
-    if (iso.includes("T") && !iso.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(iso)) {
-        iso += "Z";
-    }
-
-    const end = new Date(iso).getTime();
+    // The backend's timestamps are LocalDateTime — a bare string with no
+    // timezone marker, captured in the server's own local wall-clock time
+    // (Asia/Phnom_Penh, see the api container's TZ setting). Appending "Z"
+    // here used to be correct back when the server ran in UTC, but now it
+    // makes the browser (also Phnom Penh time) misread the value as UTC and
+    // add a further 7 hours on top, turning a ~2 minute countdown into
+    // ~422 minutes. Parsing the bare string directly lets `Date` read it as
+    // local time, which is what it already is.
+    const end = new Date(expiresAt.trim()).getTime();
 
     if (Number.isNaN(end)) return null;
 

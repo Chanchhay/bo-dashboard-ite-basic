@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,22 +12,60 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+
+function getPageItems(currentPage: number, totalPages: number): (number | null)[] {
+  const siblingCount = 1;
+  const totalVisible = siblingCount * 2 + 5;
+
+  if (totalPages <= totalVisible) {
+    return Array.from({ length: totalPages }, (_, i) => i);
+  }
+
+  const leftSibling = Math.max(currentPage - siblingCount, 0);
+  const rightSibling = Math.min(currentPage + siblingCount, totalPages - 1);
+
+  const showLeftEllipsis = leftSibling > 1;
+  const showRightEllipsis = rightSibling < totalPages - 2;
+
+  const items: (number | null)[] = [0];
+
+  if (showLeftEllipsis) {
+    items.push(null);
+  } else {
+    for (let p = 1; p < leftSibling; p++) items.push(p);
+  }
+
+  for (let p = leftSibling; p <= rightSibling; p++) {
+    if (p !== 0 && p !== totalPages - 1) items.push(p);
+  }
+
+  if (showRightEllipsis) {
+    items.push(null);
+  } else {
+    for (let p = rightSibling + 1; p < totalPages - 1; p++) items.push(p);
+  }
+
+  items.push(totalPages - 1);
+
+  return items;
+}
+
 export type PaginationBarProps = {
-  /** Zero-based index of the current page. */
+
   page: number;
-  /** Rows requested per page. */
+
   size: number;
-  /** Total rows across every page, from `page.totalElements`. */
+
   totalElements: number;
-  /** Total page count, from `page.totalPages`. */
+
   totalPages: number;
   onPageChange: (page: number) => void;
   onSizeChange: (size: number) => void;
-  /** Dims the controls and blocks input while a fetch is in flight. */
+
   isLoading?: boolean;
-  /** Choices in the left dropdown. */
+
   sizeOptions?: number[];
-  /** Noun for the row count, e.g. "customer" gives "1–10 of 42 customers". */
+
   itemLabel?: string;
   itemLabelPlural?: string;
   className?: string;
@@ -41,8 +79,8 @@ export function PaginationBar({
   onPageChange,
   onSizeChange,
   isLoading = false,
-  sizeOptions = [10, 25, 50, 100],
-  itemLabel = "item",
+  sizeOptions = [10, 20, 25, 50, 100],
+  itemLabel = "row",
   itemLabelPlural,
   className,
 }: PaginationBarProps) {
@@ -58,80 +96,138 @@ export function PaginationBar({
   const canGoBack = currentPage > 0 && !isLoading;
   const canGoForward = currentPage + 1 < safeTotalPages && !isLoading;
 
+  const pageItems = getPageItems(currentPage, safeTotalPages);
+
+  const navButtonClass =
+    "h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:scale-90 transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:pointer-events-none disabled:active:scale-100 [&_svg]:h-3.5 [&_svg]:w-3.5";
+
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 border-t border-border bg-card px-4 py-3.5 sm:px-6",
-        "sm:flex-row sm:items-center sm:justify-between",
+        "flex w-full flex-col gap-3 border-t border-border bg-card px-4 py-3 sm:px-6",
+        "sm:flex-row sm:items-center sm:justify-between transition-all duration-200",
         className,
       )}
     >
-      {/* Left: rows per page */}
-      <div className="flex items-center gap-2.5">
-        <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
-          Items per page
-        </span>
-        <Select
-          value={String(size)}
-          onValueChange={(value) => {
-            onSizeChange(Number(value));
-            onPageChange(0);
-          }}
-          disabled={isLoading}
-        >
-          <SelectTrigger className="h-9 w-[4.5rem] rounded-xl border border-border bg-card px-3 text-xs sm:text-sm font-bold text-foreground shadow-2xs hover:bg-muted/40 transition-colors cursor-pointer">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {sizeOptions.map((option) => (
-              <SelectItem key={option} value={String(option)} className="font-semibold text-xs sm:text-sm">
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Left: rows per page + range readout */}
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
+            Rows per page
+          </span>
+          <Select
+            value={String(size)}
+            onValueChange={(value) => {
+              onSizeChange(Number(value));
+              onPageChange(0);
+            }}
+            disabled={isLoading} >
+            <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[4.25rem] rounded-lg border border-border bg-background px-3 text-xs sm:text-sm font-semibold text-foreground shadow-none hover:bg-muted/50 transition-colors cursor-pointer gap-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start" className="min-w-[4.5rem]">
+              {sizeOptions.map((option) => (
+                <SelectItem
+                  key={option}
+                  value={String(option)}
+                  className="font-semibold text-xs sm:text-sm cursor-pointer"
+                >
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* Right: range readout and page stepper */}
-      <div className="flex items-center gap-3 sm:gap-5">
-        <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">
-          <span className="font-bold text-foreground">
+        <span className="hidden sm:block text-sm text-muted-foreground/50">|</span>
+
+        <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
+          <span className="font-semibold text-foreground">
             {firstRow}
             {lastRow > firstRow ? `\u2013${lastRow}` : ""}
           </span>{" "}
-          of <span className="font-bold text-foreground">{totalElements}</span>{" "}
+          of <span className="font-semibold text-foreground">{totalElements}</span>{" "}
           {noun}
         </span>
+      </div>
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30"
-            aria-label="Previous page"
-            disabled={!canGoBack}
-            onClick={() => onPageChange(currentPage - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
 
-          <span className="text-xs sm:text-sm font-bold whitespace-nowrap text-foreground">
-            Page {currentPage + 1} of {safeTotalPages}
-          </span>
+      <div className="flex items-center gap-1 self-end sm:self-auto">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={navButtonClass}
+          aria-label="First page"
+          disabled={!canGoBack}
+          onClick={() => onPageChange(0)}
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={navButtonClass}
+          aria-label="Previous page"
+          disabled={!canGoBack}
+          onClick={() => onPageChange(currentPage - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="h-8 w-8 rounded-full border border-border/80 bg-card hover:bg-muted/60 text-foreground transition-all cursor-pointer shadow-2xs disabled:opacity-30"
-            aria-label="Next page"
-            disabled={!canGoForward}
-            onClick={() => onPageChange(currentPage + 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-1 px-1">
+          {pageItems.map((item, index) =>
+            item === null ? (
+              <span
+                key={`ellipsis-${index}`}
+                className="flex h-7 w-7 items-center justify-center text-xs text-muted-foreground select-none"
+              >
+                &#8230;
+              </span>
+            ) : (
+              <button
+                key={item}
+                type="button"
+                aria-label={`Page ${item + 1}`}
+                aria-current={item === currentPage ? "page" : undefined}
+                disabled={isLoading}
+                onClick={() => onPageChange(item)}
+                className={cn(
+                  "flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer disabled:pointer-events-none disabled:opacity-50",
+                  item === currentPage
+                    ? "bg-primary text-primary-foreground shadow-2xs"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                {item + 1}
+              </button>
+            ),
+          )}
         </div>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={navButtonClass}
+          aria-label="Next page"
+          disabled={!canGoForward}
+          onClick={() => onPageChange(currentPage + 1)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={navButtonClass}
+          aria-label="Last page"
+          disabled={!canGoForward}
+          onClick={() => onPageChange(safeTotalPages - 1)}
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

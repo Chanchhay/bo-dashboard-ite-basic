@@ -19,6 +19,8 @@ export type Item = {
    * cashier who only sees a dimmed card has to go and find out which.
    */
   unavailableReason?: string;
+  discountBadge?: string;
+  discountedPrice?: string;
 };
 
 export type AppliedDiscount = {
@@ -61,7 +63,10 @@ export type Order = {
   status: OrderStatus;
   subtotal: string;
   discount_amount: string;
-  applied_discounts: unknown | null; 
+  applied_discounts: unknown | null;
+  tax_rate?: number | null;
+  tax_amount?: number | null;
+  tax_inclusion_type?: "INCLUSIVE" | "EXCLUSIVE" | null;
   total: string;
   currency: string;
   note: string | null;

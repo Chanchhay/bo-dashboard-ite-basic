@@ -369,9 +369,9 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
     }, [bestSellingProducts, bestSellingPage]);
 
     return (
-        <div className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
+        <div data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
             {/* KPI Metric Cards Row (Top 4) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {/* 1. TOTAL REVENUE */}
                 <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
@@ -657,7 +657,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 3. BOTTOM-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
-                <Card className="flex flex-col justify-between rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                <Card data-tour="dashboard-channel-cards" className="flex flex-col justify-between rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-2">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
@@ -726,7 +726,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 4. BOTTOM-RIGHT: `stock_inventory` (Stock Inventory — Horizontal Bar Chart) */}
-                <Card className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">

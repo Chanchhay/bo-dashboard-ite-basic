@@ -18,6 +18,7 @@ import {
     Check,
     ExternalLink,
     Filter,
+    UserCheck,
 } from "lucide-react";
 
 import {
@@ -46,8 +47,18 @@ function formatTimeAgo(dateStr?: string | null): string {
     return `${diffDays}d ago`;
 }
 
-function getNotificationIcon(type?: string | null) {
+function getNotificationIcon(type?: string | null, title?: string | null) {
     const t = type?.toUpperCase();
+    const titleLower = (title || "").toLowerCase();
+
+    if (titleLower.includes("staff") || titleLower.includes("signed in") || titleLower.includes("login") || titleLower.includes("user")) {
+        return (
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-100/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 shadow-2xs">
+                <UserCheck className="size-5.5" />
+            </div>
+        );
+    }
+
     switch (t) {
         case "ORDER":
         case "SUCCESS":
@@ -88,68 +99,54 @@ function getNotificationIcon(type?: string | null) {
 }
 
 function getNotificationLink(notification: Notification): string {
+    // 1. Prioritize explicit deepLink if provided
+    if (notification.deepLink && notification.deepLink.startsWith("/") && notification.deepLink !== "#") {
+        return notification.deepLink;
+    }
+
     const type = notification.type?.toUpperCase() || "";
     const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
-    const deepLink = (notification.deepLink || "").toLowerCase();
 
-    if (
-        type === "ORDER" ||
-        type === "PAYMENT" ||
-        type === "SUCCESS" ||
-        text.includes("sale") ||
-        text.includes("inv-") ||
-        text.includes("order") ||
-        deepLink.includes("order") ||
-        deepLink.includes("sale") ||
-        deepLink.includes("pos")
-    ) {
-        return "/sales/orders";
+    // 2. Specific feature fallbacks based on content / type
+    if (text.includes("discount") || text.includes("coupon") || type === "PROMOTION") {
+        return "/sales/discounts";
+    }
+
+    if (text.includes("employee") || text.includes("staff") || text.includes("signed in") || text.includes("login")) {
+        return "/employees";
     }
 
     if (
         type === "INVENTORY" ||
         type === "LOW_STOCK" ||
-        type === "WARNING" ||
-        type === "ALERT" ||
+        text.includes("low stock") ||
         text.includes("stock") ||
-        text.includes("item") ||
-        deepLink.includes("inventory") ||
-        deepLink.includes("stock")
+        text.includes("restock")
     ) {
         return "/inventory/stock";
     }
 
-    if (text.includes("customer") || deepLink.includes("customer")) {
+    if (text.includes("customer")) {
         return "/sales/customers";
     }
 
-    if (text.includes("discount") || text.includes("coupon") || deepLink.includes("discount")) {
-        return "/sales/discounts";
-    }
-
-    if (text.includes("session") || text.includes("till") || deepLink.includes("session")) {
+    if (text.includes("session") || text.includes("till") || text.includes("cash drawer")) {
         return "/sales/sessions";
     }
 
-    if (text.includes("tax") || deepLink.includes("tax")) {
+    if (text.includes("tax")) {
         return "/sales/taxes";
     }
 
-    if (text.includes("employee") || text.includes("staff") || deepLink.includes("employee")) {
-        return "/employees";
-    }
-
-    if (notification.deepLink && notification.deepLink !== "#") {
-        const link = notification.deepLink;
-        if (
-            link.startsWith("/sales") ||
-            link.startsWith("/inventory") ||
-            link.startsWith("/business") ||
-            link.startsWith("/employees") ||
-            link.startsWith("/analytics")
-        ) {
-            return link;
-        }
+    if (
+        type === "ORDER" ||
+        type === "PAYMENT" ||
+        type === "SUCCESS" ||
+        text.includes("inv-") ||
+        text.includes("order") ||
+        text.includes("receipt")
+    ) {
+        return "/sales/orders";
     }
 
     return "/sales/orders";
@@ -192,21 +189,58 @@ export default function NotificationsApp() {
     const stats = useMemo(() => {
         const total = notifications.length;
         const unread = notifications.filter((n) => !n.read).length;
-        const orders = notifications.filter((n) => n.type?.toUpperCase() === "ORDER").length;
-        const stockAlerts = notifications.filter((n) =>
-            ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(n.type?.toUpperCase() || "")
-        ).length;
+        const orders = notifications.filter((n) => {
+            const t = (n.type || "").toUpperCase();
+            const text = `${n.title || ""} ${n.content || ""}`.toLowerCase();
+            return t === "ORDER" || text.includes("order") || text.includes("pending");
+        }).length;
+        const stockAlerts = notifications.filter((n) => {
+            const t = (n.type || "").toUpperCase();
+            const text = `${n.title || ""} ${n.content || ""}`.toLowerCase();
+            return ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(t) || text.includes("stock");
+        }).length;
         return { total, unread, orders, stockAlerts };
     }, [notifications]);
 
     const filteredNotifications = useMemo(() => {
         return notifications.filter((item) => {
-            const matchesTab =
-                activeTab === "ALL"
-                    ? true
-                    : activeTab === "UNREAD"
-                        ? !item.read
-                        : item.type?.toUpperCase() === activeTab;
+            const t = (item.type || "").toUpperCase();
+            const text = `${item.title || ""} ${item.content || ""}`.toLowerCase();
+
+            let matchesTab = true;
+            if (activeTab === "UNREAD") {
+                matchesTab = !item.read;
+            } else if (activeTab === "ORDER") {
+                matchesTab = t === "ORDER" || text.includes("order") || text.includes("pending");
+            } else if (activeTab === "INVENTORY") {
+                matchesTab =
+                    ["INVENTORY", "LOW_STOCK", "WARNING", "ALERT"].includes(t) ||
+                    text.includes("stock") ||
+                    text.includes("inventory") ||
+                    text.includes("restock");
+            } else if (activeTab === "PAYMENT") {
+                matchesTab =
+                    t === "PAYMENT" ||
+                    text.includes("payment") ||
+                    text.includes("paid") ||
+                    text.includes("pay success") ||
+                    text.includes("sale");
+            } else if (activeTab === "PROMOTION") {
+                matchesTab =
+                    t === "PROMOTION" ||
+                    text.includes("discount") ||
+                    text.includes("coupon") ||
+                    text.includes("promotion") ||
+                    text.includes("promo");
+            } else if (activeTab === "SYSTEM") {
+                matchesTab =
+                    t === "SYSTEM" ||
+                    t === "GENERAL" ||
+                    text.includes("staff") ||
+                    text.includes("login") ||
+                    text.includes("signed in") ||
+                    text.includes("user");
+            }
 
             const q = searchQuery.trim().toLowerCase();
             const matchesQuery =
@@ -221,78 +255,81 @@ export default function NotificationsApp() {
 
     return (
         <div className="flex flex-col gap-6 pb-8">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        View and manage real-time system alerts, order updates, and inventory notifications.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <TourButton />
-                    {stats.unread > 0 && (
-                        <Button
-                            type="button"
-                            onClick={() => markAllAsRead()}
-                            disabled={isMarkingAll}
-                            size="sm"
-                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl h-10 px-4 shadow-xs shrink-0 self-start sm:self-auto"
-                        >
-                            <CheckCheck className="size-4" />
-                            <span>Mark all as read ({stats.unread})</span>
-                        </Button>
-                    )}
-                </div>
-            </div>
-
-            {/* Stat Cards */}
-            <div data-tour="notifications-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <Bell className="size-5" />
-                    </div>
+            {/* Sticky Top: Header & Stat Cards */}
+            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <p className="text-xs font-medium text-muted-foreground">Total Notifications</p>
-                        <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                        <p className="text-sm text-muted-foreground">
+                            View and manage real-time system alerts, order updates, and inventory notifications.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                        <TourButton />
+                        {stats.unread > 0 && (
+                            <Button
+                                type="button"
+                                onClick={() => markAllAsRead()}
+                                disabled={isMarkingAll}
+                                size="sm"
+                                className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl h-9 sm:h-10 px-3.5 sm:px-4 shadow-xs shrink-0 self-start sm:self-auto"
+                            >
+                                <CheckCheck className="size-4" />
+                                <span>Mark all as read ({stats.unread})</span>
+                            </Button>
+                        )}
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        <CheckCheck className="size-5" />
+                {/* Stat Cards */}
+                <div data-tour="notifications-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                            <Bell className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Total Notifications</p>
+                            <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Unread Alerts</p>
-                        <p className="text-xl font-bold text-foreground">{stats.unread}</p>
-                    </div>
-                </div>
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                        <ShoppingBag className="size-5" />
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <CheckCheck className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Unread Alerts</p>
+                            <p className="text-xl font-bold text-foreground">{stats.unread}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Order Updates</p>
-                        <p className="text-xl font-bold text-foreground">{stats.orders}</p>
-                    </div>
-                </div>
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                        <Package className="size-5" />
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                            <ShoppingBag className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Order Updates</p>
+                            <p className="text-xl font-bold text-foreground">{stats.orders}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Stock Warnings</p>
-                        <p className="text-xl font-bold text-foreground">{stats.stockAlerts}</p>
+
+                    <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <Package className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Stock Warnings</p>
+                            <p className="text-xl font-bold text-foreground">{stats.stockAlerts}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-clip flex flex-col">
                 {/* Control Bar */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3 bg-card shrink-0">
                     <div data-tour="notifications-search" className="relative w-full sm:w-80">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                         <Input
@@ -315,6 +352,7 @@ export default function NotificationsApp() {
                             { id: "ORDER", label: "Orders" },
                             { id: "INVENTORY", label: "Inventory" },
                             { id: "PAYMENT", label: "Payments" },
+                            { id: "PROMOTION", label: "Promotions" },
                             { id: "SYSTEM", label: "System" },
                         ].map((tab) => (
                             <button
@@ -323,8 +361,8 @@ export default function NotificationsApp() {
                                 onClick={() => setActiveTab(tab.id)}
                                 aria-pressed={activeTab === tab.id}
                                 className={`rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-[13px] whitespace-nowrap shrink-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${activeTab === tab.id
-                                        ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
-                                        : "text-muted-foreground hover:text-foreground"
+                                    ? "bg-card font-medium text-foreground shadow-[0_1px_2px_rgba(22,24,28,.08)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] border border-transparent dark:border-[#2a3042]"
+                                    : "text-muted-foreground hover:text-foreground"
                                     }`}
                             >
                                 {tab.label}
@@ -334,7 +372,7 @@ export default function NotificationsApp() {
                 </div>
 
                 {/* List Container */}
-                <div data-tour="notifications-list" className="divide-y divide-border">
+                <div data-tour="notifications-list" className="overflow-y-auto max-h-[calc(100dvh-350px)] sm:max-h-[calc(100dvh-370px)] divide-y divide-border">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
                             <Loader2 className="size-7 animate-spin text-primary" />
@@ -396,15 +434,15 @@ export default function NotificationsApp() {
                                             : "bg-card hover:bg-muted/50"
                                         }`}
                                 >
-                                    {getNotificationIcon(notification.type)}
+                                    {getNotificationIcon(notification.type, notification.title)}
 
                                     <div className="flex-1 min-w-0 flex flex-col gap-1">
                                         <div className="flex items-start justify-between gap-2.5">
                                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                                 <span
                                                     className={`text-sm sm:text-base leading-snug truncate ${isUnread
-                                                            ? "font-bold text-gray-900 dark:text-[#f8fafc]"
-                                                            : "font-bold text-gray-800 dark:text-slate-200"
+                                                        ? "font-bold text-gray-900 dark:text-[#f8fafc]"
+                                                        : "font-bold text-gray-800 dark:text-slate-200"
                                                         }`}
                                                 >
                                                     {notification.title || "Notification Alert"}

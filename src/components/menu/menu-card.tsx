@@ -9,7 +9,18 @@ export interface PosCardType {
   price: number;
   image: string;
   category: string;
-  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  onClick?: () => void;
+  /**
+   * False for read-only contexts (the public menu) where a click only ever
+   * opens an in-place detail view via `onClick` — never a real navigation.
+   * Relying on `onClick`'s `e.preventDefault()` to suppress the `<Link>`'s
+   * own navigation is fragile (a background prefetch fires regardless of
+   * any click at all), and on a business subdomain a prefetch/navigation
+   * to `/menu/[id]` gets rewritten into a path this page never expects.
+   * Defaults to true for the authenticated owner-facing "Menu" page, which
+   * does want the real per-item edit link.
+   */
+  navigate?: boolean;
 }
 
 export default function MenuCard({
@@ -19,11 +30,28 @@ export default function MenuCard({
   image,
   category,
   onClick,
+  navigate = true,
 }: PosCardType) {
   const formattedPrice =
     typeof price === "number"
       ? price.toFixed(2)
       : parseFloat(String(price) || "0").toFixed(2);
+
+  if (!navigate) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onClick?.();
+        }}
+        className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
+      >
+        <MenuCardBody image={image} name={name} category={category} formattedPrice={formattedPrice} />
+      </div>
+    );
+  }
 
   return (
     <Link
@@ -31,6 +59,24 @@ export default function MenuCard({
       onClick={onClick}
       className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
     >
+      <MenuCardBody image={image} name={name} category={category} formattedPrice={formattedPrice} />
+    </Link>
+  );
+}
+
+function MenuCardBody({
+  image,
+  name,
+  category,
+  formattedPrice,
+}: {
+  image: string;
+  name: string;
+  category: string;
+  formattedPrice: string;
+}) {
+  return (
+    <>
       {/* Image Rounded Container (No outer border box, matching screenshot 100%) */}
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#1a1e29]">
         <Image
@@ -38,6 +84,16 @@ export default function MenuCard({
           alt={name}
           width={400}
           height={400}
+          /*
+           * An item's picture can live anywhere: a shop importing its
+           * catalogue keeps hosting it on whatever CDN it already used.
+           * Optimising would mean fetching it through our own server, which
+           * only works for hosts listed in next.config.ts — so every shop
+           * would need an admin to add theirs before their photos appeared.
+           * Served as-is, the browser fetches it directly and any shop's
+           * pictures work the day they import them.
+           */
+          unoptimized
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
@@ -58,6 +114,6 @@ export default function MenuCard({
           ${formattedPrice}
         </span>
       </div>
-    </Link>
+    </>
   );
 }

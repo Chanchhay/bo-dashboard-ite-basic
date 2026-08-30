@@ -35,6 +35,7 @@ import {
   variantOf,
 } from "@/lib/pos/barcode-match";
 import { playScanAccepted, playScanRejected } from "@/lib/pos/scan-sound";
+import { useGetDiscountsQuery } from "@/services/discountApi";
 import {
   useGetCurrentStockQuery,
   useLazyFindInventoryItemByBarcodeQuery,
@@ -268,6 +269,18 @@ export function PosScreen({
     [stockFor],
   );
 
+  const { data: discounts = [] } = useGetDiscountsQuery();
+
+  const activePosDiscounts = useMemo(() => {
+    return discounts.filter((d) => {
+      if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
+      if (d.applicableChannels && d.applicableChannels.length > 0) {
+        return d.applicableChannels.includes("POS");
+      }
+      return true;
+    });
+  }, [discounts]);
+
   // The till sells only what is published to the POS channel. Filtering stays
   // on that API-backed set because the channel endpoint does not accept search
   // parameters yet.
@@ -306,12 +319,45 @@ export function PosScreen({
           ? Math.min(...prices)
           : (entry.item.price ?? 0);
 
+        let discountBadge: string | undefined;
+        let discountedPrice: string | undefined;
+
+        // Find active discount that targets this specific item or storewide
+        const itemDiscount = activePosDiscounts.find((d) => {
+          if (d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM") {
+            return d.targets?.some((t) => t.targetType === "ITEM" && t.targetId === entry.item.id);
+          }
+          if (d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY") {
+            const itemGroupId = entry.item.itemGroup?.id;
+            return d.targets?.some((t) => t.targetType === "ITEM_GROUP" && t.targetId === itemGroupId);
+          }
+          return d.scope === "ALL_ITEMS" || !d.scope;
+        });
+
+        if (itemDiscount && lowest > 0) {
+          if (itemDiscount.type === "PERCENTAGE" && itemDiscount.value > 0) {
+            discountBadge = `-${itemDiscount.value}%`;
+            const reduced = Math.max(0, lowest * (1 - itemDiscount.value / 100));
+            discountedPrice = format(reduced);
+          } else if (itemDiscount.type === "FIXED_AMOUNT" || (itemDiscount.type as any) === "FIXED") {
+            if (itemDiscount.value > 0) {
+              discountBadge = `-${format(itemDiscount.value)}`;
+              const reduced = Math.max(0, lowest - itemDiscount.value);
+              discountedPrice = format(reduced);
+            }
+          } else if (itemDiscount.ruleType === "BUY_X_GET_Y" || (itemDiscount.buyQuantity && itemDiscount.getQuantity)) {
+            discountBadge = `Buy ${itemDiscount.buyQuantity} Get ${itemDiscount.getQuantity}`;
+          }
+        }
+
         return {
           id: entry.item.id,
           business_owner_id: "",
           name: entry.item.name ?? "Unnamed",
           image_url: thumbnail ?? null,
           price: String(lowest),
+          discountBadge,
+          discountedPrice,
           is_available:
             entry.item.status === "INACTIVE" || outOfStock(entry)
               ? "INACTIVE"
@@ -324,7 +370,7 @@ export function PosScreen({
                 : undefined,
         };
       });
-  }, [channelItems, searchQuery, selectedCategoryId, outOfStock]);
+  }, [channelItems, searchQuery, selectedCategoryId, outOfStock, activePosDiscounts, format]);
 
   const filtersAreActive =
     searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
@@ -634,22 +680,22 @@ export function PosScreen({
     setMobileCartOpen(false);
     setEditingOrderId(null);
 
-    // Dispatch Sale Completed notification to POS / Business users
+    // Dispatch Payment Received / Sale Completed notification to POS / Business users
     if (subject) {
       const orderRef = order.invoiceNumber || (order.id ? order.id.slice(0, 8) : "POS");
       const totalVal = sale.totalAmount ?? order.total ?? 0;
       const formattedTotal = format(totalVal, sale.currency ?? order.currency);
       const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || order.items?.length || 0;
 
-      // 1. Dispatch Sale Completed Notification
+      // 1. Dispatch Payment Received Notification
       createNotification({
         senderId: subject,
         senderName: session?.user?.name || "POS Cashier",
         receiverIds: [subject],
-        type: "ORDER",
-        title: `Sale Completed (#${orderRef})`,
-        content: `Completed sale of ${itemCount} item(s) total ${formattedTotal}.`,
-        deepLink: "/dashboard/pos",
+        type: "PAYMENT",
+        title: `Payment Successful (#${orderRef})`,
+        content: `Payment received for sale of ${itemCount} item(s) total ${formattedTotal}.`,
+        deepLink: "/sales/orders",
       }).catch(() => {});
 
       // 2. Check sold items for ACTUAL low stock warnings
@@ -704,11 +750,26 @@ export function PosScreen({
     setMobileCartOpen(false);
     setOpenReceiptId(null);
     setEditingOrderId(null);
+
+    if (subject) {
+      createNotification({
+        senderId: subject,
+        senderName: session?.user?.name || "POS Cashier",
+        receiverIds: [subject],
+        type: "ORDER",
+        title: "New Pending Order Placed",
+        content: "A new pending order has been parked/created in POS.",
+        deepLink: "/sales/orders",
+      }).catch(() => {});
+    }
   };
 
+  const [discountModalMode, setDiscountModalMode] = useState<"COUPON" | "CUSTOM">("COUPON");
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f5f5f5] min-[1025px]:flex-row">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-clip bg-[#f5f5f5] min-[1025px]:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-clip">
         <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-20 [-ms-overflow-style:none] min-[1025px]:pb-0 [&::-webkit-scrollbar]:hidden">
           {activeTab === "Point of Sale" &&
             (paidReceipt ? (
@@ -808,15 +869,23 @@ export function PosScreen({
 
         <PosButton
           active={activeTab}
-          activeDiscountLabel={activeDiscountLabel}
           onChange={(tab) => {
-            if (tab === "Discount") {
-              setActiveTab("Point of Sale");
-              setDiscountModalOpen(true);
-              return;
-            }
             setActiveTab(tab);
             setOpenReceiptId(null);
+          }}
+          onOpenCoupon={() => {
+            setActiveTab("Point of Sale");
+            setDiscountModalMode("COUPON");
+            setDiscountModalOpen(true);
+          }}
+          onOpenCustomDiscount={() => {
+            setActiveTab("Point of Sale");
+            setDiscountModalMode("CUSTOM");
+            setDiscountModalOpen(true);
+          }}
+          onOpenCustomer={() => {
+            setActiveTab("Point of Sale");
+            setCustomerModalOpen(true);
           }}
         />
       </div>
@@ -829,6 +898,9 @@ export function PosScreen({
             isEditingOrder={editingOrderId !== null}
             discountModalOpen={discountModalOpen}
             onDiscountModalOpenChange={setDiscountModalOpen}
+            discountModalMode={discountModalMode}
+            customerModalOpen={customerModalOpen}
+            onCustomerModalOpenChange={setCustomerModalOpen}
           />
         </div>
       )}
@@ -867,6 +939,9 @@ export function PosScreen({
               isEditingOrder={editingOrderId !== null}
               discountModalOpen={discountModalOpen}
               onDiscountModalOpenChange={setDiscountModalOpen}
+              discountModalMode={discountModalMode}
+              customerModalOpen={customerModalOpen}
+              onCustomerModalOpenChange={setCustomerModalOpen}
             />
           </div>
         </div>

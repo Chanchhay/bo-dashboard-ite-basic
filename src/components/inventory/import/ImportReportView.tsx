@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Undo2 } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import {
     InventoryError,
     InventoryLoading,
@@ -20,7 +22,11 @@ import {
     formatRowCount,
     isImportFinished,
 } from "@/lib/api/data-import";
-import { useGetImportErrorsQuery, useGetImportReportQuery } from "@/services/dataImportApi";
+import {
+    useGetImportErrorsQuery,
+    useGetImportReportQuery,
+    useRevertImportMutation,
+} from "@/services/dataImportApi";
 
 function when(value: string | null) {
     if (!value) return "—";
@@ -51,6 +57,10 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
 export function ImportReportView({ importId }: { importId: string }) {
     const [page, setPage] = useState(0);
     const [size, setSize] = useState(25);
+    const [undoing, setUndoing] = useState(false);
+
+    const { toast } = useToast();
+    const [revertImport, revertState] = useRevertImportMutation();
 
     const job = useImportJob(importId);
     const report = useGetImportReportQuery(importId);
@@ -77,7 +87,33 @@ export function ImportReportView({ importId }: { importId: string }) {
 
     const detail = report.data;
     const errorPage = errors.data?.page;
+    const isUndoing = job.data.status === "REVERTING" || revertState.isLoading;
     const finished = isImportFinished(job.data.status);
+    const created = job.data.createdRows;
+
+    async function handleUndo() {
+        try {
+            await revertImport(importId).unwrap();
+            setUndoing(false);
+            void job.refetch();
+            void report.refetch();
+            toast({
+                tone: "success",
+                title: "Undoing this import",
+                description:
+                    "The report will show what was removed and what had to stay.",
+            });
+        } catch (error) {
+            toast({
+                tone: "error",
+                title: "Import not undone",
+                description: getApiErrorMessage(
+                    error,
+                    "This import could not be undone.",
+                ),
+            });
+        }
+    }
 
     return (
         <div className="flex flex-col gap-6">
@@ -85,19 +121,37 @@ export function ImportReportView({ importId }: { importId: string }) {
                 title={detail.fileName}
                 description={`${IMPORT_TARGET_LABELS[detail.targetType]} import`}
                 action={
-                    <Link
-                        href="/inventory/import/history"
-                        className={buttonVariants({ variant: "outline" })}
-                    >
-                        <ArrowLeft className="size-4" />
-                        All imports
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        {job.data.revertable && !isUndoing && job.data.status !== "REVERTED" ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => setUndoing(true)}
+                                disabled={revertState.isLoading}
+                            >
+                                <Undo2 className="size-4" />
+                                Undo import
+                            </Button>
+                        ) : null}
+                        <Link
+                            href="/inventory/import/history"
+                            className={buttonVariants({ variant: "outline" })}
+                        >
+                            <ArrowLeft className="size-4" />
+                            All imports
+                        </Link>
+                    </div>
                 }
             />
 
             <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-                {finished || job.data.status === "COMMITTING" ? (
-                    <ImportResult job={job.data} />
+                {finished || job.data.status === "COMMITTING" || isUndoing ? (
+                    <ImportResult
+                        job={
+                            isUndoing && job.data.status !== "REVERTING"
+                                ? { ...job.data, status: "REVERTING" }
+                                : job.data
+                        }
+                    />
                 ) : (
                     <div className="flex flex-col gap-2">
                         <ImportStatusPill status={job.data.status} />
@@ -169,6 +223,27 @@ export function ImportReportView({ importId }: { importId: string }) {
                     emptyMessage="Every row went in."
                 />
             </section>
+            <DestructiveConfirmDialog
+                open={undoing}
+                onOpenChange={setUndoing}
+                title="Undo this import?"
+                description={
+                    <>
+                        This deletes the{" "}
+                        <strong className="font-semibold text-[#16181c] dark:text-[#f8fafc]">
+                            {formatRowCount(created)}
+                        </strong>{" "}
+                        this import created, along with any categories it added that are
+                        still empty. Items it only updated keep their new values, and
+                        anything already sold is left alone — the report will say which.
+                        This cannot itself be undone.
+                    </>
+                }
+                confirmLabel="Undo import"
+                cancelLabel="Keep it"
+                isPending={revertState.isLoading}
+                onConfirm={handleUndo}
+            />
         </div>
     );
 }

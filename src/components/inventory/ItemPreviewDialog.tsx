@@ -120,9 +120,15 @@ function foldSizes(variants: NonNullable<InventoryItem["variants"]>) {
 }
 
 export function toPreviewItem(item: InventoryItem): PreviewItem {
-    const gallery = [...(item.images || [])]
-        .sort((a, b) => (a.position || 0) - (b.position || 0))
-        .map((image) => image.url || "");
+    // The item's own picture first — for an imported item it is the only one,
+    // since `images` holds files uploaded into our asset store and an imported
+    // item has never been near it.
+    const gallery = [
+        item.imageUrl || "",
+        ...[...(item.images || [])]
+            .sort((a, b) => (a.position || 0) - (b.position || 0))
+            .map((image) => image.url || ""),
+    ];
 
     const toBlocks = (
         blocks: NonNullable<InventoryItem["descriptionBlocks"]>,
@@ -410,7 +416,11 @@ function Storefront({
                     )}
 
                     {item.variants.length ? (
-                        <OptionRow label="Option" value={variant?.name || "—"}>
+                        <OptionRow
+                            label="Option"
+                            value={variant?.name || "—"}
+                            scroll
+                        >
                             {item.variants.map((option, index) => (
                                 <Chip
                                     key={`${option.name}-${index}`}
@@ -421,7 +431,9 @@ function Storefront({
                                         setPackIndex(-1);
                                     }}
                                 >
-                                    <span>{option.name}</span>
+                                    <span className="block max-w-48 truncate">
+                                        {option.name}
+                                    </span>
                                     {option.price === undefined ? null : (
                                         <span
                                             className={cn(
@@ -806,18 +818,28 @@ function Gallery({
      * An address is not a picture. Items brought in from another system carry
      * links to that system's images, and those are as likely as not to be
      * unreachable from here — a private CDN, a host that has moved on, a URL
-     * that was only ever a placeholder. A broken <img> renders as an empty box
-     * with no hint of why, so anything that fails to load is dropped and the
-     * gallery falls back to saying plainly that there is no picture.
+     * that was only ever a placeholder.
+     *
+     * The trick is what happens *before* the browser knows. An <img> with a
+     * dead source renders as an empty frame with its alt text sitting in it,
+     * and only afterwards does onError fire and let us swap in the fallback —
+     * so a broken picture announced itself twice, first as a hollow box and
+     * then as a card, which read as the page glitching.
+     *
+     * So a picture is not shown until it has actually loaded. Until then the
+     * frame is simply empty, which is also what a slow but perfectly good
+     * image looks like — and the "no image" card appears only once the browser
+     * has told us there is none, never on the way to one that works.
      */
-    const [broken, setBroken] = useState<string[]>([]);
-    const usable = images.filter((image) => !broken.includes(image));
+    const [status, setStatus] = useState<Record<string, "ok" | "broken">>({});
 
-    function markBroken(image: string) {
-        setBroken((previous) =>
-            previous.includes(image) ? previous : [...previous, image],
+    function record(image: string, next: "ok" | "broken") {
+        setStatus((previous) =>
+            previous[image] === next ? previous : { ...previous, [image]: next },
         );
     }
+
+    const usable = images.filter((image) => status[image] !== "broken");
 
     if (!usable.length) {
         return <NoImage />;
@@ -845,18 +867,32 @@ function Gallery({
                         <img
                             src={image}
                             alt=""
-                            className="size-full object-cover"
-                            onError={() => markBroken(image)}
+                            className={cn(
+                                "size-full object-cover transition-opacity duration-200",
+                                status[image] === "ok" ? "opacity-100" : "opacity-0",
+                            )}
+                            onLoad={() => record(image, "ok")}
+                            onError={() => record(image, "broken")}
                         />
                     </button>
                 ))}
             </div>
             <div className="relative aspect-square flex-1 overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-[#f8faf8] dark:bg-[#151821] shadow-xs">
                 <img
+                    key={active}
                     src={active}
-                    alt={name || "Item image"}
-                    className="size-full object-cover transition-all duration-300"
-                    onError={() => markBroken(active)}
+                    /*
+                     * No alt text until it loads. The alt is what the browser
+                     * paints inside the empty frame of a picture that is not
+                     * there, and that text was half of the flash.
+                     */
+                    alt={status[active] === "ok" ? name || "Item image" : ""}
+                    className={cn(
+                        "size-full object-cover transition-opacity duration-300",
+                        status[active] === "ok" ? "opacity-100" : "opacity-0",
+                    )}
+                    onLoad={() => record(active, "ok")}
+                    onError={() => record(active, "broken")}
                 />
             </div>
         </div>
@@ -866,19 +902,31 @@ function Gallery({
 function OptionRow({
     label,
     value,
+    scroll,
     children,
 }: {
     label: string;
     value: string;
+    /** Keep the chips on one line and scroll sideways instead of wrapping. */
+    scroll?: boolean;
     children: React.ReactNode;
 }) {
     return (
-        <div>
+        <div className="min-w-0">
             <p className="text-xs text-[#657064] dark:text-[#94a3b8]">
                 {label}:{" "}
                 <span className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">{value}</span>
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">{children}</div>
+            <div
+                className={cn(
+                    "mt-2 flex gap-2",
+                    scroll
+                        ? "-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]"
+                        : "flex-wrap",
+                )}
+            >
+                {children}
+            </div>
         </div>
     );
 }
@@ -901,7 +949,7 @@ function Chip({
             disabled={disabled}
             aria-pressed={active}
             className={cn(
-                "rounded-xl border px-4 py-2 text-center text-sm transition-colors",
+                "shrink-0 rounded-xl border px-4 py-2 text-center text-sm transition-colors",
                 disabled
                     ? "cursor-not-allowed border-[#f0f1ef] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] text-[#c2c8c0] dark:text-[#64748b] line-through"
                     : active

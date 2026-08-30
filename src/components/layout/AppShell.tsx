@@ -56,7 +56,7 @@ export default function AppShell({
     }
 
     return (
-        <div className="fixed inset-0 overflow-hidden bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
+        <div className="fixed inset-0 overflow-clip bg-[#e8e8e6] dark:bg-[#0f1219] lg:p-4 text-foreground">
             <GuidedTour />
             <a
                 href="#main-content"
@@ -65,7 +65,7 @@ export default function AppShell({
                 Skip to content
             </a>
 
-            <div className="flex h-full gap-0 overflow-hidden bg-shell lg:rounded-[28px] border border-transparent lg:dark:border-white/6 shadow-2xl dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)]">
+            <div className="flex h-full gap-0 overflow-clip bg-shell lg:rounded-[28px] border border-transparent lg:dark:border-white/6 shadow-2xl dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)]">
                 <Sidebar
                     open={navOpen}
                     onClose={() => setNavOpen(false)}
@@ -81,7 +81,7 @@ export default function AppShell({
                     <main
                         id="main-content"
                         ref={mainRef}
-                        className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 lg:px-8"
+                        className="min-h-0 flex-1 overflow-y-auto scroll-pt-28 scroll-pb-28 px-5 pb-8 lg:px-8"
                     >
                         {children}
                     </main>

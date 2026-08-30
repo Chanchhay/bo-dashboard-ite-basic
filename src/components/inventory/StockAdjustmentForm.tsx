@@ -42,6 +42,8 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
+    clampStockInput,
+    maxStockQuantity,
     stockEntrySchema,
     stockEntryTypeLabels,
     type InventoryItem,
@@ -213,8 +215,7 @@ export function StockAdjustmentForm() {
         .filter(
             (entry) =>
                 (entry.itemId || entry.addOnId) === (target?.id || "") &&
-                (entry.variantId || "") === optionId &&
-                entry.entryType !== "ADJUSTMENT",
+                (entry.variantId || "") === optionId,
         )
         .sort(
             (left, right) =>
@@ -668,8 +669,8 @@ export function StockAdjustmentForm() {
                                     !selectedItemId
                                         ? "Select an item to see the records it already has."
                                         : adjustableEntries.length === 0
-                                          ? "This item has no stock in or stock out yet, so the correction stands alone."
-                                          : "Pick the stock in or stock out this correction applies to. It is shown against the adjustment in the movements ledger."
+                                          ? "This item has no previous stock records yet, so the correction stands alone."
+                                          : "Pick the stock movement or adjustment this correction applies to. It is shown against the adjustment in the movements ledger."
                                 }
                             >
                                 <SelectField
@@ -725,6 +726,10 @@ export function StockAdjustmentForm() {
                                     name="quantity"
                                     type="number"
                                     step="1"
+                                    max={maxStockQuantity}
+                                    {...(isManual
+                                        ? { min: -maxStockQuantity }
+                                        : {})}
                                     disabled={isManual && !overrideQuantity}
                                     value={quantityInput}
                                     onKeyDown={(e) => {
@@ -737,9 +742,11 @@ export function StockAdjustmentForm() {
                                     }}
                                     onChange={(event) => {
                                         const raw = event.target.value;
-                                        const val = isManual
-                                            ? raw.replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "")
-                                            : raw.replace(/[^\d]/g, "");
+                                        const val = clampStockInput(
+                                            isManual
+                                                ? raw
+                                                : raw.replace(/-/g, ""),
+                                        );
                                         setQuantityInput(val);
                                         setFieldErrors((current) => {
                                             const next = { ...current };

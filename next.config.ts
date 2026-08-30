@@ -1,6 +1,22 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+
+const imageHosts = [
+    "auth.chanchhay.site",
+    "fluxibiz.store",
+    "business.fluxibiz.store",
+
+    "flagcdn.com",
+    "api.qrserver.com",
+    "images.unsplash.com",
+    "s3.careerpatch.site",
+    ...(process.env.NEXT_PUBLIC_IMAGE_HOSTS ?? "")
+        .split(",")
+        .map((host) => host.trim())
+        .filter(Boolean),
+];
+
 const nextConfig: NextConfig = {
     /* config options here */
     reactCompiler: true,
@@ -8,16 +24,11 @@ const nextConfig: NextConfig = {
         root: path.join(__dirname),
     },
     images: {
-        remotePatterns: [
-            {
-                protocol: "https",
-                hostname: "**",
-            },
-            {
-                protocol: "http",
-                hostname: "**",
-            },
-        ],
+
+        remotePatterns: imageHosts.map((hostname) => ({
+            protocol: "https" as const,
+            hostname,
+        })),
     },
     async headers() {
         return [

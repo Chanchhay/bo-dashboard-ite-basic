@@ -10,6 +10,9 @@ export type TelegramBotSetting = {
     active: boolean;
     webhookUrl: string;
     notificationChatId: string | null;
+    miniAppEnabled: boolean;
+    /** Where the bot's menu button points when miniAppEnabled — null otherwise. */
+    miniAppUrl: string | null;
 };
 
 export type TelegramBotSettingInput = {
@@ -53,6 +56,13 @@ export const telegramBotApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["TelegramBot"],
         }),
+        setTelegramMiniAppEnabled: build.mutation<TelegramBotSetting, boolean>({
+            query: (enabled) => ({
+                url: `/businesses/social-settings/telegram-bot/mini-app?enabled=${enabled}`,
+                method: "PATCH",
+            }),
+            invalidatesTags: ["TelegramBot"],
+        }),
     }),
 });
 
@@ -62,4 +72,5 @@ export const {
     useActivateTelegramBotMutation,
     useDeactivateTelegramBotMutation,
     useDisconnectTelegramBotMutation,
+    useSetTelegramMiniAppEnabledMutation,
 } = telegramBotApi;

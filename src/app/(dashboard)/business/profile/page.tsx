@@ -15,7 +15,7 @@ export default async function BusinessProfilePage() {
     }
 
     return (
-        <div className="pb-4">
+        <div>
             <div className="flex items-center justify-between gap-4">
                 <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
                     Manage the personal details of the business owner.

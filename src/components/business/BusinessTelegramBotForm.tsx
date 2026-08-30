@@ -24,10 +24,30 @@ export function BusinessTelegramBotForm() {
     const [activate, { isLoading: isActivating }] = telegramBotApi.useActivateTelegramBotMutation();
     const [deactivate, { isLoading: isDeactivating }] = telegramBotApi.useDeactivateTelegramBotMutation();
     const [disconnect, { isLoading: isDisconnecting }] = telegramBotApi.useDisconnectTelegramBotMutation();
+    const [setMiniAppEnabled, { isLoading: isTogglingMiniApp }] =
+        telegramBotApi.useSetTelegramMiniAppEnabledMutation();
 
     const isToggling = isActivating || isDeactivating;
     const isConfigured = data?.botTokenConfigured;
     const isActive = data?.active;
+
+    async function handleMiniAppToggle(next: boolean) {
+        try {
+            await setMiniAppEnabled(next).unwrap();
+            toast({
+                tone: "success",
+                title: next
+                    ? "Mini App enabled — the bot's menu button now opens your shop"
+                    : "Mini App disabled",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not toggle Mini App",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        }
+    }
 
     async function handleToggle(next: boolean) {
         try {
@@ -73,6 +93,33 @@ export function BusinessTelegramBotForm() {
                         disabled={!isConfigured || isToggling}
                         onCheckedChange={handleToggle}
                         aria-label="Enable Telegram Bot"
+                    />
+                </div>
+            </section>
+
+            <section data-tour="telegram-mini-app-toggle" className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-semibold text-foreground">
+                            Mini App (Open Shop button)
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {data?.miniAppEnabled
+                                ? "Customers see an \"Open Shop\" button in the bot that opens your full storefront inside Telegram."
+                                : "When on, the bot's menu button opens your shop as a real, graphical app inside Telegram instead of the usual text/button chat."}
+                        </p>
+                        {data?.miniAppEnabled && data?.miniAppUrl && (
+                            <p className="mt-1 text-xs text-muted-foreground break-all">
+                                {data.miniAppUrl}
+                            </p>
+                        )}
+                    </div>
+
+                    <Switch
+                        checked={Boolean(data?.miniAppEnabled)}
+                        disabled={!isConfigured || !isActive || isTogglingMiniApp}
+                        onCheckedChange={handleMiniAppToggle}
+                        aria-label="Enable Telegram Mini App"
                     />
                 </div>
             </section>
@@ -208,42 +255,42 @@ function AccountForm({
                         />
                     </div>
                 </div>
-
-                <div className="mt-6 flex items-center justify-end gap-3 border-t border-border pt-5">
-                    {isConfigured && (
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={isDisconnecting || isSaving}
-                            onClick={async () => {
-                                if (confirm("Are you sure you want to disconnect this bot?")) {
-                                    try {
-                                        await onDisconnect();
-                                    } catch (cause) {
-                                        toast({
-                                            tone: "error",
-                                            title: "Could not disconnect",
-                                            description: getApiErrorMessage(cause, "Please try again."),
-                                        });
-                                    }
-                                }
-                            }}
-                        >
-                            Disconnect
-                        </Button>
-                    )}
-
-                    <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
-                        {isSaving && (
-                            <LoaderCircle
-                                className="-ml-1 mr-2 size-4 animate-spin"
-                                aria-hidden="true"
-                            />
-                        )}
-                        {isConfigured ? "Update Settings" : "Connect Bot"}
-                    </Button>
-                </div>
             </section>
+
+            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8">
+                {isConfigured && (
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={isDisconnecting || isSaving}
+                        onClick={async () => {
+                            if (confirm("Are you sure you want to disconnect this bot?")) {
+                                try {
+                                    await onDisconnect();
+                                } catch (cause) {
+                                    toast({
+                                        tone: "error",
+                                        title: "Could not disconnect",
+                                        description: getApiErrorMessage(cause, "Please try again."),
+                                    });
+                                }
+                            }
+                        }}
+                    >
+                        Disconnect
+                    </Button>
+                )}
+
+                <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
+                    {isSaving && (
+                        <LoaderCircle
+                            className="-ml-1 mr-2 size-4 animate-spin"
+                            aria-hidden="true"
+                        />
+                    )}
+                    {isConfigured ? "Update Settings" : "Connect Bot"}
+                </Button>
+            </div>
         </form>
     );
 }

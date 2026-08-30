@@ -256,7 +256,7 @@ export function ProfitByChannel() {
                         </StatTile>
                     </div>
 
-                    <section data-tour="profit-channel-breakdown" className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+                    <section data-tour="profit-channel-breakdown" className="overflow-clip rounded-2xl border border-border bg-card shadow-xs">
                         <div className="border-b border-border p-4 sm:px-5">
                             <h2 className="text-base font-semibold text-foreground">
                                 Where it came from

@@ -113,6 +113,29 @@ export default function MembershipTypesPage() {
         );
     }, [membershipTypes, searchQuery]);
 
+    const posEligibleDiscounts = useMemo(() => {
+        return discounts.filter((d) => {
+            if (discountId && d.id === discountId) return true;
+            if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
+            if (d.applicableChannels && d.applicableChannels.length > 0) {
+                return d.applicableChannels.includes("POS");
+            }
+            return false;
+        });
+    }, [discounts, discountId]);
+
+    const selectedDiscountLabel = useMemo(() => {
+        if (!discountId || discountId === "NONE") return "None (No special discount)";
+        const found = discounts.find((d) => d.id === discountId);
+        if (!found) return "None (No special discount)";
+        const isBuyXGetY = found.ruleType === "BUY_X_GET_Y" || String(found.type) === "BUY_X_GET_Y";
+        return isBuyXGetY
+            ? `${found.name} (Buy ${found.buyQuantity ?? "X"} get ${found.getQuantity ?? "Y"})`
+            : found.type === "PERCENTAGE"
+            ? `${found.name} (${found.value}%)`
+            : `${found.name} (${format(found.value)})`;
+    }, [discountId, discounts, format]);
+
     const openCreateDialog = () => {
         setEditingType(null);
         setFormError("");
@@ -187,18 +210,6 @@ export default function MembershipTypesPage() {
         }
     };
 
-    const selectedDiscountLabel = useMemo(() => {
-        if (!discountId || discountId === "NONE") return "None (No special discount)";
-        const d = discounts.find((item) => item.id === discountId);
-        if (!d) return "None (No special discount)";
-        const isBuyXGetY = d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y";
-        return isBuyXGetY
-            ? `${d.name} (Buy ${d.buyQuantity ?? "X"} get ${d.getQuantity ?? "Y"})`
-            : d.type === "PERCENTAGE"
-            ? `${d.name} (${d.value}%)`
-            : `${d.name} (${format(d.value)})`;
-    }, [discountId, discounts, format]);
-
     return (
         <div className="space-y-6">
             {/* Header section */}
@@ -242,7 +253,7 @@ export default function MembershipTypesPage() {
             </div>
 
             {/* Table */}
-            <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isTypesLoading ? (
                     <TableSkeleton rows={5} cols={5} />
                 ) : filteredTypes.length === 0 ? (
@@ -373,7 +384,7 @@ export default function MembershipTypesPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="NONE">None (No special discount)</SelectItem>
-                                    {discounts.map((d) => {
+                                    {posEligibleDiscounts.map((d) => {
                                         const isBuyXGetY = d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y";
                                         const label = isBuyXGetY
                                             ? `${d.name} (Buy ${d.buyQuantity ?? "X"} get ${d.getQuantity ?? "Y"})`

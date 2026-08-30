@@ -113,7 +113,10 @@ export function PredictionTables() {
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div
+                data-tour="prediction-controls"
+                className="flex flex-wrap items-center justify-between gap-3"
+            >
                 <div className="relative min-w-56 flex-1">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -284,7 +287,10 @@ function PredictionTable({
     const [open, setOpen] = useState(false);
 
     return (
-        <Card className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
+        <Card
+            data-tour="prediction-group"
+            className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm"
+        >
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}

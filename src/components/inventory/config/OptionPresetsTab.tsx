@@ -17,7 +17,12 @@ import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -42,7 +47,12 @@ type OptionPreset = {
     name: string;
     type: "SELECTION" | "COLOR";
     required: boolean;
-    values: { id: string; value: string; colorHex?: string; imageUrl?: string }[];
+    values: {
+        id: string;
+        value: string;
+        colorHex?: string;
+        imageUrl?: string;
+    }[];
 };
 
 function toScreenPreset(preset: ApiOptionPreset): OptionPreset {
@@ -144,13 +154,18 @@ export function OptionPresetsTab() {
 
     function updateValue(
         index: number,
-        patch: Partial<DraftValue> | ((current: DraftValue) => Partial<DraftValue>),
+        patch:
+            | Partial<DraftValue>
+            | ((current: DraftValue) => Partial<DraftValue>),
     ) {
         setDraft((current) => ({
             ...current,
             values: current.values.map((row, position) =>
                 position === index
-                    ? { ...row, ...(typeof patch === "function" ? patch(row) : patch) }
+                    ? {
+                          ...row,
+                          ...(typeof patch === "function" ? patch(row) : patch),
+                      }
                     : row,
             ),
         }));
@@ -177,7 +192,10 @@ export function OptionPresetsTab() {
     }
 
     function resetForm() {
-        setDraft({ ...emptyDraft, values: [{ ...emptyValue }, { ...emptyValue }] });
+        setDraft({
+            ...emptyDraft,
+            values: [{ ...emptyValue }, { ...emptyValue }],
+        });
         setEditingId(null);
         setErrors({});
     }
@@ -306,7 +324,10 @@ export function OptionPresetsTab() {
 
     return (
         <div className="flex flex-col gap-4">
-            <p data-tour="preset-info-banner" className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+            <p
+                data-tour="preset-info-banner"
+                className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground sm:px-5"
+            >
                 A preset is a starting point, not a live link. Applying one
                 copies its values onto the item — editing the preset afterwards
                 does not rewrite items already using it, so a tweak here can
@@ -434,33 +455,33 @@ export function OptionPresetsTab() {
                 }}
             >
                 <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto p-5 sm:p-7">
-                <form onSubmit={handleSubmit} noValidate>
-                    <DialogHeader className="flex-row items-start gap-4 space-y-0 pr-8 text-left">
-                        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                            <ListChecks className="size-5" />
-                        </span>
-                        <div>
-                            <DialogTitle className="text-lg font-semibold text-foreground">
-                                {isEditing ? "Edit preset" : "Add a preset"}
-                            </DialogTitle>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                A name and the choices under it.
-                            </p>
-                        </div>
-                        {isEditing ? (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Cancel editing"
-                                onClick={resetForm}
-                            >
-                                <X />
-                            </Button>
-                        ) : null}
-                    </DialogHeader>
+                    <form onSubmit={handleSubmit} noValidate>
+                        <DialogHeader className="flex-row items-start gap-4 space-y-0 pr-8 text-left">
+                            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                                <ListChecks className="size-5" />
+                            </span>
+                            <div>
+                                <DialogTitle className="text-lg font-semibold text-foreground">
+                                    {isEditing ? "Edit preset" : "Add a preset"}
+                                </DialogTitle>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    A name and the choices under it.
+                                </p>
+                            </div>
+                            {isEditing ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Cancel editing"
+                                    onClick={resetForm}
+                                >
+                                    <X />
+                                </Button>
+                            ) : null}
+                        </DialogHeader>
 
-                    <div className="mt-6 grid gap-5 md:grid-cols-2">
+                        <div className="mt-6 grid gap-5 md:grid-cols-2">
                             <div
                                 data-tour="preset-form-name"
                                 className="flex min-w-0 flex-col gap-2"
@@ -475,14 +496,19 @@ export function OptionPresetsTab() {
                                     id="preset-name"
                                     value={draft.name}
                                     onChange={(event) =>
-                                        updateDraft({ name: event.target.value })
+                                        updateDraft({
+                                            name: event.target.value,
+                                        })
                                     }
                                     placeholder="Size"
                                     aria-invalid={Boolean(errors.name)}
                                     className={inventoryControlClassName}
                                 />
                                 {errors.name ? (
-                                    <p className="text-xs text-danger" role="alert">
+                                    <p
+                                        className="text-xs text-danger"
+                                        role="alert"
+                                    >
                                         {errors.name}
                                     </p>
                                 ) : (
@@ -529,140 +555,159 @@ export function OptionPresetsTab() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                    </div>
+                        </div>
 
-                    <div className="mt-5 rounded-xl border border-dashed border-border p-4">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h3 className="text-sm font-semibold text-foreground">
-                                    Choices *
-                                </h3>
+                        <div className="mt-5 rounded-xl border border-dashed border-border p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-foreground">
+                                        Choices *
+                                    </h3>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {draft.type === "COLOR"
+                                            ? "Pick a colour for each — the photo is what the store shows once a shopper picks it."
+                                            : "At least two. The photo is what the store shows once a shopper picks it."}
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addValue}
+                                >
+                                    <Plus className="size-4" />
+                                    Add choice
+                                </Button>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {draft.values.map((row, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-2.5"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                value={row.value}
+                                                onChange={(event) =>
+                                                    updateValue(index, {
+                                                        value: event.target
+                                                            .value,
+                                                    })
+                                                }
+                                                placeholder={
+                                                    draft.type === "COLOR"
+                                                        ? "Red"
+                                                        : "Medium"
+                                                }
+                                                aria-label={`Choice ${index + 1}`}
+                                                className={
+                                                    inventoryControlClassName
+                                                }
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-lg"
+                                                aria-label={`Remove choice ${index + 1}`}
+                                                onClick={() =>
+                                                    removeValue(index)
+                                                }
+                                                disabled={
+                                                    draft.values.length <= 1
+                                                }
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </Button>
+                                        </div>
+
+                                        {draft.type === "COLOR" ? (
+                                            <ColorSwatchButton
+                                                value={row.colorHex}
+                                                colorName={row.value}
+                                                label={`Choice ${index + 1} colour`}
+                                                onChange={(patch) =>
+                                                    updateValue(index, {
+                                                        ...(patch.colorHex ===
+                                                        undefined
+                                                            ? {}
+                                                            : {
+                                                                  colorHex:
+                                                                      patch.colorHex,
+                                                              }),
+                                                        // A preset value *is* the
+                                                        // colour's name, so naming
+                                                        // it here names the choice.
+                                                        ...(patch.colorName ===
+                                                        undefined
+                                                            ? {}
+                                                            : {
+                                                                  value: patch.colorName,
+                                                              }),
+                                                    })
+                                                }
+                                            />
+                                        ) : null}
+
+                                        <ChoiceImageField
+                                            compact
+                                            value={row.imageUrl}
+                                            label={`Choice ${index + 1} photo`}
+                                            onChange={(url) =>
+                                                updateValue(index, {
+                                                    imageUrl: url,
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {errors.values ? (
+                                <p
+                                    className="mt-3 text-xs text-danger"
+                                    role="alert"
+                                >
+                                    {errors.values}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-dashed border-border p-4">
+                            <div className="min-w-0">
+                                <Label
+                                    htmlFor="preset-required"
+                                    className="text-sm font-semibold text-foreground"
+                                >
+                                    Required
+                                </Label>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    {draft.type === "COLOR"
-                                        ? "Pick a colour for each — the photo is what the store shows once a shopper picks it."
-                                        : "At least two. The photo is what the store shows once a shopper picks it."}
+                                    A sale cannot proceed until the customer
+                                    picks one.
                                 </p>
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={addValue}
-                            >
-                                <Plus className="size-4" />
-                                Add choice
-                            </Button>
+                            <Switch
+                                id="preset-required"
+                                checked={draft.required}
+                                onCheckedChange={(checked) =>
+                                    updateDraft({ required: Boolean(checked) })
+                                }
+                            />
                         </div>
 
-                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {draft.values.map((row, index) => (
-                                <div
-                                    key={index}
-                                    className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-2.5"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Input
-                                            value={row.value}
-                                            onChange={(event) =>
-                                                updateValue(index, {
-                                                    value: event.target.value,
-                                                })
-                                            }
-                                            placeholder={
-                                                draft.type === "COLOR"
-                                                    ? "Red"
-                                                    : "Medium"
-                                            }
-                                            aria-label={`Choice ${index + 1}`}
-                                            className={inventoryControlClassName}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon-lg"
-                                            aria-label={`Remove choice ${index + 1}`}
-                                            onClick={() => removeValue(index)}
-                                            disabled={draft.values.length <= 1}
-                                        >
-                                            <Trash2 className="size-4" />
-                                        </Button>
-                                    </div>
-
-                                    {draft.type === "COLOR" ? (
-                                        <ColorSwatchButton
-                                            value={row.colorHex}
-                                            colorName={row.value}
-                                            label={`Choice ${index + 1} colour`}
-                                            onChange={(patch) =>
-                                                updateValue(index, {
-                                                    ...(patch.colorHex === undefined
-                                                        ? {}
-                                                        : { colorHex: patch.colorHex }),
-                                                    // A preset value *is* the
-                                                    // colour's name, so naming
-                                                    // it here names the choice.
-                                                    ...(patch.colorName === undefined
-                                                        ? {}
-                                                        : { value: patch.colorName }),
-                                                })
-                                            }
-                                        />
-                                    ) : null}
-
-                                    <ChoiceImageField
-                                        compact
-                                        value={row.imageUrl}
-                                        label={`Choice ${index + 1} photo`}
-                                        onChange={(url) =>
-                                            updateValue(index, {
-                                                imageUrl: url,
-                                            })
-                                        }
-                                    />
-                                </div>
-                            ))}
-                        </div>
-
-                        {errors.values ? (
-                            <p className="mt-3 text-xs text-danger" role="alert">
-                                {errors.values}
-                            </p>
-                        ) : null}
-                    </div>
-
-                    <div className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-dashed border-border p-4">
-                        <div className="min-w-0">
-                            <Label
-                                htmlFor="preset-required"
-                                className="text-sm font-semibold text-foreground"
-                            >
-                                Required
-                            </Label>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                A sale cannot proceed until the customer
-                                picks one.
-                            </p>
-                        </div>
-                        <Switch
-                            id="preset-required"
-                            checked={draft.required}
-                            onCheckedChange={(checked) =>
-                                updateDraft({ required: Boolean(checked) })
+                        <Button
+                            data-tour="preset-form-submit"
+                            type="submit"
+                            size="lg"
+                            disabled={
+                                createState.isLoading || updateState.isLoading
                             }
-                        />
-                    </div>
-
-                    <Button
-                        data-tour="preset-form-submit"
-                        type="submit"
-                        size="lg"
-                        disabled={createState.isLoading || updateState.isLoading}
-                        className="mt-6 w-full"
-                    >
-                        <Plus />
-                        {isEditing ? "Save changes" : "Add preset"}
-                    </Button>
-                </form>
+                            className="mt-6 w-full"
+                        >
+                            <Plus />
+                            {isEditing ? "Save changes" : "Add preset"}
+                        </Button>
+                    </form>
                 </DialogContent>
             </Dialog>
 
@@ -684,7 +729,8 @@ export function OptionPresetsTab() {
                                 {deleteTarget.name}
                             </strong>{" "}
                             keep their choices — a preset is only a starting
-                            point. You just won&apos;t be able to apply it again.
+                            point. You just won&apos;t be able to apply it
+                            again.
                         </>
                     ) : (
                         "This action cannot be undone."

@@ -8,6 +8,24 @@ export type BusinessSubCategory = {
     slug?: string;
 };
 
+export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
+
+export type SocialLink = {
+    platform: string;
+    url: string;
+};
+
+
+export const FACEBOOK_SOCIAL_LINK_PLATFORM = "facebook";
+
+export function facebookPageUrl(business: Pick<Business, "socialLinks">) {
+    return (
+        business.socialLinks?.find(
+            (link) => link.platform === FACEBOOK_SOCIAL_LINK_PLATFORM,
+        )?.url ?? ""
+    );
+}
+
 export type BusinessCategory = {
     id?: string;
     name?: string;
@@ -25,17 +43,14 @@ export type Business = {
     phoneNumber?: string;
     googleMap?: string;
     address?: string;
-    /** @deprecated superseded by {@link provinceName}; still returned during the transition. */
+    socialLinks?: SocialLink[];
+
     cityOrProvince?: string;
-    /**
-     * Province/city, district/khan, commune/sangkat — filled in from a map
-     * geocoder when the owner drops the pin, not typed by hand. Plain text
-     * rather than an id: nobody here maintains a seeded division table.
-     */
+
     provinceName?: string;
     districtName?: string;
     communeName?: string;
-    /** The shopfront's exact map pin, same source as the names above. */
+
     latitude?: number;
     longitude?: number;
     website?: string;
@@ -43,6 +58,11 @@ export type Business = {
     category?: BusinessSubCategory;
     baseCurrency?: string;
     displayCurrency?: string;
+
+    taxEnabled?: boolean;
+    taxRate?: number;
+    taxInclusionType?: TaxInclusionType;
+    taxLabel?: string;
 };
 
 export type StorefrontRequirement = {
@@ -82,6 +102,45 @@ const optionalPhoneSchema = z
         "Use 8–30 characters containing only numbers, spaces, and an optional +.",
     );
 
+function optionalUrlSchema(
+    label: string,
+    example = "https://example.com",
+) {
+    return z
+        .string()
+        .trim()
+        .max(255, `${label} must be 255 characters or fewer.`)
+        .refine(
+            (value) => {
+                if (!value) return true;
+                try {
+                    const url = new URL(value);
+                    return url.protocol === "http:" || url.protocol === "https:";
+                } catch {
+                    return false;
+                }
+            },
+            `Enter a valid ${label.toLowerCase()} link (e.g. ${example}).`,
+        );
+}
+
+const optionalGoogleMapUrlSchema = z
+    .string()
+    .trim()
+    .max(255, "Google Map URL must be 255 characters or fewer.")
+    .refine(
+        (value) => {
+            if (!value) return true;
+            try {
+                const url = new URL(value);
+                return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+                return false;
+            }
+        },
+        "Enter a valid Google Map link (e.g. https://maps.app.goo.gl/...).",
+    );
+
 /** Cambodia's bounding box, padded — catches a mis-dropped pin, not a precise fence. */
 const coordinateBounds = { latitude: [9, 15], longitude: [102, 108] } as const;
 
@@ -112,19 +171,17 @@ export const businessProfileSchema = z.object({
         .trim()
         .max(255, "Description must be 255 characters or fewer."),
     email: optionalEmailSchema,
-    website: z
-        .string()
-        .trim()
-        .max(255, "Website must be 255 characters or fewer."),
+    website: optionalUrlSchema("Website"),
     phoneNumber: optionalPhoneSchema,
     address: z
         .string()
         .trim()
         .max(255, "Address must be 255 characters or fewer."),
-    googleMap: z
-        .string()
-        .trim()
-        .max(255, "Google Map URL must be 255 characters or fewer."),
+    googleMap: optionalGoogleMapUrlSchema,
+    facebookPage: optionalUrlSchema(
+        "Facebook Page",
+        "https://facebook.com/yourpage",
+    ),
     provinceName: z
         .string()
         .trim()
@@ -144,7 +201,6 @@ export const businessProfileSchema = z.object({
     longitude: optionalCoordinateSchema("longitude", "longitude"),
 });
 
-/** Matches the backend's upload limits for `POST /businesses/{id}/logo`. */
 export const businessLogoRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp,image/svg+xml",
     maxBytes: 5 * 1024 * 1024,
@@ -152,7 +208,6 @@ export const businessLogoRules = imageUploadRules({
     formats: "PNG, JPG, WebP or SVG",
 });
 
-/** The storefront cover, behind `POST /businesses/{id}/thumbnail`. */
 export const businessThumbnailRules = imageUploadRules({
     accept: "image/png,image/jpeg,image/webp",
     maxBytes: 5 * 1024 * 1024,
@@ -162,8 +217,6 @@ export const businessThumbnailRules = imageUploadRules({
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 
-// `UpdateBusinessRequest` carries no logo: the image is owned by the
-// `/logo` upload and delete endpoints instead.
 export type UpdateBusinessInput = {
     name: string;
     categoryId?: string;
@@ -173,6 +226,7 @@ export type UpdateBusinessInput = {
     phoneNumber?: string;
     googleMap: string;
     website: string;
+    socialLinks?: SocialLink[];
     provinceName?: string;
     districtName?: string;
     communeName?: string;
@@ -180,8 +234,32 @@ export type UpdateBusinessInput = {
     longitude?: number;
 };
 
+/**
+ * Merges the form's single Facebook Page field into the business's existing
+ * `socialLinks`, so saving the profile doesn't clobber other platforms a
+ * future editor adds to that same list.
+ */
+function mergedSocialLinks(
+    facebookPage: string,
+    existingLinks: SocialLink[] | undefined,
+): SocialLink[] {
+    const otherLinks = (existingLinks ?? []).filter(
+        (link) => link.platform !== FACEBOOK_SOCIAL_LINK_PLATFORM,
+    );
+
+    if (!facebookPage) {
+        return otherLinks;
+    }
+
+    return [
+        ...otherLinks,
+        { platform: FACEBOOK_SOCIAL_LINK_PLATFORM, url: facebookPage },
+    ];
+}
+
 export function toUpdateBusinessInput(
     input: BusinessProfileInput,
+    existing?: Pick<Business, "socialLinks">,
 ): UpdateBusinessInput {
     return {
         name: input.name,
@@ -189,6 +267,10 @@ export function toUpdateBusinessInput(
         address: input.address,
         googleMap: input.googleMap,
         website: input.website,
+        socialLinks: mergedSocialLinks(
+            input.facebookPage,
+            existing?.socialLinks,
+        ),
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         ...(input.email ? { email: input.email } : {}),
         ...(input.phoneNumber ? { phoneNumber: input.phoneNumber } : {}),
@@ -197,5 +279,47 @@ export function toUpdateBusinessInput(
         ...(input.communeName ? { communeName: input.communeName } : {}),
         ...(input.latitude ? { latitude: Number(input.latitude) } : {}),
         ...(input.longitude ? { longitude: Number(input.longitude) } : {}),
+    };
+}
+
+/** Sale Management's Tax Settings page — a separate save from the general
+ * business profile, since it lives on its own page there. */
+export const taxSettingsSchema = z.object({
+    taxEnabled: z.boolean(),
+    taxRate: z
+        .string()
+        .trim()
+        .refine(
+            (value) =>
+                value === "" ||
+                (!Number.isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 100),
+            "Tax rate must be a number between 0 and 100.",
+        ),
+    taxInclusionType: z.enum(["INCLUSIVE", "EXCLUSIVE"]),
+    taxLabel: z
+        .string()
+        .trim()
+        .max(30, "Tax label must be 30 characters or fewer."),
+});
+
+export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
+
+/** Same `UpdateBusinessRequest` endpoint, but with only the tax fields set —
+ * every other field stays null so nothing else on the profile is touched. */
+export type UpdateBusinessTaxInput = {
+    taxEnabled: boolean;
+    taxRate?: number;
+    taxInclusionType: TaxInclusionType;
+    taxLabel?: string;
+};
+
+export function toUpdateBusinessTaxInput(
+    input: TaxSettingsInput,
+): UpdateBusinessTaxInput {
+    return {
+        taxEnabled: input.taxEnabled,
+        taxInclusionType: input.taxInclusionType,
+        ...(input.taxRate !== "" ? { taxRate: Number(input.taxRate) } : {}),
+        ...(input.taxLabel ? { taxLabel: input.taxLabel } : {}),
     };
 }

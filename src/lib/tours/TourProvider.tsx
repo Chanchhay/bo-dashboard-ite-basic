@@ -2,12 +2,38 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { driver, type Driver } from "driver.js";
+import { driver, type Driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 
 import "@/components/onboarding/tour-theme.css";
 import { routeTourConfig } from "./tourConfig";
 import { TourContext } from "./TourContext";
+
+/**
+ * Height of the sticky page headers that park themselves at the top of the
+ * scroll container. Anything highlighted underneath one has to clear it.
+ */
+const STICKY_HEADER_OFFSET = 112;
+
+/**
+ * driver.js only scrolls when an element is outside the viewport, and an
+ * element hidden behind a sticky header is still "inside" it — so it leaves the
+ * target covered and never scrolls back. This clears it by hand.
+ */
+function revealForTour(element: Element | undefined) {
+  const main = document.getElementById("main-content");
+
+  if (!main || !(element instanceof HTMLElement)) return;
+
+  const mainTop = main.getBoundingClientRect().top;
+  const offsetFromTop = element.getBoundingClientRect().top - mainTop;
+
+  if (offsetFromTop >= STICKY_HEADER_OFFSET) return;
+
+  main.scrollTo({
+    top: Math.max(0, main.scrollTop + offsetFromTop - STICKY_HEADER_OFFSET),
+  });
+}
 
 const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
   "/inventory/stock": "/inventory/stock/movements",
@@ -73,16 +99,48 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     } catch { }
   }, []);
 
-  // Find exact match or prefix route match for current pathname
+  // Exact match, else the LONGEST matching prefix — `find` returned whichever
+  // key happened to come first, so /inventory/import/42 inherited /inventory.
   const activeSteps = useMemo(() => {
     if (!pathname) return [];
     if (routeTourConfig[pathname]) return routeTourConfig[pathname];
 
-    const matchingKey = Object.keys(routeTourConfig).find(
-      (key) => key !== "/" && pathname.startsWith(key)
-    );
+    const matchingKey = Object.keys(routeTourConfig)
+      .filter((key) => key !== "/" && pathname.startsWith(key))
+      .sort((a, b) => b.length - a.length)[0];
+
     return matchingKey ? routeTourConfig[matchingKey] : [];
   }, [pathname]);
+
+  /**
+   * A page can inherit a parent's steps and resolve none of them, which left
+   * the help button offering a tour that did nothing. Only advertise one when
+   * at least one step is actually on screen; content can load late, so this
+   * keeps looking for a few seconds.
+   */
+  const [hasLiveStep, setHasLiveStep] = useState(false);
+
+  useEffect(() => {
+    const check = () =>
+      setHasLiveStep(
+        activeSteps.some(
+          (step) =>
+            typeof step.element !== "string" ||
+            !!document.querySelector(step.element),
+        ),
+      );
+
+    // Deferred, so nothing is set synchronously during the effect.
+    const first = setTimeout(check, 0);
+    const poll = setInterval(check, 400);
+    const stop = setTimeout(() => clearInterval(poll), 5000);
+
+    return () => {
+      clearTimeout(first);
+      clearInterval(poll);
+      clearTimeout(stop);
+    };
+  }, [activeSteps, pathname]);
 
   const saveTourProgressToBackend = useCallback(async (routePath: string) => {
     try {
@@ -119,6 +177,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
     if (availableSteps.length === 0) return;
 
+    // Keep each step's own hook, then uncover the target before it is measured.
+    const steps: DriveStep[] = availableSteps.map((step) => ({
+      ...step,
+      onHighlightStarted: (element, stepDef, opts) => {
+        step.onHighlightStarted?.(element, stepDef, opts);
+        revealForTour(element);
+      },
+    }));
+
     const nextRoute = NEXT_TOUR_ROUTE_MAP[pathname];
 
     let cleanupKeydown: (() => void) | null = null;
@@ -133,7 +200,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       nextBtnText: "Next →",
       prevBtnText: "← Back",
       progressText: "Step {{current}} of {{total}}",
-      steps: availableSteps,
+      steps,
       onNextClick: (_element, _step, _opts) => {
         const isLast = inst.getActiveIndex() === availableSteps.length - 1;
         if (isLast && nextRoute) {
@@ -219,7 +286,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     <TourContext.Provider
       value={{
         startTour,
-        isTourAvailable: activeSteps.length > 0,
+        isTourAvailable: hasLiveStep,
         isNewUser,
         markAsNewUser,
         markAsOldUser,

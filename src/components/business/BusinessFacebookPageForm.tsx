@@ -6,12 +6,16 @@ import { LoaderCircle, CheckCircle2, AlertCircle, Link2, LogOut } from "lucide-r
 
 import { Button } from "@/components/ui/button";
 import { FormSkeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
     useGetFacebookPageSettingQuery,
     useLazyGetFacebookConnectUrlQuery,
     useDisconnectFacebookPageMutation,
+    useActivateFacebookPageMutation,
+    useDeactivateFacebookPageMutation,
+    useSetFacebookMiniAppEnabledMutation,
 } from "@/services/facebookPageApi";
 
 export function BusinessFacebookPageForm() {
@@ -22,9 +26,52 @@ export function BusinessFacebookPageForm() {
     const { data, isLoading } = useGetFacebookPageSettingQuery();
     const [fetchConnectUrl, { isFetching: isGettingUrl }] = useLazyGetFacebookConnectUrlQuery();
     const [disconnectPage, { isLoading: isDisconnecting }] = useDisconnectFacebookPageMutation();
+    const [activatePage, { isLoading: isActivating }] = useActivateFacebookPageMutation();
+    const [deactivatePage, { isLoading: isDeactivating }] = useDeactivateFacebookPageMutation();
+    const [setMiniAppEnabled, { isLoading: isTogglingMiniApp }] = useSetFacebookMiniAppEnabledMutation();
 
     const isConnected = data?.connected;
     const pageName = data?.pageName;
+    const isActive = data?.active;
+    const isToggling = isActivating || isDeactivating;
+
+    async function handleToggle(next: boolean) {
+        try {
+            if (next) {
+                await activatePage().unwrap();
+            } else {
+                await deactivatePage().unwrap();
+            }
+            toast({
+                tone: "success",
+                title: next ? "Messenger text/button bot is now active" : "Messenger text/button bot is now paused",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not toggle Messenger bot status",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        }
+    }
+
+    async function handleMiniAppToggle(next: boolean) {
+        try {
+            await setMiniAppEnabled(next).unwrap();
+            toast({
+                tone: "success",
+                title: next
+                    ? "Mini App enabled — the persistent menu now opens your shop"
+                    : "Mini App disabled",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not toggle Mini App",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        }
+    }
 
     useEffect(() => {
         const result = searchParams.get("facebook");
@@ -151,6 +198,7 @@ export function BusinessFacebookPageForm() {
 
                             <Button
                                 type="button"
+                                data-tour="facebook-connect-btn"
                                 className="bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium"
                                 disabled={isGettingUrl}
                                 onClick={handleConnect}
@@ -166,6 +214,58 @@ export function BusinessFacebookPageForm() {
                     )}
                 </div>
             </section>
+
+            {isConnected && (
+                <>
+                    <section className="rounded-2xl border border-border bg-card p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-base font-semibold text-foreground">
+                                    Enable Text/Button Bot
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Customers can browse your catalog, build a cart, and check out
+                                    entirely through Messenger chat when this is on.
+                                </p>
+                            </div>
+
+                            <Switch
+                                checked={Boolean(isActive)}
+                                disabled={isToggling}
+                                onCheckedChange={handleToggle}
+                                aria-label="Enable Messenger text/button bot"
+                            />
+                        </div>
+                    </section>
+
+                    <section className="rounded-2xl border border-border bg-card p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-base font-semibold text-foreground">
+                                    Mini App (Open Shop button)
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {data?.miniAppEnabled
+                                        ? "Customers see an \"Open Shop\" button in Messenger that opens your full storefront as a real, graphical app."
+                                        : "When on, the persistent menu opens your shop as a real, graphical app inside Messenger instead of the usual text/button chat."}
+                                </p>
+                                {data?.miniAppEnabled && data?.miniAppUrl && (
+                                    <p className="mt-1 text-xs text-muted-foreground break-all">
+                                        {data.miniAppUrl}
+                                    </p>
+                                )}
+                            </div>
+
+                            <Switch
+                                checked={Boolean(data?.miniAppEnabled)}
+                                disabled={isTogglingMiniApp}
+                                onCheckedChange={handleMiniAppToggle}
+                                aria-label="Enable Messenger Mini App"
+                            />
+                        </div>
+                    </section>
+                </>
+            )}
         </div>
     );
 }

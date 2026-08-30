@@ -286,7 +286,12 @@ export const NAVIGATION: NavSection[] = [
         href: "/sales/orders",
       },
       {
-        
+        label: "Pay Later",
+        href: "/sales/pay-later",
+        permission: "order:read",
+      },
+      {
+
         label: "Item & Pricing",
         href: "/sales/pricing",
         permission: "item:read",

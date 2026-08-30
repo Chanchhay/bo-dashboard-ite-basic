@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Receipt,
   Percent,
-  DollarSign,
   Save,
-  CheckCircle2,
   AlertCircle,
   HelpCircle,
 } from "lucide-react";
@@ -15,163 +13,219 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
-import { useMoney } from "@/hooks/useMoney";
-import type { TaxConfig, TaxType } from "@/lib/api/tax";
-import { taxSchema } from "@/lib/api/tax";
-import { getDefaultTax, updateDefaultTax } from "@/lib/tax-store";
+import type { TaxInclusionType } from "@/lib/api/business";
+import { taxSettingsSchema } from "@/lib/api/business";
 import { cn } from "@/lib/utils";
 import { FormSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { TourButton } from "@/components/onboarding/TourButton";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
-import type { PosOrder, PosReceipt } from "@/lib/api/pos-order";
+import type { PosOrder, PosReceipt, Sale } from "@/lib/api/pos-order";
 import type { Business } from "@/lib/api/business";
+import {
+  useGetBusinessProfileQuery,
+  useUpdateBusinessTaxMutation,
+} from "@/services/businessApi";
+import { getApiErrorMessage } from "@/lib/api-error";
+
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+/** Mirrors the backend's TaxCalculator exactly, so this preview never
+ * promises a number a real checkout wouldn't also charge. */
+function computeTax(
+  netAmount: number,
+  rate: number,
+  inclusionType: TaxInclusionType,
+  enabled: boolean,
+) {
+  if (!enabled || !Number.isFinite(rate) || rate <= 0) {
+    return { taxAmount: 0, total: round2(netAmount) };
+  }
+
+  if (inclusionType === "INCLUSIVE") {
+    const pretax = netAmount / (1 + rate / 100);
+    return { taxAmount: round2(netAmount - pretax), total: round2(netAmount) };
+  }
+
+  const taxAmount = round2(netAmount * (rate / 100));
+  return { taxAmount, total: round2(netAmount + taxAmount) };
+}
 
 export default function TaxesPage() {
-  const { format } = useMoney();
   const { toast } = useToast();
+  const businessQuery = useGetBusinessProfileQuery();
+  const [updateBusinessTax, { isLoading: isSubmitting }] = useUpdateBusinessTaxMutation();
 
-  const [savedConfig, setSavedConfig] = useState<TaxConfig | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // Single Default Tax Form Fields
-  const [taxName, setTaxName] = useState("VAT");
-  const [taxType, setTaxType] = useState<TaxType>("PERCENTAGE");
-  const [taxRate, setTaxRate] = useState<number>(10);
-  const [taxAmount, setTaxAmount] = useState<number>(0);
-  const [isActive, setIsActive] = useState<boolean>(true);
-  const [isTaxInclusive, setIsTaxInclusive] = useState<boolean>(false);
+  if (businessQuery.isLoading) {
+    return (
+      <div className="space-y-6 pb-12">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 rounded-lg" />
+            <Skeleton className="h-4 w-72 rounded-md" />
+          </div>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <FormSkeleton rows={3} />
+          </div>
+          <div className="lg:col-span-5">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-2xs">
+              <Skeleton className="h-6 w-36 rounded-md" />
+              <Skeleton className="h-64 w-full rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  // Load default tax settings on mount
-  useEffect(() => {
-    const defaultTax = getDefaultTax();
-    setSavedConfig(defaultTax);
-    setTaxName(defaultTax.taxName || "VAT");
-    setTaxType(defaultTax.taxType || "PERCENTAGE");
-    setTaxRate(defaultTax.taxRate ?? 10);
-    setTaxAmount(defaultTax.taxAmount ?? 0);
-    setIsActive(defaultTax.isActive ?? true);
-    setIsTaxInclusive(defaultTax.isTaxInclusive ?? false);
-    setIsLoaded(true);
-  }, []);
+  if (businessQuery.error || !businessQuery.data) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <AlertCircle className="h-5 w-5 shrink-0" />
+        <span>
+          {getApiErrorMessage(businessQuery.error, "Unable to load tax settings.")}
+        </span>
+      </div>
+    );
+  }
+
+  const key = [
+    businessQuery.data.id,
+    businessQuery.data.taxEnabled,
+    businessQuery.data.taxRate,
+    businessQuery.data.taxInclusionType,
+    businessQuery.data.taxLabel,
+  ].join("|");
+
+  return (
+    <TaxesEditor
+      key={key}
+      business={businessQuery.data}
+      isSubmitting={isSubmitting}
+      formError={formError}
+      setFormError={setFormError}
+      updateBusinessTax={updateBusinessTax}
+      toast={toast}
+    />
+  );
+}
+
+function TaxesEditor({
+  business,
+  isSubmitting,
+  formError,
+  setFormError,
+  updateBusinessTax,
+  toast,
+}: {
+  business: Business;
+  isSubmitting: boolean;
+  formError: string;
+  setFormError: (message: string) => void;
+  updateBusinessTax: ReturnType<typeof useUpdateBusinessTaxMutation>[0];
+  toast: ReturnType<typeof useToast>["toast"];
+}) {
+  const [isActive, setIsActive] = useState(business.taxEnabled ?? false);
+  const [taxName, setTaxName] = useState(business.taxLabel || "VAT");
+  const [taxRate, setTaxRate] = useState(
+    business.taxRate != null ? String(business.taxRate) : "10",
+  );
+  const [isTaxInclusive, setIsTaxInclusive] = useState(
+    (business.taxInclusionType ?? "EXCLUSIVE") === "INCLUSIVE",
+  );
 
   const isDirty = useMemo(() => {
-    if (!savedConfig) return false;
     return (
-      taxName.trim() !== (savedConfig.taxName || "") ||
-      taxType !== savedConfig.taxType ||
-      Number(taxRate) !== savedConfig.taxRate ||
-      Number(taxAmount) !== savedConfig.taxAmount ||
-      isActive !== savedConfig.isActive ||
-      isTaxInclusive !== (savedConfig.isTaxInclusive ?? false)
+      isActive !== (business.taxEnabled ?? false) ||
+      taxName.trim() !== (business.taxLabel || "") ||
+      taxRate !== (business.taxRate != null ? String(business.taxRate) : "") ||
+      isTaxInclusive !== ((business.taxInclusionType ?? "EXCLUSIVE") === "INCLUSIVE")
     );
-  }, [savedConfig, taxName, taxType, taxRate, taxAmount, isActive, isTaxInclusive]);
+  }, [business, isActive, taxName, taxRate, isTaxInclusive]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
-    setIsSubmitting(true);
+
+    const inclusionType: TaxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
+    const result = taxSettingsSchema.safeParse({
+      taxEnabled: isActive,
+      taxRate,
+      taxInclusionType: inclusionType,
+      taxLabel: taxName,
+    });
+
+    if (!result.success) {
+      const firstErr = result.error.issues[0]?.message || "Invalid input";
+      setFormError(firstErr);
+      return;
+    }
 
     try {
-      const payload = {
-        taxName,
-        taxType,
-        taxRate: Number(taxRate),
-        taxAmount: Number(taxAmount),
-        showTaxOnReceipt: true,
-        isDefault: true,
-        isActive,
-        isTaxInclusive,
-      };
-
-      // Validate with schema
-      const parseResult = taxSchema.safeParse(payload);
-      if (!parseResult.success) {
-        const firstErr = parseResult.error.issues[0]?.message || "Invalid input";
-        setFormError(firstErr);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Update default tax
-      const updated = updateDefaultTax(parseResult.data);
-      setSavedConfig(updated);
-
+      await updateBusinessTax(result.data).unwrap();
       toast({
         tone: "success",
         title: "Tax Configuration Saved",
-        description: "Your default store tax settings have been updated.",
+        description: "Applied the same way on every sales channel — POS, storefront, Telegram, Messenger.",
       });
-    } catch (err: any) {
-      setFormError(err?.message || "Failed to update tax configuration.");
+    } catch (err) {
+      const message = getApiErrorMessage(err, "Something went wrong while saving.");
+      setFormError(message);
       toast({
         tone: "error",
         title: "Error Saving Tax Settings",
-        description: err?.message || "Something went wrong while saving.",
+        description: message,
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  // Real receipt preview objects
-  const mockBusiness: Business = {
-    id: "biz_demo",
-    name: "IPOS Store & Coffee",
-    phoneNumber: "+855 23 999 888",
-    address: "#123 Samdach Preah Sihanouk",
-    cityOrProvince: "Phnom Penh",
-  };
+  // Real receipt preview objects — a believable two-item ticket so every
+  // part of the layout (unit price, discount, subtotal) has something to show.
+  const previewRate = taxRate.trim() === "" ? 10 : Number(taxRate);
+  const previewLabel = taxName.trim() || "VAT";
+  const previewInclusionType: TaxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
 
-  const previewTaxConfig: TaxConfig = {
-    id: "tax_default",
-    taxName: taxName.trim() || "VAT",
-    taxType,
-    taxRate: Number(taxRate) || 0,
-    taxAmount: Number(taxAmount) || 0,
-    showTaxOnReceipt: true,
-    isDefault: true,
-    isActive,
-    isTaxInclusive,
+  const previewBusiness: Business = {
+    ...business,
+    name: business.name || "IPOS Store & Coffee",
+    taxEnabled: isActive,
+    taxRate: previewRate,
+    taxInclusionType: previewInclusionType,
+    taxLabel: previewLabel,
   };
 
   const subtotal = 10.0;
   const discountAmount = 1.0;
-  const afterDiscount = subtotal - discountAmount;
-  const rateNum = Number(taxRate) || 0;
-  const previewTaxAmount = isActive
-    ? isTaxInclusive
-      ? rateNum > 0 ? parseFloat((afterDiscount - (afterDiscount / (1 + (rateNum / 100)))).toFixed(2)) : 0
-      : taxType === "PERCENTAGE"
-        ? parseFloat((afterDiscount * (rateNum / 100)).toFixed(2))
-        : Number(taxAmount) || 0
-    : 0;
-  const previewTotal = isActive && isTaxInclusive ? afterDiscount : Math.max(0, afterDiscount + previewTaxAmount);
+  const afterDiscount = round2(subtotal - discountAmount);
+  const { taxAmount: previewTaxAmount, total: previewTotal } = computeTax(
+    afterDiscount,
+    previewRate,
+    previewInclusionType,
+    isActive,
+  );
 
   const previewOrder: PosOrder = {
     id: "ord_preview",
-    businessId: "biz_demo",
+    businessId: business.id,
     customerId: null,
     invoiceNumber: "INV-2026-00849",
     channel: "POS",
     status: "PAID",
     subtotal,
     discountAmount,
-    taxRate: isActive ? (taxType === "PERCENTAGE" ? Number(taxRate) : 0) : 0,
+    taxRate: isActive ? previewRate : 0,
     taxAmount: previewTaxAmount,
+    taxInclusionType: previewInclusionType,
     total: previewTotal,
     currency: "USD",
-    displayCurrency: "KHR",
-    displayExchangeRate: 4000,
+    displayCurrency: null,
+    displayExchangeRate: null,
     note: "Sample Order",
     items: [
       {
@@ -198,54 +252,59 @@ export default function TaxesPage() {
     createdDate: new Date().toISOString(),
   };
 
-  const mockReceipt: PosReceipt = {
-    id: "rcpt_preview",
-    orderId: "ord_preview",
-    invoiceNumber: "INV-2026-00849",
-    vatNumber: "VATTIN-10928374",
-    type: "PHYSICAL",
-    fileUrl: null,
-    deviceId: null,
-    printedBy: null,
-    printedAt: null,
-    issuedAt: new Date().toISOString(),
+  const previewSale: Sale = {
+    id: "sale_preview",
+    orderId: previewOrder.id,
+    invoiceNumber: previewOrder.invoiceNumber,
+    cashierId: null,
+    customerId: null,
+    customerName: null,
+    customerPhone: null,
+    customerEmail: null,
+    channel: "POS",
+    subtotal,
+    discountAmount,
+    taxRate: previewOrder.taxRate,
+    taxAmount: previewTaxAmount,
+    taxInclusionType: previewInclusionType,
+    totalAmount: previewTotal,
+    paidAmount: previewTotal,
+    changeAmount: 0,
+    currency: "USD",
+    displayCurrency: null,
+    displayExchangeRate: null,
+    paymentMethod: "CASH",
+    itemCount: 3,
+    note: previewOrder.note,
+    soldAt: previewOrder.createdDate,
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="space-y-6 pb-12">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48 rounded-lg" />
-            <Skeleton className="h-4 w-72 rounded-md" />
-          </div>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <FormSkeleton rows={3} />
-          </div>
-          <div className="lg:col-span-5">
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-2xs">
-              <Skeleton className="h-6 w-36 rounded-md" />
-              <Skeleton className="h-64 w-full rounded-2xl" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const mockReceipt: PosReceipt | null = isActive
+    ? {
+        id: "rcpt_preview",
+        orderId: previewOrder.id,
+        invoiceNumber: previewOrder.invoiceNumber,
+        vatNumber: "VATTIN-10928374",
+        type: "PHYSICAL",
+        fileUrl: null,
+        deviceId: null,
+        printedBy: null,
+        printedAt: null,
+        issuedAt: new Date().toISOString(),
+      }
+    : null;
 
   return (
     <div className="space-y-6 pb-12">
       {/* Top Banner & Header */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Receipt className="h-6 w-6 text-primary" />
             Store Tax Settings
           </h1>
           <p className="text-sm text-muted-foreground">
-            Configure your store tax rule applied to POS orders and customer receipts.
+            Configure your store tax rule — applied the same way on POS, storefront, Telegram, and Messenger orders.
           </p>
         </div>
         <TourButton />
@@ -267,7 +326,7 @@ export default function TaxesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Tax Status</h2>
                 <p className="text-xs text-muted-foreground">
-                  Control whether tax calculation is active for POS checkout transactions.
+                  Control whether tax calculation is active for checkout transactions on every channel.
                 </p>
               </div>
               <span
@@ -290,7 +349,7 @@ export default function TaxesPage() {
                     Enable Tax Calculation
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Automatically calculate default tax on POS checkout transactions and receipts.
+                    Automatically calculate tax on every order — POS, storefront, Telegram, Messenger.
                   </p>
                 </div>
                 <Switch
@@ -325,7 +384,7 @@ export default function TaxesPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Tax Name */}
-              <div data-tour="tax-name-input" className="space-y-2">
+              <div data-tour="tax-name-input" className="space-y-2 sm:col-span-2">
                 <Label htmlFor="taxName" className="font-medium text-foreground">
                   Tax Label / Name <span className="text-destructive">*</span>
                 </Label>
@@ -335,6 +394,7 @@ export default function TaxesPage() {
                   disabled={!isActive}
                   onChange={(e) => setTaxName(e.target.value)}
                   placeholder="e.g. VAT, Sales Tax, Service Tax"
+                  maxLength={30}
                   required
                 />
                 <p className="text-[11px] text-muted-foreground">
@@ -342,75 +402,29 @@ export default function TaxesPage() {
                 </p>
               </div>
 
-              {/* Tax Type */}
-              <div data-tour="tax-type-select" className="space-y-2">
-                <Label htmlFor="taxType" className="font-medium text-foreground">
-                  Calculation Type
+              {/* Tax Rate */}
+              <div data-tour="tax-rate-input" className="space-y-2 sm:col-span-2">
+                <Label htmlFor="taxRate" className="font-medium text-foreground">
+                  Tax Rate Percentage (%)
                 </Label>
-                <Select
-                  value={taxType}
-                  disabled={!isActive}
-                  onValueChange={(v) => {
-                    if (v) setTaxType(v as TaxType);
-                  }}
-                >
-                  <SelectTrigger id="taxType">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                    <SelectItem value="FIXED_AMOUNT">Fixed Dollar Amount ($)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <Input
+                    id="taxRate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={taxRate}
+                    disabled={!isActive}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-muted-foreground">
+                    <Percent className="h-4 w-4" />
+                  </div>
+                </div>
               </div>
-
-              {/* Tax Rate or Fixed Amount */}
-              {taxType === "PERCENTAGE" ? (
-                <div data-tour="tax-rate-input" className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="taxRate" className="font-medium text-foreground">
-                    Tax Rate Percentage (%)
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="taxRate"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={taxRate}
-                      disabled={!isActive}
-                      onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                      className="pr-10"
-                      required
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-muted-foreground">
-                      <Percent className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div data-tour="tax-rate-input" className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="taxAmount" className="font-medium text-foreground">
-                    Fixed Tax Amount ($)
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="taxAmount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={taxAmount}
-                      disabled={!isActive}
-                      onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
-                      className="pl-8"
-                      required
-                    />
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
-                      <DollarSign className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Tax Pricing Mode (Exclusive vs Inclusive) */}
               <div data-tour="tax-mode-selection" className="space-y-2 sm:col-span-2 pt-2 border-t">
@@ -496,7 +510,7 @@ export default function TaxesPage() {
 
         {/* Authentic Receipt Ticket Preview Panel */}
         <div data-tour="tax-receipt-preview" className="lg:col-span-5 space-y-4">
-          <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-6">
+          <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-[86px]">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
               <h3 className="font-semibold text-foreground flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-primary" /> Receipt Preview
@@ -506,10 +520,10 @@ export default function TaxesPage() {
             {/* Receipt Ticket Render */}
             <div className="flex justify-center py-2">
               <ReceiptTicket
-                business={mockBusiness}
+                business={previewBusiness}
                 order={previewOrder}
+                sale={previewSale}
                 receipt={mockReceipt}
-                taxConfig={previewTaxConfig}
                 className="max-w-full border"
               />
             </div>

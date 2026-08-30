@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Percent,
     DollarSign,
@@ -51,6 +51,7 @@ interface DiscountSelectModalProps {
     currentDiscountAmount: number;
     activeRule?: AppliedDiscountRule | null;
     onApplyDiscountRule: (rule: AppliedDiscountRule | null) => Promise<void>;
+    mode?: "COUPON" | "CUSTOM";
 }
 
 export function DiscountSelectModal({
@@ -62,15 +63,22 @@ export function DiscountSelectModal({
     currentDiscountAmount,
     activeRule,
     onApplyDiscountRule,
+    mode = "COUPON",
 }: DiscountSelectModalProps) {
     const { format } = useMoney();
     const { toast } = useToast();
-    const [tab, setTab] = useState<"ACTIVE" | "CUSTOM" | "COUPON">("ACTIVE");
+    const [tab, setTab] = useState<"CUSTOM" | "COUPON">("COUPON");
     const [isApplying, setIsApplying] = useState(false);
 
+    useEffect(() => {
+        if (mode) {
+            setTab(mode);
+        }
+    }, [mode, open]);
+
     // Queries
-    const { data: discounts = [], isLoading: isDiscountsLoading } = useGetDiscountsQuery();
-    const { data: coupons = [], isLoading: isCouponsLoading } = useGetCouponsQuery();
+    const { data: discounts = [] } = useGetDiscountsQuery();
+    const { data: coupons = [] } = useGetCouponsQuery();
 
     // Custom discount state
     const [customType, setCustomType] = useState<"PERCENTAGE" | "FIXED" | "FINAL_PRICE">("PERCENTAGE");
@@ -79,10 +87,6 @@ export function DiscountSelectModal({
     // Coupon code state
     const [couponCodeInput, setCouponCodeInput] = useState<string>("");
     const [couponError, setCouponError] = useState<string>("");
-
-    const activeDiscounts = useMemo(() => {
-        return discounts.filter((d) => d.status === "ACTIVE" && !d.requiresCoupon);
-    }, [discounts]);
 
     const calculateCustomPreview = (): number => {
         const val = parseFloat(customValue);
@@ -108,21 +112,21 @@ export function DiscountSelectModal({
                 toast({
                     tone: "success",
                     title: "Discount applied",
-                    description: `Applied ${rule.label || "discount"} to cart. It will automatically re-apply as matching items are added!`,
+                    description: `Applied ${rule.label || "discount"} to cart.`,
                 });
             } else {
                 toast({
                     tone: "info",
                     title: "Discount removed",
-                    description: "Removed discount from current order.",
+                    description: "Order total reset to standard item prices.",
                 });
             }
             onOpenChange(false);
-        } catch (err) {
+        } catch (err: unknown) {
             toast({
                 tone: "error",
                 title: "Could not apply discount",
-                description: "Please check the discount value and try again.",
+                description: err instanceof Error ? err.message : "Please try again",
             });
         } finally {
             setIsApplying(false);
@@ -135,35 +139,42 @@ export function DiscountSelectModal({
         if (isNaN(val) || val <= 0) {
             toast({
                 tone: "error",
-                title: "Invalid input",
-                description: "Please enter a positive value.",
+                title: "Invalid value",
+                description: "Please enter a valid positive discount amount.",
             });
             return;
         }
 
-        if (customType === "FINAL_PRICE") {
-            if (val >= subtotal) {
-                toast({
-                    tone: "error",
-                    title: "Invalid final price",
-                    description: `The price after discount (${format(val, currency)}) must be less than the subtotal before discount (${format(subtotal, currency)}).`,
-                });
+        let calculatedDiscount = 0;
+        let label = "";
+
+        if (customType === "PERCENTAGE") {
+            if (val > 100) {
+                toast({ tone: "error", title: "Invalid %", description: "Percentage cannot exceed 100%." });
                 return;
             }
-
-            const rule: AppliedDiscountRule = {
-                type: "FINAL_PRICE",
-                value: val,
-                label: `Price: ${format(val, currency)}`,
-            };
-            handleApplyRule(rule);
-            return;
+            calculatedDiscount = (subtotal * val) / 100;
+            label = `${val}% OFF (Custom)`;
+        } else if (customType === "FIXED") {
+            if (val > subtotal) {
+                toast({ tone: "error", title: "Amount too high", description: `Discount cannot exceed order subtotal (${format(subtotal, currency)}).` });
+                return;
+            }
+            calculatedDiscount = val;
+            label = `-${format(val, currency)} OFF (Custom)`;
+        } else if (customType === "FINAL_PRICE") {
+            if (val >= subtotal) {
+                toast({ tone: "error", title: "Invalid final price", description: `Target price must be less than current subtotal (${format(subtotal, currency)}).` });
+                return;
+            }
+            calculatedDiscount = subtotal - val;
+            label = `Special Price: ${format(val, currency)}`;
         }
 
         const rule: AppliedDiscountRule = {
-            type: customType,
-            value: val,
-            label: customType === "PERCENTAGE" ? `${val}% OFF` : `-${format(val, currency)}`,
+            type: customType === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
+            value: customType === "PERCENTAGE" ? val : calculatedDiscount,
+            label,
         };
 
         handleApplyRule(rule);
@@ -172,63 +183,78 @@ export function DiscountSelectModal({
     const handleApplyCoupon = (e: React.FormEvent) => {
         e.preventDefault();
         setCouponError("");
+
         const code = couponCodeInput.trim().toUpperCase();
         if (!code) {
-            setCouponError("Please enter a coupon code.");
+            setCouponError("Please enter a coupon code");
             return;
         }
 
         const match = coupons.find(
-            (c) => c.code.toUpperCase() === code
+            (c) => c.code.toUpperCase() === code && c.status === "ACTIVE"
         );
 
         if (!match) {
-            setCouponError("Invalid promo / coupon code.");
-            return;
-        }
-
-        if (match.status !== "ACTIVE") {
-            setCouponError(`This coupon code is currently ${match.status.toLowerCase()}.`);
-            return;
-        }
-
-        const now = new Date();
-
-        if (match.startsAt && new Date(match.startsAt) > now) {
-            setCouponError("This promo coupon is not active yet.");
-            return;
-        }
-
-        if (match.endsAt && new Date(match.endsAt) < now) {
-            setCouponError("This promo coupon has expired.");
+            setCouponError("Invalid or inactive coupon code");
             return;
         }
 
         if (match.usageLimit != null && match.usedCount >= match.usageLimit) {
-            setCouponError("This coupon has reached its maximum usage limit.");
+            setCouponError("This coupon has reached its maximum usage limit");
             return;
         }
 
-        if (match.minPurchaseAmount && subtotal < match.minPurchaseAmount) {
+        const discObj = discounts.find((d) => d.id === match.discountId) || discounts.find((d) => d.id === match.discount?.id);
+        const discountType = discObj?.type || match.discount?.type || "PERCENTAGE";
+        const discountValue = discObj?.value ?? match.discount?.value ?? 0;
+        const discountId = discObj?.id || match.discountId || match.discount?.id;
+
+        if (discObj && discObj.status !== "ACTIVE") {
+            setCouponError("The discount associated with this coupon is no longer active");
+            return;
+        }
+
+        if (discObj?.applicableChannels && discObj.applicableChannels.length > 0 && !discObj.applicableChannels.includes("POS")) {
+            setCouponError("This coupon is not valid for in-store POS checkout");
+            return;
+        }
+
+        if (discObj?.minOrderAmount && subtotal < discObj.minOrderAmount) {
             setCouponError(
-                `Minimum purchase amount for this coupon is ${format(match.minPurchaseAmount, currency)}.`
+                `Minimum order amount for this coupon is ${format(discObj.minOrderAmount, currency)} (Current: ${format(subtotal, currency)})`
             );
             return;
         }
 
-        const discObj = discounts.find((d) => d.id === match.discountId) || match.discount;
-        const type = discObj?.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED";
-        const val = discObj?.value ?? 0;
-        const scope = discObj?.scope === "SPECIFIC_ITEMS" || discObj?.scope === "ITEM" ? "SPECIFIC_ITEMS" : "ALL_ITEMS";
-        const targetItemIds = discObj && "targets" in discObj && Array.isArray((discObj as any).targets)
-            ? (discObj as any).targets.map((t: any) => t.targetId)
-            : undefined;
-        const maxDiscountAmount = discObj && "maxDiscountAmount" in discObj ? (discObj as any).maxDiscountAmount : undefined;
+        const totalCartQty = items.reduce((sum, i) => sum + i.quantity, 0);
+        if (discObj?.minQuantity && totalCartQty < discObj.minQuantity) {
+            setCouponError(
+                `This coupon requires at least ${discObj.minQuantity} items in the cart (Current: ${totalCartQty})`
+            );
+            return;
+        }
+
+        const targetItemIds = discObj?.targets
+            ?.filter((t) => t.targetType === "ITEM")
+            .map((t) => t.targetId);
+
+        const scope = discObj?.scope;
+        if (scope === "SPECIFIC_ITEMS" || scope === "ITEM") {
+            if (targetItemIds && targetItemIds.length > 0) {
+                const hasMatchingItem = items.some((i) => targetItemIds.includes(i.itemId));
+                if (!hasMatchingItem) {
+                    setCouponError("None of the items in your cart qualify for this coupon");
+                    return;
+                }
+            }
+        }
+
+        const maxDiscountAmount = discObj?.maxDiscountAmount;
 
         const rule: AppliedDiscountRule = {
-            type,
-            value: val,
-            discountId: match.discountId,
+            type: discountType === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
+            value: discountValue,
+            discountId,
             discountCode: match.code,
             isCoupon: true,
             label: `Coupon ${match.code}`,
@@ -246,33 +272,18 @@ export function DiscountSelectModal({
                 <DialogHeader className="p-5 pb-3 border-b border-gray-100 bg-gray-50/50">
                     <div className="flex items-center justify-between">
                         <DialogTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <Tag className="h-5 w-5 text-primary" />
-                            Apply POS Discount
+                            {tab === "COUPON" ? (
+                                <>
+                                    <Ticket className="h-5 w-5 text-primary" />
+                                    Apply Coupon / Promo Code
+                                </>
+                            ) : (
+                                <>
+                                    <Percent className="h-5 w-5 text-primary" />
+                                    Custom Discount (% / $)
+                                </>
+                            )}
                         </DialogTitle>
-                    </div>
-
-                    {/* Mode Tabs */}
-                    <div data-tour="discount-modal-tabs" className="grid grid-cols-3 gap-1.5 pt-3">
-                        {(
-                            [
-                                { key: "ACTIVE", icon: Tag, label: `Promotions (${activeDiscounts.length})` },
-                                { key: "CUSTOM", icon: Percent, label: "Custom / $" },
-                                { key: "COUPON", icon: Ticket, label: "Coupon Code" },
-                            ] as const
-                        ).map(({ key, icon: Icon, label }) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => setTab(key)}
-                                className={`h-9 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden transition-all ${tab === key
-                                        ? "bg-primary text-white shadow-sm"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                    }`}
-                            >
-                                <Icon className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">{label}</span>
-                            </button>
-                        ))}
                     </div>
                 </DialogHeader>
 
@@ -307,169 +318,7 @@ export function DiscountSelectModal({
                         </div>
                     )}
 
-                    {tab === "ACTIVE" && (
-                        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                            {isDiscountsLoading ? (
-                                <div className="py-12 text-center text-sm text-gray-400 flex items-center justify-center gap-2">
-                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading promotions...
-                                </div>
-                            ) : activeDiscounts.length === 0 ? (
-                                <div className="py-10 text-center space-y-2">
-                                    <Tag className="h-8 w-8 mx-auto text-gray-300" />
-                                    <p className="text-sm font-semibold text-gray-700">No active promotions</p>
-                                    <p className="text-xs text-gray-500">
-                                        Use "Custom % / $" to set a custom discount.
-                                    </p>
-                                </div>
-                            ) : (
-                                activeDiscounts.map((d) => {
-                                    const targetItemIds = d.targets
-                                        ?.filter((t) => t.targetType === "ITEM")
-                                        .map((t) => t.targetId) || [];
-                                    const targetItemGroupIds = d.targets
-                                        ?.filter((t) => t.targetType === "ITEM_GROUP")
-                                        .map((t) => t.targetId) || [];
 
-                                    const isSpecificItems = d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM";
-                                    const isSpecificCategories = d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY";
-
-                                    const hasMatchingItem = !isSpecificItems || targetItemIds.length === 0 || items.some((item) => targetItemIds.includes(item.itemId));
-                                    const meetsMinOrder = !d.minOrderAmount || subtotal >= d.minOrderAmount;
-                                    
-                                    const totalCartQty = items.reduce((sum, i) => sum + i.quantity, 0);
-                                    const meetsMinQty = !d.minQuantity || totalCartQty >= d.minQuantity;
-
-                                    const isEligible = hasMatchingItem && meetsMinOrder && meetsMinQty;
-                                    const isSelected = activeRule?.discountId === d.id;
-
-                                    // Build human-friendly requirement guidance for the cashier
-                                    let conditionGuidance: string | null = null;
-                                    if (!meetsMinOrder && d.minOrderAmount) {
-                                        const remaining = Math.max(0, d.minOrderAmount - subtotal);
-                                        conditionGuidance = `🛒 Add ${format(remaining, currency)} more to unlock this discount`;
-                                    } else if (!meetsMinQty && d.minQuantity) {
-                                        const remainingQty = d.minQuantity - totalCartQty;
-                                        conditionGuidance = `📦 Add ${remainingQty} more item(s) to qualify (Requires ${d.minQuantity})`;
-                                    } else if (!hasMatchingItem && isSpecificItems) {
-                                        conditionGuidance = `🏷️ Add matching item to cart to apply discount`;
-                                    } else if (d.ruleType === "BUY_X_GET_Y" || (d.buyQuantity && d.getQuantity)) {
-                                        conditionGuidance = `🎁 Buy ${d.buyQuantity ?? 0} Get ${d.getQuantity ?? 0} Free promotion`;
-                                    }
-
-                                    const rule: AppliedDiscountRule = {
-                                        type: d.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
-                                        value: d.value,
-                                        maxDiscountAmount: d.maxDiscountAmount,
-                                        discountId: d.id,
-                                        label: d.name,
-                                        scope: d.scope,
-                                        targetItemIds: targetItemIds.length > 0 ? targetItemIds : undefined,
-                                        targetItemGroupIds: targetItemGroupIds.length > 0 ? targetItemGroupIds : undefined,
-                                        minOrderAmount: d.minOrderAmount,
-                                        minQuantity: d.minQuantity,
-                                        buyQuantity: d.buyQuantity,
-                                        getQuantity: d.getQuantity,
-                                    };
-
-                                    return (
-                                        <div
-                                            key={d.id}
-                                            onClick={() => handleApplyRule(rule)}
-                                            className={`group flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
-                                                isSelected
-                                                    ? "border-primary/60 bg-primary/5 shadow-xs"
-                                                    : isEligible
-                                                    ? "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
-                                                    : "border-amber-200 bg-amber-50/30 hover:bg-amber-50/50"
-                                            }`}
-                                        >
-                                            <div className="space-y-1.5 flex-1 pr-3">
-                                                <div className="flex items-center flex-wrap gap-1.5">
-                                                    <span className="text-sm font-bold text-gray-900">
-                                                        {d.name}
-                                                    </span>
-
-                                                    {/* Discount Value Badge */}
-                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-primary">
-                                                        {d.type === "PERCENTAGE" ? `${d.value}% OFF` : `-${format(d.value, currency)}`}
-                                                    </span>
-
-                                                    {/* Condition Badges */}
-                                                    {d.minOrderAmount ? d.minOrderAmount > 0 && (
-                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                                                            Min. {format(d.minOrderAmount, currency)}
-                                                        </span>
-                                                    ) : null}
-
-                                                    {d.minQuantity ? d.minQuantity > 0 && (
-                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                                                            Min. {d.minQuantity} Items
-                                                        </span>
-                                                    ) : null}
-
-                                                    {d.buyQuantity && d.getQuantity ? (
-                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                                                            Buy {d.buyQuantity} Get {d.getQuantity} Free
-                                                        </span>
-                                                    ) : null}
-
-                                                    {isSpecificItems && (
-                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                            Specific Items
-                                                        </span>
-                                                    )}
-
-                                                    {isSpecificCategories && (
-                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">
-                                                            Specific Category
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {d.description && (
-                                                    <p className="text-xs text-gray-500 line-clamp-1">
-                                                        {d.description}
-                                                    </p>
-                                                )}
-
-                                                {/* Cashier Guidance Helper Label */}
-                                                {conditionGuidance && (
-                                                    <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-amber-800 bg-amber-100/70 px-2.5 py-1 rounded-lg w-fit border border-amber-200/60">
-                                                        <span>{conditionGuidance}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="text-right shrink-0">
-                                                <Button
-                                                    variant={isSelected ? "default" : "ghost"}
-                                                    size="sm"
-                                                    disabled={isApplying}
-                                                    className={`h-7 text-xs font-semibold rounded-lg ${
-                                                        isSelected
-                                                            ? "bg-primary text-white"
-                                                            : isEligible
-                                                            ? "text-primary group-hover:bg-primary group-hover:text-white"
-                                                            : "text-amber-800 bg-amber-100/80 hover:bg-amber-200"
-                                                    }`}
-                                                >
-                                                    {isSelected ? (
-                                                        <>
-                                                            <Check className="h-3.5 w-3.5 mr-1" /> Applied
-                                                        </>
-                                                    ) : isEligible ? (
-                                                        "Apply"
-                                                    ) : (
-                                                        "Select"
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    )}
 
                     {tab === "CUSTOM" && (
                         <form onSubmit={handleApplyCustom} className="space-y-4">
