@@ -277,13 +277,10 @@ export function PayLaterList() {
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Sticky Top Header Section */}
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
-                <InventoryPageHeader
-                    title="Pay Later"
-                    description="Sales closed without collecting money yet. Settle them here once the cash comes in."
-                />
-            <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3">
+            <div
+                data-tour="pay-later-totals"
+                className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3"
+            >
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -346,7 +343,7 @@ export function PayLaterList() {
                             setQuery(event.target.value);
                             setPage(0);
                         }}
-                        placeholder="Search by invoice or customer"
+                        placeholder="Search by invoice, customer or phone"
                         className="w-full rounded-xl border border-border bg-muted/40 py-2.5 pl-10 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
                     />
                     {query && (
@@ -436,7 +433,6 @@ export function PayLaterList() {
                     )}
                 </div>
             </div>
-        </div>
 
             <section
                 data-tour="pay-later-list"

@@ -11,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ItemImage } from "@/components/item/item-image";
 import { useMoney } from "@/hooks/useMoney";
 import { itemThumbnail } from "@/lib/api/inventory";
 import type { ChannelItem } from "@/lib/api/sales-channels";
@@ -351,15 +352,11 @@ export function ItemChoiceModal({
 
                     <div className="rounded-xl border border-border bg-muted/30 p-4">
                         <div className="flex items-center justify-between gap-4">
-                            {lineImage ? (
-                                // Decorative — the line is named right beside it.
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={lineImage}
-                                    alt=""
-                                    className="size-12 shrink-0 rounded-lg object-cover"
-                                />
-                            ) : null}
+                            {/* Decorative — the line is named right beside it. */}
+                            <ItemImage
+                                src={lineImage}
+                                className="size-12 shrink-0 rounded-lg"
+                            />
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-foreground">
                                     {label}

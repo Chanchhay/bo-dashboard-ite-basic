@@ -17,6 +17,7 @@ import { ReceiptDetailView } from "@/components/pos/order/receipt-detail-view";
 import { ReceiptsList } from "@/components/pos/order/receipt-list";
 import { OrdersList } from "@/components/pos/order/order-list";
 import PosButton, { type PosTab } from "@/components/pos/pos-button";
+import type { PosCategoryOption } from "@/components/pos/navbar-pos/navbar";
 import { OrderTable } from "@/components/pos/order/order-table";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -87,6 +88,9 @@ export interface PosScreenProps {
   onClearFilters: () => void;
   /** Lets a scan that landed in the search box wipe itself back out. */
   onSearchQueryChange?: (value: string) => void;
+  /** For the small-screen filter row; the navbar owns the wide-screen one. */
+  categories?: PosCategoryOption[];
+  onCategoryChange?: (categoryId: string) => void;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
   registerCurrency?: string;
@@ -99,6 +103,8 @@ export function PosScreen({
   selectedCategoryId,
   onClearFilters,
   onSearchQueryChange,
+  categories = [],
+  onCategoryChange,
   currentRegisterUser,
   registerCashSales,
   registerCurrency,
@@ -769,7 +775,11 @@ export function PosScreen({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-clip bg-[#f5f5f5] min-[1025px]:flex-row">
-      <div className="flex min-h-0 flex-1 flex-col overflow-clip">
+      {/* `min-w-0`: a flex item defaults to `min-width: auto`, so this column
+          refuses to go below the grid's min-content width and pushes the cart
+          off the right edge — where the row's `overflow-clip` cuts it off
+          rather than scrolling to it. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-clip">
         <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-20 [-ms-overflow-style:none] min-[1025px]:pb-0 [&::-webkit-scrollbar]:hidden">
           {activeTab === "Point of Sale" &&
             (paidReceipt ? (
@@ -780,6 +790,42 @@ export function PosScreen({
               />
             ) : (
               <div data-tour="pos-search-grid" className="px-3 pt-4 sm:px-6 sm:pt-6 min-[1025px]:px-[25px] min-[1025px]:pt-8">
+                {/* The navbar's category dropdown lives in a block that only
+                    renders at 1025px, leaving every smaller screen with no way
+                    to filter at all. Chips rather than a select: they are a
+                    single tap on a counter tablet, and they show what is on
+                    offer without opening anything. */}
+                {categories.length > 0 && (
+                  <div className="sticky top-0 z-20 -mx-3 mb-4 bg-[#f5f5f5]/95 px-3 pb-2 backdrop-blur-sm sm:-mx-6 sm:px-6 min-[1025px]:hidden">
+                    <div
+                      className="scrollbar-none flex gap-2 overflow-x-auto"
+                      role="group"
+                      aria-label="Filter by category"
+                    >
+                      {[{ id: "ALL", name: "All" }, ...categories].map(
+                        (category) => {
+                          const isActive = selectedCategoryId === category.id;
+
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => onCategoryChange?.(category.id)}
+                              className={`h-9 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                isActive
+                                  ? "border-primary bg-primary text-white"
+                                  : "border-gray-200 bg-white text-gray-600 active:bg-gray-50"
+                              }`}
+                            >
+                              {category.name}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+                )}
                 {isLoading ? (
                   <div className="text-sm text-gray-400">
                     Loading items…
@@ -823,7 +869,11 @@ export function PosScreen({
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 min-[900px]:grid-cols-5 min-[1025px]:grid-cols-5 min-[1025px]:gap-x-[13px]">
+                  /* Column counts drop at 1025px rather than climbing: that is
+                     where the cart takes its 500px off the side, so the grid
+                     gets less room than it had at 1024px, not more. They climb
+                     again as the window grows past what the cart needs. */
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 min-[900px]:grid-cols-5 min-[1025px]:grid-cols-3 min-[1025px]:gap-x-[13px] min-[1280px]:grid-cols-4 min-[1600px]:grid-cols-5">
                     {items.map((item) => (
                       <PosCard
                         key={item.id}
