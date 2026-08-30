@@ -277,13 +277,10 @@ export function PayLaterList() {
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Sticky Top Header Section */}
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
-                <InventoryPageHeader
-                    title="Pay Later"
-                    description="Sales closed without collecting money yet. Settle them here once the cash comes in."
-                />
-            <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3">
+            <div
+                data-tour="pay-later-totals"
+                className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3"
+            >
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -333,7 +330,10 @@ export function PayLaterList() {
                 </div>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs sm:flex-row sm:items-center">
+            <div
+                data-tour="pay-later-filters"
+                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs sm:flex-row sm:items-center"
+            >
                 <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -435,7 +435,10 @@ export function PayLaterList() {
             </div>
         </div>
 
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+            <section
+                data-tour="pay-later-list"
+                className="overflow-clip rounded-2xl border border-border bg-card shadow-xs"
+            >
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>

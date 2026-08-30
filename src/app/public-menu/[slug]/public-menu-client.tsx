@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
-import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag, Phone, Clock } from "lucide-react";
+import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag, Phone, Clock, ImageOff } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import { itemThumbnail, itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
 import { attributeIcon } from "@/lib/api/attribute-icons";
@@ -66,10 +66,10 @@ function PublicProductDetailView({
   const gallery = itemImageUrls(rawItem);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  const activeImage =
-    gallery[selectedImageIndex] ||
-    entry.image ||
-    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80";
+  // No stock-photo stand-in on the public menu: an item the shop never gave
+  // a picture shows a neutral placeholder instead of someone else's product.
+  const activeImage = gallery[selectedImageIndex] || entry.image || "";
+  const [imageBroken, setImageBroken] = useState(false);
 
   const price = rawItem.price ?? entry.price ?? 0;
   const categoryName = rawItem.itemGroup?.name || entry.category || "General";
@@ -125,15 +125,19 @@ function PublicProductDetailView({
           {/* Left: Product Gallery */}
           <div className="flex flex-col gap-4">
             <div className="relative aspect-square w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-gray-50 dark:bg-[#12151e] border border-gray-100 dark:border-gray-800 flex items-center justify-center">
-              <img
-                src={activeImage}
-                alt={rawItem.name ?? entry.name}
-                className="h-full w-full object-cover transition-all duration-300"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80";
-                }}
-              />
+              {activeImage && !imageBroken ? (
+                <img
+                  src={activeImage}
+                  alt={rawItem.name ?? entry.name}
+                  className="h-full w-full object-cover transition-all duration-300"
+                  onError={() => setImageBroken(true)}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600">
+                  <ImageOff className="size-14" aria-hidden />
+                  <span className="sr-only">No image for {rawItem.name ?? entry.name}</span>
+                </div>
+              )}
             </div>
             {gallery.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-1">
@@ -141,7 +145,10 @@ function PublicProductDetailView({
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setSelectedImageIndex(idx)}
+                    onClick={() => {
+                      setSelectedImageIndex(idx);
+                      setImageBroken(false);
+                    }}
                     className={cn(
                       "relative aspect-square w-16 shrink-0 overflow-hidden rounded-xl border-2 p-1 transition-all cursor-pointer",
                       idx === selectedImageIndex
@@ -287,7 +294,7 @@ export default function PublicMenuClient({
         name: raw.name || "Unnamed Item",
         category: raw.itemGroup?.name || "General",
         price: raw.price ?? 0,
-        image: thumbnail || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80",
+        image: thumbnail || "",
         rawItem: raw,
       };
     });
@@ -609,6 +616,7 @@ export default function PublicMenuClient({
                     price={item.price}
                     image={item.image as string}
                     navigate={false}
+                    fallbackImage={false}
                     onClick={() => handleOpenDetail(item)}
                   />
                 ))}

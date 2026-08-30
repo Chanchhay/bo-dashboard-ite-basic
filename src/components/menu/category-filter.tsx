@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { ChevronDown, ChevronUp, Check, Search as SearchIcon, X, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, Search as SearchIcon, X, SlidersHorizontal, ImageOff } from "lucide-react";
 import { CategoryFilterSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -375,15 +375,7 @@ export default function CategoryFilter({
                         className="flex items-center gap-3 p-2 sm:p-2.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/80 transition-colors cursor-pointer group active:scale-[0.98]"
                       >
                         <div className="relative size-11 sm:size-12 rounded-2xl overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 shadow-md shadow-gray-200/70 dark:shadow-black/40 border border-gray-200/80 dark:border-gray-700/80 group-hover:scale-105 transition-transform duration-200">
-                          <img
-                            src={item.image || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80"}
-                            alt={item.name}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80";
-                            }}
-                          />
+                          <SearchResultThumbnail image={item.image} name={item.name} />
                         </div>
                         <div className="flex flex-col min-w-0">
                           <h5 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-primary transition-colors">
@@ -403,5 +395,32 @@ export default function CategoryFilter({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Search results share the menu's rule: an item with no picture (or one whose
+ * URL fails to load) gets a neutral placeholder, never a stock photo of some
+ * other shop's product.
+ */
+function SearchResultThumbnail({ image, name }: { image?: string; name: string }) {
+  const [broken, setBroken] = useState(false);
+
+  if (!image || broken) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600">
+        <ImageOff className="size-5" aria-hidden />
+        <span className="sr-only">No image for {name}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={image}
+      alt={name}
+      className="h-full w-full object-cover"
+      onError={() => setBroken(true)}
+    />
   );
 }

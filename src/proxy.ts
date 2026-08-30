@@ -94,7 +94,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    if (authRoutes.includes(pathname) && sessionCookie) {
+    // `noBusiness=1` is the one login screen a signed-in browser must be able
+    // to see: the account is authenticated but has no business, so bouncing it
+    // to /dashboard would only send it back here through the layout guard.
+    const isNoBusinessLogin =
+        pathname === "/login" && url.searchParams.get("noBusiness") === "1";
+
+    if (authRoutes.includes(pathname) && sessionCookie && !isNoBusinessLogin) {
         return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 

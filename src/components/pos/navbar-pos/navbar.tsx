@@ -452,7 +452,10 @@ function MobileSearchTrigger({
   }, [isOpen]);
 
   return (
-    <div className="flex items-center min-[901px]:hidden">
+    /* Through 1024px: the inline search in the centre block only appears at
+       1025px, so anything narrower — iPad landscape included — has no other
+       way to search. */
+    <div className="flex items-center min-[1025px]:hidden">
       <button
         type="button"
         onClick={() => setIsOpen(true)}

@@ -10,7 +10,6 @@ import {
     Search,
     ExternalLink,
     Clock,
-    Package,
     PackageCheck,
     Phone,
     User,
@@ -24,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CardListSkeleton } from "@/components/ui/skeleton";
+import { ItemImage } from "@/components/item/item-image";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -52,6 +52,7 @@ import {
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 
 const STATUS_FILTERS = [
@@ -292,7 +293,22 @@ export default function SalesOrdersPage() {
     return (
         <div className="flex flex-col gap-5 pb-12 sm:pb-16">
             <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
+                            <Receipt className="h-6 w-6 text-primary" />
+                            Orders
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Track every order from POS, storefront, Telegram, and Messenger — review receipts, approve pay-later tabs, and cancel open orders.
+                        </p>
+                    </div>
+                    <TourButton />
+                </div>
+                <div
+                    data-tour="orders-digital-menu"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm"
+                >
                     <div>
                         <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
                         <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
@@ -336,6 +352,7 @@ export default function SalesOrdersPage() {
 
                 <section
                     aria-label="Totals"
+                    data-tour="orders-totals"
                     className="grid grid-cols-2 gap-3 lg:grid-cols-4"
                 >
                     <Stat
@@ -362,8 +379,14 @@ export default function SalesOrdersPage() {
                 )}
             </div>
 
-            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
-                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
+            <section
+                data-tour="orders-list"
+                className="relative rounded-2xl border border-border bg-card shadow-xs"
+            >
+                <div
+                    data-tour="orders-filters"
+                    className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs"
+                >
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -564,24 +587,13 @@ function matchesSearch(
 function ItemThumbnail({
     url,
     size = "size-7",
-    iconSize = "size-3.5",
 }: {
     url?: string;
     size?: string;
-    iconSize?: string;
 }) {
-    return (
-        <span
-            className={`grid ${size} shrink-0 place-items-center overflow-hidden rounded-md bg-muted text-muted-foreground`}
-        >
-            {url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={url} alt="" className="size-full object-cover" />
-            ) : (
-                <Package className={iconSize} aria-hidden="true" />
-            )}
-        </span>
-    );
+    // An item with no picture, and one whose hosted picture has gone, both get
+    // the house fallback — the same one the till shows on its grid.
+    return <ItemImage src={url} className={`${size} shrink-0 rounded-md`} />;
 }
 
 
@@ -772,7 +784,6 @@ function LineItemListPanel({
                             <ItemThumbnail
                                 url={itemThumbnailById.get(item.itemId)}
                                 size="size-10"
-                                iconSize="size-4"
                             />
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-foreground">

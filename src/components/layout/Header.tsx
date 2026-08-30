@@ -32,17 +32,6 @@ export default function Header({
 
                 <h1 className="min-w-0 truncate text-lg font-semibold leading-tight text-[#16181c] dark:text-[#f8fafc] sm:text-2xl lg:text-[28px]">
                     <span className="font-semibold">{app}</span>
-                    {page && (
-                        <>
-                            <span
-                                aria-hidden="true"
-                                className="mx-1.5 text-[#c4c9c3] dark:text-[#475569]"
-                            >
-                                /
-                            </span>
-                            <span className="font-normal text-[#5c6660] dark:text-[#94a3b8]">{page}</span>
-                        </>
-                    )}
                 </h1>
             </div>
 
