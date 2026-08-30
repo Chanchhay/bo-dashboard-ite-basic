@@ -728,6 +728,41 @@ export function OrderTable({
     return null;
   }, [activePosDiscounts]);
 
+  /**
+   * What the order's persisted discount should be right now, and whether it
+   * actually needs a PATCH to get there — shared by the auto-sync effect
+   * below (fire-and-forget, for a snappy live preview) and by
+   * `handleValidatePayment` (awaited, so a payment can never be checked
+   * against a stale pre-discount `order.total`: the backend validates
+   * `receivedAmount` against whatever is already persisted, not anything a
+   * payment request itself sends).
+   */
+  const resolveDiscountSync = (orderVal: PosOrder, rule: AppliedDiscountRule | null) => {
+    const targetAmount = computeTargetDiscountAmount(orderVal, rule);
+    // No single rule picked, but more than one catalog discount is
+    // simultaneously active: each may auto-match a different line, so all
+    // of them are sent for the backend to attribute per item rather than
+    // collapsing to a single (or no) id.
+    const autoDiscountIds = !rule && activePosDiscounts.length > 0
+      ? activePosDiscounts.map((d) => d.id)
+      : [];
+    const primaryDiscountId = rule?.discountId || (autoDiscountIds.length === 1 ? autoDiscountIds[0] : null);
+    const discountIds = autoDiscountIds.length > 1 ? autoDiscountIds : null;
+    const needsIdSync = Boolean(rule?.discountId && orderVal.discountId !== rule.discountId);
+    const needsCodeSync = Boolean(rule?.discountCode && orderVal.discountCode !== rule.discountCode);
+    const needsAmountSync = Math.abs((orderVal.discountAmount ?? 0) - targetAmount) > 0.001;
+
+    return {
+      needsSync: needsAmountSync || needsIdSync || needsCodeSync,
+      payload: {
+        discountAmount: targetAmount,
+        discountId: primaryDiscountId,
+        discountCode: rule?.discountCode || null,
+        discountIds,
+      },
+    };
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -773,27 +808,9 @@ export function OrderTable({
     setActiveDiscountRule(rule);
 
     if (order?.id) {
-      const targetAmount = computeTargetDiscountAmount(order, rule);
-      // No single rule picked, but more than one catalog discount is
-      // simultaneously active: each may auto-match a different line, so all
-      // of them are sent for the backend to attribute per item rather than
-      // collapsing to a single (or no) id.
-      const autoDiscountIds = !rule && activePosDiscounts.length > 0
-        ? activePosDiscounts.map((d) => d.id)
-        : [];
-      const primaryDiscountId = rule?.discountId || (autoDiscountIds.length === 1 ? autoDiscountIds[0] : null);
-      const discountIds = autoDiscountIds.length > 1 ? autoDiscountIds : null;
-      const needsIdSync = Boolean(rule?.discountId && order.discountId !== rule.discountId);
-      const needsCodeSync = Boolean(rule?.discountCode && order.discountCode !== rule.discountCode);
-      const needsAmountSync = Math.abs((order.discountAmount ?? 0) - targetAmount) > 0.001;
-
-      if (needsAmountSync || needsIdSync || needsCodeSync) {
-        void setOrderDiscount({
-          discountAmount: targetAmount,
-          discountId: primaryDiscountId,
-          discountCode: rule?.discountCode || null,
-          discountIds,
-        });
+      const { needsSync, payload } = resolveDiscountSync(order, rule);
+      if (needsSync) {
+        void setOrderDiscount(payload);
       }
     }
   }, [
@@ -1086,6 +1103,18 @@ export function OrderTable({
     const sold = order;
 
     try {
+      // The auto-discount effect above patches the on-screen total the
+      // instant a promotion's condition is met (e.g. the 3rd Coca-Cola
+      // completing a Buy 2 Get 1 bundle) but fires the PATCH that actually
+      // persists it fire-and-forget, for a snappy preview. Paying before
+      // that PATCH lands would validate `receivedAmount` against the
+      // backend's still-stale, pre-discount `order.total` and reject a
+      // correct payment — awaiting the same sync here closes that race.
+      const { needsSync, payload } = resolveDiscountSync(order, activeDiscountRule);
+      if (needsSync) {
+        await setOrderDiscount(payload).unwrap();
+      }
+
       let sale: Sale;
       const isOfflineMode = typeof window !== "undefined" && !navigator.onLine;
       const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
