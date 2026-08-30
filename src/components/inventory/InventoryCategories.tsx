@@ -399,7 +399,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                     >
                                                         {/* Horizontal branch indicator line */}
                                                         <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
-                                                        
+
                                                         <div className="min-w-0 flex-1">
                                                             <p className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
                                                                 {subGroup.name ||
@@ -490,22 +490,20 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                         <button
                             type="button"
                             onClick={() => setMode("CATEGORY")}
-                            className={`rounded-full px-3 py-2 text-sm font-semibold ${
-                                mode === "CATEGORY"
+                            className={`rounded-full px-3 py-2 text-sm font-semibold ${mode === "CATEGORY"
                                     ? "bg-primary text-white"
                                     : "text-[#657064] dark:text-[#94a3b8]"
-                            }`}
+                                }`}
                         >
                             Category
                         </button>
                         <button
                             type="button"
                             onClick={() => setMode("SUBCATEGORY")}
-                            className={`rounded-full px-3 py-2 text-sm font-semibold ${
-                                mode === "SUBCATEGORY"
+                            className={`rounded-full px-3 py-2 text-sm font-semibold ${mode === "SUBCATEGORY"
                                     ? "bg-primary text-white"
                                     : "text-[#657064] dark:text-[#94a3b8]"
-                            }`}
+                                }`}
                         >
                             Subcategory
                         </button>

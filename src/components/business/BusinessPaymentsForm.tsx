@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { CircleCheck, KeyRound, LoaderCircle, QrCode } from "lucide-react";
+import { CircleCheck, KeyRound, LoaderCircle, QrCode, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -351,7 +351,7 @@ function AccountForm({
                     )}
                 </div>
 
-                <div className="sticky -bottom-8 z-30 -mx-5 -mb-5 mt-6 flex flex-wrap items-center justify-end gap-3 rounded-b-2xl border-t border-border bg-card px-5 py-4">
+                <div className="sticky -bottom-8 z-30 -mx-5 -mb-5 mt-6 flex flex-wrap items-center justify-end gap-2.5 rounded-b-2xl border-t border-border bg-card px-5 py-3.5 sm:gap-3 sm:py-4">
                     {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
@@ -359,19 +359,27 @@ function AccountForm({
                         variant="outline"
                         onClick={onPreview}
                         disabled={!canPreview || isPreviewing}
+                        className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                     >
-                        <QrCode className="size-4" aria-hidden="true" />
-                        {isPreviewing ? "Testing…" : "Test with $1 code"}
+                        <QrCode className="size-4 shrink-0" aria-hidden="true" />
+                        <span>{isPreviewing ? "Testing…" : "Test with $1 code"}</span>
                     </Button>
 
-                    <Button type="submit" data-tour="payments-save" disabled={isSaving}>
-                        {isSaving && (
+                    <Button
+                        type="submit"
+                        data-tour="payments-save"
+                        disabled={isSaving}
+                        className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
+                    >
+                        {isSaving ? (
                             <LoaderCircle
-                                className="size-4 animate-spin"
+                                className="size-4 shrink-0 animate-spin"
                                 aria-hidden="true"
                             />
+                        ) : (
+                            <Save className="size-4 shrink-0" aria-hidden="true" />
                         )}
-                        Save
+                        <span>Save</span>
                     </Button>
                 </div>
             </form>

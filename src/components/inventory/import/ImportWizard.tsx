@@ -325,13 +325,19 @@ export function ImportWizard() {
                         variant="ghost"
                         disabled={step === CHOOSE || busy}
                         onClick={() => setStep(step - 1)}
+                        className="h-10 rounded-xl px-4 text-xs sm:h-11 sm:px-6 sm:text-sm"
                     >
                         <ArrowLeft className="size-4" />
                         Back
                     </Button>
 
                     {action ? (
-                        <Button type="button" disabled={action.disabled} onClick={action.onClick}>
+                        <Button
+                            type="button"
+                            disabled={action.disabled}
+                            onClick={action.onClick}
+                            className="h-10 rounded-xl px-4 text-xs sm:h-11 sm:px-6 sm:text-sm"
+                        >
                             {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                             {action.label}
                             {!busy ? <ArrowRight className="size-4" /> : null}

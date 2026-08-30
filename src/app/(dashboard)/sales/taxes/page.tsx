@@ -492,7 +492,11 @@ function TaxesEditor({
 
           {/* Save Button Action Bar */}
           <div data-tour="tax-save-btn" className="flex justify-end pt-2">
-            <Button type="submit" disabled={!isDirty || isSubmitting} className="min-w-[160px] gap-2">
+            <Button
+              type="submit"
+              disabled={!isDirty || isSubmitting}
+              className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm gap-2"
+            >
               {isSubmitting ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

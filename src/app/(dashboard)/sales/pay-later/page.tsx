@@ -1,7 +1,5 @@
-import { InventoryPageHeader } from "@/components/inventory/InventoryUi";
 import { PayLaterList } from "@/components/sales/PayLaterList";
 import { TourButton } from "@/components/onboarding/TourButton";
-
 
 export default function PayLaterPage() {
     return (

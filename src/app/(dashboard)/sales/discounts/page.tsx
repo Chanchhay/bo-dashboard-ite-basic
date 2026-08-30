@@ -791,57 +791,58 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             </div>
 
-            {/* Navigation Tabs & Search */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-border pb-3">
-                <div data-tour="discounts-tabs" className="flex flex-wrap items-center gap-2">
-                    <button
-                        onClick={() => setActiveTab("discounts")}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                            activeTab === "discounts"
-                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
-                                : "text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <Tag className="h-4 w-4" />
-                        Discounts ({discounts.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("coupons")}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                            activeTab === "coupons"
-                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
-                                : "text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <Ticket className="h-4 w-4" />
-                        Coupons ({coupons.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("channels")}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                            activeTab === "channels"
-                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
-                                : "text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <Layers className="h-4 w-4" />
-                        Channel Discounts
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("discounted-items")}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                            activeTab === "discounted-items"
-                                ? "bg-primary/10 text-primary dark:text-primary font-semibold"
-                                : "text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <Package className="h-4 w-4" />
-                        Discounted Items ({discountedItemsList.length})
-                    </button>
-                </div>
+            {/* Navigation Tabs */}
+            <div data-tour="discounts-tabs" className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+                <button
+                    onClick={() => setActiveTab("discounts")}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        activeTab === "discounts"
+                            ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                    <Tag className="h-4 w-4" />
+                    Discounts ({discounts.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab("coupons")}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        activeTab === "coupons"
+                            ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                    <Ticket className="h-4 w-4" />
+                    Coupons ({coupons.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab("channels")}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        activeTab === "channels"
+                            ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                    <Layers className="h-4 w-4" />
+                    Channel Discounts
+                </button>
+                <button
+                    onClick={() => setActiveTab("discounted-items")}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        activeTab === "discounted-items"
+                            ? "bg-primary/10 text-primary dark:text-primary font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                    <Package className="h-4 w-4" />
+                    Discounted Items ({discountedItemsList.length})
+                </button>
+            </div>
 
-                <div data-tour="discounts-search-bar" className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-64 min-w-48">
+            {/* Toolbar: Search, Filters & Columns */}
+            <div data-tour="discounts-search-bar" className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+                    <div className="relative flex-1 sm:max-w-xs min-w-48">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             value={searchQuery}
@@ -853,7 +854,7 @@ export default function DiscountsAndCouponsPage() {
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery("")}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                             >
                                 <X className="h-3.5 w-3.5" />
                             </button>
@@ -914,15 +915,16 @@ export default function DiscountsAndCouponsPage() {
                             />
                         </div>
                     )}
-
-                    {activeTab !== "channels" && activeTab !== "discounted-items" && (
-                        <ColumnSelectDropdown
-                            columns={activeTab === "discounts" ? discountCols : couponCols}
-                            onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
-                            onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
-                        />
-                    )}
                 </div>
+
+                {/* Columns Dropdown next to filters / aligned right */}
+                {activeTab !== "channels" && activeTab !== "discounted-items" && (
+                    <ColumnSelectDropdown
+                        columns={activeTab === "discounts" ? discountCols : couponCols}
+                        onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
+                        onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
+                    />
+                )}
             </div>
 
             {/* Discounts Table */}
