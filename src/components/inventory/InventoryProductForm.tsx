@@ -928,8 +928,10 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         );
     }
 
+    const isDiscardedRef = useRef(false);
+
     const saveDraftToLocalStorage = useCallback(async () => {
-        if (isEditing || typeof window === "undefined" || !formRef.current) return;
+        if (isEditing || typeof window === "undefined" || !formRef.current || isDiscardedRef.current) return;
         if (!isFormDirty()) {
             localStorage.removeItem(CREATE_DRAFT_KEY);
             return;
@@ -1025,7 +1027,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     ]);
 
     const saveDraftSync = useCallback(() => {
-        if (isEditing || typeof window === "undefined" || !formRef.current) return;
+        if (isEditing || typeof window === "undefined" || !formRef.current || isDiscardedRef.current) return;
         if (!isFormDirty()) return;
 
         try {
@@ -1117,6 +1119,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     }
 
     function handleDiscardDraft() {
+        isDiscardedRef.current = true;
         if (typeof window !== "undefined") {
             localStorage.removeItem(CREATE_DRAFT_KEY);
         }
@@ -1880,6 +1883,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 }).unwrap();
             } else {
                 await createItem({ body, files }).unwrap();
+                isDiscardedRef.current = true;
                 if (typeof window !== "undefined") {
                     localStorage.removeItem(CREATE_DRAFT_KEY);
                 }
