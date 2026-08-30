@@ -2,6 +2,10 @@ import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth/auth";
 import {
+    NO_BUSINESS_FLAG,
+    isNoBusinessError,
+} from "@/lib/api/no-business";
+import {
     KeycloakTokenError,
     persistAuthCookies,
     renewKeycloakAccessToken,
@@ -162,10 +166,24 @@ export async function backendRequest<T>(
 
 export function backendErrorResponse(error: unknown) {
     if (error instanceof BackendApiError) {
+        if (error.sessionExpired) {
+            return Response.json(
+                { message: error.message, sessionExpired: true },
+                { status: error.status },
+            );
+        }
+
+        // An account with no business has nothing this app can show; the
+        // browser turns this flag into a trip back to the login screen.
+        if (isNoBusinessError(error.status, error.message)) {
+            return Response.json(
+                { message: error.message, [NO_BUSINESS_FLAG]: true },
+                { status: error.status },
+            );
+        }
+
         return Response.json(
-            error.sessionExpired
-                ? { message: error.message, sessionExpired: true }
-                : { message: error.message },
+            { message: error.message },
             { status: error.status },
         );
     }

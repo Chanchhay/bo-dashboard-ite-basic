@@ -1,19 +1,33 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import BrandLogo from "@/components/brand/BrandLogo";
+import { POST_LOGIN_URL } from "@/lib/api/no-business";
 
-type LoginState = "redirecting" | "signed-out";
+type LoginState = "redirecting" | "signed-out" | "no-business";
+
+const buttonClass =
+    "inline-flex h-10 w-full items-center justify-center rounded-lg px-5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
 function LoginContent() {
     const searchParams = useSearchParams();
     const wasLoggedOut = searchParams.get("loggedOut") === "1";
+    /*
+     * Sent here by the API guard when the account owns no business — a valid
+     * sign-in with nothing for this app to show, which is exactly where a
+     * platform administrator's account lands. The session is left intact, so
+     * this screen has to explain itself rather than start OAuth over: the
+     * live Keycloak session would sign the same account straight back in.
+     */
+    const hasNoBusiness = searchParams.get("noBusiness") === "1";
+    const signOutForm = useRef<HTMLFormElement>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [loginState, setLoginState] = useState<LoginState>(
-        wasLoggedOut ? "signed-out" : "redirecting",
-    );
+    const [loginState, setLoginState] = useState<LoginState>(() => {
+        if (hasNoBusiness) return "no-business";
+        return wasLoggedOut ? "signed-out" : "redirecting";
+    });
 
     const beginOAuthLogin = useCallback(() => {
         document.cookie = "ipos_welcome=1; path=/; max-age=600; samesite=lax";
@@ -21,7 +35,7 @@ function LoginContent() {
         void authClient.signIn
             .oauth2({
                 providerId: "keycloak",
-                callbackURL: "/apps",
+                callbackURL: POST_LOGIN_URL,
                 errorCallbackURL: "/login",
             })
             .then(({ error }) => {
@@ -33,8 +47,8 @@ function LoginContent() {
     }, []);
 
     useEffect(() => {
-        if (!wasLoggedOut) beginOAuthLogin();
-    }, [beginOAuthLogin, wasLoggedOut]);
+        if (!wasLoggedOut && !hasNoBusiness) beginOAuthLogin();
+    }, [beginOAuthLogin, hasNoBusiness, wasLoggedOut]);
 
     function startLogin() {
         setErrorMessage(null);
@@ -43,6 +57,19 @@ function LoginContent() {
     }
 
     const isSignedOut = loginState === "signed-out";
+    const isNoBusiness = loginState === "no-business";
+
+    const heading = isNoBusiness
+        ? "No business on this account"
+        : isSignedOut
+          ? "You are signed out"
+          : "Redirecting to login";
+
+    const description = isNoBusiness
+        ? "You are signed in, but this account is not linked to a business, so there is nothing for it to open here."
+        : isSignedOut
+          ? "Sign in again when you are ready."
+          : "You are being sent to Login page.";
 
     return (
         <main className="flex min-h-screen items-center justify-center px-6">
@@ -52,14 +79,8 @@ function LoginContent() {
                     className="mx-auto w-40"
                     preload
                 />
-                <h1 className="text-xl font-semibold">
-                    {isSignedOut ? "You are signed out" : "Redirecting to login"}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                    {isSignedOut
-                        ? "Sign in again when you are ready."
-                        : "You are being sent to Login page."}
-                </p>
+                <h1 className="text-xl font-semibold">{heading}</h1>
+                <p className="text-sm text-muted-foreground">{description}</p>
                 {errorMessage ? (
                     <p className="text-sm text-destructive">{errorMessage}</p>
                 ) : null}
@@ -67,10 +88,40 @@ function LoginContent() {
                     <button
                         type="button"
                         onClick={startLogin}
-                        className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-white transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        className={`${buttonClass} bg-primary text-white hover:bg-primary/90`}
                     >
                         Sign in
                     </button>
+                ) : null}
+                {isNoBusiness ? (
+                    <div className="space-y-2">
+                        {/*
+                         * "Try again" is a plain sign-in: the Keycloak session
+                         * is still open, so it comes back through the gate
+                         * silently and lets in an account that has since been
+                         * given a business.
+                         */}
+                        <button
+                            type="button"
+                            onClick={startLogin}
+                            className={`${buttonClass} bg-primary text-white hover:bg-primary/90`}
+                        >
+                            Try again
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => signOutForm.current?.requestSubmit()}
+                            className={`${buttonClass} border border-border text-foreground hover:bg-accent`}
+                        >
+                            Use a different account
+                        </button>
+                        <form
+                            ref={signOutForm}
+                            action="/api/logout"
+                            method="post"
+                            hidden
+                        />
+                    </div>
                 ) : null}
             </div>
         </main>
