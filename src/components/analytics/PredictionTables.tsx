@@ -31,10 +31,6 @@ import {
     useItemForecasts,
     type PredictionWindowKey,
 } from "@/hooks/useItemForecasts";
-import {
-    useGetCurrentStockQuery,
-    useGetInventoryItemOptionsQuery,
-} from "@/services/inventoryApi";
 import { cn } from "@/lib/utils";
 import { PredictionSummary } from "@/components/analytics/PredictionSummary";
 
@@ -46,16 +42,10 @@ const WINDOW_PHRASE: Record<PredictionWindowKey, string> = {
 
 export function PredictionTables() {
     const [windowKey, setWindowKey] = useState<PredictionWindowKey>("WEEK");
-    const windowDays = PREDICTION_WINDOWS[windowKey].days;
     const windowPhrase = WINDOW_PHRASE[windowKey];
 
-    const itemsQuery = useGetInventoryItemOptionsQuery();
-    const stockQuery = useGetCurrentStockQuery();
-    const inventoryLoading = itemsQuery.isLoading || stockQuery.isLoading;
-    const inventoryError = itemsQuery.isError || stockQuery.isError;
-
     const { loading, hasError, hasAnySales, rising, stockoutSoon, restockNeeded } =
-        useItemForecasts(itemsQuery.data ?? [], stockQuery.data ?? [], windowDays);
+        useItemForecasts(windowKey);
 
     const [search, setSearch] = useState("");
     const query = search.trim().toLowerCase();
@@ -111,11 +101,11 @@ export function PredictionTables() {
         </div>
     );
 
-    if (inventoryLoading || loading) {
+    if (loading) {
         return <InventoryLoading label="Working out predictions" />;
     }
 
-    if (inventoryError || hasError) {
+    if (hasError) {
         return (
             <InventoryError message="Couldn't work out predictions right now — try refreshing." />
         );
@@ -148,9 +138,7 @@ export function PredictionTables() {
             ) : (
                 <>
                     <PredictionSummary
-                        items={itemsQuery.data ?? []}
-                        stock={stockQuery.data ?? []}
-                        windowDays={windowDays}
+                        windowKey={windowKey}
                         windowPhrase={windowPhrase}
                     />
 
