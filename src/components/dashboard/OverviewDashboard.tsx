@@ -370,8 +370,8 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
 
     return (
         <div data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
-            {/* KPI Metric Cards Row (Top 4) */}
-            <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {/* KPI Metric Cards Row (Top 3) */}
+            <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* 1. TOTAL REVENUE */}
                 <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
@@ -419,23 +419,6 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                         </div>
                         <div className="size-11 rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/25 shadow-xs">
                             <FolderTree className="size-6 stroke-[2.5]" />
-                        </div>
-                    </CardHeader>
-                </Card>
-
-                {/* 4. INVENTORY */}
-                <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
-                    <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
-                        <div>
-                            <CardDescription className="text-xs sm:text-sm font-black uppercase tracking-wider text-muted-foreground">
-                                INVENTORY
-                            </CardDescription>
-                            <CardTitle className="mt-2.5 text-3xl sm:text-4xl font-black tracking-tight tabular-nums text-foreground">
-                                {kpiData.inventory.toLocaleString("en-US")}
-                            </CardTitle>
-                        </div>
-                        <div className="size-11 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/25 shadow-xs">
-                            <Layers className="size-6 stroke-[2.5]" />
                         </div>
                     </CardHeader>
                 </Card>
