@@ -4,11 +4,13 @@ import { useState } from "react";
 
 import { ProfitByChannel } from "@/components/analytics/ProfitByChannel";
 import { ProfitByPeriod } from "@/components/analytics/ProfitByPeriod";
+import { SaleProfitCalculator } from "@/components/analytics/SaleProfitCalculator";
 import { cn } from "@/lib/utils";
 
 const tabs = {
     PERIODS: "Statement",
     CHANNELS: "By channel",
+    CALCULATOR: "Sale profit calculator",
 } as const;
 
 type ProfitTab = keyof typeof tabs;
@@ -42,7 +44,13 @@ export function ProfitTabs() {
                 ))}
             </div>
 
-            {tab === "PERIODS" ? <ProfitByPeriod /> : <ProfitByChannel />}
+            {tab === "PERIODS" ? (
+                <ProfitByPeriod />
+            ) : tab === "CHANNELS" ? (
+                <ProfitByChannel />
+            ) : (
+                <SaleProfitCalculator />
+            )}
         </div>
     );
 }

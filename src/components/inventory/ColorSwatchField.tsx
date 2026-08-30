@@ -15,6 +15,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { itemLimits } from "@/lib/api/inventory";
 
 export const SWATCH_PALETTE: { name: string; hex: string }[] = [
     { name: "Black", hex: "#1c1c1e" },
@@ -117,9 +119,7 @@ export function ColorSwatchButton({
                         value={value}
                         onChange={(hex) => onChange({ colorHex: hex })}
                         onPickName={(picked) =>
-                            colorName.trim()
-                                ? undefined
-                                : onChange({ colorName: picked })
+                            onChange({ colorName: picked })
                         }
                         label={label}
                     />
@@ -133,6 +133,7 @@ export function ColorSwatchButton({
                         <Input
                             id="colour-name"
                             value={colorName}
+                            maxLength={itemLimits.colorName}
                             onChange={(event) =>
                                 onChange({ colorName: event.target.value })
                             }
@@ -204,18 +205,11 @@ export function ColorSwatchField({
                 })}
             </div>
 
-            <div className="flex items-center gap-2">
-                <input
-                    type="color"
-                    value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#00932a"}
-                    onChange={(event) => onChange(event.target.value)}
-                    aria-label={`${label}: pick a custom colour`}
-                    className="size-9 shrink-0 cursor-pointer rounded-lg border border-border bg-card p-1"
-                />
-                <span className="font-mono text-xs text-muted-foreground">
-                    {value.trim() || "No colour picked"}
-                </span>
-            </div>
+            <ColorPicker
+                value={value}
+                onChange={onChange}
+                onPickName={onPickName}
+            />
         </div>
     );
 }

@@ -153,6 +153,15 @@
     @apply bg-background text-foreground;
     font-family: var(--font-google-sans);
   }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 @keyframes toastSlideIn {
@@ -316,4 +325,26 @@ body {
   overflow: visible !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+/* Recharts Border & Outline Resets */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-responsive-container,
+.recharts-layer,
+.recharts-sector,
+.recharts-pie,
+div[data-chart],
+.recharts-wrapper *,
+.recharts-surface * {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.recharts-surface:focus,
+.recharts-wrapper:focus,
+svg:focus {
+  outline: none !important;
+  border: none !important;
 }
