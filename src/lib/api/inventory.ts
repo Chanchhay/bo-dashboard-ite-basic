@@ -38,31 +38,29 @@ export type ItemAttributeType = (typeof itemAttributeTypes)[number];
 
 export type StoredItemAttributeType = (typeof storedItemAttributeTypes)[number];
 
-export const itemAttributeTypeLabels: Record<StoredItemAttributeType, string> = {
-    TEXT: "Text",
-    SELECTION: "Selection",
-    TOGGLE: "Toggle",
-    NUMBER: "Number",
+export const itemAttributeTypeLabels: Record<StoredItemAttributeType, string> =
+    {
+        TEXT: "Text",
+        SELECTION: "Selection",
+        TOGGLE: "Toggle",
+        NUMBER: "Number",
 
+        COLOR: "Color",
+    };
 
-    COLOR: "Color",
-};
+export const itemAttributePlacements = ["OPTION", "HIGHLIGHT"] as const;
 
-export const itemAttributePlacements = [
-    "OPTION",
-    "HIGHLIGHT",
+export const retiredItemAttributePlacements = [
+    "HIDDEN",
     "SPECIFICATION",
 ] as const;
-
-export const retiredItemAttributePlacements = ["HIDDEN"] as const;
 
 export const storedItemAttributePlacements = [
     ...itemAttributePlacements,
     ...retiredItemAttributePlacements,
 ] as const;
 
-export type ItemAttributePlacement =
-    (typeof itemAttributePlacements)[number];
+export type ItemAttributePlacement = (typeof itemAttributePlacements)[number];
 
 export type StoredItemAttributePlacement =
     (typeof storedItemAttributePlacements)[number];
@@ -162,7 +160,7 @@ export type OptionPreset = {
         value?: string;
         colorHex?: string | null;
 
-    colorName?: string | null;
+        colorName?: string | null;
 
         imageUrl?: string | null;
     }[];
@@ -179,7 +177,7 @@ export type ItemAttributeValue = {
 export type ItemAttribute = {
     name?: string;
     type?: ItemAttributeType;
-    placement?: ItemAttributePlacement;
+    placement?: StoredItemAttributePlacement;
     icon?: string;
     values?: ItemAttributeValue[];
 };
@@ -214,7 +212,6 @@ export type ItemVariant = {
     barcode?: string | null;
 
     imageUrl?: string | null;
-
 
     optionName?: string | null;
 
@@ -486,7 +483,6 @@ export type StockConsumption = {
 };
 
 export type StockSummary = {
-
     itemId?: string;
     addOnId?: string;
 
@@ -572,6 +568,34 @@ const optionalMoney = (message: string) =>
         .nullish()
         .transform((value) => value ?? undefined);
 
+/** Ceiling for any stock figure a user types — on hand, moved, adjusted, split. */
+export const maxStockQuantity = 99_999;
+
+/**
+ * Holds a typed stock figure at the ceiling by refusing the digit that would
+ * overflow, rather than snapping the whole figure to the maximum — typing 7 six
+ * times leaves 77777, not 99999. Sign is preserved, since a manual adjustment
+ * can be negative, and a lone "-" survives so it can still be typed.
+ */
+export function clampStockInput(value: string): string {
+    const negative = value.trimStart().startsWith("-");
+    let digits = value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+
+    if (!digits) return negative ? "-" : "";
+
+    const width = String(maxStockQuantity).length;
+
+    if (digits.length > width) {
+        digits = digits.slice(0, width);
+    }
+
+    if (Number(digits) > maxStockQuantity) {
+        digits = digits.slice(0, width - 1);
+    }
+
+    return `${negative ? "-" : ""}${digits}`;
+}
+
 /**
  * Every ceiling the item form enforces. The inputs read these for `maxLength`
  * and for disabling their "Add" buttons, and this schema reads them again as
@@ -581,19 +605,20 @@ export const itemLimits = {
     name: 50,
     sku: 20,
     code: 100,
-    barcode: 100,
+    barcode: 20,
     badge: 10,
     description: 200,
-    lowStock: 1_000_000,
+    lowStock: maxStockQuantity,
     options: 20,
-    optionName: 150,
+    optionName: 50,
     colors: 50,
-    colorName: 20,
+    colorName: 50,
     attributes: 20,
-    attributeName: 150,
+    attributeName: 20,
     attributeValues: 50,
-    attributeValue: 150,
+    attributeValue: 50,
     addOns: 30,
+    addOnName: 20,
     conversions: 20,
     conversionFactor: 1_000_000,
     blocks: 30,
@@ -618,7 +643,6 @@ export const itemVariantSchema = z.object({
             `An option name must be ${itemLimits.optionName} characters or fewer.`,
         ),
 
-
     sku: optionalText(
         itemLimits.sku,
         `An option SKU must be ${itemLimits.sku} characters or fewer.`,
@@ -628,15 +652,11 @@ export const itemVariantSchema = z.object({
         `An option barcode must be ${itemLimits.barcode} characters or fewer.`,
     ).default(""),
 
-
-
-
     imageUrl: optionalText(
         itemLimits.imageUrl,
         `An option image URL must be ${itemLimits.imageUrl} characters or fewer.`,
     ).nullish(),
     price: optionalMoney("Variant price cannot be negative."),
-
 
     optionName: optionalText(
         itemLimits.optionName,
@@ -677,9 +697,7 @@ export const itemAttributeValueSchema = z.object({
     available: z.boolean(),
 });
 
-export type ItemAttributeValueInput = z.infer<
-    typeof itemAttributeValueSchema
->;
+export type ItemAttributeValueInput = z.infer<typeof itemAttributeValueSchema>;
 
 export const itemAttributeSchema = z
     .object({
@@ -780,8 +798,6 @@ const blockFields = {
             `A list can hold at most ${itemLimits.bullets} bullets.`,
         ),
 
-
-
     url: z
         .string()
         .trim()
@@ -813,11 +829,7 @@ function checkBlockContent(
     }
 
     if (block.type === "BULLETS") {
-        require(
-            block.items.length > 0,
-            "Add at least one bullet.",
-            "items",
-        );
+        require(block.items.length > 0, "Add at least one bullet.", "items");
     }
 
     if (block.type === "IMAGE") {
@@ -867,8 +879,6 @@ export const descriptionBlockSchema = z
 export type DescriptionBlockInput = z.infer<typeof descriptionBlockSchema>;
 
 export const inventoryItemSchema = z.object({
-
-
     itemGroupId: z.string().trim().min(1, "Select a category."),
     unitId: z.string().trim().min(1, "Select a base unit of measure."),
     name: z
@@ -910,9 +920,7 @@ export const inventoryItemSchema = z.object({
         .refine(
             (attributes) =>
                 new Set(
-                    attributes.map((attribute) =>
-                        attribute.name.toLowerCase(),
-                    ),
+                    attributes.map((attribute) => attribute.name.toLowerCase()),
                 ).size === attributes.length,
             "Attribute names must be unique.",
         ),
@@ -921,7 +929,21 @@ export const inventoryItemSchema = z.object({
         .max(
             itemLimits.blocks,
             `A store page can hold at most ${itemLimits.blocks} blocks.`,
-        ),
+        )
+        .refine((blocks) => {
+            for (let i = 0; i < blocks.length - 1; i++) {
+                const current = blocks[i].type;
+                const next = blocks[i + 1].type;
+                if (
+                    current !== "IMAGE" &&
+                    current !== "COLUMNS" &&
+                    current === next
+                ) {
+                    return false;
+                }
+            }
+            return true;
+        }, "Text and specification blocks cannot be added in continuous order."),
     variants: z
         .array(itemVariantSchema)
         .max(
@@ -959,8 +981,8 @@ export const inventoryItemSchema = z.object({
         .default([])
         .refine(
             (colors) =>
-                new Set(colors.map((color) => color.value.toLowerCase())).size ===
-                colors.length,
+                new Set(colors.map((color) => color.value.toLowerCase()))
+                    .size === colors.length,
             "Colours must be unique.",
         ),
     addOnIds: z
@@ -1154,9 +1176,7 @@ export const addOnSchema = z.object({
         .min(1, "Add-on name is required.")
         .max(150, "Add-on name must be 150 characters or fewer."),
     baseUnitId: optionalUuidSchema,
-    usePerOrder: z
-        .number()
-        .positive("One order must use more than zero."),
+    usePerOrder: z.number().positive("One order must use more than zero."),
 
     price: z.number().min(0, "A price cannot be negative.").optional(),
     uomConversions: z.array(uomConversionSchema).default([]),
@@ -1194,10 +1214,10 @@ export const addOnSetSchema = z
             .array(z.string().trim().min(1, "Select a valid add-on."))
             .min(1, "Add at least one add-on."),
     })
-    .refine(
-        (set) => set.rule !== "UP_TO" || set.maxChoices !== undefined,
-        { message: "Set how many may be picked.", path: ["maxChoices"] },
-    )
+    .refine((set) => set.rule !== "UP_TO" || set.maxChoices !== undefined, {
+        message: "Set how many may be picked.",
+        path: ["maxChoices"],
+    })
     .refine(
         (set) =>
             set.rule !== "UP_TO" ||
@@ -1225,47 +1245,43 @@ export function toAddOnSetRequest(input: AddOnSetInput) {
 
 export const stockEntrySchema = z
     .object({
+        itemId: z.string().trim().optional(),
+        addOnId: z.string().trim().optional(),
 
+        variantId: z.string().trim().optional(),
+        entryType: z.enum(stockEntryTypes),
+        quantityChange: z.number(),
 
-    itemId: z.string().trim().optional(),
-    addOnId: z.string().trim().optional(),
+        unitCost: z.number().min(0, "Unit cost cannot be negative.").optional(),
+        unitSalePrice: z
+            .number()
+            .min(0, "Sale price cannot be negative.")
+            .optional(),
 
-    variantId: z.string().trim().optional(),
-    entryType: z.enum(stockEntryTypes),
-    quantityChange: z.number(),
+        enteredQuantity: z.number().positive().optional(),
 
+        unitId: optionalUuidSchema.optional(),
 
-    unitCost: z
-        .number()
-        .min(0, "Unit cost cannot be negative.")
-        .optional(),
-    unitSalePrice: z
-        .number()
-        .min(0, "Sale price cannot be negative.")
-        .optional(),
+        lotNumber: optionalText(
+            80,
+            "Lot number must be 80 characters or fewer.",
+        ).optional(),
+        manufacturedAt: optionalDate.optional(),
 
-    enteredQuantity: z.number().positive().optional(),
+        expiresAt: optionalDate.optional(),
 
-    unitId: optionalUuidSchema.optional(),
-
-    lotNumber: optionalText(80, "Lot number must be 80 characters or fewer.")
-        .optional(),
-    manufacturedAt: optionalDate.optional(),
-
-    expiresAt: optionalDate.optional(),
-
-    receivedAt: optionalDate.optional(),
-    batchData: z.record(z.string(), z.unknown()),
-    referenceType: optionalText(
-        40,
-        "Reference type must be 40 characters or fewer.",
-    ),
-    referenceId: optionalUuidSchema,
-    referenceNumber: optionalText(
-        80,
-        "Reference number must be 80 characters or fewer.",
-    ),
-    reason: optionalText(255, "Reason must be 255 characters or fewer."),
+        receivedAt: optionalDate.optional(),
+        batchData: z.record(z.string(), z.unknown()),
+        referenceType: optionalText(
+            40,
+            "Reference type must be 40 characters or fewer.",
+        ),
+        referenceId: optionalUuidSchema,
+        referenceNumber: optionalText(
+            80,
+            "Reference number must be 80 characters or fewer.",
+        ),
+        reason: optionalText(255, "Reason must be 255 characters or fewer."),
     })
     .refine(
         (entry) => Boolean(entry.itemId) !== Boolean(entry.addOnId),
@@ -1298,7 +1314,6 @@ function toAttributeRequest(attribute: ItemAttributeInput) {
             value: value.value,
             available: value.available,
             ...(value.label ? { label: value.label } : {}),
-
 
             ...(value.colorHex ? { colorHex: value.colorHex } : {}),
         })),
@@ -1433,7 +1448,6 @@ export function toItemMultipart(
         parts.push(multipartLineBreak);
     }
 
-
     for (const file of files || []) {
         openPart([
             'Content-Disposition: form-data; name="files"; ' +
@@ -1512,15 +1526,11 @@ export function toStockEntryRequest(input: StockEntryInput) {
         entryType: input.entryType,
         quantityChange: input.quantityChange,
 
-
         ...(input.lotNumber ? { lotNumber: input.lotNumber } : {}),
         ...(input.manufacturedAt
             ? { manufacturedAt: input.manufacturedAt }
             : {}),
         ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
-
-
-
 
         ...(input.receivedAt
             ? { receivedAt: `${input.receivedAt}T00:00:00` }
@@ -1529,9 +1539,7 @@ export function toStockEntryRequest(input: StockEntryInput) {
         referenceType: input.referenceType,
         referenceNumber: input.referenceNumber,
         reason: input.reason,
-        ...(input.unitCost === undefined
-            ? {}
-            : { unitCost: input.unitCost }),
+        ...(input.unitCost === undefined ? {} : { unitCost: input.unitCost }),
         ...(input.unitSalePrice === undefined
             ? {}
             : { unitSalePrice: input.unitSalePrice }),
@@ -1542,8 +1550,6 @@ export function toStockEntryRequest(input: StockEntryInput) {
                   unitId: input.unitId,
               }
             : {}),
-        ...(input.referenceId
-            ? { referenceId: input.referenceId }
-            : {}),
+        ...(input.referenceId ? { referenceId: input.referenceId } : {}),
     };
 }

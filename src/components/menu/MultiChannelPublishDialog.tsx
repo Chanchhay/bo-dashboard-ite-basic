@@ -528,7 +528,7 @@ export function MultiChannelPublishDialog({
         <>
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent
-                className={`rounded-2xl p-6 bg-white dark:bg-[#181b24] transition-all border-none shadow-2xl ${
+                className={`rounded-2xl p-6 bg-white dark:bg-[#181b24] border-none shadow-2xl ${
                     !initialItemId
                         ? "max-w-3xl"
                         : // The allocation grid needs room to lay a column out
