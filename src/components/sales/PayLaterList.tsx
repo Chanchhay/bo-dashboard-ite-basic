@@ -433,7 +433,6 @@ export function PayLaterList() {
                     )}
                 </div>
             </div>
-        </div>
 
             <section
                 data-tour="pay-later-list"
