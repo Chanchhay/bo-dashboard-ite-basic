@@ -9,7 +9,7 @@ import {
 } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Camera, Image as ImageIcon } from "lucide-react";
+import { Camera, Image as ImageIcon, LoaderCircle, Save } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -709,24 +709,27 @@ function BusinessProfileEditor({
             </section>
 
             <div className="sticky -bottom-8 z-30 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 rounded-b-xl border-t border-gray-100 dark:border-[#242937] bg-white dark:bg-[#1a1e29] px-4 py-3.5 sm:px-6 sm:py-4">
-                <div className="flex w-full flex-row items-center justify-end gap-3 sm:w-auto sm:ml-auto" data-tour="profile-save">
+                <div className="flex w-full flex-row items-center justify-end gap-2.5 sm:w-auto sm:ml-auto sm:gap-3" data-tour="profile-save">
                     <Button
                         type="button"
                         onClick={handleCancel}
                         disabled={isLoading}
                         variant="outline"
-                        size="lg"
-                        className="flex-1 sm:flex-initial min-w-[100px]"
+                        className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        size="lg"
-                        className="flex-1 sm:flex-initial min-w-[121px]"
+                        className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                     >
-                        {isLoading ? "Saving…" : "Save"}
+                        {isLoading ? (
+                            <LoaderCircle className="size-4 shrink-0 animate-spin" />
+                        ) : (
+                            <Save className="size-4 shrink-0" />
+                        )}
+                        <span>{isLoading ? "Saving…" : "Save"}</span>
                     </Button>
                 </div>
             </div>
