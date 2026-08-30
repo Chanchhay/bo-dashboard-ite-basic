@@ -16,7 +16,6 @@ import {
   Dices,
   Download,
   Eye,
-  ImagePlus,
   LoaderCircle,
   Pencil,
   Plus,
@@ -31,8 +30,21 @@ import {
 
 import { cn, scrollFieldIntoView } from "@/lib/utils";
 import { BarcodePreview } from "@/components/inventory/BarcodePreview";
-import { ChoiceImageField } from "@/components/inventory/ChoiceImageField";
-import { ColorSwatchButton } from "@/components/inventory/ColorSwatchField";
+import {
+    charCountInputClassName,
+    charCountTextareaClassName,
+    CharCountField,
+    useCharCount,
+} from "@/components/inventory/CharLimit";
+import {
+    ItemColorDialog,
+    type ItemColorDraft,
+} from "@/components/inventory/ItemColorDialog";
+import {
+    emptyOption,
+    ItemOptionDialog,
+    type OptionDraft,
+} from "@/components/inventory/ItemOptionDialog";
 import {
   createBlockId,
   DescriptionBlockEditor,
@@ -82,6 +94,7 @@ import { useMoney } from "@/hooks/useMoney";
 import {
   inventoryItemSchema,
   itemImageRules,
+  itemLimits,
   itemStatuses,
   itemTypeLabels,
   itemTypes,
@@ -122,6 +135,25 @@ type FieldProps = {
   error?: string;
   children: ReactNode;
 };
+
+/** The line under an "Add" button once the list is full. */
+function CapNote({
+  count,
+  max,
+  noun,
+}: {
+  count: number;
+  max: number;
+  noun: string;
+}) {
+  if (count < max) return null;
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      {max} {noun} is the maximum.
+    </p>
+  );
+}
 
 function Field({ label, name, error, children }: FieldProps) {
   return (
@@ -210,12 +242,14 @@ function SectionHeading({
   description,
 }: {
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <div>
       <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      {description ? (
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      ) : null}
     </div>
   );
 }
@@ -312,14 +346,7 @@ function preservedCommerceFields(initialItem: InventoryItem | undefined) {
       })),
   };
 }
-type ItemColorDraft = {
-  id: string;
-  value: string;
-  colorHex: string;
-  imageUrl: string;
-};
-
-function toVariantRows(rows: OptionRow[]) {
+function toVariantRows(rows: OptionDraft[]) {
   return rows.flatMap((row) => {
     const size = row.name.trim();
 
@@ -351,120 +378,6 @@ function toVariantRows(rows: OptionRow[]) {
   });
 }
 
-function emptyOption(): OptionRow {
-  return {
-    id: createRowId(),
-    name: "",
-    sku: "",
-    barcode: "",
-    imageUrl: "",
-    colorValues: [],
-    available: true,
-  };
-}
-
-type OptionRow = {
-  id: string;
-  variantId?: string;
-  name: string;
-  sku: string;
-  barcode: string;
-  imageUrl: string;
-  colorValues: string[];
-  file?: File;
-  previewUrl?: string;
-  available: boolean;
-  price?: number;
-};
-
-function OptionImageField({
-  option,
-  index,
-  disabled,
-  onChange,
-}: {
-  option: OptionRow;
-  index: number;
-  disabled: boolean;
-  onChange: (patch: Partial<OptionRow>) => void;
-}) {
-  const { create, release } = useObjectUrls();
-  const { toast } = useToast();
-  const preview = option.previewUrl || option.imageUrl;
-  const label = option.name || `Option ${index + 1}`;
-
-  function handlePick(file: File) {
-    const message = itemImageRules.validate(file);
-
-    if (message) {
-      toast({
-        tone: "error",
-        title: "Option image not selected",
-        description: message,
-      });
-      return;
-    }
-
-    release(option.previewUrl);
-    onChange({ file, previewUrl: create(file), imageUrl: "" });
-  }
-
-  function handleRemove() {
-    release(option.previewUrl);
-    onChange({ file: undefined, previewUrl: undefined, imageUrl: "" });
-  }
-
-  return (
-    <div className="flex shrink-0 flex-col items-center gap-1.5">
-      <Label className="self-start text-xs font-medium text-muted-foreground">
-        Image
-      </Label>
-      <label
-        className="group relative grid size-21.5 cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30 text-muted-foreground transition-colors hover:border-primary/50 focus-within:border-primary"
-        title={
-          preview
-            ? `Replace the image for ${label}`
-            : `Add an image for ${label}`
-        }
-      >
-        <input
-          type="file"
-          accept={itemImageRules.accept}
-          disabled={disabled}
-          aria-label={`Image for ${label}`}
-          className="sr-only"
-          onChange={(event) => {
-            const [file] = Array.from(event.target.files || []);
-            event.target.value = "";
-            if (file) handlePick(file);
-          }}
-        />
-        {preview ? (
-          <img src={preview} alt="" className="size-full object-cover" />
-        ) : (
-          <ImagePlus className="size-5" aria-hidden="true" />
-        )}
-      </label>
-      {preview ? (
-        <Button
-          type="button"
-          variant="link"
-          size="xs"
-          onClick={handleRemove}
-          className="px-0 text-[11px] text-muted-foreground no-underline hover:text-danger hover:underline"
-        >
-          Remove
-        </Button>
-      ) : (
-        <span className="text-[11px] text-muted-foreground">Optional</span>
-      )}
-      {option.file ? (
-        <span className="text-[11px] text-muted-foreground">Not saved yet</span>
-      ) : null}
-    </div>
-  );
-}
-
 const fieldLabels: Record<string, string> = {
   itemGroupId: "Category",
   unitId: "Base unit of measure",
@@ -478,9 +391,21 @@ const fieldLabels: Record<string, string> = {
   itemType: "Item type",
   attributes: "Attributes",
   descriptionBlocks: "Store page",
-  variants: "Variants",
+  variants: "Options",
+  colors: "Colours",
+  addOnIds: "Add-ons",
+  uomConversions: "Conversions",
   lowStockDefault: "Low-stock threshold",
   status: "Status",
+};
+
+/** "Colours" plus a row number, so a nested issue says which row it is. */
+const rowNouns: Record<string, string> = {
+  colors: "Colour",
+  variants: "Option",
+  attributes: "Attribute",
+  descriptionBlocks: "Block",
+  uomConversions: "Conversion",
 };
 
 function fieldErrorsFromIssues(
@@ -490,7 +415,14 @@ function fieldErrorsFromIssues(
 
   for (const issue of issues) {
     const field = String(issue.path[0] || "form");
-    errors[field] ||= issue.message;
+    const noun = rowNouns[field];
+    const index = issue.path[1];
+    const numbered =
+      noun && typeof index === "number"
+        ? `${noun} ${index + 1}: ${issue.message}`
+        : issue.message;
+
+    errors[field] ||= numbered;
   }
 
   return errors;
@@ -527,14 +459,15 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
   const [presetPickerOpen, setPresetPickerOpen] = useState(false);
   const { data: optionPresets } = useGetOptionPresetsQuery();
   const [newAddOnOpen, setNewAddOnOpen] = useState(false);
-  const updateOption = (id: string, patch: Partial<OptionRow>) =>
-    setOptions((current) =>
-      current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-    );
+  const [optionDialogOpen, setOptionDialogOpen] = useState(false);
+  const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
+  const [editingColorId, setEditingColorId] = useState<string | null>(null);
+  const [dialogSeed, setDialogSeed] = useState(0);
 
-  const [options, setOptions] = useState<OptionRow[]>(() => {
-    const rows: OptionRow[] = [];
-    const bySize = new Map<string, OptionRow>();
+  const [options, setOptions] = useState<OptionDraft[]>(() => {
+    const rows: OptionDraft[] = [];
+    const bySize = new Map<string, OptionDraft>();
 
     for (const variant of initialItem?.variants || []) {
       const size = (variant.optionName || variant.name || "").trim();
@@ -549,7 +482,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         continue;
       }
 
-      const row: OptionRow = {
+      const row: OptionDraft = {
         id: variant.id || createRowId(),
         ...(variant.id ? { variantId: variant.id } : {}),
         name: size,
@@ -623,7 +556,14 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     })(),
   }));
   const namedColors = useMemo(
-    () => colors.filter((color) => color.value.trim()),
+    () =>
+      colors
+        .filter((color) => color.value.trim())
+        .map((color) => ({
+          id: color.id,
+          value: color.value.trim(),
+          colorHex: color.colorHex,
+        })),
     [colors],
   );
 
@@ -634,6 +574,66 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         .map((option) => ({ id: option.id, name: option.name.trim() })),
     [options],
   );
+  function openOptionDialog(id: string | null) {
+    setEditingOptionId(id);
+    setDialogSeed((current) => current + 1);
+    setOptionDialogOpen(true);
+  }
+
+  function saveOption(draft: OptionDraft) {
+    setOptions((current) =>
+      draft.id
+        ? current.map((row) => (row.id === draft.id ? draft : row))
+        : [...current, { ...draft, id: createRowId() }],
+    );
+  }
+
+  function openColorDialog(id: string | null) {
+    setEditingColorId(id);
+    setDialogSeed((current) => current + 1);
+    setColorDialogOpen(true);
+  }
+
+  function saveColor(draft: ItemColorDraft) {
+    if (!draft.id) {
+      setColors((current) => [...current, { ...draft, id: createRowId() }]);
+      return;
+    }
+
+    const before = colors
+      .find((row) => row.id === draft.id)
+      ?.value.trim();
+    const after = draft.value.trim();
+
+    setColors((current) =>
+      current.map((row) => (row.id === draft.id ? draft : row)),
+    );
+
+    // An option's ticks hold colour names, so a rename has to follow them over.
+    if (before && before !== after) {
+      setOptions((current) =>
+        current.map((row) => ({
+          ...row,
+          colorValues: row.colorValues.map((held) =>
+            held === before ? after : held,
+          ),
+        })),
+      );
+    }
+  }
+
+  function removeColor(color: ItemColorDraft) {
+    const dropped = color.value.trim();
+
+    setColors((current) => current.filter((row) => row.id !== color.id));
+    setOptions((current) =>
+      current.map((row) => ({
+        ...row,
+        colorValues: row.colorValues.filter((held) => held !== dropped),
+      })),
+    );
+  }
+
   function removeOption(rowId: string) {
     const orphaned = uomDraft.conversions.filter(
       (conversion) => conversion.variantId === rowId,
@@ -655,6 +655,10 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
       });
     }
   }
+  const nameCount = useCharCount(initialItem?.name || "");
+  const skuCount = useCharCount(initialItem?.sku || "");
+  const badgeCount = useCharCount(initialItem?.badge || "");
+  const descriptionCount = useCharCount(initialItem?.description || "");
   const [barcodePreview, setBarcodePreview] = useState(
     initialItem?.barcode || "",
   );
@@ -680,6 +684,10 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
   const [reorderImages, reorderImagesState] = useReorderItemImagesMutation();
   const isEditing = Boolean(initialItem);
   const isSaving = createState.isLoading || updateState.isLoading;
+  const optionsFull = options.length >= itemLimits.options;
+  const colorsFull = colors.length >= itemLimits.colors;
+  const attributesFull = attributes.length >= itemLimits.attributes;
+  const addOnsFull = attachedAddOnIds.length >= itemLimits.addOns;
   const isUploadingBlockImage = hasUploadingImage(blocks);
   const galleryCount = storedImages.length + pickedImages.length;
   const galleryUrls = [
@@ -709,22 +717,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         delete next.barcode;
         return next;
       });
-    } catch (error) {
-      toast({
-        tone: "error",
-        title: "Barcode not generated",
-        description: getApiErrorMessage(
-          error,
-          "Unable to generate a unique barcode.",
-        ),
-      });
-    }
-  }
-
-  async function generateOptionBarcode(id: string) {
-    try {
-      const result = await generateBarcode().unwrap();
-      updateOption(id, { barcode: result.barcode });
     } catch (error) {
       toast({
         tone: "error",
@@ -817,6 +809,8 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     [categoryGroups],
   );
 
+  const editingOption = options.find((row) => row.id === editingOptionId);
+  const editingColor = colors.find((row) => row.id === editingColorId);
   const editingAttribute = attributes.find(
     (attribute) => attribute.id === editingAttributeId,
   );
@@ -877,24 +871,53 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         return;
       }
 
-      setColors((current) => [...current, ...fresh]);
+      const room = itemLimits.colors - colors.length;
+
+      if (room <= 0) {
+        toast({
+          tone: "error",
+          title: `${preset.name} not added`,
+          description: `An item holds at most ${itemLimits.colors} colours, and this one is full.`,
+        });
+        return;
+      }
+
+      const added = fresh.slice(0, room);
+
+      setColors((current) => [...current, ...added]);
       toast({
         tone: "success",
         title: `${preset.name} added`,
-        description: "Tick the sizes that come in them.",
+        description:
+          added.length < fresh.length
+            ? `Only ${added.length} of them fit — an item holds at most ${itemLimits.colors} colours.`
+            : "Tick the sizes that come in them.",
       });
       return;
     }
 
-    const added: OptionRow[] = (preset.values || [])
+    const candidates: OptionDraft[] = (preset.values || [])
       .filter((value) => {
         const name = (value.value || "").trim();
         return name && !taken.has(name.toLowerCase());
       })
       .map((value) => ({
-        ...emptyOption(),
+        ...emptyOption(createRowId()),
         name: (value.value || "").trim(),
       }));
+
+    const room = itemLimits.options - existing.length;
+
+    if (candidates.length && room <= 0) {
+      toast({
+        tone: "error",
+        title: `${preset.name} not added`,
+        description: `An item holds at most ${itemLimits.options} options, and this one is full.`,
+      });
+      return;
+    }
+
+    const added = candidates.slice(0, room);
 
     if (!added.length) {
       toast({
@@ -909,7 +932,10 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     toast({
       tone: "success",
       title: `${preset.name} added`,
-      description: `${added.length} ${added.length === 1 ? "option" : "options"} added — adjust them for this item as needed.`,
+      description:
+        added.length < candidates.length
+          ? `Only ${added.length} of them fit — an item holds at most ${itemLimits.options} options.`
+          : `${added.length} ${added.length === 1 ? "option" : "options"} added — adjust them for this item as needed.`,
     });
   }
 
@@ -976,7 +1002,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
   function attachAddOns(ids: string[]) {
     setAttachedAddOnIds((current) => [
       ...current,
-      ...ids.filter((id) => !current.includes(id)),
+      ...ids
+        .filter((id) => !current.includes(id))
+        .slice(0, Math.max(0, itemLimits.addOns - current.length)),
     ]);
   }
   function openPreview() {
@@ -1165,17 +1193,32 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
     let variants = result.data.variants;
 
     try {
+      // A row with colours becomes one variant per colour, so the files have
+      // to be spread the same way `toVariantRows` spreads the rows themselves.
+      const rowFiles = namedRows.flatMap((row) =>
+        row.colorValues.length
+          ? row.colorValues.map(() => row.file)
+          : [row.file],
+      );
+      const uploaded = new Map<File, string>();
+
       variants = await Promise.all(
         variants.map(async (variant, index) => {
-          const file = namedRows[index]?.file;
+          const file = rowFiles[index];
 
           if (!file) return variant;
+
+          const held = uploaded.get(file);
+
+          if (held) return { ...variant, imageUrl: held };
 
           const asset = await uploadAsset(file).unwrap();
 
           if (!asset.url) {
             throw new Error("The upload returned no URL.");
           }
+
+          uploaded.set(file, asset.url);
 
           return { ...variant, imageUrl: asset.url };
         }),
@@ -1233,7 +1276,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
       ref={formRef}
       onSubmit={handleSubmit}
       noValidate
-      className="-mb-8 flex h-full min-h-0 flex-col"
+      className="-mb-8 flex flex-col"
     >
       <div className="shrink-0 pb-5">
         <InventoryPageHeader
@@ -1264,7 +1307,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         />
       </div>
 
-      <div className="-mx-5 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pt-1 pb-6 lg:-mx-8 lg:px-8">
+      <div className="flex flex-col gap-6 pt-1 pb-6">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
           <SectionHeading
             title="Basics"
@@ -1273,26 +1316,37 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <div data-tour="item-form-name">
               <Field label="Item name *" name="name" error={fieldErrors.name}>
-                <Input
-                  id="name"
-                  name="name"
-                  defaultValue={initialItem?.name}
-                  placeholder="Ice Latte"
-                  aria-invalid={Boolean(fieldErrors.name)}
-                  className={inventoryControlClassName}
-                />
+                <CharCountField
+                  length={nameCount.length}
+                  max={itemLimits.name}
+                >
+                  <Input
+                    id="name"
+                    name="name"
+                    defaultValue={initialItem?.name}
+                    maxLength={itemLimits.name}
+                    onChange={nameCount.onChange}
+                    placeholder="Ice Latte"
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                  />
+                </CharCountField>
               </Field>
             </div>
             <div data-tour="item-form-sku">
               <Field label="SKU" name="sku" error={fieldErrors.sku}>
-                <Input
-                  id="sku"
-                  name="sku"
-                  defaultValue={initialItem?.sku}
-                  placeholder="LAT-001"
-                  aria-invalid={Boolean(fieldErrors.sku)}
-                  className={inventoryControlClassName}
-                />
+                <CharCountField length={skuCount.length} max={itemLimits.sku}>
+                  <Input
+                    id="sku"
+                    name="sku"
+                    defaultValue={initialItem?.sku}
+                    maxLength={itemLimits.sku}
+                    onChange={skuCount.onChange}
+                    placeholder="LAT-001"
+                    aria-invalid={Boolean(fieldErrors.sku)}
+                    className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                  />
+                </CharCountField>
               </Field>
             </div>
             <div data-tour="item-form-barcode">
@@ -1302,6 +1356,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     id="barcode"
                     name="barcode"
                     value={barcodePreview}
+                    maxLength={itemLimits.barcode}
                     onChange={(event) => setBarcodePreview(event.target.value)}
                     placeholder="3547908987678"
                     aria-invalid={Boolean(fieldErrors.barcode)}
@@ -1412,14 +1467,21 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
               </Select>
             </Field>
             <Field label="Store badge" name="badge" error={fieldErrors.badge}>
-              <Input
-                id="badge"
-                name="badge"
-                defaultValue={initialItem?.badge}
-                placeholder="NEW ARRIVAL"
-                aria-invalid={Boolean(fieldErrors.badge)}
-                className={inventoryControlClassName}
-              />
+              <CharCountField
+                length={badgeCount.length}
+                max={itemLimits.badge}
+              >
+                <Input
+                  id="badge"
+                  name="badge"
+                  defaultValue={initialItem?.badge}
+                  maxLength={itemLimits.badge}
+                  onChange={badgeCount.onChange}
+                  placeholder="NEW"
+                  aria-invalid={Boolean(fieldErrors.badge)}
+                  className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                />
+              </CharCountField>
             </Field>
             <div data-tour="item-form-status">
               <Field label="Status *" name="status" error={fieldErrors.status}>
@@ -1469,13 +1531,21 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 name="description"
                 error={fieldErrors.description}
               >
-                <Textarea
-                  id="description"
-                  name="description"
-                  defaultValue={initialItem?.description}
-                  placeholder="Describe this item for your menu and online store"
-                  className={inventoryTextareaClassName}
-                />
+                <CharCountField
+                  length={descriptionCount.length}
+                  max={itemLimits.description}
+                  variant="textarea"
+                >
+                  <Textarea
+                    id="description"
+                    name="description"
+                    defaultValue={initialItem?.description}
+                    maxLength={itemLimits.description}
+                    onChange={descriptionCount.onChange}
+                    placeholder="Describe this item for your menu and online store"
+                    className={`${inventoryTextareaClassName} ${charCountTextareaClassName}`}
+                  />
+                </CharCountField>
               </Field>
             </div>
           </div>
@@ -1486,144 +1556,108 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         </section>
 
         <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <SectionHeading
               title={options.length ? `Options · ${options.length}` : "Options"}
-              description="Variations of this item — Small, Medium, Large. Each is scanned and counted on its own, can carry its own picture, and is priced per sales channel in Sale Management."
             />
-            <div className="flex flex-wrap items-center gap-2">
-              {(optionPresets || []).length ? (
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                {(optionPresets || []).length ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={optionsFull && colorsFull}
+                    onClick={() => setPresetPickerOpen(true)}
+                  >
+                    From preset
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setPresetPickerOpen(true)}
+                  disabled={optionsFull}
+                  onClick={() => openOptionDialog(null)}
                 >
-                  From preset
+                  <Plus />
+                  Add option
                 </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setOptions((current) => [...current, emptyOption()])
-                }
-              >
-                <Plus />
-                Add option
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={colorsFull}
+                  onClick={() => openColorDialog(null)}
+                >
+                  <Plus />
+                  Add colour
+                </Button>
+              </div>
+              <CapNote
+                count={options.length}
+                max={itemLimits.options}
+                noun="options"
+              />
+              <CapNote
+                count={colors.length}
+                max={itemLimits.colors}
+                noun="colours"
+              />
             </div>
           </div>
 
           <div className="mt-5 rounded-xl border border-border p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">Colours</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Named and photographed once. Every size ticks the ones it
-                  comes in, and stock is kept per colour.
+                <p className="text-sm font-semibold text-foreground">
+                  {colors.length ? `Colours · ${colors.length}` : "Colours"}
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setColors((current) => [
-                    ...current,
-                    {
-                      id: createRowId(),
-                      value: "",
-                      colorHex: "",
-                      imageUrl: "",
-                    },
-                  ])
-                }
-              >
-                <Plus />
-                Add colour
-              </Button>
             </div>
 
+            {fieldErrors.colors ? (
+              <p className="mt-3 text-xs text-danger" role="alert">
+                {fieldErrors.colors}
+              </p>
+            ) : null}
+
             {colors.length ? (
-              <ul className="mt-3 flex flex-col gap-2">
+              <ul className="mt-3 flex flex-wrap gap-2">
                 {colors.map((color) => (
                   <li
                     key={color.id}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
+                    className="flex max-w-full items-center gap-1 rounded-full border border-border bg-card py-1 pr-1 pl-3"
                   >
-                    <Input
-                      value={color.value}
-                      onChange={(event) =>
-                        setColors((current) =>
-                          current.map((row) =>
-                            row.id === color.id
-                              ? { ...row, value: event.target.value }
-                              : row,
-                          ),
-                        )
-                      }
-                      placeholder="e.g. Red"
-                      aria-label="Colour name"
-                      className={`${inventoryControlClassName} h-10 min-w-32 flex-1`}
-                    />
-
-                    <ColorSwatchButton
-                      value={color.colorHex}
-                      colorName={color.value}
-                      label={`${color.value || "Colour"} swatch`}
-                      onChange={(patch) =>
-                        setColors((current) =>
-                          current.map((row) =>
-                            row.id === color.id
-                              ? {
-                                  ...row,
-                                  ...(patch.colorHex === undefined
-                                    ? {}
-                                    : { colorHex: patch.colorHex }),
-                                  ...(patch.colorName === undefined
-                                    ? {}
-                                    : { value: patch.colorName }),
-                                }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-
-                    <ChoiceImageField
-                      value={color.imageUrl}
-                      label={`${color.value || "Colour"} photo`}
-                      onChange={(url) =>
-                        setColors((current) =>
-                          current.map((row) =>
-                            row.id === color.id
-                              ? { ...row, imageUrl: url }
-                              : row,
-                          ),
-                        )
-                      }
-                    />
-
+                    <button
+                      type="button"
+                      onClick={() => openColorDialog(color.id)}
+                      title={`Edit ${color.value || "colour"}`}
+                      className="flex min-w-0 items-center gap-2 text-sm text-foreground"
+                    >
+                      <span
+                        className="size-3.5 shrink-0 rounded-full border border-border"
+                        style={{
+                          background: color.colorHex || "transparent",
+                        }}
+                      />
+                      <span className="max-w-40 truncate">
+                        {color.value || "Unnamed colour"}
+                      </span>
+                      {color.imageUrl ? (
+                        <img
+                          src={color.imageUrl}
+                          alt=""
+                          className="size-5 shrink-0 rounded-full object-cover"
+                        />
+                      ) : null}
+                    </button>
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon"
+                      size="icon-xs"
                       aria-label={`Remove ${color.value || "colour"}`}
-                      onClick={() => {
-                        const dropped = color.value.trim();
-                        setColors((current) =>
-                          current.filter((row) => row.id !== color.id),
-                        );
-                        setOptions((current) =>
-                          current.map((row) => ({
-                            ...row,
-                            colorValues: row.colorValues.filter(
-                              (held) => held !== dropped,
-                            ),
-                          })),
-                        );
-                      }}
+                      onClick={() => removeColor(color)}
+                      className="shrink-0 rounded-full text-muted-foreground hover:text-danger"
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 className="size-3.5" />
                     </Button>
                   </li>
                 ))}
@@ -1633,184 +1667,67 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
           {options.length ? (
             <>
-              <ul className="mt-5 flex flex-col gap-3">
+              <ul className="mt-5 flex flex-col gap-2">
                 {options.map((option, index) => (
                   <li
                     key={option.id}
-                    className="rounded-xl border border-[#e8e8e8] bg-muted/20 p-4 dark:border-[#2a3042]"
+                    className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] bg-muted/20 p-3 dark:border-[#2a3042]"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => openOptionDialog(option.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      {option.previewUrl || option.imageUrl ? (
+                        <img
+                          src={option.previewUrl || option.imageUrl}
+                          alt=""
+                          className="size-10 shrink-0 rounded-lg border border-border object-cover"
+                        />
+                      ) : (
+                        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
                           {index + 1}
                         </span>
-                        <span className="text-sm font-semibold text-foreground">
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">
                           {option.name || "New option"}
                         </span>
-                        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                          {option.price === undefined
-                            ? "Price not set"
-                            : formatMoney(option.price)}
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {[
+                            option.price === undefined
+                              ? "Price not set"
+                              : formatMoney(option.price),
+                            option.sku || null,
+                            option.colorValues.length
+                              ? `${option.colorValues.length} ${option.colorValues.length === 1 ? "colour" : "colours"}`
+                              : null,
+                            option.available ? null : "Off sale",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </span>
-                      </div>
+                      </span>
+                    </button>
 
-                      <div className="flex shrink-0 items-center gap-3">
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>On sale</span>
-                          <Switch
-                            aria-label={`${option.name || `Option ${index + 1}`} on sale`}
-                            checked={option.available}
-                            onCheckedChange={(checked) =>
-                              updateOption(option.id, {
-                                available: checked,
-                              })
-                            }
-                          />
-                        </label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Remove option ${option.name || index + 1}`}
-                          onClick={() => removeOption(option.id)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <OptionImageField
-                        option={option}
-                        index={index}
-                        disabled={isSaving}
-                        onChange={(patch) => updateOption(option.id, patch)}
-                      />
-                      <div className="grid flex-1 gap-3 sm:grid-cols-3">
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">
-                            Option name
-                          </Label>
-                          <Input
-                            aria-label={`Option ${index + 1} name`}
-                            value={option.name}
-                            onChange={(event) =>
-                              updateOption(option.id, {
-                                name: event.target.value,
-                              })
-                            }
-                            placeholder="e.g. Large"
-                            className={`${inventoryControlClassName} h-10`}
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">
-                            SKU
-                          </Label>
-                          <Input
-                            aria-label={`Option ${index + 1} SKU`}
-                            value={option.sku}
-                            onChange={(event) =>
-                              updateOption(option.id, {
-                                sku: event.target.value,
-                              })
-                            }
-                            placeholder="e.g. TEA-L"
-                            className={`${inventoryControlClassName} h-10`}
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">
-                            Barcode
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                              aria-label={`Option ${index + 1} barcode`}
-                              value={option.barcode}
-                              onChange={(event) =>
-                                updateOption(option.id, {
-                                  barcode: event.target.value,
-                                })
-                              }
-                              placeholder="Scan, type or generate"
-                              className={`${inventoryControlClassName} h-10 flex-1 font-mono`}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              disabled={generateBarcodeState.isLoading}
-                              onClick={() => generateOptionBarcode(option.id)}
-                              aria-label={`Generate a unique barcode for option ${index + 1}`}
-                              title="Generate unique barcode"
-                              className="shrink-0 self-center"
-                            >
-                              {generateBarcodeState.isLoading ? (
-                                <LoaderCircle className="animate-spin" />
-                              ) : (
-                                <Dices />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {namedColors.length ? (
-                      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-                        <Label className="text-xs font-medium text-muted-foreground">
-                          Comes in
-                        </Label>
-                        <div className="flex flex-wrap gap-2">
-                          {namedColors.map((color) => {
-                            const ticked = option.colorValues.includes(
-                              color.value.trim(),
-                            );
-
-                            return (
-                              <button
-                                key={color.id}
-                                type="button"
-                                aria-pressed={ticked}
-                                onClick={() =>
-                                  updateOption(option.id, {
-                                    colorValues: ticked
-                                      ? option.colorValues.filter(
-                                          (held) => held !== color.value.trim(),
-                                        )
-                                      : [
-                                          ...option.colorValues,
-                                          color.value.trim(),
-                                        ],
-                                  })
-                                }
-                                className={cn(
-                                  "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
-                                  ticked
-                                    ? "border-primary bg-primary/10 font-medium text-primary"
-                                    : "border-border text-muted-foreground hover:border-primary/50",
-                                )}
-                              >
-                                <span
-                                  className="size-3.5 rounded-full border border-border"
-                                  style={{
-                                    background: color.colorHex || "transparent",
-                                  }}
-                                />
-                                {color.value}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {option.colorValues.length
-                            ? `${option.colorValues.length} countable ${option.colorValues.length === 1 ? "row" : "rows"} — stock is kept per colour.`
-                            : "Not sold by colour; stock is kept for the size as a whole."}
-                        </p>
-                      </div>
-                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Edit option ${option.name || index + 1}`}
+                      onClick={() => openOptionDialog(option.id)}
+                    >
+                      <Pencil />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Remove option ${option.name || index + 1}`}
+                      onClick={() => removeOption(option.id)}
+                    >
+                      <Trash2 />
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -1826,8 +1743,8 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
           ) : (
             <button
               type="button"
-              onClick={() => setOptions([emptyOption()])}
-              className="mt-5 flex w-full cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed border-[#e8e8e8] px-4 py-8 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 dark:border-[#2a3042]"
+              onClick={() => openOptionDialog(null)}
+              className="mt-5 flex w-full cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed border-[#e8e8e8] px-4 py-8 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 dark:border-[#2a3042] border-2 border-dashed border-[#e4eae2] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#1a1e29] text-sm text-[#6b7569] dark:text-[#cbd5e1] font-medium"
             >
               <Plus className="size-5 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">
@@ -1844,6 +1761,31 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
               {fieldErrors.variants}
             </p>
           ) : null}
+
+          <ItemOptionDialog
+            open={optionDialogOpen}
+            onOpenChange={setOptionDialogOpen}
+            seed={dialogSeed}
+            {...(editingOption ? { option: editingOption } : {})}
+            colors={namedColors}
+            existingNames={options
+              .filter((row) => row.id !== editingOptionId)
+              .map((row) => row.name.trim().toLowerCase())
+              .filter(Boolean)}
+            onSubmit={saveOption}
+          />
+
+          <ItemColorDialog
+            open={colorDialogOpen}
+            onOpenChange={setColorDialogOpen}
+            seed={dialogSeed}
+            {...(editingColor ? { color: editingColor } : {})}
+            existingNames={colors
+              .filter((row) => row.id !== editingColorId)
+              .map((row) => row.value.trim().toLowerCase())
+              .filter(Boolean)}
+            onSubmit={saveColor}
+          />
         </section>
 
         <ItemUomCard
@@ -1938,15 +1880,21 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
               title="Attributes"
               description="Notes about the item — a spec, a perk, a fact. What a shopper picks between is an Option."
             />
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col items-end gap-1.5">
               <Button
                 type="button"
                 variant="outline"
+                disabled={attributesFull}
                 onClick={() => openAttributeDialog(null)}
               >
                 <Plus />
                 Add attribute
               </Button>
+              <CapNote
+                count={attributes.length}
+                max={itemLimits.attributes}
+                noun="attributes"
+              />
             </div>
           </div>
           <div className="mt-5 flex flex-col gap-3">
@@ -1967,7 +1915,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                   ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-[#1a222b] dark:text-[#f8fafc]">
+                      <p className="max-w-full truncate font-medium text-[#1a222b] dark:text-[#f8fafc]">
                         {attribute.name}
                       </p>
                       <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
@@ -2041,16 +1989,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
               if (preset) applyPreset(preset);
             }}
           />
-
-          <ItemAttributeDialog
-            open={attributeDialogOpen}
-            onOpenChange={setAttributeDialogOpen}
-            initialAttribute={editingAttribute}
-            existingNames={attributes
-              .filter((attribute) => attribute.id !== editingAttributeId)
-              .map((attribute) => attribute.name.toLowerCase())}
-            onSubmit={saveAttribute}
-          />
         </section>
 
         <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
@@ -2059,23 +1997,31 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
               title="Add-ons"
               description="Extras a customer can choose with this item. Each one is defined once in Inventory config and attached here."
             />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAddOnPickerOpen(true)}
-              >
-                Attach existing
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={createAddOnState.isLoading}
-                onClick={() => setNewAddOnOpen(true)}
-              >
-                <Plus />
-                Attach add-on
-              </Button>
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={addOnsFull}
+                  onClick={() => setAddOnPickerOpen(true)}
+                >
+                  Attach existing
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={createAddOnState.isLoading || addOnsFull}
+                  onClick={() => setNewAddOnOpen(true)}
+                >
+                  <Plus />
+                  Attach add-on
+                </Button>
+              </div>
+              <CapNote
+                count={attachedAddOnIds.length}
+                max={itemLimits.addOns}
+                noun="add-ons"
+              />
             </div>
           </div>
 
