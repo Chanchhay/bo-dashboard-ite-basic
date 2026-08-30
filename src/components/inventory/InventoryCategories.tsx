@@ -274,7 +274,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
             )}
 
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <section data-tour="category-structure-list" className="overflow-hidden rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section data-tour="category-structure-list" className="overflow-clip rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <div className="border-b border-[#edf0ec] dark:border-[#242937] px-5 py-4">
                         <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                             Category structure

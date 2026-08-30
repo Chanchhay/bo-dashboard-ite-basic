@@ -929,7 +929,7 @@ export default function DiscountsAndCouponsPage() {
 
             {/* Discounts Table */}
             {activeTab === "discounts" && (
-                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                     {isDiscountsLoading ? (
                         <TableSkeleton rows={5} cols={6} />
                     ) : filteredDiscounts.length === 0 ? (

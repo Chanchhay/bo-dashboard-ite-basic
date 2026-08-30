@@ -52,6 +52,7 @@ import {
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
+import { TourButton } from "@/components/onboarding/TourButton";
 
 
 const STATUS_FILTERS = [
@@ -292,7 +293,13 @@ export default function SalesOrdersPage() {
     return (
         <div className="flex flex-col gap-5 pb-12 sm:pb-16">
             <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div className="flex justify-end">
+                    <TourButton />
+                </div>
+                <div
+                    data-tour="orders-digital-menu"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm"
+                >
                     <div>
                         <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
                         <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
@@ -336,6 +343,7 @@ export default function SalesOrdersPage() {
 
                 <section
                     aria-label="Totals"
+                    data-tour="orders-totals"
                     className="grid grid-cols-2 gap-3 lg:grid-cols-4"
                 >
                     <Stat
@@ -362,8 +370,14 @@ export default function SalesOrdersPage() {
                 )}
             </div>
 
-            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
-                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
+            <section
+                data-tour="orders-list"
+                className="relative rounded-2xl border border-border bg-card shadow-xs"
+            >
+                <div
+                    data-tour="orders-filters"
+                    className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs"
+                >
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search

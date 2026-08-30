@@ -803,7 +803,7 @@ export function InventoryProductList() {
                 />
             </div>
 
-            <section data-tour="item-list" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="item-list" className="overflow-clip rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-col gap-3 border-b border-border bg-card p-3.5 sm:p-4">
                     <div className="flex flex-row items-center gap-2">
                         <div className="relative min-w-0 flex-1" data-tour="item-search">

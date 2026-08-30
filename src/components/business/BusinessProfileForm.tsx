@@ -643,7 +643,7 @@ function BusinessProfileEditor({
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3" data-tour="profile-address">
                         <Field
                             label="Physical Address"
                             name="address"

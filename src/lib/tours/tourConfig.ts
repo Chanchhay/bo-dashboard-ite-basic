@@ -140,20 +140,10 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  {
- element: '[data-tour="export-excel"]',
- popover: {
- title: "8. Control Bar Export Excel",
- description: "Download your inventory catalog into a structured Excel (.csv) report for stock audits.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
  element: '[data-tour="item-actions"]',
  popover: {
- title: "9. Product Actions",
- description: "Preview customer storefront view (), edit product pricing & stock (), or remove items ().",
+ title: "8. Product Actions",
+ description: "Preview customer storefront view (👁️), edit product pricing & stock (✏️), or remove items (🗑️).",
  side: "left",
  align: "center",
  popoverClass: "fluxibiz-tour-popover",
@@ -352,7 +342,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="stock-batch-card"]',
  popover: {
  title: "6. Lot & Expiry Date Details",
- description: "Optional. Record the supplier's Lot / Batch #, Manufactured Date and Expiration Date. Stock with an expiry date is sold before stock without one, soonest first so a short-dated delivery leaves ahead of older stock that keeps.",
+ description: "Optional. Record the supplier's Lot / Batch #, Manufactured Date and Expiration Date. Stock with an expiry date is sold before stock without one, soonest first — so a short-dated delivery leaves ahead of older stock that keeps.",
  side: "top",
  align: "start",
  popoverClass: "fluxibiz-tour-popover",
@@ -362,7 +352,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="stock-summary-panel"]',
  popover: {
  title: "7. Live Movement Summary",
- description: "Real-time summary preview showing Current Stock New Projected Balance and total dollar value added.",
+ description: "Real-time summary preview showing Current Stock ➔ New Projected Balance and total dollar value added.",
  side: "left",
  align: "start",
  popoverClass: "fluxibiz-tour-popover",
@@ -445,7 +435,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="stock-summary-panel"]',
  popover: {
  title: "6. Live Movement Summary",
- description: "Preview resulting stock levels before confirming. Warns automatically if deduction exceeds available stock. The batches this comes out of are chosen for you soonest to expire first and their cost is what the write-off is valued at.",
+ description: "Preview resulting stock levels before confirming. Warns automatically if deduction exceeds available stock. The batches this comes out of are chosen for you — soonest to expire first — and their cost is what the write-off is valued at.",
  side: "left",
  align: "start",
  popoverClass: "fluxibiz-tour-popover",
@@ -464,7 +454,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-adjust-stock"]',
  popover: {
- title: "9. Next: Adjust Stock Audit",
+ title: "8. Next: Adjust Stock Audit",
  description: "Click 'Adjust stock' in the left sidebar to perform physical inventory stocktakes!",
  side: "right",
  align: "start",
@@ -548,7 +538,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="adjust-summary-panel"]',
  popover: {
  title: "8. Live Movement Summary",
- description: "Real-time calculation preview: Current Stock New Reconciled Balance.",
+ description: "Real-time calculation preview: Current Stock ➔ New Reconciled Balance.",
  side: "left",
  align: "start",
  popoverClass: "fluxibiz-tour-popover",
@@ -883,7 +873,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="preset-info-banner"]',
  popover: {
  title: "3. Template Master Copy Rule",
- description: "Applying a preset copies choice values onto an item editing a preset afterwards does not rewrite existing items, preventing accidental mass changes.",
+ description: "Applying a preset copies choice values onto an item — editing a preset afterwards does not rewrite existing items, preventing accidental mass changes.",
  side: "bottom",
  align: "start",
  popoverClass: "fluxibiz-tour-popover",
@@ -920,6 +910,72 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  ],
+
+  "/inventory/import": [
+    {
+      element: '[data-tour="import-stepper"]',
+      popover: {
+        title: "1. The Five Steps",
+        description: "Choose what you are importing, upload the file, match its columns, let it be checked, then review. Nothing is written to FluxiBiz until the final step.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-choose-type"]',
+      popover: {
+        title: "2. What Are You Importing?",
+        description: "Pick Items, Categories or Stock. This decides which columns the next step expects, so choose before you upload. — [Required]",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-panel"]',
+      popover: {
+        title: "3. The Working Area",
+        description: "Each step appears here in turn — the file drop zone, the column matcher, the check results, then the review table listing every row that will be added or changed.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-history-link"]',
+      popover: {
+        title: "4. Past Imports",
+        description: "Opens Import history: every file you have brought in, what it changed, and any rows it could not read.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/inventory/import/history": [
+    {
+      element: '[data-tour="import-history-list"]',
+      popover: {
+        title: "1. Import History",
+        description: "Every file you have imported, newest first. Each row shows what was brought in, when, and how many rows succeeded or failed.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-new-link"]',
+      popover: {
+        title: "2. Start a New Import",
+        description: "Begins the import wizard — choose the data type, upload a spreadsheet, match the columns and review before anything is saved.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
 
   "/inventory/new": [
     {
@@ -1053,6 +1109,118 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
   ],
+  "/sales/orders": [
+    {
+      element: '[data-tour="orders-digital-menu"]',
+      popover: {
+        title: "1. Digital Menu",
+        description: "Publish a QR code customers scan to browse your menu and order online. The link stays live until you turn it off.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-totals"]',
+      popover: {
+        title: "2. Today's Totals",
+        description: "Order count and takings for the period in view, so you can see the day at a glance before reading individual orders.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-filters"]',
+      popover: {
+        title: "3. Search & Filter Orders",
+        description: "Find an order by invoice number, order name or an item inside it, then narrow by status or channel.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-list"]',
+      popover: {
+        title: "4. The Order List",
+        description: "Every order, newest first. Open one to see its items, payment state and receipt, or settle an order still awaiting payment.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/pay-later": [
+    {
+      element: '[data-tour="pay-later-totals"]',
+      popover: {
+        title: "1. What You Are Owed",
+        description: "How much is outstanding across all unsettled sales, so you know what is still to come in before opening a single record.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-filters"]',
+      popover: {
+        title: "2. Find a Sale",
+        description: "Search by invoice number or customer name to locate the sale you are collecting on.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-list"]',
+      popover: {
+        title: "3. Unsettled Sales",
+        description: "Sales closed without taking the money. Record a payment against one when the cash arrives and it leaves this list.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/prediction": [
+    {
+      element: '[data-tour="prediction-controls"]',
+      popover: {
+        title: "1. Filter & Period",
+        description: "Narrow the forecast to one product, and choose the period it is calculated over. Everything below re-reads from your real sales history.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group"]',
+      popover: {
+        title: "2. What to Expect",
+        description: "Each group opens to show the items behind it — what is selling faster, what is slowing down, and what is close to running out. Use it to decide what to reorder next.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/settings": [
+    {
+      element: '[data-tour="settings-profile-form"]',
+      popover: {
+        title: "1. Your Profile",
+        description: "Your picture, name and account details. These identify you on receipts, stock movements and the audit log, so keep them accurate.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
   "/pos": [
     {
       element: '[data-tour="pos-open-register"]',
@@ -1120,10 +1288,10 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
     {
-      element: '[data-tour="pos-select-customer"]',
+      element: '[data-tour="pos-tab-customer"]',
       popover: {
         title: "6. Customer Loyalty & CRM",
-        description: "Attach customer profiles to earn loyalty points, trigger membership tier discounts, and log sales against customer history.",
+        description: "Open the Customer tab to attach a shopper to the sale — earning loyalty points, applying their membership tier discount, and logging the sale against their history.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1211,10 +1379,10 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
     {
-      element: '[data-tour="pos-tab-discount"]',
+      element: '[data-tour="pos-tab-custom-discount"]',
       popover: {
-        title: "13. Discount Tab",
-        description: "Click Discount tab to open POS discount manager. Apply automatic store promotions, custom percentage (% off) or fixed amount ($ off) overrides, or redeem promo coupon codes.",
+        title: "13. Discounts & Coupons",
+        description: "Custom Discount takes a percentage or fixed amount off the cart. The Coupon tab beside it redeems a promo code. Active store promotions apply on their own.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1222,32 +1390,14 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       onHighlightStarted: () => {
         (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
         setTimeout(() => {
-          (document.querySelector('[data-tour="pos-tab-discount"]') as HTMLButtonElement)?.click();
+          (document.querySelector('[data-tour="pos-tab-custom-discount"]') as HTMLButtonElement)?.click();
         }, 50);
-      },
-    },
-    {
-      element: '[data-tour="discount-modal-tabs"]',
-      popover: {
-        title: "14. Discount Manager Tabs (Promotions, Custom, Coupons)",
-        description: "Switch modes: 'Promotions' lists active store sales (Buy 1 Get 1, Tier Perks), 'Custom' lets cashiers enter % or $ discount overrides, and 'Coupon Code' validates customer promo codes.",
-        side: "bottom",
-        align: "center",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        if (!document.querySelector('[data-tour="discount-modal-tabs"]')) {
-          (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-          setTimeout(() => {
-            (document.querySelector('[data-tour="pos-tab-discount"]') as HTMLButtonElement)?.click();
-          }, 50);
-        }
       },
     },
     {
       element: '[data-tour="pos-open-register"]',
       popover: {
-        title: "15. Close Shift & Cash Drawer Audit",
+        title: "14. Close Shift & Cash Drawer Audit",
         description: "End your shift by counting actual cash drawer total, comparing expected vs counted cash, and logging shift discrepancy reports.",
         side: "bottom",
         align: "end",
@@ -1388,7 +1538,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="profile-about"]',
  popover: {
- title: "4. Store Description ",
+ title: "4. Store Description ℹ",
  description: "Write a short summary about your business for customers.",
  side: "top",
  align: "start",
@@ -2064,7 +2214,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-tax-settings"]',
  popover: {
- title: "5. Next: Tax Settings ",
+ title: "5. Next: Tax Settings",
  description: "Click 'Tax Settings' in the left sidebar to configure store tax rules, VAT rates, and receipt calculations!",
  side: "right",
  align: "start",
@@ -2077,7 +2227,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-tax-settings"]',
  popover: {
- title: "1. Tax Settings Module Link ",
+ title: "1. Tax Settings Module Link",
  description: "You are on the Store Tax Settings screen. Configure default store tax rates, calculation rules, and receipt display settings.",
  side: "right",
  align: "start",
@@ -2087,7 +2237,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-status-toggle"]',
  popover: {
- title: "2. Enable Tax Calculation ",
+ title: "2. Enable Tax Calculation",
  description: "Toggle Tax Calculation ON/OFF. When active, default tax rules automatically compute during POS checkout and customer invoicing.",
  side: "bottom",
  align: "start",
@@ -2097,7 +2247,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-name-input"]',
  popover: {
- title: "3. Tax Label / Name ",
+ title: "3. Tax Label / Name",
  description: "Specify the legal tax title (e.g. VAT, Sales Tax, GST) displayed on line items on printed customer receipts.",
  side: "bottom",
  align: "start",
@@ -2107,7 +2257,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-rate-input"]',
  popover: {
- title: "4. Tax Rate Value ",
+ title: "4. Tax Rate Value",
  description: "Set your business tax rate percentage (e.g. 10% VAT) applied to order subtotals.",
  side: "bottom",
  align: "start",
@@ -2117,7 +2267,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-mode-selection"]',
  popover: {
- title: "5. Tax Pricing Mode (Exclusive vs Inclusive) ",
+ title: "5. Tax Pricing Mode (Exclusive vs Inclusive)",
  description: "Choose Exclusive mode (adds tax extra on top of subtotal) or Inclusive mode (product prices already include tax with zero extra charge).",
  side: "top",
  align: "start",
@@ -2127,7 +2277,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-save-btn"]',
  popover: {
- title: "6. Save Tax Settings ",
+ title: "6. Save Tax Settings",
  description: "Click Save to store and immediately enforce tax rules across all Point of Sale registers.",
  side: "top",
  align: "end",
@@ -2137,7 +2287,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="tax-receipt-preview"]',
  popover: {
- title: "7. Live Thermal Receipt Preview ",
+ title: "7. Live Thermal Receipt Preview",
  description: "Real-time ticket preview showing how tax subtotals, tax rate lines, and total amounts render on printed receipts.",
  side: "left",
  align: "start",
@@ -2147,7 +2297,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-register-sessions"]',
  popover: {
- title: "9. Next: Register Sessions ",
+ title: "8. Next: Register Sessions",
  description: "Click 'Register Sessions' in the left sidebar to view cash register shift history, starting floats, and drawer reconciliation audit logs!",
  side: "right",
  align: "start",
@@ -2160,7 +2310,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-register-sessions"]',
  popover: {
- title: "1. Register Sessions Module Link ",
+ title: "1. Register Sessions Module Link",
  description: "You are on the Register Sessions page. Audit live and past till shifts, opening floats, cash sales, and counted drawer cash.",
  side: "right",
  align: "start",
@@ -2170,7 +2320,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sessions-header-stats"]',
  popover: {
- title: "2. Key Till Metrics & KPI Tiles ",
+ title: "2. Key Till Metrics & KPI Tiles",
  description: "Real-time summary counters showing total live active tills, total opening cash float, gross cash sales, and total drawer discrepancies.",
  side: "bottom",
  align: "start",
@@ -2180,7 +2330,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sessions-search-bar"]',
  popover: {
- title: "3. Search & Shift Status Filters ",
+ title: "3. Search & Shift Status Filters",
  description: "Search sessions by register or cashier name, and filter shift logs by ALL, OPEN (live), or CLOSED status.",
  side: "bottom",
  align: "start",
@@ -2190,7 +2340,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sessions-column-picker"]',
  popover: {
- title: "4. Column Visibility Controls ",
+ title: "4. Column Visibility Controls",
  description: "Toggle visible table columns (Session ID, Cashier, Opening Cash, Cash Sales, Counted Cash, Variance, Status).",
  side: "bottom",
  align: "start",
@@ -2200,7 +2350,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sessions-table-container"]',
  popover: {
- title: "5. Register Shift Audit Directory ",
+ title: "5. Register Shift Audit Directory",
  description: "View shift open/close timestamps, cashier accounts, order counts, expected drawer cash, counted cash, and variance dollar amounts.",
  side: "top",
  align: "start",
@@ -2210,7 +2360,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="pos-launch"]',
  popover: {
- title: "6. Next: Open Point of Sale ",
+ title: "6. Next: Open Point of Sale",
  description: "Click 'Open Point of Sale' at the bottom of the sidebar to launch the full-screen POS terminal!",
  side: "top",
  align: "center",
@@ -2223,7 +2373,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="cash-register-shift"]',
  popover: {
- title: "Cash Register Shift & Float Management ",
+ title: "Cash Register Shift & Float Management",
  description: "Open your shift float balance, count drawer cash, and close register with end-of-day X/Z reports.",
  side: "bottom",
  align: "start",

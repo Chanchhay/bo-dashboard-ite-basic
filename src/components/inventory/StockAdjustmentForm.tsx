@@ -215,8 +215,7 @@ export function StockAdjustmentForm() {
         .filter(
             (entry) =>
                 (entry.itemId || entry.addOnId) === (target?.id || "") &&
-                (entry.variantId || "") === optionId &&
-                entry.entryType !== "ADJUSTMENT",
+                (entry.variantId || "") === optionId,
         )
         .sort(
             (left, right) =>
@@ -670,8 +669,8 @@ export function StockAdjustmentForm() {
                                     !selectedItemId
                                         ? "Select an item to see the records it already has."
                                         : adjustableEntries.length === 0
-                                          ? "This item has no stock in or stock out yet, so the correction stands alone."
-                                          : "Pick the stock in or stock out this correction applies to. It is shown against the adjustment in the movements ledger."
+                                          ? "This item has no previous stock records yet, so the correction stands alone."
+                                          : "Pick the stock movement or adjustment this correction applies to. It is shown against the adjustment in the movements ledger."
                                 }
                             >
                                 <SelectField

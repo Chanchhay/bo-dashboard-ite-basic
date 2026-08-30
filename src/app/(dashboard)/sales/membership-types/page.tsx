@@ -253,7 +253,7 @@ export default function MembershipTypesPage() {
             </div>
 
             {/* Table */}
-            <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+            <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isTypesLoading ? (
                     <TableSkeleton rows={5} cols={5} />
                 ) : filteredTypes.length === 0 ? (
