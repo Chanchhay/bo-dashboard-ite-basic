@@ -6,6 +6,21 @@ const PRECACHE_ASSETS = [
 
 const POS_SHELL_URL = "/pos";
 
+/*
+ * Development is served by the Next dev server, which owns the page lifecycle:
+ * chunks are unhashed and change on every recompile, and the dev client falls
+ * back to a full `location.reload()` whenever it cannot reconcile a build.
+ * A worker sitting in front of that turns one reload into a permanent loop —
+ * the page reloading itself every few hundred milliseconds.
+ *
+ * So the worker stays installed here (push, notifications and the install
+ * prompt still work) but hands every request straight to the network. Offline
+ * behaviour is unchanged in production; to exercise it locally, run a
+ * production build — `npm run build && npm start` — which is the only way to
+ * test it against the hashed assets it actually ships with.
+ */
+const IS_DEV = new URL(self.location.href).searchParams.get("mode") === "dev";
+
 self.addEventListener("push", function (event) {
   if (!event.data) {
     return;
@@ -77,25 +92,18 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-async function precachePosShell() {
-  try {
-    const response = await fetch(POS_SHELL_URL, {
-      credentials: "same-origin",
-      redirect: "follow",
-    });
-
-    if (!response.ok || response.redirected) {
-      console.warn("[Service Worker] POS shell not cacheable yet (unauthenticated?)");
-      return;
-    }
-
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put(POS_SHELL_URL, response);
-    console.log("[Service Worker] POS shell cached");
-  } catch (err) {
-    console.warn("[Service Worker] POS shell pre-cache failed:", err);
-  }
-}
+/*
+ * The POS shell is not pre-warmed.
+ *
+ * A background `fetch("/pos")` used to run whenever the page asked for one,
+ * and nothing bounded it: /pos is dynamic and per-session, so a response that
+ * redirected or errored was never cached, every retry paid a full server
+ * render, and the worker hammered the page in a loop.
+ *
+ * The offline copy comes from real visits instead — the fetch handler below
+ * caches /pos on the way through, which is where this cache was populated in
+ * practice anyway.
+ */
 
 async function clearPosShell() {
   try {
@@ -118,16 +126,14 @@ async function clearPosShell() {
 }
 
 self.addEventListener("message", (event) => {
-  if (event.data?.type === "PRECACHE_POS_SHELL") {
-    event.waitUntil(precachePosShell());
-  }
-
   if (event.data?.type === "CLEAR_POS_SHELL") {
     event.waitUntil(clearPosShell());
   }
 });
 
 self.addEventListener("fetch", (event) => {
+  if (IS_DEV) return;
+
   const url = new URL(event.request.url);
 
   if (event.request.method === "POST" && url.pathname === "/api/logout") {

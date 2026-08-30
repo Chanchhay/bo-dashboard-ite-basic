@@ -2,12 +2,9 @@
 
 import { useEffect } from 'react'
 
-import { authClient } from '@/lib/auth/auth-client'
+import { SW_URL } from '@/lib/pwa/sw-url'
 
 export function PwaManager() {
-  const { data: session } = authClient.useSession()
-  const isSignedIn = Boolean(session)
-
   useEffect(() => {
     if (!('serviceWorker' in navigator)) {
       console.log('Service Worker is not supported')
@@ -16,7 +13,7 @@ export function PwaManager() {
 
     async function registerServiceWorker() {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
+        const registration = await navigator.serviceWorker.register(SW_URL, {
           scope: '/',
           updateViaCache: 'none',
         })
@@ -30,24 +27,5 @@ export function PwaManager() {
     registerServiceWorker()
   }, [])
   
-  useEffect(() => {
-    if (!isSignedIn || !('serviceWorker' in navigator)) return
-
-    let cancelled = false
-
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        if (cancelled) return
-        registration.active?.postMessage({ type: 'PRECACHE_POS_SHELL' })
-      })
-      .catch((error) => {
-        console.warn('Could not warm the POS shell:', error)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isSignedIn])
-
   return null
 }
