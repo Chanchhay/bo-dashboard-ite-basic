@@ -4,29 +4,27 @@ import { DollarSign, Flame, PackageX, TrendingDown } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Card } from "@/components/ui/card";
-import { useItemForecasts } from "@/hooks/useItemForecasts";
+import {
+    useItemForecasts,
+    type PredictionWindowKey,
+} from "@/hooks/useItemForecasts";
 import { useMoney } from "@/hooks/useMoney";
-import type { InventoryItem, StockSummary } from "@/lib/api/inventory";
 import { cn } from "@/lib/utils";
 
 interface PredictionSummaryProps {
-    items: InventoryItem[];
-    stock: StockSummary[];
-    windowDays: number;
-    /** e.g. "today", "this week", "this month" — used in the tile copy. */
+    windowKey: PredictionWindowKey;
+    /** e.g. "this week", "this month" — used in the tile copy. */
     windowPhrase: string;
 }
 
 /** The 4 headline numbers — the tables below spell out exactly which products. */
 export function PredictionSummary({
-    items,
-    stock,
-    windowDays,
+    windowKey,
     windowPhrase,
 }: PredictionSummaryProps) {
     const { format } = useMoney();
     const { loading, hasError, hasAnySales, rising, stockoutSoon, slowMovers, revenueForecast } =
-        useItemForecasts(items, stock, windowDays);
+        useItemForecasts(windowKey);
 
     if (hasError) {
         return (
