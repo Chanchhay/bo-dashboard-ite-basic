@@ -465,6 +465,7 @@ export function UnitsTab() {
                     <Button
                         type="submit"
                         size="lg"
+                        data-tour="unit-form-submit"
                         disabled={createState.isLoading || updateState.isLoading}
                         className="mt-5 w-full"
                     >

@@ -136,8 +136,17 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
         const periods = periodProfitQuery.data?.periods;
         if (!periods || periods.length === 0) return [];
 
+        // The API answers newest-first; a running total only means something
+        // walking forward through time, and the chart has to draw left-to-right
+        // the same way or it reads backwards.
+        const chronological = [...periods].sort((a, b) => {
+            if (!a.periodStart) return -1;
+            if (!b.periodStart) return 1;
+            return a.periodStart.localeCompare(b.periodStart);
+        });
+
         let runningSum = 0;
-        return periods.map((p) => {
+        return chronological.map((p) => {
             runningSum += p.profit;
             let dateStr = p.periodStart ? periodLabel(p.periodStart, granularity) : "Date";
             dateStr = dateStr.replace(/^Week of /i, "").replace(/ \d{4}$/, "");
@@ -360,9 +369,9 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
     }, [bestSellingProducts, bestSellingPage]);
 
     return (
-        <div className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
+        <div data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
             {/* KPI Metric Cards Row (Top 4) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {/* 1. TOTAL REVENUE */}
                 <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
@@ -451,7 +460,11 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     </CardHeader>
 
                     <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {itemVectorData.length === 0 ? (
+                        {itemProfitQuery.isError ? (
+                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
+                                Couldn&apos;t load item sales — try refreshing.
+                            </div>
+                        ) : itemVectorData.length === 0 ? (
                             <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
                                 No sales recorded yet for this business.
                             </div>
@@ -539,7 +552,11 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     </CardHeader>
 
                     <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {cumulativeProfitData.length === 0 ? (
+                        {periodProfitQuery.isError ? (
+                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
+                                Couldn&apos;t load profit data — try refreshing.
+                            </div>
+                        ) : cumulativeProfitData.length === 0 ? (
                             <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
                                 No profit data for this period yet.
                             </div>
@@ -640,7 +657,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 3. BOTTOM-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
-                <Card className="flex flex-col justify-between rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                <Card data-tour="dashboard-channel-cards" className="flex flex-col justify-between rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-2">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
@@ -709,7 +726,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 4. BOTTOM-RIGHT: `stock_inventory` (Stock Inventory — Horizontal Bar Chart) */}
-                <Card className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">

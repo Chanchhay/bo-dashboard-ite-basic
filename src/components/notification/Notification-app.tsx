@@ -327,7 +327,7 @@ export default function NotificationsApp() {
             </div>
 
             {/* Main Content Area */}
-            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
+            <div className="rounded-2xl border border-border bg-card shadow-xs overflow-clip flex flex-col">
                 {/* Control Bar */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3 bg-card shrink-0">
                     <div data-tour="notifications-search" className="relative w-full sm:w-80">

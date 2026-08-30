@@ -20,7 +20,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { useObjectUrls } from "@/components/ui/image-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -63,6 +62,7 @@ export function ItemOptionDialog({
     option,
     colors,
     existingNames,
+    previewUrls,
     onSubmit,
 }: {
     open: boolean;
@@ -74,6 +74,8 @@ export function ItemOptionDialog({
     colors: readonly { id: string; value: string; colorHex: string }[];
     /** Lower-cased, excluding the one being edited. */
     existingNames: string[];
+    /** Owned by the form, so a preview outlives this dialog closing. */
+    previewUrls: { create: (file: File) => string; release: (url?: string) => void };
     onSubmit: (option: OptionDraft) => void;
 }) {
     return (
@@ -84,6 +86,7 @@ export function ItemOptionDialog({
                     option={option}
                     colors={colors}
                     existingNames={existingNames}
+                    previewUrls={previewUrls}
                     onSubmit={onSubmit}
                     onClose={() => onOpenChange(false)}
                 />
@@ -96,18 +99,20 @@ function OptionForm({
     option,
     colors,
     existingNames,
+    previewUrls,
     onSubmit,
     onClose,
 }: {
     option?: OptionDraft;
     colors: readonly { id: string; value: string; colorHex: string }[];
     existingNames: string[];
+    previewUrls: { create: (file: File) => string; release: (url?: string) => void };
     onSubmit: (option: OptionDraft) => void;
     onClose: () => void;
 }) {
     const isEditing = Boolean(option);
     const { toast } = useToast();
-    const { create, release } = useObjectUrls();
+    const { create, release } = previewUrls;
     const [generateBarcode, generateBarcodeState] =
         useGenerateInventoryBarcodeMutation();
 
@@ -350,9 +355,36 @@ function OptionForm({
                 <div className="flex gap-2">
                     <Input
                         id="option-barcode"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={barcode}
                         maxLength={itemLimits.barcode}
-                        onChange={(event) => setBarcode(event.target.value)}
+                        onKeyDown={(e) => {
+                            if (
+                                [
+                                    "Backspace",
+                                    "Delete",
+                                    "Tab",
+                                    "Escape",
+                                    "Enter",
+                                    "ArrowLeft",
+                                    "ArrowRight",
+                                    "ArrowUp",
+                                    "ArrowDown",
+                                    "Home",
+                                    "End",
+                                ].includes(e.key) ||
+                                e.ctrlKey ||
+                                e.metaKey
+                            ) {
+                                return;
+                            }
+                            if (!/^[0-9]$/.test(e.key)) {
+                                e.preventDefault();
+                            }
+                        }}
+                        onChange={(event) => setBarcode(event.target.value.replace(/[^0-9]/g, ""))}
                         placeholder="Scan, type or generate"
                         autoComplete="off"
                         className={`${inventoryControlClassName} h-10 flex-1 font-mono`}

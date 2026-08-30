@@ -5,6 +5,7 @@ import { Check, LoaderCircle, Scale, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { clampStockInput } from "@/lib/api/inventory";
 import {
     Dialog,
     DialogContent,
@@ -569,9 +570,7 @@ export function SplitStockDialog({
                                 placeholder="0"
                                 value={fixed}
                                 onChange={(event) =>
-                                    setFixed(
-                                        event.target.value.replace(/[^\d]/g, ""),
-                                    )
+                                    setFixed(clampStockInput(event.target.value))
                                 }
                             />
                         </div>

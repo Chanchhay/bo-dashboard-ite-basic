@@ -768,8 +768,8 @@ export function PosScreen({
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f5f5f5] min-[1025px]:flex-row">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-clip bg-[#f5f5f5] min-[1025px]:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-clip">
         <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-20 [-ms-overflow-style:none] min-[1025px]:pb-0 [&::-webkit-scrollbar]:hidden">
           {activeTab === "Point of Sale" &&
             (paidReceipt ? (

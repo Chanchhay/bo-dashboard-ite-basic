@@ -30,6 +30,11 @@ import {
 import { useToast } from "@/components/ui/toast";
 import type { AddOn } from "@/lib/inventory-config/types";
 import {
+    charCountInputClassName,
+    CharCountField,
+} from "@/components/inventory/CharLimit";
+import { itemLimits } from "@/lib/api/inventory";
+import {
     findUnit,
     formatAmount,
     validateConversion,
@@ -156,8 +161,8 @@ export function AddOnDialog({
 
         if (!name) {
             found.name = "Name is required.";
-        } else if (name.length > 150) {
-            found.name = "Name must be 150 characters or fewer.";
+        } else if (name.length > itemLimits.addOnName) {
+            found.name = `Name must be ${itemLimits.addOnName} characters or fewer.`;
         }
 
         if (!draft.baseUnitId) {
@@ -217,16 +222,22 @@ export function AddOnDialog({
                 <div className="mt-5 flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="addon-name">Name *</Label>
-                        <Input
-                            id="addon-name"
-                            value={draft.name}
-                            onChange={(event) =>
-                                updateDraft({ name: event.target.value })
-                            }
-                            placeholder="Pearls"
-                            aria-invalid={Boolean(errors.name)}
-                            className={inventoryControlClassName}
-                        />
+                        <CharCountField
+                            length={draft.name.length}
+                            max={itemLimits.addOnName}
+                        >
+                            <Input
+                                id="addon-name"
+                                value={draft.name}
+                                maxLength={itemLimits.addOnName}
+                                onChange={(event) =>
+                                    updateDraft({ name: event.target.value })
+                                }
+                                placeholder="Pearls"
+                                aria-invalid={Boolean(errors.name)}
+                                className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                            />
+                        </CharCountField>
                         {errors.name ? (
                             <p className="text-xs text-danger" role="alert">
                                 {errors.name}
@@ -266,7 +277,7 @@ export function AddOnDialog({
                                             key={candidate.id}
                                             value={candidate.id}
                                         >
-                                            {candidate.name} ({candidate.symbol})
+                                            {candidate.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -370,10 +381,38 @@ export function AddOnDialog({
                                 </Label>
                                 <Input
                                     id="addon-conv-factor"
-                                    type="number"
-                                    min="0"
-                                    step="any"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={conversionDraft.factor}
+                                    onKeyDown={(e) => {
+                                        if (
+                                            !/[0-9.]/.test(e.key) &&
+                                            ![
+                                                "Backspace",
+                                                "Delete",
+                                                "ArrowLeft",
+                                                "ArrowRight",
+                                                "Tab",
+                                                "Enter",
+                                            ].includes(e.key)
+                                        ) {
+                                            e.preventDefault();
+                                        }
+                                    }}
+                                    onInput={(e) => {
+                                        const val = e.currentTarget.value.replace(
+                                            /[^0-9.]/g,
+                                            "",
+                                        );
+                                        const parts = val.split(".");
+                                        const sanitized =
+                                            parts.length > 2
+                                                ? `${parts[0]}.${parts.slice(1).join("")}`
+                                                : val;
+                                        if (sanitized !== e.currentTarget.value) {
+                                            e.currentTarget.value = sanitized;
+                                        }
+                                    }}
                                     onChange={(event) =>
                                         setConversionDraft((current) => ({
                                             ...current,
@@ -409,10 +448,38 @@ export function AddOnDialog({
                                 <div className="flex items-center gap-2">
                                     <Input
                                         id="addon-use"
-                                        type="number"
-                                        min="0"
-                                        step="any"
+                                        type="text"
+                                        inputMode="decimal"
                                         value={draft.usePerOrder}
+                                        onKeyDown={(e) => {
+                                            if (
+                                                !/[0-9.]/.test(e.key) &&
+                                                ![
+                                                    "Backspace",
+                                                    "Delete",
+                                                    "ArrowLeft",
+                                                    "ArrowRight",
+                                                    "Tab",
+                                                    "Enter",
+                                                ].includes(e.key)
+                                            ) {
+                                                e.preventDefault();
+                                            }
+                                        }}
+                                        onInput={(e) => {
+                                            const val = e.currentTarget.value.replace(
+                                                /[^0-9.]/g,
+                                                "",
+                                            );
+                                            const parts = val.split(".");
+                                            const sanitized =
+                                                parts.length > 2
+                                                    ? `${parts[0]}.${parts.slice(1).join("")}`
+                                                    : val;
+                                            if (sanitized !== e.currentTarget.value) {
+                                                e.currentTarget.value = sanitized;
+                                            }
+                                        }}
                                         onChange={(event) =>
                                             updateDraft({
                                                 usePerOrder: event.target.value,

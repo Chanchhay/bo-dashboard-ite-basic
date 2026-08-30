@@ -198,6 +198,7 @@ export function BusinessFacebookPageForm() {
 
                             <Button
                                 type="button"
+                                data-tour="facebook-connect-btn"
                                 className="bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium"
                                 disabled={isGettingUrl}
                                 onClick={handleConnect}
