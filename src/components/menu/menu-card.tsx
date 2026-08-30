@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ImageOff } from "lucide-react";
+import { useState } from "react";
 
 export interface PosCardType {
   id: string | number;
@@ -21,6 +23,12 @@ export interface PosCardType {
    * does want the real per-item edit link.
    */
   navigate?: boolean;
+  /**
+   * False on the public ("live") menu, where a shop's own item without a
+   * picture must not be dressed up with a stock photo of something it does
+   * not sell — a neutral placeholder is shown instead.
+   */
+  fallbackImage?: boolean;
 }
 
 export default function MenuCard({
@@ -31,6 +39,7 @@ export default function MenuCard({
   category,
   onClick,
   navigate = true,
+  fallbackImage = true,
 }: PosCardType) {
   const formattedPrice =
     typeof price === "number"
@@ -48,7 +57,13 @@ export default function MenuCard({
         }}
         className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
       >
-        <MenuCardBody image={image} name={name} category={category} formattedPrice={formattedPrice} />
+        <MenuCardBody
+          image={image}
+          name={name}
+          category={category}
+          formattedPrice={formattedPrice}
+          fallbackImage={fallbackImage}
+        />
       </div>
     );
   }
@@ -59,7 +74,13 @@ export default function MenuCard({
       onClick={onClick}
       className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
     >
-      <MenuCardBody image={image} name={name} category={category} formattedPrice={formattedPrice} />
+      <MenuCardBody
+          image={image}
+          name={name}
+          category={category}
+          formattedPrice={formattedPrice}
+          fallbackImage={fallbackImage}
+        />
     </Link>
   );
 }
@@ -69,37 +90,53 @@ function MenuCardBody({
   name,
   category,
   formattedPrice,
+  fallbackImage,
 }: {
   image: string;
   name: string;
   category: string;
   formattedPrice: string;
+  fallbackImage: boolean;
 }) {
+  const [broken, setBroken] = useState(false);
+  const stockPhoto = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80";
+  const showPlaceholder = !fallbackImage && (!image || broken);
+
   return (
     <>
       {/* Image Rounded Container (No outer border box, matching screenshot 100%) */}
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#1a1e29]">
-        <Image
-          src={image || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80"}
-          alt={name}
-          width={400}
-          height={400}
-          /*
-           * An item's picture can live anywhere: a shop importing its
-           * catalogue keeps hosting it on whatever CDN it already used.
-           * Optimising would mean fetching it through our own server, which
-           * only works for hosts listed in next.config.ts — so every shop
-           * would need an admin to add theirs before their photos appeared.
-           * Served as-is, the browser fetches it directly and any shop's
-           * pictures work the day they import them.
-           */
-          unoptimized
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80";
-          }}
-        />
+        {showPlaceholder ? (
+          <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600">
+            <ImageOff className="size-10" aria-hidden />
+            <span className="sr-only">No image for {name}</span>
+          </div>
+        ) : (
+          <Image
+            src={image || stockPhoto}
+            alt={name}
+            width={400}
+            height={400}
+            /*
+             * An item's picture can live anywhere: a shop importing its
+             * catalogue keeps hosting it on whatever CDN it already used.
+             * Optimising would mean fetching it through our own server, which
+             * only works for hosts listed in next.config.ts — so every shop
+             * would need an admin to add theirs before their photos appeared.
+             * Served as-is, the browser fetches it directly and any shop's
+             * pictures work the day they import them.
+             */
+            unoptimized
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => {
+              if (fallbackImage) {
+                (e.target as HTMLImageElement).src = stockPhoto;
+              } else {
+                setBroken(true);
+              }
+            }}
+          />
+        )}
       </div>
 
       {/* Item Details directly below image */}
