@@ -21,10 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField, type SelectOption } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
-import {
-    attributeIcon,
-    attributeIconKeys,
-} from "@/lib/api/attribute-icons";
+import { attributeIcon, attributeIconKeys } from "@/lib/api/attribute-icons";
 import {
     itemAttributePlacementLabels,
     itemAttributePlacements,
@@ -112,8 +109,7 @@ function valueCopy(
 
     return {
         label: "Attribute value",
-        placeholder:
-            type === "SELECTION" ? "Add an option" : "Add a value",
+        placeholder: type === "SELECTION" ? "Add an option" : "Add a value",
     };
 }
 
@@ -172,7 +168,8 @@ function AttributeForm({
 
     const takesValues = type !== "TOGGLE";
     const single = isSingleValue(placement);
-    const showsIcon = placement === "HIGHLIGHT" || placement === "SPECIFICATION";
+    const showsIcon =
+        placement === "HIGHLIGHT" || placement === "SPECIFICATION";
     const copy = valueCopy(type, placement);
     const visibleValues = single ? values.slice(0, 1) : values;
     const valuesFull = values.length >= itemLimits.attributeValues;
@@ -186,10 +183,7 @@ function AttributeForm({
         });
     }
 
-    function updateValue(
-        index: number,
-        patch: Partial<AttributeValueDraft>,
-    ) {
+    function updateValue(index: number, patch: Partial<AttributeValueDraft>) {
         setValues((current) =>
             current.map((value, position) =>
                 position === index ? { ...value, ...patch } : value,
@@ -233,11 +227,7 @@ function AttributeForm({
                   .filter((value) => value.value)
             : [];
 
-        if (
-            placement === "OPTION" &&
-            type === "SELECTION" &&
-            !cleaned.length
-        ) {
+        if (placement === "OPTION" && type === "SELECTION" && !cleaned.length) {
             showError("Add at least one option for shoppers to choose from.");
             return;
         }
@@ -300,28 +290,35 @@ function AttributeForm({
                 </CharCountField>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                    <Label
-                        htmlFor="attribute-type"
-                        className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
-                    >
-                        Attribute type
-                    </Label>
-                    <SelectField
-                        id="attribute-type"
-                        options={withCurrent(
-                            typeOptions,
-                            type,
-                            itemAttributeTypeLabels[type],
-                        )}
-                        value={type}
-                        onValueChange={(next) => {
-                            setType(next as ItemAttributeType);
-                            setError(null);
-                        }}
-                    />
-                </div>
+            <div
+                className={cn(
+                    "grid gap-4",
+                    placement !== "SPECIFICATION" && "sm:grid-cols-2",
+                )}
+            >
+                {placement !== "SPECIFICATION" ? (
+                    <div className="flex flex-col gap-2">
+                        <Label
+                            htmlFor="attribute-type"
+                            className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]"
+                        >
+                            Attribute type
+                        </Label>
+                        <SelectField
+                            id="attribute-type"
+                            options={withCurrent(
+                                typeOptions,
+                                type,
+                                itemAttributeTypeLabels[type],
+                            )}
+                            value={type}
+                            onValueChange={(next) => {
+                                setType(next as ItemAttributeType);
+                                setError(null);
+                            }}
+                        />
+                    </div>
+                ) : null}
                 <div className="flex flex-col gap-2">
                     <Label
                         htmlFor="attribute-placement"
@@ -338,7 +335,9 @@ function AttributeForm({
                         )}
                         value={placement}
                         onValueChange={(next) => {
-                            setPlacement(next as ItemAttributePlacement);
+                            const nextPlacement =
+                                next as ItemAttributePlacement;
+                            setPlacement(nextPlacement);
                             setError(null);
                         }}
                     />
@@ -482,8 +481,8 @@ function AttributeForm({
                 </div>
             ) : (
                 <p className="rounded-xl bg-[#f7f8f7] dark:bg-[#252a38] px-4 py-3 text-sm text-[#657064] dark:text-[#cbd5e1]">
-                    A toggle attribute is either on or off, so it takes
-                    no values.
+                    A toggle attribute is either on or off, so it takes no
+                    values.
                 </p>
             )}
 
@@ -496,11 +495,7 @@ function AttributeForm({
                 >
                     Cancel
                 </Button>
-                <Button
-                    type="submit"
-                    size="lg"
-                    className="rounded-full px-8"
-                >
+                <Button type="submit" size="lg" className="rounded-full px-8">
                     {isEditing ? "Save" : "Add"}
                 </Button>
             </DialogFooter>
