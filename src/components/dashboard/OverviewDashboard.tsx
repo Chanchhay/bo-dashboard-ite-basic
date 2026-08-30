@@ -136,8 +136,17 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
         const periods = periodProfitQuery.data?.periods;
         if (!periods || periods.length === 0) return [];
 
+        // The API answers newest-first; a running total only means something
+        // walking forward through time, and the chart has to draw left-to-right
+        // the same way or it reads backwards.
+        const chronological = [...periods].sort((a, b) => {
+            if (!a.periodStart) return -1;
+            if (!b.periodStart) return 1;
+            return a.periodStart.localeCompare(b.periodStart);
+        });
+
         let runningSum = 0;
-        return periods.map((p) => {
+        return chronological.map((p) => {
             runningSum += p.profit;
             let dateStr = p.periodStart ? periodLabel(p.periodStart, granularity) : "Date";
             dateStr = dateStr.replace(/^Week of /i, "").replace(/ \d{4}$/, "");
@@ -451,7 +460,11 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     </CardHeader>
 
                     <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {itemVectorData.length === 0 ? (
+                        {itemProfitQuery.isError ? (
+                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
+                                Couldn&apos;t load item sales — try refreshing.
+                            </div>
+                        ) : itemVectorData.length === 0 ? (
                             <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
                                 No sales recorded yet for this business.
                             </div>
@@ -539,7 +552,11 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     </CardHeader>
 
                     <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {cumulativeProfitData.length === 0 ? (
+                        {periodProfitQuery.isError ? (
+                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
+                                Couldn&apos;t load profit data — try refreshing.
+                            </div>
+                        ) : cumulativeProfitData.length === 0 ? (
                             <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
                                 No profit data for this period yet.
                             </div>

@@ -921,89 +921,138 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
- "/inventory/new": [
- {
- element: '[data-tour="item-form-name"]',
- popover: {
- title: "1. (Item Name)",
- description: " POS [] Coca Cola 330ml",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-sku"]',
- popover: {
- title: "2. (SKU/Code)",
- description: " [] COC-330",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-barcode"]',
- popover: {
- title: "3. (Barcode)",
- description: " POS [] 8850123456789",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-category"]',
- popover: {
- title: "4. (Category)",
- description: " POS [] Beverages / Drinks",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-unit"]',
- popover: {
- title: "5. (Unit)",
- description: " ( Unit ) [] Can, Bottle, Pcs",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-low-stock"]',
- popover: {
- title: "9. (Low Stock Alert)",
- description: " [] 5 Cans",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-status"]',
- popover: {
- title: "12. (Status)",
- description: " [] Active ()",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="item-form-save"]',
- popover: {
- title: "13. (Save Button)",
- description: " Unit Category Save!",
- side: "top",
- align: "end",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
+  "/inventory/new": [
+    {
+      element: '[data-tour="item-form-name"]',
+      popover: {
+        title: "1. Item Name",
+        description: "The name shown on the POS and on receipts. — [Required] — e.g. Coca Cola 330ml",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-sku"]',
+      popover: {
+        title: "2. SKU / Code",
+        description: "Your own reference code for this item, typed or auto-generated. — [Optional] — e.g. COC-330",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-barcode"]',
+      popover: {
+        title: "3. Barcode",
+        description: "Scanned at the POS to ring the item up. Use the dice button to generate a unique one. — [Optional] — e.g. 8850123456789",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-category"]',
+      popover: {
+        title: "4. Category",
+        description: "Groups the item for the POS menu and reports. Create categories under Item config first. — [Required] — e.g. Beverages / Drinks",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-status"]',
+      popover: {
+        title: "5. Status",
+        description: "Whether this item can be sold right now. Inactive keeps the record but hides it from the POS. — [Required] — e.g. Active",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-options"]',
+      popover: {
+        title: "6. Options & Colours",
+        description: "Variations of this item, such as sizes and colours. Add option opens a dialog where each one gets its own SKU, barcode and photo, and is counted separately. — [Optional] — e.g. Small, Medium, Large",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-unit"]',
+      popover: {
+        title: "7. Base Unit of Measure",
+        description: "The smallest quantity you sell. Conversions let you buy in larger units without a second stock figure. — [Required] — e.g. Can, Bottle, Pcs",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-low-stock"]',
+      popover: {
+        title: "8. Low Stock Alert",
+        description: "You are warned once stock falls below this figure. Leave it at 0 to be told only when the item runs out. — [Optional] — e.g. 5",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-images"]',
+      popover: {
+        title: "9. Item Images",
+        description: "The first image is the thumbnail and the rest fill the store gallery. Up to 10, 10 MB each, uploaded when you save. — [Optional]",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-attributes"]',
+      popover: {
+        title: "10. Attributes",
+        description: "Facts about the item shown on the store page — a highlight, a perk, a specification. What a shopper picks between is an Option, not an attribute. — [Optional]",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-addons"]',
+      popover: {
+        title: "11. Add-ons",
+        description: "Extras a customer can choose alongside this item. Each is defined once under Item config and attached here. — [Optional]",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-store-page"]',
+      popover: {
+        title: "12. Store Page",
+        description: "Lays out the lower half of the store page: paragraphs, headings, bullets, images, a spec grid, or two columns. Each block opens its own form. — [Optional]",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="item-form-save"]',
+      popover: {
+        title: "13. Save",
+        description: "Saves the item. Order of work: create the Unit and Category first, fill in the details, then Save. Prices are set per sales channel in Sale Management, not here.",
+        side: "top",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
   "/pos": [
     {
       element: '[data-tour="pos-open-register"]',

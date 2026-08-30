@@ -31,6 +31,8 @@ export type ItemColorDraft = {
     value: string;
     colorHex: string;
     imageUrl: string;
+    file?: File;
+    previewUrl?: string;
 };
 
 export function ItemColorDialog({
@@ -81,6 +83,8 @@ function ColorForm({
     const [value, setValue] = useState(color?.value || "");
     const [colorHex, setColorHex] = useState(color?.colorHex || "");
     const [imageUrl, setImageUrl] = useState(color?.imageUrl || "");
+    const [file, setFile] = useState<File | undefined>(color?.file);
+    const [previewUrl, setPreviewUrl] = useState<string | undefined>(color?.previewUrl);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
@@ -114,6 +118,8 @@ function ColorForm({
             value: name,
             colorHex: colorHex.trim(),
             imageUrl: imageUrl.trim(),
+            file,
+            previewUrl,
         });
         onClose();
     }
@@ -179,8 +185,15 @@ function ColorForm({
                 </Label>
                 <ChoiceImageField
                     value={imageUrl}
+                    file={file}
+                    previewUrl={previewUrl}
                     label={`${value.trim() || "Colour"} photo`}
-                    onChange={setImageUrl}
+                    onChangeUrl={setImageUrl}
+                    onChangeFile={(selectedFile, nextPreviewUrl) => {
+                        setFile(selectedFile);
+                        setPreviewUrl(nextPreviewUrl);
+                        if (selectedFile) setImageUrl("");
+                    }}
                 />
             </div>
 

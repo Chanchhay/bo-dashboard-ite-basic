@@ -6,7 +6,7 @@ import { ArrowLeftRight, Boxes, Plus, Trash2 } from "lucide-react";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { itemLimits } from "@/lib/api/inventory";
+import { clampStockInput, itemLimits } from "@/lib/api/inventory";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -208,13 +208,41 @@ export function ItemUomCard({
                             <Input
                                 id="lowStockDefault"
                                 name="lowStockDefault"
-                                type="number"
-                                min="0"
-                                max={itemLimits.lowStock}
-                                step="1"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 defaultValue={lowStockDefault}
                                 aria-invalid={Boolean(lowStockError)}
                                 className={`${inventoryControlClassName} flex-1`}
+                                onKeyDown={(e) => {
+                                    if (
+                                        [
+                                            "Backspace",
+                                            "Delete",
+                                            "Tab",
+                                            "Escape",
+                                            "Enter",
+                                            "ArrowLeft",
+                                            "ArrowRight",
+                                            "ArrowUp",
+                                            "ArrowDown",
+                                            "Home",
+                                            "End",
+                                        ].includes(e.key) ||
+                                        e.ctrlKey ||
+                                        e.metaKey
+                                    ) {
+                                        return;
+                                    }
+                                    if (!/^[0-9]$/.test(e.key)) {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                onInput={(e) => {
+                                    e.currentTarget.value = clampStockInput(
+                                        e.currentTarget.value,
+                                    );
+                                }}
                             />
                             <span className="shrink-0 font-mono text-sm text-muted-foreground">
                                 {baseSymbol || "—"}
@@ -431,17 +459,47 @@ export function ItemUomCard({
                         </Label>
                         <Input
                             id="conversion-factor"
-                            type="number"
-                            min="0"
-                            max={itemLimits.conversionFactor}
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             value={conversionDraft.factor}
-                            onChange={(event) =>
+                            onKeyDown={(e) => {
+                                if (
+                                    [
+                                        "Backspace",
+                                        "Delete",
+                                        "Tab",
+                                        "Escape",
+                                        "Enter",
+                                        "ArrowLeft",
+                                        "ArrowRight",
+                                        "ArrowUp",
+                                        "ArrowDown",
+                                        "Home",
+                                        "End",
+                                    ].includes(e.key) ||
+                                    e.ctrlKey ||
+                                    e.metaKey
+                                ) {
+                                    return;
+                                }
+                                if (
+                                    !/^[0-9.]$/.test(e.key) ||
+                                    (e.key === "." && e.currentTarget.value.includes("."))
+                                ) {
+                                    e.preventDefault();
+                                }
+                            }}
+                            onChange={(event) => {
+                                let val = event.target.value.replace(/[^0-9.]/g, "");
+                                const parts = val.split(".");
+                                if (parts.length > 2) {
+                                    val = parts[0] + "." + parts.slice(1).join("");
+                                }
                                 setConversionDraft((current) => ({
                                     ...current,
-                                    factor: event.target.value,
-                                }))
-                            }
+                                    factor: val,
+                                }));
+                            }}
                             placeholder="25000"
                             className={inventoryControlClassName}
                         />

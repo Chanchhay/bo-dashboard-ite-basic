@@ -15,14 +15,22 @@ import {
 } from "@/services/assetApi";
 
 export function ChoiceImageField({
-    value,
+    value = "",
+    file,
+    previewUrl,
     onChange,
+    onChangeUrl,
+    onChangeFile,
     label = "Photo",
     /** A small click-to-browse thumbnail instead of the full drop zone, for forms where every row already has one of these. */
     compact = false,
 }: {
-    value: string;
-    onChange: (url: string) => void;
+    value?: string;
+    file?: File;
+    previewUrl?: string;
+    onChange?: (url: string) => void;
+    onChangeUrl?: (url: string) => void;
+    onChangeFile?: (file: File | undefined, previewUrl: string | undefined) => void;
     label?: string;
     compact?: boolean;
 }) {
@@ -31,36 +39,45 @@ export function ChoiceImageField({
     const { create, release } = useObjectUrls();
     const { toast } = useToast();
 
-    const [previewUrl, setPreviewUrl] = useState<string | undefined>();
     const [uploading, setUploading] = useState(false);
     const [assetKey, setAssetKey] = useState<string | undefined>();
+    const [localPreviewUrl, setLocalPreviewUrl] = useState<string | undefined>();
 
-    const preview = previewUrl || value;
+    const updateUrl = onChangeUrl || onChange;
+    const preview = previewUrl || localPreviewUrl || value;
 
-    async function handlePick(file: File) {
-        release(previewUrl);
+    async function handlePick(pickedFile: File) {
+        if (onChangeFile) {
+            release(localPreviewUrl);
+            const objectUrl = create(pickedFile);
+            setLocalPreviewUrl(objectUrl);
+            onChangeFile(pickedFile, objectUrl);
+            return;
+        }
+
+        release(localPreviewUrl);
         const replaced = assetKey;
-        const nextPreview = create(file);
+        const nextPreview = create(pickedFile);
 
-        setPreviewUrl(nextPreview);
+        setLocalPreviewUrl(nextPreview);
         setUploading(true);
 
         try {
-            const asset = await uploadAsset(file).unwrap();
+            const asset = await uploadAsset(pickedFile).unwrap();
 
             if (!asset.url) {
                 throw new Error("The upload returned no URL.");
             }
 
-            onChange(asset.url);
+            updateUrl?.(asset.url);
             setAssetKey(asset.key);
-            setPreviewUrl(undefined);
+            setLocalPreviewUrl(undefined);
             release(nextPreview);
 
             if (replaced) void deleteAsset(replaced);
         } catch (error) {
             release(nextPreview);
-            setPreviewUrl(undefined);
+            setLocalPreviewUrl(undefined);
             toast({
                 tone: "error",
                 title: `${label} not uploaded`,
@@ -75,12 +92,15 @@ export function ChoiceImageField({
     }
 
     function handleRemove() {
-        release(previewUrl);
+        release(localPreviewUrl);
         if (assetKey) void deleteAsset(assetKey);
 
-        onChange("");
+        if (onChangeFile) {
+            onChangeFile(undefined, undefined);
+        }
+        updateUrl?.("");
         setAssetKey(undefined);
-        setPreviewUrl(undefined);
+        setLocalPreviewUrl(undefined);
     }
 
     if (compact) {
@@ -98,11 +118,11 @@ export function ChoiceImageField({
                         disabled={uploading}
                         className="sr-only"
                         onChange={(event) => {
-                            const file = event.target.files?.[0];
+                            const selectedFile = event.target.files?.[0];
                             event.target.value = "";
-                            if (!file) return;
+                            if (!selectedFile) return;
 
-                            const message = choiceImageRules.validate(file);
+                            const message = choiceImageRules.validate(selectedFile);
                             if (message) {
                                 toast({
                                     tone: "error",
@@ -112,7 +132,7 @@ export function ChoiceImageField({
                                 return;
                             }
 
-                            void handlePick(file);
+                            void handlePick(selectedFile);
                         }}
                     />
                     {preview ? (
@@ -129,10 +149,10 @@ export function ChoiceImageField({
                 </label>
 
                 <span className="text-xs font-medium text-muted-foreground">
-                    {value ? `Replace ${label.toLowerCase()}` : `${label} (optional)`}
+                    {preview ? `Replace ${label.toLowerCase()}` : `${label} (optional)`}
                 </span>
 
-                {value && !uploading ? (
+                {preview && !uploading ? (
                     <Button
                         type="button"
                         variant="ghost"
@@ -154,7 +174,7 @@ export function ChoiceImageField({
                 rules={choiceImageRules}
                 disabled={uploading}
                 busy={uploading}
-                label={value ? `Replace ${label.toLowerCase()}` : label}
+                label={preview ? `Replace ${label.toLowerCase()}` : label}
                 onPick={handlePick}
                 onError={(message) => {
                     toast({
@@ -178,7 +198,7 @@ export function ChoiceImageField({
                 }
             />
 
-            {value && !uploading ? (
+            {preview && !uploading ? (
                 <Button
                     type="button"
                     variant="ghost"

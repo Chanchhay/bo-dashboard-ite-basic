@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronRight } from "lucide-react";
 
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
+import { clampStockInput, maxStockQuantity } from "@/lib/api/inventory";
 import type { StockTargetKind } from "@/components/inventory/stock/StockTargetSelect";
 import { Button } from "@/components/ui/button";
 import {
@@ -268,6 +269,7 @@ export function StockMovementDialog({
                                 id="movement-quantity"
                                 type="number"
                                 min="1"
+                                max={maxStockQuantity}
                                 step="1"
                                 autoFocus
                                 value={quantity}
@@ -277,7 +279,9 @@ export function StockMovementDialog({
                                     }
                                 }}
                                 onChange={(event) => {
-                                    const val = event.target.value.replace(/[^\d]/g, "");
+                                    const val = clampStockInput(
+                                        event.target.value,
+                                    );
                                     setQuantity(val);
                                     setError("");
                                 }}

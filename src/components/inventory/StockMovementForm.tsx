@@ -38,6 +38,8 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
+    clampStockInput,
+    maxStockQuantity,
     type InventoryItem,
 } from "@/lib/api/inventory";
 import {
@@ -472,6 +474,7 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                                 type="number"
                                                 step="1"
                                                 min="1"
+                                                max={maxStockQuantity}
                                                 value={quantityInput}
                                                 onKeyDown={(e) => {
                                                     if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
@@ -479,7 +482,10 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                                     }
                                                 }}
                                                 onChange={(e) => {
-                                                    const val = e.target.value.replace(/[^\d]/g, "");
+                                                    const val =
+                                                        clampStockInput(
+                                                            e.target.value,
+                                                        );
                                                     setQuantityInput(val);
                                                     setFieldErrors((current) => {
                                                         const next = { ...current };
