@@ -1,15 +1,14 @@
 import { useState } from "react";
 import {
+    ArrowDownToLine,
+    ArrowUpFromLine,
     ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    Circle,
     SlidersHorizontal,
 } from "lucide-react";
 
 import { InventoryEmpty } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
-import { SelectField } from "@/components/ui/select-field";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { stockStateLabels, type StockState } from "@/lib/api/inventory";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
@@ -135,7 +134,7 @@ function StockItemAddOnsTreeRow({
                                     onClick={() => onStockIn(addOn.id)}
                                     aria-label={`Stock in ${addOn.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowDownToLine className="size-3.5" />
                                     In
                                 </Button>
                             ) : null}
@@ -153,7 +152,7 @@ function StockItemAddOnsTreeRow({
                                     onClick={() => onStockOut(addOn.id)}
                                     aria-label={`Stock out ${addOn.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowUpFromLine className="size-3.5" />
                                     Out
                                 </Button>
                             ) : null}
@@ -235,7 +234,7 @@ function StockItemOptionsRow({
                                     onClick={() => onStockIn(row.id, option.id)}
                                     aria-label={`Stock in ${row.name} ${option.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowDownToLine className="size-3.5" />
                                     In
                                 </Button>
                             ) : null}
@@ -253,7 +252,7 @@ function StockItemOptionsRow({
                                     onClick={() => onStockOut(row.id, option.id)}
                                     aria-label={`Stock out ${row.name} ${option.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowUpFromLine className="size-3.5" />
                                     Out
                                 </Button>
                             ) : null}
@@ -319,7 +318,7 @@ export function StockLevelTable({
     const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
         new Set(),
     );
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
 
     /**
@@ -336,7 +335,7 @@ export function StockLevelTable({
 
     if (listedRows !== rowsSignature) {
         setListedRows(rowsSignature);
-        setPage(1);
+        setPage(0);
     }
 
     const toggleRowAddOns = (id: string) => {
@@ -388,8 +387,8 @@ export function StockLevelTable({
         ? sections
         : rows.map((row) => ({ group: undefined, rows: [row] }));
     const pageCount = Math.max(1, Math.ceil(pageUnits.length / pageSize));
-    const currentPage = Math.min(page, pageCount);
-    const firstIndex = (currentPage - 1) * pageSize;
+    const currentPage = Math.min(Math.max(0, page), pageCount - 1);
+    const firstIndex = currentPage * pageSize;
     const visibleUnits = pageUnits.slice(firstIndex, firstIndex + pageSize);
     const allCollapsed =
         isGrouped &&
@@ -626,7 +625,7 @@ export function StockLevelTable({
                                                         onClick={() => onStockIn(row.id)}
                                                         aria-label={`Stock in ${row.name}`}
                                                     >
-                                                        <Circle className="size-2 fill-current text-primary" />
+                                                        <ArrowDownToLine className="size-3.5" />
                                                         In
                                                     </Button>
                                                 ) : null}
@@ -645,7 +644,7 @@ export function StockLevelTable({
                                                         onClick={() => onStockOut(row.id)}
                                                         aria-label={`Stock out ${row.name}`}
                                                     >
-                                                        <Circle className="size-2 fill-current text-primary" />
+                                                        <ArrowUpFromLine className="size-3.5" />
                                                         Out
                                                     </Button>
                                                 ) : null}
@@ -703,65 +702,22 @@ export function StockLevelTable({
             </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="first-letter:uppercase">
-                        {pageUnitNoun} per page
-                    </span>
-                    <SelectField
-                        id={`stock-page-size-${pageUnitNoun}`}
-                        name={`stock-page-size-${pageUnitNoun}`}
-                        value={String(pageSize)}
-                        onValueChange={(value) => {
-                            setPageSize(Number(value));
-                            setPage(1);
-                        }}
-                        options={pageSizes.map((size) => ({
-                            value: String(size),
-                            label: String(size),
-                        }))}
-                        className="h-9 w-20 rounded-xl"
-                    />
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <p className="text-sm text-muted-foreground">
-                        {firstIndex + 1}–{firstIndex + visibleUnits.length} of{" "}
-                        {pageUnits.length} {pageUnitNoun}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            aria-label="Previous page"
-                            disabled={currentPage <= 1}
-                            onClick={() =>
-                                setPage((current) => Math.max(1, current - 1))
-                            }
-                        >
-                            <ChevronLeft />
-                        </Button>
-                        <span className="text-sm font-medium text-foreground">
-                            Page {currentPage} of {pageCount}
-                        </span>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            aria-label="Next page"
-                            disabled={currentPage >= pageCount}
-                            onClick={() =>
-                                setPage((current) =>
-                                    Math.min(pageCount, current + 1),
-                                )
-                            }
-                        >
-                            <ChevronRight />
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            {pageUnits.length > 0 && (
+                <PaginationBar
+                    page={currentPage}
+                    size={pageSize}
+                    totalElements={pageUnits.length}
+                    totalPages={pageCount}
+                    onPageChange={setPage}
+                    onSizeChange={(size) => {
+                        setPageSize(size);
+                        setPage(0);
+                    }}
+                    sizeOptions={pageSizes}
+                    itemLabel={pageUnitNoun.replace(/s$/, "")}
+                    itemLabelPlural={pageUnitNoun}
+                />
+            )}
         </div>
     );
 }

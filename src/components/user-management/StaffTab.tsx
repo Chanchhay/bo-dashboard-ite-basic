@@ -534,12 +534,14 @@ export default function StaffTab() {
                                 type="button"
                                 onClick={closeEditor}
                                 variant="outline"
+                                className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={saving}
+                                className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                             >
                                 {saving
                                     ? "Saving…"

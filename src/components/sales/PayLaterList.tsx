@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
     AlertTriangle,
     Check,
-    ChevronLeft,
-    ChevronRight,
     Clock,
     Columns3,
     Globe,
@@ -22,11 +20,13 @@ import {
 
 import { AmountReceived } from "@/components/pos/amount-received";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import {
     getApiErrorMessage,
     InventoryEmpty,
     InventoryError,
     InventoryLoading,
+    InventoryPageHeader,
 } from "@/components/inventory/InventoryUi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -63,8 +63,8 @@ const channelNames: Record<string, string> = {
     MESSENGER: "Messenger",
 };
 
-const PAGE_SIZES = [10, 25, 50] as const;
-const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 10;
+const PAGE_SIZES = [10, 20, 25, 50, 100];
+const DEFAULT_PAGE_SIZE = 10;
 
 /** A sale sitting unpaid longer than this is flagged "Overdue" instead of "Pending". */
 const OVERDUE_DAYS = 7;
@@ -137,9 +137,7 @@ export function PayLaterList() {
     const [channelFilter, setChannelFilter] = useState<ChannelFilter>("ALL");
     const [sortMode, setSortMode] = useState<SortMode>("oldest");
     const [page, setPage] = useState(0);
-    const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(
-        DEFAULT_PAGE_SIZE,
-    );
+    const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [columnsOpen, setColumnsOpen] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<
         Record<PayLaterColumnKey, boolean>
@@ -257,10 +255,18 @@ export function PayLaterList() {
 
     if (sales.length === 0) {
         return (
-            <InventoryEmpty
-                title="Nothing outstanding"
-                description="Sales rung up as Pay later will show up here until they're settled."
-            />
+            <div className="flex flex-col gap-4">
+                <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+                    <InventoryPageHeader
+                        title="Pay Later"
+                        description="Sales closed without collecting money yet. Settle them here once the cash comes in."
+                    />
+                </div>
+                <InventoryEmpty
+                    title="Nothing outstanding"
+                    description="Sales rung up as Pay later will show up here until they're settled."
+                />
+            </div>
         );
     }
 
@@ -427,6 +433,7 @@ export function PayLaterList() {
                     )}
                 </div>
             </div>
+        </div>
 
             <section
                 data-tour="pay-later-list"
@@ -584,59 +591,24 @@ export function PayLaterList() {
                         </TableBody>
                     </Table>
                 </div>
+
+                {filteredSales.length > 0 && (
+                    <PaginationBar
+                        page={safePage}
+                        size={pageSize}
+                        totalElements={filteredSales.length}
+                        totalPages={pageCount}
+                        onPageChange={setPage}
+                        onSizeChange={(nextSize) => {
+                            setPageSize(nextSize);
+                            setPage(0);
+                        }}
+                        isLoading={salesQuery.isFetching}
+                        sizeOptions={PAGE_SIZES}
+                        itemLabel="sale"
+                    />
+                )}
             </section>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-xs">
-                <p className="text-[13px] text-muted-foreground">
-                    {filteredSales.length === 0
-                        ? "No sales"
-                        : `Showing ${safePage * pageSize + 1}–${Math.min(filteredSales.length, safePage * pageSize + pageSize)} of ${filteredSales.length}`}
-                </p>
-
-                <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                        Rows
-                        <select
-                            value={pageSize}
-                            onChange={(event) => {
-                                setPageSize(Number(event.target.value) as (typeof PAGE_SIZES)[number]);
-                                setPage(0);
-                            }}
-                            className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        >
-                            {PAGE_SIZES.map((size) => (
-                                <option key={size} value={size}>
-                                    {size}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setPage((prev) => Math.max(0, prev - 1))}
-                            disabled={safePage === 0}
-                            aria-label="Previous page"
-                            className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                        >
-                            <ChevronLeft className="size-4" aria-hidden="true" />
-                        </button>
-                        <span className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground" aria-live="polite">
-                            Page {safePage + 1} of {pageCount}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setPage((prev) => Math.min(pageCount - 1, prev + 1))}
-                            disabled={safePage + 1 >= pageCount}
-                            aria-label="Next page"
-                            className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                        >
-                            <ChevronRight className="size-4" aria-hidden="true" />
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <AmountReceived
                 open={collecting !== null}

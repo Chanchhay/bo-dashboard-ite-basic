@@ -7,6 +7,7 @@ import {
     ChevronDown,
     LoaderCircle,
     Plus,
+    Save,
     X,
 } from "lucide-react";
 
@@ -722,14 +723,13 @@ function CurrencyEditor({
                 onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
             />
 
-            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8">
+            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-3.5 sm:gap-3 sm:py-4 lg:-mx-8 lg:px-8">
                 <Button
                     type="button"
                     variant="outline"
                     onClick={resetForm}
                     disabled={updateState.isLoading}
-                    size="lg"
-                    className="min-w-[124px]"
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >
                     Cancel
                 </Button>
@@ -737,16 +737,18 @@ function CurrencyEditor({
                     type="submit"
                     data-tour="currency-save"
                     disabled={updateState.isLoading}
-                    size="lg"
-                    className="min-w-[124px]"
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >
                     {updateState.isLoading ? (
                         <>
-                            <LoaderCircle className="animate-spin" />
-                            Saving…
+                            <LoaderCircle className="size-4 shrink-0 animate-spin" />
+                            <span>Saving…</span>
                         </>
                     ) : (
-                        "Save"
+                        <>
+                            <Save className="size-4 shrink-0" />
+                            <span>Save</span>
+                        </>
                     )}
                 </Button>
             </div>

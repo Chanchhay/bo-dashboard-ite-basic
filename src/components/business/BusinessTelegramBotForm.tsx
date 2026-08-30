@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { KeyRound, LoaderCircle } from "lucide-react";
+import { KeyRound, LoaderCircle, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -257,12 +257,13 @@ function AccountForm({
                 </div>
             </section>
 
-            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8">
+            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-3.5 sm:gap-3 sm:py-4 lg:-mx-8 lg:px-8">
                 {isConfigured && (
                     <Button
                         type="button"
                         variant="destructive"
                         disabled={isDisconnecting || isSaving}
+                        className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                         onClick={async () => {
                             if (confirm("Are you sure you want to disconnect this bot?")) {
                                 try {
@@ -281,14 +282,21 @@ function AccountForm({
                     </Button>
                 )}
 
-                <Button type="submit" data-tour="telegram-save" disabled={isSaving}>
-                    {isSaving && (
+                <Button
+                    type="submit"
+                    data-tour="telegram-save"
+                    disabled={isSaving}
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
+                >
+                    {isSaving ? (
                         <LoaderCircle
-                            className="-ml-1 mr-2 size-4 animate-spin"
+                            className="size-4 shrink-0 animate-spin"
                             aria-hidden="true"
                         />
+                    ) : (
+                        <Save className="size-4 shrink-0" aria-hidden="true" />
                     )}
-                    {isConfigured ? "Update Settings" : "Connect Bot"}
+                    <span>{isConfigured ? "Update Settings" : "Connect Bot"}</span>
                 </Button>
             </div>
         </form>

@@ -9,7 +9,7 @@ export default async function BusinessFacebookPage() {
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
                         Facebook Integration
                     </h1>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-[15px] text-muted-foreground">
                         Manage your Facebook Page connection, automated messaging, and shop catalog setup.
                     </p>
                 </div>
