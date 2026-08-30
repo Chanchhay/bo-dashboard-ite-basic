@@ -1,6 +1,11 @@
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query/react";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+import {
+    NO_BUSINESS_SIGN_OUT_URL,
+    isNoBusinessPayload,
+} from "@/lib/api/no-business";
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 const rawBaseQuery = fetchBaseQuery({
@@ -26,14 +31,31 @@ const baseQueryWithSessionGuard: BaseQueryFn<
 > = async (args, api, extraOptions) => {
     const result = await rawBaseQuery(args, api, extraOptions);
 
-    if (
-        result.error?.status === 401 &&
-        isSessionExpired(result.error.data) &&
-        typeof window !== "undefined" &&
-        !leaving
-    ) {
-        leaving = true;
-        window.location.replace("/login");
+    if (typeof window !== "undefined" && !leaving) {
+        if (result.error?.status === 401 && isSessionExpired(result.error.data)) {
+            leaving = true;
+            window.location.replace("/login");
+        } else if (
+            result.error?.status === 404 &&
+            isNoBusinessPayload(result.error.data)
+        ) {
+            /*
+             * The sign-in is fine — the account simply has no business, which
+             * is the normal state of a platform administrator's account. Post
+             * rather than navigate: the route drops this app's session before
+             * showing the login page, so the middleware does not read the
+             * session cookie and send the browser back to /dashboard. The
+             * Keycloak session itself is left alone.
+             */
+            leaving = true;
+
+            const form = document.createElement("form");
+            form.method = "post";
+            form.action = NO_BUSINESS_SIGN_OUT_URL;
+            form.hidden = true;
+            document.body.append(form);
+            form.submit();
+        }
     }
 
     return result;
