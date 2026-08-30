@@ -17,21 +17,8 @@ function isSessionExpired(payload: unknown) {
     );
 }
 
-/*
- * One redirect, however many queries fail together. A screen typically has
- * several requests in flight, and they all come back unauthorised at once.
- */
 let leaving = false;
 
-/**
- * Sends the browser back to sign in when the server reports the session is
- * finished.
- *
- * `/login` restarts OAuth on its own, so while the Keycloak SSO session is
- * still alive this reads as a brief redirect and the user carries on. A full
- * page load rather than a router push, because everything cached in this tab
- * was read with an identity that no longer holds.
- */
 const baseQueryWithSessionGuard: BaseQueryFn<
     string | FetchArgs,
     unknown,
@@ -55,16 +42,6 @@ const baseQueryWithSessionGuard: BaseQueryFn<
 export const baseApi = createApi({
     reducerPath: "api",
     baseQuery: baseQueryWithSessionGuard,
-    // A back-office screen is a window onto a shop that is still trading, and
-    // the till, the stock room and this browser all write to it. Cached reads
-    // are what make the screens quick, but a cache only kept until something
-    // in *this* tab invalidates it goes quietly wrong the moment the change
-    // came from anywhere else — the shop reloads the page to see its own data.
-    //
-    // So a screen re-reads when it is opened, and again when the connection
-    // comes back. Focus is deliberately left out: half the screens here hold a
-    // form seeded from the read, and refetching under a shop mid-edit would
-    // take its typing away.
     refetchOnMountOrArgChange: true,
     refetchOnReconnect: true,
     tagTypes: [

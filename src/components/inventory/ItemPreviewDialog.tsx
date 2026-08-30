@@ -416,7 +416,11 @@ function Storefront({
                     )}
 
                     {item.variants.length ? (
-                        <OptionRow label="Option" value={variant?.name || "—"}>
+                        <OptionRow
+                            label="Option"
+                            value={variant?.name || "—"}
+                            scroll
+                        >
                             {item.variants.map((option, index) => (
                                 <Chip
                                     key={`${option.name}-${index}`}
@@ -427,7 +431,9 @@ function Storefront({
                                         setPackIndex(-1);
                                     }}
                                 >
-                                    <span>{option.name}</span>
+                                    <span className="block max-w-48 truncate">
+                                        {option.name}
+                                    </span>
                                     {option.price === undefined ? null : (
                                         <span
                                             className={cn(
@@ -896,19 +902,31 @@ function Gallery({
 function OptionRow({
     label,
     value,
+    scroll,
     children,
 }: {
     label: string;
     value: string;
+    /** Keep the chips on one line and scroll sideways instead of wrapping. */
+    scroll?: boolean;
     children: React.ReactNode;
 }) {
     return (
-        <div>
+        <div className="min-w-0">
             <p className="text-xs text-[#657064] dark:text-[#94a3b8]">
                 {label}:{" "}
                 <span className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">{value}</span>
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">{children}</div>
+            <div
+                className={cn(
+                    "mt-2 flex gap-2",
+                    scroll
+                        ? "-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]"
+                        : "flex-wrap",
+                )}
+            >
+                {children}
+            </div>
         </div>
     );
 }
@@ -931,7 +949,7 @@ function Chip({
             disabled={disabled}
             aria-pressed={active}
             className={cn(
-                "rounded-xl border px-4 py-2 text-center text-sm transition-colors",
+                "shrink-0 rounded-xl border px-4 py-2 text-center text-sm transition-colors",
                 disabled
                     ? "cursor-not-allowed border-[#f0f1ef] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] text-[#c2c8c0] dark:text-[#64748b] line-through"
                     : active

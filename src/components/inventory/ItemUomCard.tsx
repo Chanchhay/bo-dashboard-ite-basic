@@ -6,6 +6,7 @@ import { ArrowLeftRight, Boxes, Plus, Trash2 } from "lucide-react";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { itemLimits } from "@/lib/api/inventory";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -80,6 +81,15 @@ export function ItemUomCard({
                 tone: "error",
                 title: "Pick a base unit first",
                 description: "Conversions are measured against it.",
+            });
+            return;
+        }
+
+        if (draft.conversions.length >= itemLimits.conversions) {
+            toast({
+                tone: "error",
+                title: "Conversion not added",
+                description: `An item holds at most ${itemLimits.conversions} conversions.`,
             });
             return;
         }
@@ -176,7 +186,7 @@ export function ItemUomCard({
                         <SelectContent>
                             {units.map((unit) => (
                                 <SelectItem key={unit.id} value={unit.id}>
-                                    {unit.name} ({unit.symbol})
+                                    {unit.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -200,6 +210,7 @@ export function ItemUomCard({
                                 name="lowStockDefault"
                                 type="number"
                                 min="0"
+                                max={itemLimits.lowStock}
                                 step="1"
                                 defaultValue={lowStockDefault}
                                 aria-invalid={Boolean(lowStockError)}
@@ -422,6 +433,7 @@ export function ItemUomCard({
                             id="conversion-factor"
                             type="number"
                             min="0"
+                            max={itemLimits.conversionFactor}
                             step="any"
                             value={conversionDraft.factor}
                             onChange={(event) =>
@@ -450,6 +462,10 @@ export function ItemUomCard({
                             type="button"
                             variant="outline"
                             size="lg"
+                            disabled={
+                                draft.conversions.length >=
+                                itemLimits.conversions
+                            }
                             onClick={addConversion}
                         >
                             <Plus />

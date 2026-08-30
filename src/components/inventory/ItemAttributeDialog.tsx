@@ -3,6 +3,10 @@
 import { useState, type SubmitEvent } from "react";
 import { Trash2 } from "lucide-react";
 
+import {
+    charCountInputClassName,
+    CharCountField,
+} from "@/components/inventory/CharLimit";
 import { inventoryControlClassName } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +30,7 @@ import {
     itemAttributePlacements,
     itemAttributeTypeLabels,
     itemAttributeTypes,
+    itemLimits,
     type ItemAttributePlacement,
     type ItemAttributeType,
     type StoredItemAttributePlacement,
@@ -170,6 +175,7 @@ function AttributeForm({
     const showsIcon = placement === "HIGHLIGHT" || placement === "SPECIFICATION";
     const copy = valueCopy(type, placement);
     const visibleValues = single ? values.slice(0, 1) : values;
+    const valuesFull = values.length >= itemLimits.attributeValues;
 
     function showError(message: string) {
         setError(message);
@@ -277,15 +283,21 @@ function AttributeForm({
                 >
                     Attribute name
                 </Label>
-                <Input
-                    id="attribute-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Status"
-                    autoComplete="off"
-                    aria-invalid={Boolean(error) && !name.trim()}
-                    className={inventoryControlClassName}
-                />
+                <CharCountField
+                    length={name.length}
+                    max={itemLimits.attributeName}
+                >
+                    <Input
+                        id="attribute-name"
+                        value={name}
+                        maxLength={itemLimits.attributeName}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="Status"
+                        autoComplete="off"
+                        aria-invalid={Boolean(error) && !name.trim()}
+                        className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                    />
+                </CharCountField>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -379,27 +391,36 @@ function AttributeForm({
                         {visibleValues.map((value, index) => (
                             <div key={index} className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2">
-                                    <Input
-                                        value={value.value}
-                                        onChange={(event) =>
-                                            updateValue(index, {
-                                                value: event.target.value,
-                                            })
-                                        }
-                                        type={
-                                            type === "NUMBER"
-                                                ? "number"
-                                                : "text"
-                                        }
-                                        step={
-                                            type === "NUMBER"
-                                                ? "any"
-                                                : undefined
-                                        }
-                                        placeholder={copy.placeholder}
-                                        aria-label={`${copy.label} ${index + 1}`}
-                                        className={inventoryControlClassName}
-                                    />
+                                    <CharCountField
+                                        length={value.value.length}
+                                        max={itemLimits.attributeValue}
+                                        className="min-w-0 flex-1"
+                                    >
+                                        <Input
+                                            value={value.value}
+                                            onChange={(event) =>
+                                                updateValue(index, {
+                                                    value: event.target.value,
+                                                })
+                                            }
+                                            type={
+                                                type === "NUMBER"
+                                                    ? "number"
+                                                    : "text"
+                                            }
+                                            step={
+                                                type === "NUMBER"
+                                                    ? "any"
+                                                    : undefined
+                                            }
+                                            maxLength={
+                                                itemLimits.attributeValue
+                                            }
+                                            placeholder={copy.placeholder}
+                                            aria-label={`${copy.label} ${index + 1}`}
+                                            className={`${inventoryControlClassName} ${charCountInputClassName}`}
+                                        />
+                                    </CharCountField>
                                     {single ? null : (
                                         <Button
                                             type="button"
@@ -434,20 +455,29 @@ function AttributeForm({
                         ))}
                     </div>
                     {single ? null : (
-                        <Button
-                            type="button"
-                            variant="link"
-                            size="xs"
-                            onClick={() =>
-                                setValues((current) => [
-                                    ...current,
-                                    emptyValue(),
-                                ])
-                            }
-                            className="self-start px-0 text-[#657064] dark:text-[#cbd5e1] no-underline hover:text-primary hover:underline"
-                        >
-                            + Add more
-                        </Button>
+                        <div className="flex flex-col items-start gap-1">
+                            <Button
+                                type="button"
+                                variant="link"
+                                size="xs"
+                                disabled={valuesFull}
+                                onClick={() =>
+                                    setValues((current) => [
+                                        ...current,
+                                        emptyValue(),
+                                    ])
+                                }
+                                className="self-start px-0 text-[#657064] dark:text-[#cbd5e1] no-underline hover:text-primary hover:underline"
+                            >
+                                + Add more
+                            </Button>
+                            {valuesFull ? (
+                                <p className="text-xs text-[#6b7280] dark:text-[#94a3b8]">
+                                    {itemLimits.attributeValues} values is the
+                                    maximum.
+                                </p>
+                            ) : null}
+                        </div>
                     )}
                 </div>
             ) : (
