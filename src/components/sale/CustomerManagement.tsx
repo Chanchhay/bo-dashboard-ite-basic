@@ -63,7 +63,7 @@ import { ColumnSelectDropdown } from "@/components/ui/ColumnSelectDropdown";
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
     if (!phoneStr) return "";
-    let cleaned = phoneStr.trim();
+    const cleaned = phoneStr.trim();
     let digits = cleaned.replace(/\D/g, "");
     if (digits.startsWith("855") && digits.length >= 10) {
         digits = "0" + digits.slice(3);
@@ -186,7 +186,10 @@ export default function CustomerManagement() {
                 if (selectedChannelFilter === "NONE") {
                     if (c.salesChannel) return false;
                 } else {
-                    if (c.salesChannel?.id !== selectedChannelFilter) return false;
+                    const matchId = c.salesChannel?.id === selectedChannelFilter;
+                    const matchCode = c.salesChannel?.code === selectedChannelFilter;
+                    const matchName = c.salesChannel?.name === selectedChannelFilter;
+                    if (!matchId && !matchCode && !matchName) return false;
                 }
             }
 
@@ -276,10 +279,16 @@ export default function CustomerManagement() {
         }
 
         try {
-            const posChannel = salesChannels.find(
-                (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
-            );
-            const effectiveChannelId = salesChannelId || posChannel?.id || salesChannels[0]?.id || undefined;
+            const posChannel =
+                salesChannels.find(
+                    (sc) =>
+                        sc.code?.toUpperCase() === "POS" ||
+                        sc.name?.toUpperCase().includes("POS") ||
+                        sc.name?.toUpperCase().includes("POINT OF SALE")
+                ) || salesChannels[0];
+            const effectiveChannelId =
+                (salesChannelId && salesChannelId !== "NONE" ? salesChannelId : undefined) ||
+                posChannel?.id;
 
             const payload = {
                 fullName: fullName.trim() || undefined,
@@ -365,6 +374,23 @@ export default function CustomerManagement() {
         return found ? found.name : posSalesChannels[0]?.name || "POS / Direct";
     }, [salesChannelId, salesChannels, posSalesChannels]);
 
+    const channelItemsMap = useMemo(() => {
+        const map: Record<string, string> = {
+            ALL: "All Channels",
+            NONE: "Direct / No Channel",
+        };
+        salesChannels.forEach((sc) => {
+            map[sc.id] = sc.name;
+        });
+        return map;
+    }, [salesChannels]);
+
+    const statusItemsMap: Record<string, string> = {
+        ALL: "All Statuses",
+        ACTIVE: "Active",
+        INACTIVE: "Inactive",
+    };
+
     return (
         <div className="flex flex-col gap-6">
             {/* Sticky Header Section */}
@@ -402,13 +428,38 @@ export default function CustomerManagement() {
                                 />
                             </div>
 
+                            {/* Sales Channel Filter Dropdown */}
+                            <Select
+                                value={selectedChannelFilter}
+                                items={channelItemsMap}
+                                onValueChange={(val) => setSelectedChannelFilter(val || "ALL")}
+                            >
+                                <SelectTrigger size="sm" className="!h-10 w-44 rounded-xl bg-card border-border text-sm font-medium">
+                                    <SelectValue>
+                                        {channelItemsMap[selectedChannelFilter] || "All Channels"}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All Channels</SelectItem>
+                                    {salesChannels.map((sc) => (
+                                        <SelectItem key={sc.id} value={sc.id}>
+                                            {sc.name}
+                                        </SelectItem>
+                                    ))}
+                                    <SelectItem value="NONE">Direct / No Channel</SelectItem>
+                                </SelectContent>
+                            </Select>
+
                             {/* Status Filter Dropdown */}
                             <Select
                                 value={statusFilter}
+                                items={statusItemsMap}
                                 onValueChange={(val) => setStatusFilter((val || "ALL") as "ALL" | "ACTIVE" | "INACTIVE")}
                             >
                                 <SelectTrigger size="sm" className="!h-10 w-36 rounded-xl bg-card border-border text-sm font-medium">
-                                    <SelectValue placeholder="All Statuses" />
+                                    <SelectValue>
+                                        {statusItemsMap[statusFilter] || "All Statuses"}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="ALL">All Statuses</SelectItem>

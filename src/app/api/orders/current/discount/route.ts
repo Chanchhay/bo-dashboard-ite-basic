@@ -32,7 +32,7 @@ export async function PATCH(request: Request) {
         ) || order.subtotal || 1;
 
         const discountRatio = discountAmount / itemsSubtotal;
-        let runningDiscountTotal = 0;
+        const runningDiscountTotal = 0;
 
         // 1. Try explicit order discount patch directly to Spring backend
         try {

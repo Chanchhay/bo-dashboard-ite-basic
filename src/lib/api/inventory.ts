@@ -577,23 +577,34 @@ export const maxStockQuantity = 99_999;
  * times leaves 77777, not 99999. Sign is preserved, since a manual adjustment
  * can be negative, and a lone "-" survives so it can still be typed.
  */
-export function clampStockInput(value: string): string {
+export function clampStockInput(value: string, maxDecimals: number = 3): string {
     const negative = value.trimStart().startsWith("-");
-    let digits = value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+    const clean = value.replace(/[^0-9.]/g, "");
 
-    if (!digits) return negative ? "-" : "";
+    if (!clean) return negative ? "-" : "";
+
+    const parts = clean.split(".");
+    let integerPart = parts[0] || "";
+    const decimalPart = parts.length > 1 ? parts.slice(1).join("") : undefined;
+
+    // Strip leading zeros unless it's just "0" or before a dot
+    integerPart = integerPart.replace(/^0+(?=\d)/, "");
 
     const width = String(maxStockQuantity).length;
-
-    if (digits.length > width) {
-        digits = digits.slice(0, width);
+    if (integerPart.length > width) {
+        integerPart = integerPart.slice(0, width);
     }
 
-    if (Number(digits) > maxStockQuantity) {
-        digits = digits.slice(0, width - 1);
+    if (Number(integerPart) > maxStockQuantity) {
+        integerPart = integerPart.slice(0, width - 1);
     }
 
-    return `${negative ? "-" : ""}${digits}`;
+    let result = integerPart;
+    if (decimalPart !== undefined) {
+        result += "." + decimalPart.slice(0, maxDecimals);
+    }
+
+    return `${negative ? "-" : ""}${result}`;
 }
 
 /**
@@ -606,7 +617,7 @@ export const itemLimits = {
     sku: 20,
     code: 100,
     barcode: 20,
-    badge: 10,
+    badge: 20,
     description: 200,
     lowStock: maxStockQuantity,
     options: 20,

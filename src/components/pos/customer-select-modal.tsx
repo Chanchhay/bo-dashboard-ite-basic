@@ -46,7 +46,7 @@ interface CustomerSelectModalProps {
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
     if (!phoneStr) return "";
-    let cleaned = phoneStr.trim();
+    const cleaned = phoneStr.trim();
     let digits = cleaned.replace(/\D/g, "");
     if (digits.startsWith("855") && digits.length >= 10) {
         digits = "0" + digits.slice(3);
@@ -134,10 +134,17 @@ export function CustomerSelectModal({
         }
 
         try {
-            const posChannel = salesChannels.find(
-                (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
-            );
-            const effectiveChannelId = salesChannelId || posChannel?.id || salesChannels[0]?.id || undefined;
+            const posChannel =
+                salesChannels.find(
+                    (sc) =>
+                        sc.code?.toUpperCase() === "POS" ||
+                        sc.name?.toUpperCase().includes("POS") ||
+                        sc.name?.toUpperCase().includes("POINT OF SALE")
+                ) || salesChannels[0];
+
+            const effectiveChannelId =
+                (salesChannelId && salesChannelId !== "NONE" ? salesChannelId : undefined) ||
+                posChannel?.id;
 
             const newCust = await createCustomer({
                 fullName: fullName.trim() || undefined,
@@ -281,7 +288,7 @@ export function CustomerSelectModal({
                                     <Users className="h-8 w-8 mx-auto text-gray-300" />
                                     <p className="text-sm font-semibold text-gray-700">No customers found</p>
                                     <p className="text-xs text-gray-500">
-                                        Try another search or click "Quick Add Customer" to register one now.
+                                        Try another search or click &quot;Quick Add Customer&quot; to register one now.
                                     </p>
                                 </div>
                             ) : (

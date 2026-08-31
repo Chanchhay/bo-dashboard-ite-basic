@@ -402,6 +402,9 @@ function PreviewCard({ khqr }: { khqr: Khqr }) {
                             src={khqr.qrImage}
                             alt="Test KHQR code"
                             className="size-56 rounded-xl bg-white p-3 object-contain"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                            }}
                         />
                     ) : (
                         <p className="text-sm text-muted-foreground">

@@ -40,6 +40,8 @@ export default function UserMenu({
 
   useEffect(() => setMounted(true), []);
 
+  const [imageError, setImageError] = useState(false);
+
   const isDark = mounted && resolvedTheme === "dark";
 
   const profileName =
@@ -66,11 +68,12 @@ export default function UserMenu({
                         aria-hidden="true"
                         className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-[13px] font-medium text-white"
                     >
-                        {picture ? (
-                            
+                        {picture && !imageError ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                                 src={picture}
                                 alt=""
+                                onError={() => setImageError(true)}
                                 className="size-full object-cover"
                             />
                         ) : (

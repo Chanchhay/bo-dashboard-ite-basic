@@ -11,16 +11,25 @@ import {
     expiredAuthCookies,
     resolveKeycloakAccessToken,
 } from "@/lib/auth/keycloak-token";
+import { BLOCKED_PARAM } from "@/lib/api/no-business";
 
-const protectedRoutes = [
-    "/apps",
-    "/dashboard",
-    "/business",
-    "/inventory",
-    "/sales",
-    "/pos",
-    "/profile",
-];
+/*
+ * This app is business software end to end: every screen in it reads a
+ * business, so getting in needs a signed-in account that has one. Only the
+ * customer-facing storefront is public.
+ *
+ * Hence a deny-list. An allow-list of protected prefixes silently un-guards
+ * every route nobody remembers to add — which is what had happened to
+ * /analytics, /employees, /settings, /subscription, /notifications,
+ * /prediction and /customer-display. This way a new route is protected from
+ * the moment it exists.
+ *
+ * The prefix match keeps the storefront's nested paths public without listing
+ * them; the shop-subdomain rewrite into /public-menu happens below and
+ * returns before it reaches here.
+ */
+const publicRoutes = ["/public-menu"];
+
 const authRoutes = ["/login", "/callback"];
 
 function withCookies(response: NextResponse, setCookies: string[]) {
@@ -86,22 +95,29 @@ export async function proxy(request: NextRequest) {
         }
     }
 
-    const isProtected = protectedRoutes.some((route) =>
-        pathname.startsWith(route),
+    const isPublic = publicRoutes.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`),
     );
+
+    // The sign-in screens stay reachable without a session, or there would be
+    // no way to get one.
+    const isProtected = !isPublic && !authRoutes.includes(pathname);
 
     if (isProtected && !sessionCookie) {
         return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    // `noBusiness=1` is the one login screen a signed-in browser must be able
-    // to see: the account is authenticated but has no business, so bouncing it
-    // to /dashboard would only send it back here through the layout guard.
-    const isNoBusinessLogin =
-        pathname === "/login" && url.searchParams.get("noBusiness") === "1";
+    /*
+     * A `blocked` login is the one login screen a signed-in browser must be
+     * able to see: the account is authenticated but the layout guard refused
+     * it — no business, or a check that could not be completed — so bouncing
+     * it to /apps would only send it straight back here, endlessly.
+     */
+    const isBlockedLogin =
+        pathname === "/login" && url.searchParams.has(BLOCKED_PARAM);
 
-    if (authRoutes.includes(pathname) && sessionCookie && !isNoBusinessLogin) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+    if (authRoutes.includes(pathname) && sessionCookie && !isBlockedLogin) {
+        return NextResponse.redirect(new URL("/apps", request.url));
     }
 
     if (isProtected) {
@@ -112,7 +128,14 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+    /*
+     * Page requests only. `.*\..*` drops anything with a file extension —
+     * /brand/*.png, /sw.js, /pwa/*, /manifest.webmanifest. Those are served
+     * from public/ and matched no entry in the old allow-list, so they passed
+     * by accident; under a deny-list they would be redirected to /login,
+     * taking the login page's own logo and the service worker with them.
+     */
     matcher: [
-        "/((?!api|_next/static|_next/image|favicon.ico).*)",
+        "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
     ],
 };

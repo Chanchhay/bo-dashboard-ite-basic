@@ -136,8 +136,89 @@ export function InventoryStock() {
         }
     }
 
+    function isItemMatchingDate(item: (typeof items)[0]) {
+        if (!fromDate && !toDate) return true;
+
+        const itemEntries = (entriesQuery.data || []).filter(
+            (entry) => entry.itemId === item.id,
+        );
+
+        const itemCreatedRaw =
+            (item as unknown as { createdDate?: string; createdAt?: string }).createdDate ||
+            (item as unknown as { createdDate?: string; createdAt?: string }).createdAt;
+
+        const earliestEntryDate = itemEntries.length > 0
+            ? itemEntries
+                .map((e) => e.createdDate || (e as unknown as { createdAt?: string }).createdAt)
+                .filter(Boolean)
+                .sort()[0]
+            : null;
+
+        const itemDateStr = String(itemCreatedRaw || earliestEntryDate || "").slice(0, 10);
+
+        const itemDateMatch = itemDateStr
+            ? (!fromDate || itemDateStr >= fromDate) && (!toDate || itemDateStr <= toDate)
+            : false;
+
+        const entryMatch = itemEntries.length > 0 && itemEntries.some((entry) => {
+            const entryDate = String(
+                entry.createdDate ||
+                (entry as unknown as { createdAt?: string }).createdAt ||
+                ""
+            ).slice(0, 10);
+            if (!entryDate) return false;
+            if (fromDate && entryDate < fromDate) return false;
+            if (toDate && entryDate > toDate) return false;
+            return true;
+        });
+
+        return itemDateMatch || entryMatch;
+    }
+
+    function isAddOnMatchingDate(addOn: (typeof addOns)[0]) {
+        if (!fromDate && !toDate) return true;
+
+        const addOnEntries = (entriesQuery.data || []).filter(
+            (entry) => entry.addOnId === addOn.id,
+        );
+
+        const addOnCreatedRaw =
+            (addOn as unknown as { createdDate?: string; createdAt?: string }).createdDate ||
+            (addOn as unknown as { createdDate?: string; createdAt?: string }).createdAt;
+
+        const earliestEntryDate = addOnEntries.length > 0
+            ? addOnEntries
+                .map((e) => e.createdDate || (e as unknown as { createdAt?: string }).createdAt)
+                .filter(Boolean)
+                .sort()[0]
+            : null;
+
+        const addOnDateStr = String(addOnCreatedRaw || earliestEntryDate || "").slice(0, 10);
+
+        const addOnDateMatch = addOnDateStr
+            ? (!fromDate || addOnDateStr >= fromDate) && (!toDate || addOnDateStr <= toDate)
+            : false;
+
+        const entryMatch = addOnEntries.length > 0 && addOnEntries.some((entry) => {
+            const entryDate = String(
+                entry.createdDate ||
+                (entry as unknown as { createdAt?: string }).createdAt ||
+                ""
+            ).slice(0, 10);
+            if (!entryDate) return false;
+            if (fromDate && entryDate < fromDate) return false;
+            if (toDate && entryDate > toDate) return false;
+            return true;
+        });
+
+        return addOnDateMatch || entryMatch;
+    }
+
+    const dateFilteredItemRows = itemRows.filter(({ item }) => isItemMatchingDate(item));
+    const dateFilteredAddOnRows = addOnRows.filter(({ addOn }) => isAddOnMatchingDate(addOn));
+
     const normalizedSearch = stockSearch.trim().toLowerCase();
-    const visibleItems = itemRows.filter(({ item, state }) => {
+    const visibleItems = dateFilteredItemRows.filter(({ item, state }) => {
         const matchesSearch =
             !normalizedSearch ||
             [item.name, item.sku, item.barcode]
@@ -146,55 +227,16 @@ export function InventoryStock() {
                     String(value).toLowerCase().includes(normalizedSearch),
                 );
         const matchesState = stateFilter === "ALL" || state === stateFilter;
-
-        let matchesDate = true;
-        if (fromDate || toDate) {
-            const itemEntries = (entriesQuery.data || []).filter(
-                (entry) => entry.itemId === item.id,
-            );
-
-            const itemCreatedRaw =
-                (item as unknown as { createdDate?: string; createdAt?: string }).createdDate ||
-                (item as unknown as { createdDate?: string; createdAt?: string }).createdAt;
-
-            const earliestEntryDate = itemEntries.length > 0
-                ? itemEntries
-                    .map((e) => e.createdDate || (e as unknown as { createdAt?: string }).createdAt)
-                    .filter(Boolean)
-                    .sort()[0]
-                : null;
-
-            const itemDateStr = String(itemCreatedRaw || earliestEntryDate || "").slice(0, 10);
-
-            const itemDateMatch = itemDateStr
-                ? (!fromDate || itemDateStr >= fromDate) && (!toDate || itemDateStr <= toDate)
-                : false;
-
-            const entryMatch = itemEntries.length > 0 && itemEntries.some((entry) => {
-                const entryDate = String(
-                    entry.createdDate ||
-                    (entry as unknown as { createdAt?: string }).createdAt ||
-                    ""
-                ).slice(0, 10);
-                if (!entryDate) return false;
-                if (fromDate && entryDate < fromDate) return false;
-                if (toDate && entryDate > toDate) return false;
-                return true;
-            });
-
-            matchesDate = itemDateMatch || entryMatch;
-        }
-
-        return matchesSearch && matchesState && matchesDate;
+        return matchesSearch && matchesState;
     });
 
     const countState = (state: StockState) =>
-        itemRows.filter((row) => row.state === state).length;
+        dateFilteredItemRows.filter((row) => row.state === state).length;
 
-    const stockValue = [...itemRows, ...addOnRows]
+    const stockValue = [...dateFilteredItemRows, ...dateFilteredAddOnRows]
         .map((row) => row.value ?? 0)
         .reduce((total, value) => total + value, 0);
-    const uncosted = [...itemRows, ...addOnRows].filter(
+    const uncosted = [...dateFilteredItemRows, ...dateFilteredAddOnRows].filter(
         (row) => row.value === undefined && row.onHand > 0,
     ).length;
 
@@ -278,7 +320,7 @@ export function InventoryStock() {
         };
     });
 
-    const looseAddOnRows: StockLevelRow[] = addOnRows
+    const looseAddOnRows: StockLevelRow[] = dateFilteredAddOnRows
         .filter(
             (row) =>
                 !items.some((item) =>
@@ -287,6 +329,13 @@ export function InventoryStock() {
                     ),
                 ),
         )
+        .filter((row) => {
+            const matchesSearch =
+                !normalizedSearch ||
+                (row.addOn.name || "").toLowerCase().includes(normalizedSearch);
+            const matchesState = stateFilter === "ALL" || row.state === stateFilter;
+            return matchesSearch && matchesState;
+        })
         .map((row) => ({
             id: row.addOn.id,
             name: row.addOn.name || "Unnamed add-on",
@@ -313,8 +362,8 @@ export function InventoryStock() {
                 <div data-tour="stock-metrics" className="mt-4 sm:mt-6 grid grid-cols-2 gap-2.5 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <MetricCard
                         label="Tracked"
-                        value={String(items.length + addOns.length)}
-                        hint={`${items.length} ${items.length === 1 ? "item" : "items"} · ${addOns.length} add-${addOns.length === 1 ? "on" : "ons"}`}
+                        value={String(dateFilteredItemRows.length + dateFilteredAddOnRows.length)}
+                        hint={`${dateFilteredItemRows.length} ${dateFilteredItemRows.length === 1 ? "item" : "items"} · ${dateFilteredAddOnRows.length} add-${dateFilteredAddOnRows.length === 1 ? "on" : "ons"}`}
                         icon={Boxes}
                         accent="bg-success/10 text-success"
                         active={stateFilter === "ALL"}
@@ -494,6 +543,20 @@ export function InventoryStock() {
                                 />
                             </div>
                         </div>
+
+                        {fromDate || toDate ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFromDate("");
+                                    setToDate("");
+                                    setDatePreset("ALL");
+                                }}
+                                className="text-sm font-medium text-muted-foreground hover:text-foreground underline ml-1 cursor-pointer"
+                            >
+                                Clear
+                            </button>
+                        ) : null}
                     </div>
                 </div>
 

@@ -18,25 +18,6 @@ export function Skeleton({
   );
 }
 
-export function MenuCardSkeleton() {
-  return (
-    <div className="flex flex-col justify-between rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white dark:bg-[#1a1e29] p-3 shadow-2xs space-y-3">
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
-        <Skeleton className="h-full w-full rounded-none" />
-        <Skeleton className="absolute bottom-2 right-2 size-8 rounded-full" />
-      </div>
-
-      <div className="flex flex-col gap-2 pt-1 px-0.5">
-        <Skeleton className="h-3 w-16 rounded-md" />
-        <Skeleton className="h-4.5 w-3/4 rounded-md" />
-        <div className="flex items-center justify-between pt-1">
-          <Skeleton className="h-5 w-16 rounded-md" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function CategoryFilterSkeleton() {
   return (
     <aside className="w-56 lg:w-64 shrink-0 font-sans space-y-6">
@@ -70,36 +51,6 @@ export function CategoryFilterSkeleton() {
         </div>
       </div>
     </aside>
-  );
-}
-
-export function ProductDetailSkeleton() {
-  return (
-    <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 font-sans flex flex-col transition-colors duration-200">
-      <header className="sticky top-0 z-20 border-b border-gray-200/60 dark:border-gray-800 bg-white/80 dark:bg-[#12151e]/80 backdrop-blur-md px-4 sm:px-8 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Skeleton className="h-6 w-32 rounded-lg" />
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-8 py-8 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start bg-white dark:bg-[#1a1e29] p-6 sm:p-10 rounded-3xl border border-gray-100/60 dark:border-gray-800 shadow-xs">
-          <div className="flex flex-col gap-4">
-            <Skeleton className="aspect-square w-full rounded-2xl sm:rounded-3xl" />
-          </div>
-          <div className="flex flex-col gap-5">
-            <Skeleton className="h-5 w-24 rounded-full" />
-            <Skeleton className="h-9 w-3/4 rounded-xl" />
-            <Skeleton className="h-8 w-32 rounded-lg" />
-            <div className="space-y-2 pt-4 border-t border-gray-100 dark:border-gray-800">
-              <Skeleton className="h-4 w-full rounded-full" />
-              <Skeleton className="h-4 w-5/6 rounded-full" />
-              <Skeleton className="h-4 w-2/3 rounded-full" />
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
   );
 }
 

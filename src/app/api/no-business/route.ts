@@ -7,7 +7,7 @@ import { clearLocalSession } from "@/lib/auth/local-signout";
  * The in-app counterpart of the /api/post-login gate, for a business that goes
  * away while a dashboard is open — a staff account deactivated, say. The API
  * guard in `baseApi` posts here, and this drops the local session so the
- * middleware lets /login render instead of bouncing back to /dashboard.
+ * middleware lets /login render instead of bouncing back to /apps.
  *
  * POST only: a session-clearing GET can be fired by any third-party page.
  */

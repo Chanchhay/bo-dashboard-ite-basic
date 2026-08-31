@@ -273,6 +273,9 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     src={storeLogo}
                     alt={storeName}
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                    }}
                   />
                 ) : (
                   <Store className="h-12 w-12 text-amber-400" />
@@ -303,7 +306,11 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 alt={storeName}
                 width={36}
                 height={36}
+                unoptimized
                 className="h-9 w-9 rounded-lg object-cover bg-white p-0.5 shadow-sm"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                }}
               />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">

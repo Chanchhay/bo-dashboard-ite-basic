@@ -4,9 +4,13 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import BrandLogo from "@/components/brand/BrandLogo";
-import { POST_LOGIN_URL } from "@/lib/api/no-business";
+import {
+    BLOCKED_PARAM,
+    POST_LOGIN_URL,
+    blockedReason,
+} from "@/lib/api/no-business";
 
-type LoginState = "redirecting" | "signed-out" | "no-business";
+type LoginState = "redirecting" | "signed-out" | "no-business" | "unavailable";
 
 const buttonClass =
     "inline-flex h-10 w-full items-center justify-center rounded-lg px-5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
@@ -15,17 +19,19 @@ function LoginContent() {
     const searchParams = useSearchParams();
     const wasLoggedOut = searchParams.get("loggedOut") === "1";
     /*
-     * Sent here by the API guard when the account owns no business — a valid
-     * sign-in with nothing for this app to show, which is exactly where a
-     * platform administrator's account lands. The session is left intact, so
-     * this screen has to explain itself rather than start OAuth over: the
-     * live Keycloak session would sign the same account straight back in.
+     * Sent here by the guard when it refused the account. `no-business` is a
+     * valid sign-in with nothing for this app to show, which is exactly where
+     * a platform administrator's account lands; `unavailable` means the check
+     * itself failed and the app will not guess. Either way the session is left
+     * intact, so this screen has to explain itself rather than start OAuth
+     * over: the live Keycloak session would sign the same account back in.
      */
-    const hasNoBusiness = searchParams.get("noBusiness") === "1";
+    const blocked = blockedReason(searchParams.get(BLOCKED_PARAM));
     const signOutForm = useRef<HTMLFormElement>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [loginState, setLoginState] = useState<LoginState>(() => {
-        if (hasNoBusiness) return "no-business";
+        if (blocked === "no-business") return "no-business";
+        if (blocked === "unavailable") return "unavailable";
         return wasLoggedOut ? "signed-out" : "redirecting";
     });
 
@@ -47,8 +53,8 @@ function LoginContent() {
     }, []);
 
     useEffect(() => {
-        if (!wasLoggedOut && !hasNoBusiness) beginOAuthLogin();
-    }, [beginOAuthLogin, hasNoBusiness, wasLoggedOut]);
+        if (!wasLoggedOut && !blocked) beginOAuthLogin();
+    }, [beginOAuthLogin, blocked, wasLoggedOut]);
 
     function startLogin() {
         setErrorMessage(null);
@@ -58,18 +64,25 @@ function LoginContent() {
 
     const isSignedOut = loginState === "signed-out";
     const isNoBusiness = loginState === "no-business";
+    const isUnavailable = loginState === "unavailable";
+    // Both refusals offer the same two ways out.
+    const isBlocked = isNoBusiness || isUnavailable;
 
     const heading = isNoBusiness
         ? "No business on this account"
-        : isSignedOut
-          ? "You are signed out"
-          : "Redirecting to login";
+        : isUnavailable
+          ? "We could not check this account"
+          : isSignedOut
+            ? "You are signed out"
+            : "Redirecting to login";
 
     const description = isNoBusiness
         ? "You are signed in, but this account is not linked to a business, so there is nothing for it to open here."
-        : isSignedOut
-          ? "Sign in again when you are ready."
-          : "You are being sent to Login page.";
+        : isUnavailable
+          ? "You are signed in, but we could not confirm which business this account belongs to, so we have not opened it. Please try again in a moment."
+          : isSignedOut
+            ? "Sign in again when you are ready."
+            : "You are being sent to Login page.";
 
     return (
         <main className="flex min-h-screen items-center justify-center px-6">
@@ -93,7 +106,7 @@ function LoginContent() {
                         Sign in
                     </button>
                 ) : null}
-                {isNoBusiness ? (
+                {isBlocked ? (
                     <div className="space-y-2">
                         {/*
                          * "Try again" is a plain sign-in: the Keycloak session

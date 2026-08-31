@@ -355,6 +355,9 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                             src={picture.preview}
                                             alt={`${profileName} profile`}
                                             className="size-full object-cover"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                            }}
                                         />
                                     ) : (
                                         getInitials(
