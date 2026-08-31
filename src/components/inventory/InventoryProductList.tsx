@@ -263,12 +263,7 @@ function ItemAddOnsTreeRow({ item }: { item: InventoryItem }) {
     }
 
     if (!listed.length) {
-        return (
-            <p className="py-1 text-xs text-muted-foreground">
-                No add-ons on this item. Attach them from the item&apos;s Add-ons
-                section when you edit it.
-            </p>
-        );
+        return null;
     }
 
     const sets = setsQuery.data || [];
@@ -1213,7 +1208,11 @@ export function InventoryProductList() {
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {items.flatMap((item, index) => {
-                                    const isExpanded = expandedAddOnItemIds.has(item.id);
+                                    const hasExpandableContent = Boolean(
+                                        (item.variants && item.variants.length > 0) ||
+                                        (item.addOns && item.addOns.length > 0),
+                                    );
+                                    const isExpanded = hasExpandableContent && expandedAddOnItemIds.has(item.id);
                                     const itemNumber = firstResult + index;
 
                                     const mainRow = (
@@ -1236,23 +1235,25 @@ export function InventoryProductList() {
                                                             <p className="font-semibold text-foreground">
                                                                 {item.name || "Unnamed"}
                                                             </p>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => toggleAddOnTree(item.id)}
-                                                                aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
-                                                                aria-expanded={isExpanded}
-                                                                className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
-                                                                title="View options and add-ons"
-                                                            >
-                                                                <ChevronDown
-                                                                    className={cn(
-                                                                        "size-4 transition-transform duration-200",
-                                                                        isExpanded
-                                                                            ? "rotate-180 text-primary"
-                                                                            : "rotate-0",
-                                                                    )}
-                                                                />
-                                                            </button>
+                                                            {hasExpandableContent ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleAddOnTree(item.id)}
+                                                                    aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
+                                                                    aria-expanded={isExpanded}
+                                                                    className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
+                                                                    title="View options and add-ons"
+                                                                >
+                                                                    <ChevronDown
+                                                                        className={cn(
+                                                                            "size-4 transition-transform duration-200",
+                                                                            isExpanded
+                                                                                ? "rotate-180 text-primary"
+                                                                                : "rotate-0",
+                                                                        )}
+                                                                    />
+                                                                </button>
+                                                            ) : null}
                                                         </div>
                                                         <p className="text-xs text-muted-foreground">
                                                             {item.sku || item.barcode || "No SKU or barcode"}

@@ -29,19 +29,11 @@ import type { InventoryItem } from "@/lib/api/inventory";
 import type { SalesChannel } from "@/lib/api/sales-channels";
 import { effectivePrice, type PriceOverride } from "@/lib/sale-pricing/pricing";
 
-/**
- * The catalogue as a table, because a catalogue is a list of the same thing.
- *
- * Cards read well for five items and stop reading at a hundred: the eye has to
- * re-find the price on every card, and the category headings that made them
- * navigable turn into scrolling. A table puts every price in one column, makes
- * category a column that the filter above already narrows, and pages the rest —
- * searching and scanning are how you get to one item, not scrolling.
- */
 
-export const pageSizes = [25, 50, 100] as const;
 
-/** What one row says, worked out once so the cells can stay dumb. */
+export const pageSizes = [10, 20, 25, 50, 100] as const;
+
+
 function baseSummary(
     item: InventoryItem,
     unitCostFor: UnitCostLookup,
@@ -54,8 +46,7 @@ function baseSummary(
         .map((row) => draftAmount(drafts[row.key], row.saved))
         .filter((price): price is number => price !== undefined);
 
-    // Only prices actually changed count as unsaved: a rule applied to
-    // everything fills boxes that may already hold the same number.
+  
     const edited =
         rows.some((row) => {
             const typed = drafts[row.key];
@@ -85,7 +76,7 @@ function baseSummary(
     };
 }
 
-/** The same, for what one channel charges once its rules are applied. */
+
 function channelSummary(
     item: InventoryItem,
     overrides: Record<string, DraftOverride>,

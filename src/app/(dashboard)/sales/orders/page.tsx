@@ -189,6 +189,14 @@ export default function SalesOrdersPage() {
         }
         return map;
     }, [customers]);
+    const customerPhoneById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const customer of customers) {
+            const phone = customer.globalCustomer?.phoneNumber;
+            if (phone) map.set(customer.id, phone);
+        }
+        return map;
+    }, [customers]);
 
     const from = useMemo(() => rangeStart(range), [range]);
 
@@ -271,10 +279,10 @@ export default function SalesOrdersPage() {
         () =>
             search
                 ? orders.filter((order) =>
-                    matchesSearch(order, search, customerNameById),
+                    matchesSearch(order, search, customerNameById, customerPhoneById),
                 )
                 : orders,
-        [orders, search, customerNameById],
+        [orders, search, customerNameById, customerPhoneById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -397,7 +405,7 @@ export default function SalesOrdersPage() {
                             type="search"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search this page by invoice, order name or item"
+                            placeholder="Search this page by invoice, order name, phone or item"
                             className="h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
                         />
                     </label>
@@ -446,6 +454,7 @@ export default function SalesOrdersPage() {
                                         onClick={() => setSelectedOrderId(order.id)}
                                         itemThumbnailById={itemThumbnailById}
                                         customerNameById={customerNameById}
+                                        customerPhoneById={customerPhoneById}
                                         onApprovePayLater={() => void handleApprovePayLaterOrder(order)}
                                         onCancelOrder={() => setOrderToCancel(order)}
                                         isConfirming={confirmingOrderId === order.id}
@@ -569,14 +578,27 @@ function matchesSearch(
     order: PosOrder,
     search: string,
     customerNameById?: Map<string, string>,
+    customerPhoneById?: Map<string, string>,
 ) {
     const customerName = order.customerId
         ? (customerNameById?.get(order.customerId) ?? "")
         : "";
+    const customerPhone =
+        (order.customerPhone ?? "") ||
+        (order.customerId ? (customerPhoneById?.get(order.customerId) ?? "") : "");
+
+    const cleanSearch = search.replace(/\D/g, "");
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const phoneMatches = Boolean(
+        (customerPhone && customerPhone.toLowerCase().includes(search)) ||
+        (cleanSearch.length >= 3 && cleanPhone.includes(cleanSearch))
+    );
+
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
         customerName.toLowerCase().includes(search) ||
+        phoneMatches ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -602,6 +624,7 @@ function OrderCard({
     onClick,
     itemThumbnailById,
     customerNameById,
+    customerPhoneById,
     onApprovePayLater,
     onCancelOrder,
     isConfirming,
@@ -611,6 +634,7 @@ function OrderCard({
     onClick: () => void;
     itemThumbnailById: Map<string, string | undefined>;
     customerNameById: Map<string, string>;
+    customerPhoneById?: Map<string, string>;
     onApprovePayLater: () => void;
     onCancelOrder: () => void;
     isConfirming: boolean;
@@ -642,6 +666,9 @@ function OrderCard({
         : null;
     const noteName = order.note?.trim() || null;
     const displayName = customerName || noteName;
+    const phone =
+        order.customerPhone ||
+        (order.customerId ? customerPhoneById?.get(order.customerId) : null);
 
     return (
         <div
@@ -670,10 +697,10 @@ function OrderCard({
                             )}
                         </p>
                     )}
-                    {order.customerPhone && (
+                    {phone && (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
                             <Phone className="size-3 shrink-0" aria-hidden="true" />
-                            <span>{order.customerPhone}</span>
+                            <span>{phone}</span>
                         </p>
                     )}
                 </div>
