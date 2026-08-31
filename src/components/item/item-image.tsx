@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * must never be represented by a photograph of something the shop does not
  * sell, which is the same reason the public menu stopped falling back to one.
  */
-const FALLBACK_MARK = "/brand/fluxibiz-mark.png";
+export const FALLBACK_MARK = "/brand/fluxibiz-mark.png";
 
 export interface ItemImageProps {
     /** The item's picture. Missing or unreachable both show the fallback. */
@@ -20,6 +20,9 @@ export interface ItemImageProps {
     className?: string;
     /** Extra classes for the picture itself, e.g. hover transforms. */
     imageClassName?: string;
+    /** Fallback image URL when src is missing or broken. Defaults to FALLBACK_MARK. */
+    fallbackSrc?: string;
+    alt?: string;
 }
 
 /**
@@ -36,6 +39,8 @@ export function ItemImage({
     src,
     className,
     imageClassName,
+    fallbackSrc = FALLBACK_MARK,
+    alt = "",
 }: ItemImageProps) {
     /*
      * The failed URL, not a boolean: a card that swaps to another item must
@@ -49,16 +54,16 @@ export function ItemImage({
         return (
             <span
                 className={cn(
-                    "flex items-center justify-center overflow-hidden bg-muted",
+                    "flex items-center justify-center overflow-hidden bg-muted/70 dark:bg-muted/30",
                     className,
                 )}
             >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    src={FALLBACK_MARK}
-                    alt=""
+                    src={fallbackSrc}
+                    alt={alt}
                     aria-hidden="true"
-                    className="w-2/5 max-w-20 opacity-35"
+                    className="w-2/5 max-w-20 opacity-35 dark:opacity-45"
                 />
             </span>
         );
@@ -69,7 +74,7 @@ export function ItemImage({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src={src}
-                alt=""
+                alt={alt}
                 aria-hidden="true"
                 onError={() => setFailedSrc(src)}
                 className={cn("h-full w-full object-cover", imageClassName)}
@@ -77,3 +82,4 @@ export function ItemImage({
         </span>
     );
 }
+

@@ -867,7 +867,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                                                         alt={order.customer}
                                                                         className="size-full object-cover"
                                                                         onError={(e) => {
-                                                                            (e.target as HTMLElement).style.display = "none";
+                                                                            (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
                                                                         }}
                                                                     />
                                                                 ) : (
@@ -990,7 +990,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                                                     alt={prod.name}
                                                                     className="size-full object-cover"
                                                                     onError={(e) => {
-                                                                        (e.target as HTMLElement).style.display = "none";
+                                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
                                                                     }}
                                                                 />
                                                             ) : (

@@ -203,7 +203,14 @@ function ImageTile({
     return (
         <li className="group relative overflow-hidden rounded-xl border border-border bg-muted">
             <span className="block aspect-square">
-                <img src={url} alt="" className="size-full object-cover" />
+                <img
+                    src={url}
+                    alt=""
+                    className="size-full object-cover"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                    }}
+                />
             </span>
             <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-[11px] text-white">
                 {label}
@@ -2397,6 +2404,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                     }
                                                     alt=""
                                                     className="size-5 shrink-0 rounded-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                    }}
                                                 />
                                             ) : null}
                                         </button>
@@ -2440,6 +2450,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                     }
                                                     alt=""
                                                     className="size-10 shrink-0 rounded-lg border border-border object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                    }}
                                                 />
                                             ) : (
                                                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">

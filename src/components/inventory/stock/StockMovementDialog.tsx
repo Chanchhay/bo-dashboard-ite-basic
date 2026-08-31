@@ -268,13 +268,13 @@ export function StockMovementDialog({
                             <Input
                                 id="movement-quantity"
                                 type="number"
-                                min="1"
+                                min="0.001"
                                 max={maxStockQuantity}
-                                step="1"
+                                step="any"
                                 autoFocus
                                 value={quantity}
                                 onKeyDown={(e) => {
-                                    if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
+                                    if (e.key === "-" || e.key === "e" || e.key === "E") {
                                         e.preventDefault();
                                     }
                                 }}

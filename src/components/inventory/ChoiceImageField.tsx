@@ -137,7 +137,14 @@ export function ChoiceImageField({
                     />
                     {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={preview} alt="" className="size-full object-cover" />
+                        <img
+                            src={preview}
+                            alt=""
+                            className="size-full object-cover"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                            }}
+                        />
                     ) : (
                         <ImagePlus className="size-4" />
                     )}
@@ -190,9 +197,16 @@ export function ChoiceImageField({
                                 src={preview}
                                 alt=""
                                 className="size-full object-cover"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                }}
                             />
                         ) : (
-                            <ImageOff className="size-5 text-muted-foreground" />
+                            <img
+                                src="/brand/fluxibiz-mark.png"
+                                alt=""
+                                className="w-1/2 opacity-35"
+                            />
                         )}
                     </span>
                 }
