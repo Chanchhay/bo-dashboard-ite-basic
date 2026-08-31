@@ -74,7 +74,7 @@ export default function LiveExchangeRatesSection({
 
     const { data: liveData, isLoading, isFetching, error, refetch } =
         useGetLiveExchangeRatesQuery(selectedLiveBase, {
-            pollingInterval: 30000, 
+            pollingInterval: 3600000, 
         });
 
     const rates = liveData?.rates || {};
