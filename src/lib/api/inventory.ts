@@ -617,7 +617,7 @@ export const itemLimits = {
     sku: 20,
     code: 100,
     barcode: 20,
-    badge: 10,
+    badge: 20,
     description: 200,
     lowStock: maxStockQuantity,
     options: 20,
