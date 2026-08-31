@@ -12,6 +12,7 @@ function Input({
   onKeyDown,
   onInput,
   onChange,
+  onWheel,
   ...props
 }: React.ComponentProps<"input">) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -45,6 +46,13 @@ function Input({
     onInput?.(e);
   };
 
+  const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    if (type === "number") {
+      e.currentTarget.blur();
+    }
+    onWheel?.(e);
+  };
+
   return (
     <InputPrimitive
       type={type}
@@ -57,6 +65,7 @@ function Input({
       onKeyDown={handleKeyDown}
       onInput={handleInput}
       onChange={onChange}
+      onWheel={handleWheel}
       {...props}
     />
   );
