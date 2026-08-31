@@ -99,21 +99,28 @@ function MenuCardBody({
   fallbackImage: boolean;
 }) {
   const [broken, setBroken] = useState(false);
+  const fallbackMark = "/brand/fluxibiz-mark.png";
   const stockPhoto = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80";
-  const showPlaceholder = !fallbackImage && (!image || broken);
+  const showPlaceholder = !image || broken;
 
   return (
     <>
       {/* Image Rounded Container (No outer border box, matching screenshot 100%) */}
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#1a1e29]">
         {showPlaceholder ? (
-          <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600">
-            <ImageOff className="size-10" aria-hidden />
+          <div className="flex h-full w-full items-center justify-center bg-muted/60 dark:bg-muted/30">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fallbackMark}
+              alt=""
+              aria-hidden="true"
+              className="w-2/5 max-w-20 opacity-35 dark:opacity-45"
+            />
             <span className="sr-only">No image for {name}</span>
           </div>
         ) : (
           <Image
-            src={image || stockPhoto}
+            src={image || fallbackMark}
             alt={name}
             width={400}
             height={400}
@@ -129,8 +136,9 @@ function MenuCardBody({
             unoptimized
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={(e) => {
-              if (fallbackImage) {
-                (e.target as HTMLImageElement).src = stockPhoto;
+              const img = e.target as HTMLImageElement;
+              if (img.src !== stockPhoto && img.src !== location.origin + fallbackMark) {
+                img.src = stockPhoto;
               } else {
                 setBroken(true);
               }

@@ -1340,6 +1340,9 @@ export default function DiscountsAndCouponsPage() {
                                                             src={itemThumbnail(item)!}
                                                             alt={item.name || "Product"}
                                                             className="size-full object-cover"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                            }}
                                                         />
                                                     ) : (
                                                         <Package className="h-5 w-5 text-muted-foreground/60" />
@@ -1740,6 +1743,9 @@ export default function DiscountsAndCouponsPage() {
                                                                 src={thumb}
                                                                 alt={item.name || "Product"}
                                                                 className="h-8 w-8 rounded-lg object-cover border border-border/80 shrink-0"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                                }}
                                                             />
                                                         ) : (
                                                             <div className="h-8 w-8 rounded-lg bg-muted/60 flex items-center justify-center border border-border/80 shrink-0">

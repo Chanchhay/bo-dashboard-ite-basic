@@ -565,7 +565,7 @@ export function SplitStockDialog({
                             </label>
                             <Input
                                 id="split-fixed"
-                                inputMode="numeric"
+                                inputMode="decimal"
                                 className="h-11 w-32 rounded-xl"
                                 placeholder="0"
                                 value={fixed}

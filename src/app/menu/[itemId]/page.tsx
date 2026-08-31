@@ -80,12 +80,18 @@ function FullProductItemContent({ itemId }: { itemId: string }) {
           <div className="flex flex-col gap-4">
             <div className="relative aspect-square w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-gray-50 dark:bg-[#12151e] border border-gray-100 dark:border-gray-800 flex items-center justify-center">
               <img
-                src={activeImage}
+                src={activeImage || "/brand/fluxibiz-mark.png"}
                 alt={rawItem.name ?? "Product image"}
                 className="h-full w-full object-cover transition-all duration-300"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80";
+                  const img = e.target as HTMLImageElement;
+                  const fallbackMark = "/brand/fluxibiz-mark.png";
+                  const stockPhoto = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80";
+                  if (img.src !== stockPhoto && img.src !== location.origin + fallbackMark) {
+                    img.src = stockPhoto;
+                  } else {
+                    img.src = fallbackMark;
+                  }
                 }}
               />
             </div>
@@ -106,6 +112,9 @@ function FullProductItemContent({ itemId }: { itemId: string }) {
                       src={url}
                       alt={`Thumbnail ${idx + 1}`}
                       className="h-full w-full object-contain mix-blend-multiply dark:mix-blend-normal"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                      }}
                     />
                   </button>
                 ))}

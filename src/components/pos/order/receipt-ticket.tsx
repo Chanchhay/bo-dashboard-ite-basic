@@ -268,6 +268,9 @@ export function ReceiptTicket({
               src={business.logo}
               alt={`${businessName} logo`}
               className="size-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+              }}
             />
           ) : businessInitials(businessName) ? (
             businessInitials(businessName)
