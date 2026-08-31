@@ -13,7 +13,7 @@ import { stockStateLabels, type StockState } from "@/lib/api/inventory";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
 
-const pageSizes = [10, 25, 50, 100];
+const pageSizes = [10, 20, 25, 50, 100];
 
 const stateClassName: Record<StockState, string> = {
     OUT: "bg-danger/10 text-danger",
