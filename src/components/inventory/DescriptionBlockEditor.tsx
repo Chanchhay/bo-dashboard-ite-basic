@@ -951,7 +951,14 @@ function BlockImageField({
         preview={
           <span className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg bg-[#f0f1f0] dark:bg-[#252a38]">
             {preview ? (
-              <img src={preview} alt="" className="size-full object-cover" />
+              <img
+                src={preview}
+                alt=""
+                className="size-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                }}
+              />
             ) : (
               <ImageIcon
                 className="size-6 text-[#a3aca1] dark:text-[#64748b]"

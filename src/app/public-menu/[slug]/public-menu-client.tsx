@@ -133,8 +133,14 @@ function PublicProductDetailView({
                   onError={() => setImageBroken(true)}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600">
-                  <ImageOff className="size-14" aria-hidden />
+                <div className="flex h-full w-full items-center justify-center bg-muted/60 dark:bg-muted/30">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/brand/fluxibiz-mark.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="w-2/5 max-w-24 opacity-35 dark:opacity-45"
+                  />
                   <span className="sr-only">No image for {rawItem.name ?? entry.name}</span>
                 </div>
               )}
@@ -160,6 +166,9 @@ function PublicProductDetailView({
                       src={url}
                       alt={`Thumbnail ${idx + 1}`}
                       className="h-full w-full object-cover rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                      }}
                     />
                   </button>
                 ))}
@@ -449,6 +458,9 @@ export default function PublicMenuClient({
                   src={storeDetail.logo}
                   alt={storeDetail.displayName || storeDetail.name}
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white dark:border-gray-800 shadow-md bg-white shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                  }}
                 />
               ) : (
                 <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 sm:border-4 border-white dark:border-gray-800 shadow-md shrink-0">

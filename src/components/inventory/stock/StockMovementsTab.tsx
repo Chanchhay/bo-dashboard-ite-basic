@@ -37,7 +37,7 @@ const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
     timeStyle: "short",
 });
 
-const pageSizes = [10, 25, 50, 100];
+const pageSizes = [10, 20, 25, 50, 100];
 
 type MovementKind = "ALL" | "IN" | "OUT" | "ADJUST";
 

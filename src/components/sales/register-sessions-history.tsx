@@ -109,14 +109,13 @@ export function RegisterSessionsHistory() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dateRange, setDateRange] = useState<DateRange>("All time");
 
-  // Selected session for Summary Details modal
+ 
   const [selectedSession, setSelectedSession] = useState<RegisterSession | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  // Date range dropdown state
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
 
-  // Column visibility state
+ 
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<SessionColumnKey, boolean>>({
     sessionId: true,
@@ -286,7 +285,7 @@ export function RegisterSessionsHistory() {
 
   return (
     <div className="flex flex-col gap-6 text-foreground pb-8">
-      {/* Sticky Header Section: Title & Metric Cards */}
+  
       <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -756,7 +755,7 @@ export function RegisterSessionsHistory() {
                 setPageSize(next);
                 setPage(0);
               }}
-              sizeOptions={[1, 2, 5, 10, 20, 50]}
+              sizeOptions={[10, 20, 25, 50, 100]}
               isLoading={isLoading || isRefreshing}
               itemLabel="session"
             />

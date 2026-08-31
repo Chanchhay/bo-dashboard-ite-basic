@@ -81,6 +81,9 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
             src={qrImageUrl}
             alt="Menu QR Code"
             className="h-52 w-52 rounded-xl bg-white p-2 shadow-sm object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+            }}
           />
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-3 text-center truncate max-w-full px-2">
             {targetUrl}

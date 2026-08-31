@@ -256,12 +256,6 @@ export function PayLaterList() {
     if (sales.length === 0) {
         return (
             <div className="flex flex-col gap-4">
-                <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
-                    <InventoryPageHeader
-                        title="Pay Later"
-                        description="Sales closed without collecting money yet. Settle them here once the cash comes in."
-                    />
-                </div>
                 <InventoryEmpty
                     title="Nothing outstanding"
                     description="Sales rung up as Pay later will show up here until they're settled."
@@ -270,8 +264,7 @@ export function PayLaterList() {
         );
     }
 
-    // Owed, not billed — a sale with a partial payment already collected
-    // must not count its already-paid slice toward what's still outstanding.
+   
     const owedTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount - sale.paidAmount), 0);
     const overdueCount = sales.filter((sale) => (daysSince(sale.soldAt) ?? 0) > OVERDUE_DAYS).length;
 
@@ -343,7 +336,7 @@ export function PayLaterList() {
                             setQuery(event.target.value);
                             setPage(0);
                         }}
-                        placeholder="Search by invoice or customer"
+                        placeholder="Search by invoice, customer or phone"
                         className="w-full rounded-xl border border-border bg-muted/40 py-2.5 pl-10 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
                     />
                     {query && (
@@ -379,8 +372,7 @@ export function PayLaterList() {
                 <select
                     value={sortMode}
                     onChange={(event) => setSortMode(event.target.value as SortMode)}
-                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
-                >
+                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary">
                     {SORT_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                             {opt.label}
@@ -392,8 +384,7 @@ export function PayLaterList() {
                     <button
                         type="button"
                         onClick={() => setColumnsOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                    >
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted">
                         <Columns3 className="size-4 text-muted-foreground" />
                         Columns
                         <span className="ml-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
@@ -414,8 +405,7 @@ export function PayLaterList() {
                                         <label
                                             key={col.key}
                                             onClick={() => toggleColumn(col.key)}
-                                            className="flex cursor-pointer select-none items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted"
-                                        >
+                                            className="flex cursor-pointer select-none items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted" >
                                             <span className="font-medium">{col.label}</span>
                                             <div
                                                 className={`flex size-4 items-center justify-center rounded border transition-colors ${checked

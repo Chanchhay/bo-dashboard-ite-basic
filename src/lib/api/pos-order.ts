@@ -101,7 +101,7 @@ export type OrderPageQuery = OrderHistoryQuery & {
 };
 
 
-export const ORDER_PAGE_SIZES = [10, 25, 50] as const;
+export const ORDER_PAGE_SIZES = [10, 20, 25, 50, 100] as const;
 
 
 export const DEFAULT_PAGE_SIZE: (typeof ORDER_PAGE_SIZES)[number] = 25;
