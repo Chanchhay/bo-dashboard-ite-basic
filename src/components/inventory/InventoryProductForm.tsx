@@ -1928,7 +1928,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         >
             <div className="sticky top-0 z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 py-4 bg-shell/95 backdrop-blur-md border-b border-border/40 transition-shadow">
                 <InventoryPageHeader
-                    title={isEditing ? "Edit item" : "Create item"}
+                    title={isEditing ? "Edit Master Item" : "Create Master Item"}
                     description="Define the item before it can be sold or tracked."
                     action={
                         <div className="flex gap-2">
