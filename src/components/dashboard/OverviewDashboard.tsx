@@ -64,6 +64,7 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/components/ui/chart";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 interface OverviewDashboardProps {
     items?: InventoryItem[];
@@ -72,10 +73,10 @@ interface OverviewDashboardProps {
 
 // Color Palette for Channels matching system theme tokens
 const CHANNEL_COLORS: Record<string, string> = {
-    POS: "#d14341",       // Brand Red / Destructive
-    WEB: "#2a78d6",       // Chart 1 Blue
-    TELEGRAM: "#00932a",  // Brand Green / Primary
-    MESSENGER: "#eda100", // Chart 4 Yellow / Warning
+    POS: "#00932a",       // Green (swapped with Telegram)
+    WEB: "#eda100",       // Yellow (swapped with Messenger)
+    TELEGRAM: "#d14341",  // Red (swapped with POS)
+    MESSENGER: "#2a78d6", // Blue (swapped with Web)
 };
 
 const stockChartConfig = {
@@ -218,7 +219,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 const itemPrice = i.price ?? 0;
                 const qty = qtyMap.get(i.id) || 0;
                 return {
-                    name: itemName.length > 12 ? itemName.slice(0, 12) + "..." : itemName,
+                    name: itemName,
                     totalAmount: Math.round(qty * itemPrice),
                     itemCount: qty,
                 };
@@ -227,6 +228,16 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             .sort((a, b) => b.itemCount - a.itemCount) // Top-K Sorting Algorithm O(N log N)
             .slice(0, 5); // Top K items
     }, [items, stock]);
+
+    const { maxStockRevenue, maxStockCount } = useMemo(() => {
+        let maxRev = 0;
+        let maxCnt = 0;
+        for (const item of stockInventoryData) {
+            if (item.totalAmount > maxRev) maxRev = item.totalAmount;
+            if (item.itemCount > maxCnt) maxCnt = item.itemCount;
+        }
+        return { maxStockRevenue: maxRev || 1, maxStockCount: maxCnt || 1 };
+    }, [stockInventoryData]);
 
     const monthYearLabel = useMemo(() => {
         return now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -269,6 +280,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             avatar: string;
             avatarUrl?: string;
             product: string;
+            category: string;
             amount: number;
             status: string;
         }> = [];
@@ -294,12 +306,18 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
 
                 const displayId = o.invoiceNumber ? (o.invoiceNumber.startsWith("#") ? o.invoiceNumber : `#${o.invoiceNumber}`) : `#${o.id.slice(-4)}`;
 
+                const firstItemCategory =
+                    o.items && o.items.length > 0
+                        ? (o.items[0] as any).itemGroup?.name || (items.find((i) => i.name === o.items[0].itemName)?.itemGroup?.name) || "General"
+                        : "General";
+
                 return {
                     id: displayId,
                     customer: customerName,
                     avatar: avatarInitials,
                     avatarUrl: custInfo?.avatarUrl,
                     product: firstItemName,
+                    category: firstItemCategory,
                     amount: o.total || 0,
                     status: formattedStatus,
                 };
@@ -334,7 +352,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             });
         }
 
-        let result: Array<{ id: string; name: string; sales: number; sold: number; image?: string }>;
+        let result: Array<{ id: string; name: string; category: string; sales: number; sold: number; image?: string }>;
 
         if (items.length > 0) {
             result = items.map((item) => {
@@ -342,6 +360,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 return {
                     id: item.id,
                     name: item.name || "Product",
+                    category: item.itemGroup?.name || (item as any).category || "General",
                     sales: sold?.revenue ?? 0,
                     sold: sold?.quantitySold ?? 0,
                     image: item.images?.[0]?.url || item.colors?.[0]?.imageUrl || item.variants?.[0]?.imageUrl || undefined,
@@ -353,6 +372,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 .map((item) => ({
                     id: item.itemId as string,
                     name: item.itemName || item.variantName || "Product",
+                    category: "General",
                     sales: item.revenue || 0,
                     sold: item.quantitySold || 0,
                 }));
@@ -370,12 +390,72 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
         return bestSellingProducts.slice(start, start + ITEMS_PER_PAGE);
     }, [bestSellingProducts, bestSellingPage]);
 
+    const handleExportRecentOrders = () => {
+        const headers = ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"];
+        const rows = recentOrders.map((o) => [o.id, o.customer, o.product, o.category, o.amount, o.status]);
+
+        const csvContent = [
+            headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(","),
+            ...rows.map((row) =>
+                row
+                    .map((cell) => {
+                        const str = String(cell ?? "");
+                        return `"${str.replace(/"/g, '""')}"`;
+                    })
+                    .join(",")
+            ),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "recent-orders.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleExportBestSelling = () => {
+        const headers = ["Product", "Category", "Total Sales ($)", "Units Sold"];
+        const rows = bestSellingProducts.map((p) => [p.name, p.category, p.sales, p.sold]);
+
+        const csvContent = [
+            headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(","),
+            ...rows.map((row) =>
+                row
+                    .map((cell) => {
+                        const str = String(cell ?? "");
+                        return `"${str.replace(/"/g, '""')}"`;
+                    })
+                    .join(",")
+            ),
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "best-selling-products.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const isDashboardLoading = salesProfitQuery.isLoading && periodProfitQuery.isLoading && itemProfitQuery.isLoading;
+
+    if (isDashboardLoading) {
+        return <DashboardSkeleton />;
+    }
+
     return (
         <div data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
             {/* KPI Metric Cards Row (Top 3) */}
             <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* 1. TOTAL REVENUE */}
-                <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
+                <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
                             <CardDescription className="text-xs sm:text-sm font-black uppercase tracking-wider text-muted-foreground">
@@ -392,7 +472,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 2. TOTAL ITEM */}
-                <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
+                <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
                             <CardDescription className="text-xs sm:text-sm font-black uppercase tracking-wider text-muted-foreground">
@@ -409,7 +489,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 3. TOTAL CATEGORY */}
-                <Card className="rounded-[22px] border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
+                <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
                             <CardDescription className="text-xs sm:text-sm font-black uppercase tracking-wider text-muted-foreground">
@@ -426,80 +506,85 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
             </div>
 
-            {/* Main 2x2 Grid Layout for Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Main Grid Layout for Charts (Top: 6/6 split, Bottom: 4/8 split) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                {/* 1. TOP-LEFT: `trending_items` (Total Amount of Item Type — Vertical Bar Chart) */}
-                <Card className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
-                    <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
+                {/* 1. TOP-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
+                <Card data-tour="dashboard-channel-cards" className="flex flex-col justify-between rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-4">
+                    <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-2">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
-                                <BarChart2 className="size-6 text-[var(--primary)]" />
-                                Total Amount of Item Type
+                                <PieIcon className="size-6 text-[var(--primary)]" />
+                                Percentage of Channel
                             </CardTitle>
-                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">Metrics breakdown per item type</CardDescription>
+                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">Distribution of revenue share by channel</CardDescription>
                         </div>
-                        <Badge variant="success-light" radius="full" className="px-3.5 py-1 text-xs font-semibold text-[var(--primary)] border border-[var(--primary)]/20">
-                            Item Comparison
-                        </Badge>
                     </CardHeader>
 
-                    <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {itemProfitQuery.isError ? (
-                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
-                                Couldn&apos;t load item sales — try refreshing.
-                            </div>
-                        ) : itemVectorData.length === 0 ? (
-                            <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
-                                No sales recorded yet for this business.
-                            </div>
-                        ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                accessibilityLayer
-                                data={itemVectorData}
-                                margin={{ top: 12, right: 20, left: 0, bottom: 22 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                                <XAxis
-                                    dataKey="name"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={10}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-muted-foreground font-semibold"
-                                />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-muted-foreground font-semibold"
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "var(--popover, #ffffff)",
-                                        borderColor: "var(--border, #e2e8f0)",
-                                        borderRadius: "12px",
-                                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                                        fontSize: "13px",
-                                        fontWeight: "600",
-                                    }}
-                                    formatter={(value: any, name: any) => [
-                                        name === "Total Revenue" ? format(Number(value || 0)) : `${Number(value || 0).toLocaleString("en-US")} pcs`,
-                                        name,
-                                    ]}
-                                />
-                                <Legend wrapperStyle={{ fontSize: "12px", fontWeight: "650" }} />
-                                <Bar dataKey="totalAmount" name="Total Revenue" fill="var(--primary)" radius={5} />
-                                <Bar dataKey="itemCount" name="Item Count" fill="#feb90d" radius={5} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                        )}
+                    <CardContent className="p-0">
+                        {/* Donut Chart Container */}
+                        <div className="relative flex items-center justify-center h-64 sm:h-72 w-full my-2">
+                            {channelPercentageData.length === 0 ? (
+                                <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
+                                    No channel revenue yet.
+                                </div>
+                            ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={channelPercentageData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={82}
+                                        paddingAngle={0}
+                                        dataKey="value"
+                                        stroke="none"
+                                        label={({ value }) => `${value}%`}
+                                        labelLine={{ stroke: "#64748b", strokeWidth: 1.5, opacity: 0.7 }}
+                                    >
+                                        {channelPercentageData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: "var(--popover, #ffffff)",
+                                            borderColor: "var(--border, #e2e8f0)",
+                                            borderRadius: "12px",
+                                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                                            fontSize: "13px",
+                                            fontWeight: "600",
+                                            padding: "10px 14px",
+                                        }}
+                                        formatter={(value: any, name: any, entry: any) => {
+                                            const rev = entry?.payload?.revenue;
+                                            const priceStr = rev !== undefined ? format(rev) : "";
+                                            return [
+                                                priceStr || `${value}%`,
+                                                name,
+                                            ];
+                                        }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            )}
+                        </div>
+
+                        {/* Bottom Legend Dots for POS, MESSENGER, TELEGRAM, WEB */}
+                        <div className="flex flex-wrap items-center justify-center gap-x-5.5 gap-y-2 pt-2.5 border-t border-border/40 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                            {channelPercentageData.map((c) => (
+                                <span key={c.name} className="flex items-center gap-1.5">
+                                    <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                                    {c.name}
+                                </span>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
 
                 {/* 2. TOP-RIGHT: `profit` (Cumulative Profit — USD by Date) */}
-                <Card className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                <Card className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-8">
                     <CardHeader className="p-0 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
@@ -641,85 +726,77 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     </CardContent>
                 </Card>
 
-                {/* 3. BOTTOM-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
-                <Card data-tour="dashboard-channel-cards" className="flex flex-col justify-between rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
-                    <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-2">
+                {/* 3. BOTTOM-LEFT: `trending_items` (Total Amount of Item Type — Vertical Bar Chart) */}
+                <Card className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-7">
+                    <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
-                                <PieIcon className="size-6 text-[var(--primary)]" />
-                                Percentage of Channel
+                                <BarChart2 className="size-6 text-[var(--primary)]" />
+                                Total Amount of Item Type
                             </CardTitle>
-                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">Distribution of revenue share by channel</CardDescription>
+                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">Metrics breakdown per item type</CardDescription>
                         </div>
                         <Badge variant="success-light" radius="full" className="px-3.5 py-1 text-xs font-semibold text-[var(--primary)] border border-[var(--primary)]/20">
-                            Channel Share
+                            Item Comparison
                         </Badge>
                     </CardHeader>
 
-                    <CardContent className="p-0">
-                        {/* Donut Chart Container */}
-                        <div className="relative flex items-center justify-center h-64 sm:h-72 w-full my-2">
-                            {channelPercentageData.length === 0 ? (
-                                <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
-                                    No channel revenue yet.
-                                </div>
-                            ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={channelPercentageData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={82}
-                                        paddingAngle={0}
-                                        dataKey="value"
-                                        stroke="none"
-                                        label={({ value }) => `${value}%`}
-                                        labelLine={{ stroke: "#64748b", strokeWidth: 1.5, opacity: 0.7 }}
-                                    >
-                                        {channelPercentageData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: "var(--popover, #ffffff)",
-                                            borderColor: "var(--border, #e2e8f0)",
-                                            borderRadius: "12px",
-                                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                                            fontSize: "13px",
-                                            fontWeight: "600",
-                                            padding: "10px 14px",
-                                        }}
-                                        formatter={(value: any, name: any, entry: any) => {
-                                            const rev = entry?.payload?.revenue;
-                                            const priceStr = rev !== undefined ? format(rev) : "";
-                                            return [
-                                                priceStr || `${value}%`,
-                                                name,
-                                            ];
-                                        }}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            )}
-                        </div>
-
-                        {/* Bottom Legend Dots for POS, MESSENGER, TELEGRAM, WEB */}
-                        <div className="flex flex-wrap items-center justify-center gap-x-5.5 gap-y-2 pt-2.5 border-t border-border/40 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                            {channelPercentageData.map((c) => (
-                                <span key={c.name} className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                                    {c.name} ({c.value}%)
-                                </span>
-                            ))}
-                        </div>
+                    <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
+                        {itemProfitQuery.isError ? (
+                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
+                                Couldn&apos;t load item sales — try refreshing.
+                            </div>
+                        ) : itemVectorData.length === 0 ? (
+                            <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
+                                No sales recorded yet for this business.
+                            </div>
+                        ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                accessibilityLayer
+                                data={itemVectorData}
+                                margin={{ top: 12, right: 20, left: 0, bottom: 22 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                                <XAxis
+                                    dataKey="name"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={10}
+                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
+                                    className="text-muted-foreground font-semibold"
+                                />
+                                <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
+                                    className="text-muted-foreground font-semibold"
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "var(--popover, #ffffff)",
+                                        borderColor: "var(--border, #e2e8f0)",
+                                        borderRadius: "12px",
+                                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                                        fontSize: "13px",
+                                        fontWeight: "600",
+                                    }}
+                                    formatter={(value: any, name: any) => [
+                                        name === "Total Revenue" ? format(Number(value || 0)) : `${Number(value || 0).toLocaleString("en-US")} pcs`,
+                                        name,
+                                    ]}
+                                />
+                                <Legend wrapperStyle={{ fontSize: "12px", fontWeight: "650" }} />
+                                <Bar dataKey="totalAmount" name="Total Revenue" fill="var(--primary)" radius={5} />
+                                <Bar dataKey="itemCount" name="Item Count" fill="#feb90d" radius={5} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                        )}
                     </CardContent>
                 </Card>
 
                 {/* 4. BOTTOM-RIGHT: `stock_inventory` (Stock Inventory — Horizontal Bar Chart) */}
-                <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-[24px] border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md">
+                <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-5">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
@@ -739,57 +816,69 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 No stock on hand yet.
                             </div>
                         ) : (
-                        <ChartContainer config={stockChartConfig} className="h-full w-full">
-                            <BarChart
-                                accessibilityLayer
-                                layout="vertical"
-                                data={stockInventoryData}
-                                margin={{ top: 12, right: 20, left: 10, bottom: 22 }}
-                                barCategoryGap="25%"
-                            >
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
-                                <XAxis type="number" tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }} className="text-muted-foreground font-semibold" />
-                                <YAxis
-                                    type="category"
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    width={100}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-foreground font-bold"
-                                />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={
-                                        <ChartTooltipContent
-                                            indicator="dot"
-                                            className="min-w-40 gap-2.5 rounded-xl border border-border/80 bg-popover p-2.5 shadow-lg"
-                                            formatter={(value, name) => (
-                                                <div className="flex w-full items-center justify-between gap-3 text-xs sm:text-sm">
-                                                    <div className="flex items-center gap-2">
-                                                        <div
-                                                            className="h-2.5 w-2.5 shrink-0 rounded-xs"
-                                                            style={{
-                                                                backgroundColor: name === "totalAmount" || name === "Total Revenue" ? "var(--primary)" : "#feb90d",
-                                                            }}
-                                                        />
-                                                        <span className="text-muted-foreground font-semibold">
-                                                            {name === "totalAmount" || name === "Total Revenue" ? "Total Revenue" : "Item Count"}
-                                                        </span>
+                            <div className="flex flex-col justify-between h-full pt-1 pb-1">
+                                <div className="space-y-2">
+                                    {stockInventoryData.map((item) => {
+                                        const revPct = Math.min(100, Math.max(3, (item.totalAmount / maxStockRevenue) * 100));
+                                        const countPct = Math.min(100, Math.max(3, (item.itemCount / maxStockCount) * 100));
+                                        return (
+                                            <div key={item.name} className="relative group flex flex-col gap-1.5 p-1.5 px-2.5 rounded-xl transition-all duration-200 hover:bg-muted/40 cursor-pointer">
+                                                {/* Hover Tooltip (Picture 2 format) */}
+                                                <div className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 hidden -translate-x-1/2 group-hover:flex flex-col gap-2 rounded-xl border border-border/80 bg-popover p-3 shadow-xl backdrop-blur-xs min-w-48 text-xs">
+                                                    <div className="font-bold text-foreground pb-1.5 border-b border-border/40 text-sm">{item.name}</div>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-2 text-muted-foreground font-semibold">
+                                                            <span className="size-2.5 rounded-xs bg-[var(--primary)] shrink-0" />
+                                                            Total Revenue
+                                                        </div>
+                                                        <span className="font-bold text-foreground">{format(item.totalAmount)}</span>
                                                     </div>
-                                                    <span className="text-foreground font-bold">
-                                                        {name === "totalAmount" || name === "Total Revenue" ? format(Number(value)) : `${Number(value).toLocaleString()} pcs`}
-                                                    </span>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-2 text-muted-foreground font-semibold">
+                                                            <span className="size-2.5 rounded-xs bg-[#feb90d] shrink-0" />
+                                                            Item Count
+                                                        </div>
+                                                        <span className="font-bold text-foreground">{item.itemCount.toLocaleString()} pcs</span>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        />
-                                    }
-                                />
-                                <Legend wrapperStyle={{ fontSize: "12px", fontWeight: "650" }} />
-                                <Bar dataKey="totalAmount" name="Total Revenue" fill="var(--primary)" radius={[0, 5, 5, 0]} />
-                                <Bar dataKey="itemCount" name="Item Count" fill="#feb90d" radius={[0, 5, 5, 0]} />
-                            </BarChart>
-                        </ChartContainer>
+
+                                                {/* Text Directly Above Bar (Product Name Only) */}
+                                                <div className="flex items-center text-xs sm:text-sm font-bold text-foreground">
+                                                    <span className="truncate">{item.name}</span>
+                                                </div>
+
+                                                {/* Horizontal Bars */}
+                                                <div className="space-y-1">
+                                                    <div className="h-2 w-full">
+                                                        <div
+                                                            className="h-full rounded-full bg-[var(--primary)] transition-all duration-500 group-hover:brightness-110 shadow-2xs"
+                                                            style={{ width: `${revPct}%` }}
+                                                        />
+                                                    </div>
+                                                    <div className="h-2 w-full">
+                                                        <div
+                                                            className="h-full rounded-full bg-[#feb90d] transition-all duration-500 group-hover:brightness-110 shadow-2xs"
+                                                            style={{ width: `${countPct}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Polished Bottom Legend Pill Badges */}
+                                <div className="flex items-center justify-center gap-3 pt-3 pb-1 mt-2 text-xs font-bold">
+                                    <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/40 border border-border/60 text-foreground font-semibold shadow-2xs">
+                                        <span className="size-2.5 rounded-full bg-[var(--primary)] shrink-0" />
+                                        Total Revenue
+                                    </span>
+                                    <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/40 border border-border/60 text-foreground font-semibold shadow-2xs">
+                                        <span className="size-2.5 rounded-full bg-[#feb90d] shrink-0" />
+                                        Item Count
+                                    </span>
+                                </div>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
@@ -797,15 +886,15 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             </div>
 
             {/* Recent Orders & Best Selling Products Tables Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
                 {/* LEFT TABLE: Recent Orders */}
-                <Card className="rounded-[24px] border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between">
+                <Card className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-7">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
                             <CardTitle className="text-base sm:text-lg font-bold text-foreground">
                                 Recent Orders
                             </CardTitle>
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold">
+                            <Button variant="outline" size="sm" onClick={handleExportRecentOrders} className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold cursor-pointer">
                                 <Download className="size-3.5" />
                                 Export
                             </Button>
@@ -936,13 +1025,13 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* RIGHT TABLE: Best Selling Products */}
-                <Card className="h-full rounded-[24px] border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between">
+                <Card className="h-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-5">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
                             <CardTitle className="text-base sm:text-lg font-bold text-foreground">
                                 Best Selling Products
                             </CardTitle>
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold">
+                            <Button variant="outline" size="sm" onClick={handleExportBestSelling} className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold cursor-pointer">
                                 <Download className="size-3.5" />
                                 Export
                             </Button>
