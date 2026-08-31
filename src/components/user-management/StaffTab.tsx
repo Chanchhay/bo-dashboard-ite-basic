@@ -576,9 +576,9 @@ export default function StaffTab() {
                     }
                 />
 
-                <div data-tour="staff-filters" className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-1 flex-wrap items-center gap-3">
-                        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                <div data-tour="staff-filters" className="mt-6 flex flex-col gap-2.5 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 flex-1">
+                        <div className="relative w-full sm:flex-1 sm:min-w-[220px] lg:max-w-xs">
                             <Search
                                 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                                 aria-hidden="true"
@@ -612,65 +612,68 @@ export default function StaffTab() {
                             )}
                         </div>
 
-                        <div className="w-full sm:w-44">
-                            <SelectField
-                                id="staff-role-filter"
-                                value={roleFilter}
-                                onValueChange={(val) => {
-                                    setRoleFilter(val);
-                                    setStaffPage(0);
-                                }}
-                                size="sm"
-                                className="h-10 text-xs sm:text-sm shadow-xs"
-                                options={[
-                                    { value: "ALL", label: "All roles" },
-                                    ...roles.map((role) => ({
-                                        value: role.id,
-                                        label: role.name || role.id,
-                                    })),
-                                    { value: "NO_ROLE", label: "No role" },
-                                ]}
-                            />
+                        {/* Filter controls + Columns + Reset (unified together) */}
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto">
+                            <div className="flex-1 min-w-0 sm:w-40 md:w-44 sm:flex-initial">
+                                <SelectField
+                                    id="staff-role-filter"
+                                    value={roleFilter}
+                                    onValueChange={(val) => {
+                                        setRoleFilter(val);
+                                        setStaffPage(0);
+                                    }}
+                                    size="sm"
+                                    className="h-10 px-2 sm:px-3.5 text-xs sm:text-sm gap-1 sm:gap-1.5 shadow-xs whitespace-nowrap [&>svg]:size-3.5 sm:[&>svg]:size-4"
+                                    options={[
+                                        { value: "ALL", label: "All roles" },
+                                        ...roles.map((role) => ({
+                                            value: role.id,
+                                            label: role.name || role.id,
+                                        })),
+                                        { value: "NO_ROLE", label: "No role" },
+                                    ]}
+                                />
+                            </div>
+
+                            <div className="flex-1 min-w-0 sm:w-32 md:w-36 sm:flex-initial">
+                                <SelectField
+                                    id="staff-status-filter"
+                                    value={statusFilter}
+                                    onValueChange={(val) => {
+                                        setStatusFilter(val);
+                                        setStaffPage(0);
+                                    }}
+                                    size="sm"
+                                    className="h-10 px-2 sm:px-3.5 text-xs sm:text-sm gap-1 sm:gap-1.5 shadow-xs whitespace-nowrap [&>svg]:size-3.5 sm:[&>svg]:size-4"
+                                    options={[
+                                        { value: "ALL", label: "All status" },
+                                        { value: "ACTIVE", label: "Active" },
+                                        { value: "INACTIVE", label: "Inactive" },
+                                    ]}
+                                />
+                            </div>
+
+                            <div className="shrink-0">
+                                <ColumnSelectDropdown
+                                    columns={columnConfigs}
+                                    onToggleColumn={toggleColumn}
+                                    onResetDefaults={resetColumnDefaults}
+                                />
+                            </div>
+
+                            {hasActiveFilters && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={resetFilters}
+                                    className="h-10 px-2 sm:px-2.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                                >
+                                    <X className="size-3.5 sm:mr-1" />
+                                    <span className="hidden sm:inline">Reset</span>
+                                </Button>
+                            )}
                         </div>
-
-                        <div className="w-full sm:w-36">
-                            <SelectField
-                                id="staff-status-filter"
-                                value={statusFilter}
-                                onValueChange={(val) => {
-                                    setStatusFilter(val);
-                                    setStaffPage(0);
-                                }}
-                                size="sm"
-                                className="h-10 text-xs sm:text-sm shadow-xs"
-                                options={[
-                                    { value: "ALL", label: "All status" },
-                                    { value: "ACTIVE", label: "Active" },
-                                    { value: "INACTIVE", label: "Inactive" },
-                                ]}
-                            />
-                        </div>
-
-                        {hasActiveFilters && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={resetFilters}
-                                className="h-10 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                <X className="size-3.5 mr-1" />
-                                Reset
-                            </Button>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
-                        <ColumnSelectDropdown
-                            columns={columnConfigs}
-                            onToggleColumn={toggleColumn}
-                            onResetDefaults={resetColumnDefaults}
-                        />
                     </div>
                 </div>
 

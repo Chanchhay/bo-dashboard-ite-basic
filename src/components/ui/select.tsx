@@ -129,7 +129,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-pointer items-center gap-2.5 rounded-lg py-2.5 pr-8 pl-3 text-base font-normal outline-hidden select-none transition-colors duration-150 data-highlighted:bg-accent data-highlighted:text-accent-foreground data-selected:bg-primary/15 dark:data-selected:bg-primary/25 data-selected:font-semibold data-selected:text-primary dark:data-selected:text-primary-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex w-full cursor-pointer items-center gap-2 rounded-lg py-2 sm:py-2.5 pr-7 sm:pr-8 pl-2.5 sm:pl-3 text-xs sm:text-sm font-normal outline-hidden select-none transition-colors duration-150 data-highlighted:bg-accent data-highlighted:text-accent-foreground data-selected:bg-primary/15 dark:data-selected:bg-primary/25 data-selected:font-semibold data-selected:text-primary dark:data-selected:text-primary-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className,
       )}
       {...props}
@@ -139,10 +139,10 @@ function SelectItem({
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator
         render={
-          <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />
+          <span className="pointer-events-none absolute right-2 flex size-3.5 sm:size-4 items-center justify-center" />
         }
       >
-        <CheckIcon className="pointer-events-none text-primary size-4 stroke-[2.5]" />
+        <CheckIcon className="pointer-events-none text-primary size-3.5 sm:size-4 stroke-[2.5]" />
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>
   );

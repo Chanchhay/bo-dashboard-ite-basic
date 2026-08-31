@@ -799,9 +799,9 @@ export function InventoryProductList() {
             </div>
 
             <section data-tour="item-list" className="overflow-clip rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="flex flex-col gap-3 border-b border-border bg-card p-3.5 sm:p-4">
-                    <div className="flex flex-row items-center gap-2">
-                        <div className="relative min-w-0 flex-1" data-tour="item-search">
+                <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-border bg-card p-3 sm:p-4">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+                        <div className="relative w-full sm:min-w-0 sm:flex-1" data-tour="item-search">
                             <Search className="pointer-events-none absolute top-1/2 left-3 sm:left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={productSearch}
@@ -809,36 +809,38 @@ export function InventoryProductList() {
                                     dispatch(setProductSearch(event.target.value))
                                 }
                                 placeholder="Search items..."
-                                className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground"
+                                className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground w-full shadow-xs"
                                 aria-label="Search items"
                             />
                         </div>
 
-                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                            <Select
-                                value={productStatus}
-                                onValueChange={(value) =>
-                                    dispatch(
-                                        setProductStatus(
-                                            (value || "ALL") as "ALL" | "ACTIVE" | "INACTIVE",
-                                        ),
-                                    )
-                                }
-                            >
-                                <SelectTrigger
-                                    size="sm"
-                                    data-tour="status-filter"
-                                    aria-label="Filter items by status"
-                                    className="!h-9 sm:!h-10 py-0 min-w-[68px] sm:w-44 px-2 sm:px-3 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground justify-between items-center"
+                        <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
+                            <div className="flex-1 min-w-0 sm:w-44 sm:flex-initial">
+                                <Select
+                                    value={productStatus}
+                                    onValueChange={(value) =>
+                                        dispatch(
+                                            setProductStatus(
+                                                (value || "ALL") as "ALL" | "ACTIVE" | "INACTIVE",
+                                            ),
+                                        )
+                                    }
                                 >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">All statuses</SelectItem>
-                                    <SelectItem value="ACTIVE">Active</SelectItem>
-                                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                    <SelectTrigger
+                                        size="sm"
+                                        data-tour="status-filter"
+                                        aria-label="Filter items by status"
+                                        className="!h-9 sm:!h-10 py-0 w-full sm:w-44 px-2.5 sm:px-3 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground justify-between items-center shadow-xs whitespace-nowrap"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">All statuses</SelectItem>
+                                        <SelectItem value="ACTIVE">Active</SelectItem>
+                                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
                             <Button
                                 type="button"
@@ -849,9 +851,9 @@ export function InventoryProductList() {
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
                                 onClick={() => setFilterPanelOpen((open) => !open)}
-                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
+                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5 shadow-xs"
                             >
-                                <SlidersHorizontal className="size-4 shrink-0" />
+                                <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
                                 <span className="hidden sm:inline">Advanced Filters</span>
                                 {advancedFilterCount ? (
                                     <span className="absolute -top-1 -right-1 sm:static grid size-4 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-[11px] font-semibold text-white">
@@ -867,9 +869,9 @@ export function InventoryProductList() {
                                 data-tour="scan-barcode"
                                 aria-label="Scan barcode"
                                 onClick={() => setScannerOpen(true)}
-                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5"
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5 shadow-xs"
                             >
-                                <ScanBarcode className="size-4 shrink-0" />
+                                <ScanBarcode className="size-4 shrink-0 text-muted-foreground" />
                                 <span className="hidden sm:inline">Scan Barcode</span>
                             </Button>
 

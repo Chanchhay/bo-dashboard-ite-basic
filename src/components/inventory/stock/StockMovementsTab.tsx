@@ -477,10 +477,10 @@ export function StockMovementsTab({
     return (
         <div className="flex flex-col">
             {/* Filter Toolbar */}
-            <div className="flex flex-col gap-4 p-4 sm:p-5 border-b border-border bg-card">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:gap-4 p-3.5 sm:p-5 border-b border-border bg-card">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3">
                     {/* Movement Filter Buttons */}
-                    <div data-tour="movements-filter-chips" className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border border-border bg-muted/30">
+                    <div data-tour="movements-filter-chips" className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl border border-border bg-muted/30 overflow-x-auto no-scrollbar w-full lg:w-auto">
                         {filterChips.map((chip) => (
                             <button
                                 key={chip.id}
@@ -491,24 +491,24 @@ export function StockMovementsTab({
                                     )
                                 }
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer",
+                                    "shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap",
                                     kindFilter === chip.id
                                         ? chip.active
                                         : "text-muted-foreground hover:text-foreground hover:bg-card/50",
                                 )}
                             >
                                 {chip.id === "ADJUST" ? (
-                                    <SlidersHorizontal className="size-4" />
+                                    <SlidersHorizontal className="size-3.5 sm:size-4" />
                                 ) : chip.dot ? (
                                     <span
                                         className={cn(
-                                            "size-2.5 rounded-full",
+                                            "size-2 sm:size-2.5 rounded-full",
                                             chip.dot,
                                         )}
                                     />
                                 ) : null}
                                 <span>{chip.label}</span>
-                                <span className="text-xs font-medium opacity-70">
+                                <span className="text-[11px] sm:text-xs font-medium opacity-70">
                                     {kindCounts[chip.id]}
                                 </span>
                             </button>
@@ -516,7 +516,7 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Search Bar */}
-                    <div data-tour="movements-search" className="relative min-w-72 sm:w-80 lg:w-96 flex-1 sm:flex-initial">
+                    <div data-tour="movements-search" className="relative w-full sm:w-80 lg:w-96 flex-1 sm:flex-initial">
                         <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             type="text"
@@ -527,16 +527,16 @@ export function StockMovementsTab({
                                 )
                             }
                             placeholder="Search item, lot, reason, or person..."
-                            className="pl-10 h-10 text-sm rounded-xl border-border bg-background"
+                            className="pl-10 h-9 sm:h-10 text-xs sm:text-sm rounded-xl border-border bg-background w-full shadow-xs"
                         />
                     </div>
                 </div>
 
                 {/* Styled Date Filter Bar */}
-                <div data-tour="movements-date-filter" className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-sm">
+                <div data-tour="movements-date-filter" className="flex flex-col gap-3 pt-3 border-t border-border/60 text-sm lg:flex-row lg:items-center lg:justify-between">
                     {/* Date Presets */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full lg:w-auto py-0.5">
+                        <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5 shrink-0 text-xs sm:text-sm">
                             <Calendar className="size-4 text-primary" />
                             <span>Date:</span>
                         </span>
@@ -551,7 +551,7 @@ export function StockMovementsTab({
                                 type="button"
                                 onClick={() => handlePresetChange(p.id)}
                                 className={cn(
-                                    "px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all cursor-pointer",
+                                    "shrink-0 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer whitespace-nowrap",
                                     datePreset === p.id && !startDate && !endDate
                                         ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                                         : datePreset === p.id
@@ -565,17 +565,15 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Clean Custom Calendar Inputs */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">From:</span>
-                            <div className="w-44">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3 w-full lg:w-auto">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>
+                            <div className="flex-1 sm:w-40 md:w-44 min-w-0">
                                 <DatePicker
                                     value={startDate}
-                                    // Never later than the other end of the
-                                    // range, which would select nothing.
                                     max={endDate || undefined}
                                     placeholder="Any date"
-                                    className="h-9"
+                                    className="h-9 text-xs sm:text-sm"
                                     onValueChange={(value) =>
                                         applyFilter(() => {
                                             setStartDate(value);
@@ -586,14 +584,14 @@ export function StockMovementsTab({
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">To:</span>
-                            <div className="w-44">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">To:</span>
+                            <div className="flex-1 sm:w-40 md:w-44 min-w-0">
                                 <DatePicker
                                     value={endDate}
                                     min={startDate || undefined}
                                     placeholder="Any date"
-                                    className="h-9"
+                                    className="h-9 text-xs sm:text-sm"
                                     onValueChange={(value) =>
                                         applyFilter(() => {
                                             setEndDate(value);
@@ -614,7 +612,7 @@ export function StockMovementsTab({
                                         setDatePreset("ALL");
                                     })
                                 }
-                                className="text-sm font-medium text-muted-foreground hover:text-foreground underline ml-1 cursor-pointer"
+                                className="text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground underline ml-1 cursor-pointer"
                             >
                                 Clear
                             </button>
