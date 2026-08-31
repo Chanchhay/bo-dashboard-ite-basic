@@ -1,87 +1,53 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { ImageOff } from "lucide-react";
 import { useState } from "react";
 
 export interface PosCardType {
-  id: string | number;
   name: string;
   price: number;
   image: string;
   category: string;
   onClick?: () => void;
-  /**
-   * False for read-only contexts (the public menu) where a click only ever
-   * opens an in-place detail view via `onClick` — never a real navigation.
-   * Relying on `onClick`'s `e.preventDefault()` to suppress the `<Link>`'s
-   * own navigation is fragile (a background prefetch fires regardless of
-   * any click at all), and on a business subdomain a prefetch/navigation
-   * to `/menu/[id]` gets rewritten into a path this page never expects.
-   * Defaults to true for the authenticated owner-facing "Menu" page, which
-   * does want the real per-item edit link.
-   */
-  navigate?: boolean;
-  /**
-   * False on the public ("live") menu, where a shop's own item without a
-   * picture must not be dressed up with a stock photo of something it does
-   * not sell — a neutral placeholder is shown instead.
-   */
-  fallbackImage?: boolean;
 }
 
 export default function MenuCard({
-  id,
   name,
   price,
   image,
   category,
   onClick,
-  navigate = true,
-  fallbackImage = true,
 }: PosCardType) {
   const formattedPrice =
     typeof price === "number"
       ? price.toFixed(2)
       : parseFloat(String(price) || "0").toFixed(2);
 
-  if (!navigate) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") onClick?.();
-        }}
-        className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
-      >
-        <MenuCardBody
-          image={image}
-          name={name}
-          category={category}
-          formattedPrice={formattedPrice}
-          fallbackImage={fallbackImage}
-        />
-      </div>
-    );
-  }
-
+  /*
+   * A click only ever opens the detail view in place — the card is not a
+   * link. It used to be one, pointing at the owner-facing /menu catalogue,
+   * which no longer exists; on a shop subdomain that href was rewritten into
+   * a path the page never expected anyway, and a `<Link>` prefetches it with
+   * or without a click.
+   */
   return (
-    <Link
-      href={`/menu/${id}`}
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick?.();
+      }}
       className="group relative flex flex-col gap-2.5 transition-transform duration-200 hover:-translate-y-1 cursor-pointer select-none"
     >
       <MenuCardBody
-          image={image}
-          name={name}
-          category={category}
-          formattedPrice={formattedPrice}
-          fallbackImage={fallbackImage}
-        />
-    </Link>
+        image={image}
+        name={name}
+        category={category}
+        formattedPrice={formattedPrice}
+      />
+    </div>
   );
 }
 
@@ -90,37 +56,35 @@ function MenuCardBody({
   name,
   category,
   formattedPrice,
-  fallbackImage,
 }: {
   image: string;
   name: string;
   category: string;
   formattedPrice: string;
-  fallbackImage: boolean;
 }) {
   const [broken, setBroken] = useState(false);
-  const fallbackMark = "/brand/fluxibiz-mark.png";
-  const stockPhoto = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80";
   const showPlaceholder = !image || broken;
 
   return (
     <>
-      {/* Image Rounded Container (No outer border box, matching screenshot 100%) */}
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#1a1e29]">
         {showPlaceholder ? (
+          /*
+           * A neutral "no picture" mark, never a stock photo. An item with no
+           * image of its own must not be dressed up with a picture of food
+           * the shop does not sell, which is what the Unsplash fallback that
+           * used to sit here did on every shop's live menu.
+           */
           <div className="flex h-full w-full items-center justify-center bg-muted/60 dark:bg-muted/30">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={fallbackMark}
-              alt=""
+            <ImageOff
+              className="h-auto w-2/5 max-w-20 text-muted-foreground/40"
               aria-hidden="true"
-              className="w-2/5 max-w-20 opacity-35 dark:opacity-45"
             />
             <span className="sr-only">No image for {name}</span>
           </div>
         ) : (
           <Image
-            src={image || fallbackMark}
+            src={image}
             alt={name}
             width={400}
             height={400}
@@ -135,19 +99,11 @@ function MenuCardBody({
              */
             unoptimized
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={(e) => {
-              const img = e.target as HTMLImageElement;
-              if (img.src !== stockPhoto && img.src !== location.origin + fallbackMark) {
-                img.src = stockPhoto;
-              } else {
-                setBroken(true);
-              }
-            }}
+            onError={() => setBroken(true)}
           />
         )}
       </div>
 
-      {/* Item Details directly below image */}
       <div className="flex flex-col px-0.5">
         <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
           {category || "General"}
