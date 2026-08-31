@@ -540,7 +540,7 @@ export default function SalesOrdersPage() {
                                     setPageSize(next);
                                     setPage(0);
                                 }}
-                                sizeOptions={[1, 2, 5, 10, 20, 25, 50, 100]}
+                                sizeOptions={[10, 20, 25, 50, 100]}
                                 isLoading={isFetching}
                                 itemLabel="order"
                             />

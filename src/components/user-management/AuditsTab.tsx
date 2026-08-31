@@ -254,7 +254,7 @@ export default function AuditsTab({
                             setPageSize(next);
                             setPage(0);
                         }}
-                        sizeOptions={[1, 2, 5, 10, 20, 50]}
+                        sizeOptions={[10, 20, 25, 50, 100]}
                         isLoading={auditQuery.isFetching}
                         itemLabel="entry"
                         itemLabelPlural="entries"
