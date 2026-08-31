@@ -693,14 +693,18 @@ export function ItemPricingTab() {
         return <InventoryLoading label="Loading items and pricing" />;
     }
 
-    if (itemsQuery.error) {
+    if (itemsQuery.error || channelsQuery.error) {
+        const error = itemsQuery.error || channelsQuery.error;
         return (
             <InventoryError
                 message={getApiErrorMessage(
-                    itemsQuery.error,
-                    "Unable to load items to price.",
+                    error,
+                    "Unable to load sales channels or items to price.",
                 )}
-                retry={itemsQuery.refetch}
+                retry={() => {
+                    itemsQuery.refetch();
+                    channelsQuery.refetch();
+                }}
             />
         );
     }
@@ -755,7 +759,11 @@ export function ItemPricingTab() {
                             aria-hidden
                             className="mx-1 h-8 w-px shrink-0 bg-border"
                         />
-                    ) : null}
+                    ) : (
+                        <span className="ml-2 text-xs text-muted-foreground italic">
+                            No channels returned from backend (`/api/v1/sales-channels`)
+                        </span>
+                    )}
 
                     {channels.map((entry) => (
                         <ChannelScopeChip
