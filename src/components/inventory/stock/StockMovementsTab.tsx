@@ -377,12 +377,9 @@ export function StockMovementsTab({
         [recordedRows],
     );
 
-    // Filtered rows based on selected movement kind, search text, and date range
-    const filteredRows = useMemo(() => {
+    // Filtered rows matching search text and date range (before kind filter)
+    const baseFilteredRows = useMemo(() => {
         return allRows.filter((row) => {
-            if (kindFilter !== "ALL" && row.kind !== kindFilter) {
-                return false;
-            }
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const haystack = [
@@ -416,17 +413,27 @@ export function StockMovementsTab({
             }
             return true;
         });
-    }, [allRows, kindFilter, searchQuery, startDate, endDate]);
+    }, [allRows, searchQuery, startDate, endDate]);
 
-    /** Counts drive the filter chips; they describe everything, unfiltered. */
+    // Final filtered rows based on selected movement kind
+    const filteredRows = useMemo(() => {
+        return baseFilteredRows.filter((row) => {
+            if (kindFilter !== "ALL" && row.kind !== kindFilter) {
+                return false;
+            }
+            return true;
+        });
+    }, [baseFilteredRows, kindFilter]);
+
+    /** Counts drive the filter chips; they describe movements matching active date and search filters. */
     const kindCounts = useMemo(
         () => ({
-            ALL: allRows.length,
-            IN: allRows.filter((row) => row.kind === "IN").length,
-            OUT: allRows.filter((row) => row.kind === "OUT").length,
-            ADJUST: allRows.filter((row) => row.kind === "ADJUST").length,
+            ALL: baseFilteredRows.length,
+            IN: baseFilteredRows.filter((row) => row.kind === "IN").length,
+            OUT: baseFilteredRows.filter((row) => row.kind === "OUT").length,
+            ADJUST: baseFilteredRows.filter((row) => row.kind === "ADJUST").length,
         }),
-        [allRows],
+        [baseFilteredRows],
     );
 
     const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
