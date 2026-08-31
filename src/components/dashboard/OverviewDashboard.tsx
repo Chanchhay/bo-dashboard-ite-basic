@@ -169,11 +169,13 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
 
         return channels.map((c) => {
             const channelName = (c.channel || "OTHER").toUpperCase();
-            const relativeFreq = (c.revenue || 0) / totalRevenue;
+            const revenue = c.revenue || 0;
+            const relativeFreq = revenue / totalRevenue;
             const pct = Math.round(relativeFreq * 100);
             return {
                 name: channelName,
                 value: pct > 0 ? pct : 1,
+                revenue,
                 color: CHANNEL_COLORS[channelName] || "#64748b",
             };
         });
@@ -673,7 +675,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                         paddingAngle={0}
                                         dataKey="value"
                                         stroke="none"
-                                        label={({ value }) => `${value}`}
+                                        label={({ value }) => `${value}%`}
                                         labelLine={{ stroke: "#64748b", strokeWidth: 1.5, opacity: 0.7 }}
                                     >
                                         {channelPercentageData.map((entry, index) => (
@@ -688,8 +690,16 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                             boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
                                             fontSize: "13px",
                                             fontWeight: "600",
+                                            padding: "10px 14px",
                                         }}
-                                        formatter={(value: any, name: any) => [`${value}% share`, name]}
+                                        formatter={(value: any, name: any, entry: any) => {
+                                            const rev = entry?.payload?.revenue;
+                                            const priceStr = rev !== undefined ? format(rev) : "";
+                                            return [
+                                                priceStr || `${value}%`,
+                                                name,
+                                            ];
+                                        }}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
