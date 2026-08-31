@@ -383,13 +383,37 @@ export default function DiscountsAndCouponsPage() {
         const result: Array<{
             item: typeof items[0];
             discount: DiscountResponse;
-            originalPrice: number;
-            discountedPrice: number;
+            lowestPrice: number;
+            highestPrice: number;
+            discountedLowest: number;
+            discountedHighest: number;
+            isPriced: boolean;
             discountRateLabel: string;
         }> = [];
 
         items.forEach((item) => {
-            const origPrice = Number(item.price) || 0;
+            // Collect all prices for this item across base price, variants/options, and packs
+            const prices: number[] = [];
+            if (item.price !== undefined && item.price !== null && Number(item.price) > 0) {
+                prices.push(Number(item.price));
+            }
+            (item.variants || []).forEach((v) => {
+                if (v.price !== undefined && v.price !== null && Number(v.price) > 0) {
+                    prices.push(Number(v.price));
+                }
+            });
+            (item.uomConversions || []).forEach((u) => {
+                if (u.price !== undefined && u.price !== null && Number(u.price) > 0) {
+                    prices.push(Number(u.price));
+                }
+            });
+            if (prices.length === 0 && item.compareAtPrice !== undefined && item.compareAtPrice !== null && Number(item.compareAtPrice) > 0) {
+                prices.push(Number(item.compareAtPrice));
+            }
+
+            const isPriced = prices.length > 0;
+            const lowestPrice = isPriced ? Math.min(...prices) : 0;
+            const highestPrice = isPriced ? Math.max(...prices) : 0;
 
             // 1. Specific item discount match
             let matchedDisc = activeAutoDiscounts.find((d) => {
@@ -420,29 +444,38 @@ export default function DiscountsAndCouponsPage() {
             }
 
             if (matchedDisc) {
-                let discPrice = origPrice;
-                let rateLabel = "";
+                const applyDiscount = (price: number) => {
+                    if (matchedDisc!.type === "PERCENTAGE") {
+                        const val = matchedDisc!.value ?? 0;
+                        return Math.max(0, price * (1 - val / 100));
+                    } else if (matchedDisc!.type === "FIXED_AMOUNT" || (matchedDisc!.type as any) === "FIXED") {
+                        const val = matchedDisc!.value ?? 0;
+                        return Math.max(0, price - val);
+                    } else if (matchedDisc!.ruleType === "BUY_X_GET_Y" || (matchedDisc!.buyQuantity && matchedDisc!.getQuantity)) {
+                        return price;
+                    }
+                    return Math.max(0, price * (1 - (matchedDisc!.value ?? 0) / 100));
+                };
 
+                let rateLabel = "";
                 if (matchedDisc.type === "PERCENTAGE") {
-                    const val = matchedDisc.value ?? 0;
-                    rateLabel = `${val}% OFF`;
-                    discPrice = Math.max(0, origPrice * (1 - val / 100));
+                    rateLabel = `${matchedDisc.value ?? 0}% OFF`;
                 } else if (matchedDisc.type === "FIXED_AMOUNT" || (matchedDisc.type as any) === "FIXED") {
-                    const val = matchedDisc.value ?? 0;
-                    rateLabel = `-${format(val)}`;
-                    discPrice = Math.max(0, origPrice - val);
+                    rateLabel = `-${format(matchedDisc.value ?? 0)}`;
                 } else if (matchedDisc.ruleType === "BUY_X_GET_Y" || (matchedDisc.buyQuantity && matchedDisc.getQuantity)) {
                     rateLabel = `Buy ${matchedDisc.buyQuantity} Get ${matchedDisc.getQuantity}`;
                 } else {
                     rateLabel = `${matchedDisc.value ?? 0}% OFF`;
-                    discPrice = Math.max(0, origPrice * (1 - (matchedDisc.value ?? 0) / 100));
                 }
 
                 result.push({
                     item,
                     discount: matchedDisc,
-                    originalPrice: origPrice,
-                    discountedPrice: discPrice,
+                    lowestPrice,
+                    highestPrice,
+                    discountedLowest: applyDiscount(lowestPrice),
+                    discountedHighest: applyDiscount(highestPrice),
+                    isPriced,
                     discountRateLabel: rateLabel,
                 });
             }
@@ -1330,7 +1363,7 @@ export default function DiscountsAndCouponsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredDiscountedItems.map(({ item, discount, originalPrice, discountedPrice, discountRateLabel }) => (
+                                {filteredDiscountedItems.map(({ item, discount, lowestPrice, highestPrice, discountedLowest, discountedHighest, isPriced, discountRateLabel }) => (
                                     <TableRow key={`${item.id}-${discount.id}`} className="hover:bg-muted/30 transition-colors">
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -1362,9 +1395,17 @@ export default function DiscountsAndCouponsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <span className="font-mono text-xs text-muted-foreground line-through">
-                                                {format(originalPrice)}
-                                            </span>
+                                            {isPriced ? (
+                                                <span className="font-mono text-xs text-muted-foreground line-through">
+                                                    {lowestPrice === highestPrice
+                                                        ? format(lowestPrice)
+                                                        : `${format(lowestPrice)} – ${format(highestPrice)}`}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground italic">
+                                                    Not priced yet
+                                                </span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <div className="space-y-0.5">
@@ -1380,9 +1421,15 @@ export default function DiscountsAndCouponsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <span className="font-mono font-bold text-sm text-[#006b26]">
-                                                {format(discountedPrice)}
-                                            </span>
+                                            {isPriced ? (
+                                                <span className="font-mono font-bold text-sm text-[#006b26]">
+                                                    {discountedLowest === discountedHighest
+                                                        ? format(discountedLowest)
+                                                        : `${format(discountedLowest)} – ${format(discountedHighest)}`}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
