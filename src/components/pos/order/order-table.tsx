@@ -62,7 +62,7 @@ export interface OrderTableProps {
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
   if (!phoneStr) return "";
-  let cleaned = phoneStr.trim();
+  const cleaned = phoneStr.trim();
   let digits = cleaned.replace(/\D/g, "");
   if (digits.startsWith("855") && digits.length >= 10) {
     digits = "0" + digits.slice(3);
@@ -521,6 +521,14 @@ export function OrderTable({
   const [payOrder, { isLoading: isPaying }] = usePayOrderMutation();
   const [setOrderCustomer] = useSetOrderCustomerMutation();
   const [setOrderDiscount] = useSetOrderDiscountMutation();
+  // The auto-discount effect's PATCH updates the RTK cache *optimistically*,
+  // synchronously, before the request even reaches the server — so by the
+  // time a payment is attempted, `order.discountAmount` in the cache already
+  // looks correct even if the real PATCH is still in flight (or failed).
+  // Comparing against that cache (what the first version of this fix did)
+  // can never see a discrepancy to wait on. Tracking the actual in-flight
+  // promise instead lets a payment genuinely wait for server confirmation.
+  const pendingDiscountSyncRef = useRef<Promise<unknown> | null>(null);
 
   const [busyLineId, setBusyLineId] = useState("");
 
@@ -810,7 +818,19 @@ export function OrderTable({
     if (order?.id) {
       const { needsSync, payload } = resolveDiscountSync(order, rule);
       if (needsSync) {
-        void setOrderDiscount(payload);
+        const promise = setOrderDiscount(payload).unwrap();
+        pendingDiscountSyncRef.current = promise;
+        promise
+          // A payment attempt awaits this exact promise to find out whether
+          // the sync failed; this second handler just keeps that rejection
+          // from also surfacing as an unhandled-rejection console warning
+          // for the common case where no payment ever awaits it at all.
+          .catch(() => {})
+          .finally(() => {
+            if (pendingDiscountSyncRef.current === promise) {
+              pendingDiscountSyncRef.current = null;
+            }
+          });
       }
     }
   }, [
@@ -1109,7 +1129,18 @@ export function OrderTable({
       // persists it fire-and-forget, for a snappy preview. Paying before
       // that PATCH lands would validate `receivedAmount` against the
       // backend's still-stale, pre-discount `order.total` and reject a
-      // correct payment — awaiting the same sync here closes that race.
+      // correct payment. Waiting on the in-flight promise itself (rather
+      // than re-checking the cache, which the optimistic update already
+      // made look "in sync" before the server ever confirmed it) is what
+      // actually closes this race.
+      if (pendingDiscountSyncRef.current) {
+        await pendingDiscountSyncRef.current;
+      }
+
+      // Belt and braces: nothing was in flight, but this payment attempt is
+      // itself the first thing to notice the order's stored discount is
+      // out of date (e.g. the modal was opened before the effect above ever
+      // ran) — sync it for real here too.
       const { needsSync, payload } = resolveDiscountSync(order, activeDiscountRule);
       if (needsSync) {
         await setOrderDiscount(payload).unwrap();

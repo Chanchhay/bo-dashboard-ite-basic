@@ -996,7 +996,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             async function processBlocks(bList: BlockDraft[]): Promise<any[]> {
                 return Promise.all(
                     bList.map(async (b) => {
-                        let updated: any = { ...b };
+                        const updated: any = { ...b };
                         if (b.file) {
                             updated.storedFile = await fileToStoredImageData(b.file);
                         }

@@ -13,14 +13,41 @@
 /** Flag `backendErrorResponse` adds so the browser can tell this 404 apart. */
 export const NO_BUSINESS_FLAG = "noBusiness";
 
+/**
+ * Why a signed-in browser is being shown the login screen instead of the app.
+ *
+ * `no-business` is the definite answer — the backend was asked and said the
+ * account has none. `unavailable` means the question could not be answered at
+ * all: the backend refused the token, was down, or replied with something
+ * unrecognisable. The two must stay distinct because only the first is the
+ * account's normal, permanent state; the second is a fault worth retrying and
+ * worth saying out loud rather than dressing up as "you have no business".
+ */
+export type BlockedReason = "no-business" | "unavailable";
+
+/** Query key the login page and the middleware both read. */
+export const BLOCKED_PARAM = "blocked";
+
+export function blockedLoginUrl(reason: BlockedReason) {
+    return `/login?${BLOCKED_PARAM}=${reason}`;
+}
+
 /** Query the login page reads to explain itself rather than re-running OAuth. */
-export const NO_BUSINESS_LOGIN_URL = "/login?noBusiness=1";
+export const NO_BUSINESS_LOGIN_URL = blockedLoginUrl("no-business");
+
+/** Shown when the business check itself failed, rather than came back empty. */
+export const UNVERIFIED_LOGIN_URL = blockedLoginUrl("unavailable");
 
 /** Where Keycloak returns after sign-in; gates the dashboard on a business. */
 export const POST_LOGIN_URL = "/api/post-login";
 
 /** Clears this app's session, keeping Keycloak's, then shows the login page. */
 export const NO_BUSINESS_SIGN_OUT_URL = "/api/no-business";
+
+/** The reason in a `blocked` query, or null when it is absent or unknown. */
+export function blockedReason(value: string | null): BlockedReason | null {
+    return value === "no-business" || value === "unavailable" ? value : null;
+}
 
 const NO_BUSINESS_MESSAGE = /business has not been found/i;
 
