@@ -209,8 +209,7 @@ export function ItemUomCard({
                                 id="lowStockDefault"
                                 name="lowStockDefault"
                                 type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
+                                inputMode="decimal"
                                 defaultValue={lowStockDefault}
                                 aria-invalid={Boolean(lowStockError)}
                                 className={`${inventoryControlClassName} flex-1`}
@@ -228,13 +227,14 @@ export function ItemUomCard({
                                             "ArrowDown",
                                             "Home",
                                             "End",
+                                            ".",
                                         ].includes(e.key) ||
                                         e.ctrlKey ||
                                         e.metaKey
                                     ) {
                                         return;
                                     }
-                                    if (!/^[0-9]$/.test(e.key)) {
+                                    if (!/^[0-9.]$/.test(e.key)) {
                                         e.preventDefault();
                                     }
                                 }}

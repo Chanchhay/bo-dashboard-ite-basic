@@ -90,6 +90,9 @@ function ChoiceRow({
                                     src={choice.imageUrl}
                                     alt=""
                                     className="mb-1 h-14 w-full rounded-lg object-cover"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                    }}
                                 />
                             ) : null}
                             <span className="text-sm font-semibold">

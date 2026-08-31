@@ -256,12 +256,6 @@ export function PayLaterList() {
     if (sales.length === 0) {
         return (
             <div className="flex flex-col gap-4">
-                <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
-                    <InventoryPageHeader
-                        title="Pay Later"
-                        description="Sales closed without collecting money yet. Settle them here once the cash comes in."
-                    />
-                </div>
                 <InventoryEmpty
                     title="Nothing outstanding"
                     description="Sales rung up as Pay later will show up here until they're settled."

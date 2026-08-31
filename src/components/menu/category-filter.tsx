@@ -408,8 +408,14 @@ function SearchResultThumbnail({ image, name }: { image?: string; name: string }
 
   if (!image || broken) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600">
-        <ImageOff className="size-5" aria-hidden />
+      <div className="flex h-full w-full items-center justify-center bg-muted/60 dark:bg-muted/30">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/fluxibiz-mark.png"
+          alt=""
+          aria-hidden="true"
+          className="w-1/2 max-w-6 opacity-40 dark:opacity-50"
+        />
         <span className="sr-only">No image for {name}</span>
       </div>
     );

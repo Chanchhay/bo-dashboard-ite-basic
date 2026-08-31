@@ -737,6 +737,9 @@ function Block({
                     src={block.url}
                     alt={block.caption || ""}
                     className="w-full rounded-xl object-cover"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                    }}
                 />
                 {block.caption ? (
                     <figcaption className="mt-2 text-xs text-[#7b857a] dark:text-[#94a3b8]">
@@ -795,8 +798,13 @@ function SpecGrid({ specs }: { specs: PreviewAttribute[] }) {
 function NoImage() {
     return (
         <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center shadow-xs">
-            <div className="flex flex-col items-center gap-2 text-[#a3aca1] dark:text-[#64748b]">
-                <ImageOff className="size-8" />
+            <div className="flex flex-col items-center gap-2.5 text-[#a3aca1] dark:text-[#64748b]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src="/brand/fluxibiz-mark.png"
+                    alt=""
+                    className="w-16 max-w-20 opacity-30 dark:opacity-40"
+                />
                 <p className="text-sm font-medium">No image available</p>
             </div>
         </div>
