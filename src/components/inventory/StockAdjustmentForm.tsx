@@ -448,9 +448,7 @@ export function StockAdjustmentForm() {
         const unitCost =
             typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
 
-        const sendsUnitCost = preservesQuantity
-            ? typedUnitCost !== ""
-            : calculatedChange > 0;
+        const sendsUnitCost = typedUnitCost !== "";
 
         const result = stockEntrySchema.safeParse({
             ...(target?.kind === "ADDON"
