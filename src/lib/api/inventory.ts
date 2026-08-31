@@ -579,13 +579,13 @@ export const maxStockQuantity = 99_999;
  */
 export function clampStockInput(value: string, maxDecimals: number = 3): string {
     const negative = value.trimStart().startsWith("-");
-    let clean = value.replace(/[^0-9.]/g, "");
+    const clean = value.replace(/[^0-9.]/g, "");
 
     if (!clean) return negative ? "-" : "";
 
     const parts = clean.split(".");
     let integerPart = parts[0] || "";
-    let decimalPart = parts.length > 1 ? parts.slice(1).join("") : undefined;
+    const decimalPart = parts.length > 1 ? parts.slice(1).join("") : undefined;
 
     // Strip leading zeros unless it's just "0" or before a dot
     integerPart = integerPart.replace(/^0+(?=\d)/, "");

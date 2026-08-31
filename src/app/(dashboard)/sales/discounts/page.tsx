@@ -1925,7 +1925,7 @@ export default function DiscountsAndCouponsPage() {
                             />
                             {couponEligibleDiscounts.length === 0 && (
                                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                                    No discounts with "Requires Coupon Code" enabled found. Please create or edit a discount rule and check "Requires Coupon Code to apply at checkout" first.
+                                    No discounts with &quot;Requires Coupon Code&quot; enabled found. Please create or edit a discount rule and check &quot;Requires Coupon Code to apply at checkout&quot; first.
                                 </p>
                             )}
                         </div>
