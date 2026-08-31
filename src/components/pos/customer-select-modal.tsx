@@ -46,7 +46,7 @@ interface CustomerSelectModalProps {
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
     if (!phoneStr) return "";
-    let cleaned = phoneStr.trim();
+    const cleaned = phoneStr.trim();
     let digits = cleaned.replace(/\D/g, "");
     if (digits.startsWith("855") && digits.length >= 10) {
         digits = "0" + digits.slice(3);
@@ -281,7 +281,7 @@ export function CustomerSelectModal({
                                     <Users className="h-8 w-8 mx-auto text-gray-300" />
                                     <p className="text-sm font-semibold text-gray-700">No customers found</p>
                                     <p className="text-xs text-gray-500">
-                                        Try another search or click "Quick Add Customer" to register one now.
+                                        Try another search or click &quot;Quick Add Customer&quot; to register one now.
                                     </p>
                                 </div>
                             ) : (

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import CategoryFilter from "@/components/menu/category-filter";
 import MenuCard from "@/components/menu/menu-card";
-import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag, Phone, Clock, ImageOff } from "lucide-react";
+import { ShoppingBag, MapPin, ExternalLink, ArrowLeft, Tag, Phone } from "lucide-react";
 import ThemeToggle from "@/components/dark-mode/theme-toggle";
 import { itemThumbnail, itemImageUrls, type InventoryItem } from "@/lib/api/inventory";
 import { attributeIcon } from "@/lib/api/attribute-icons";
-import { facebookPageUrl } from "@/lib/api/business";
+import { facebookPageUrl, type Business } from "@/lib/api/business";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -38,13 +39,41 @@ function getFacebookDisplayText(url: string) {
   return "Facebook";
 }
 
+/**
+ * The anonymous view of a business served by
+ * `/api/v1/public/stores/{slug}` — a trimmed payload, not the authenticated
+ * `Business`, so it is typed here rather than reused from there. Every field
+ * is optional: it is whatever that particular shop has filled in.
+ */
+export type PublicStoreDetail = Pick<Business, "socialLinks"> & {
+  name?: string;
+  displayName?: string;
+  slug?: string;
+  username?: string;
+  logo?: string;
+  address?: string;
+  cityOrProvince?: string;
+  phoneNumber?: string;
+  websiteUrl?: string;
+  baseCurrency?: string;
+  displayCurrency?: string;
+  /** An object on current payloads; older ones send a bare string. */
+  category?: { name?: string } | string;
+  categoryName?: string;
+  /** Pre-`socialLinks` shapes, still read for shops not yet migrated. */
+  facebookPage?: string;
+  facebookUrl?: string;
+  facebook?: string;
+};
+
 export type MenuItemEntry = {
   id: string;
   name: string;
   category: string;
   price: number;
-  image: string | null;
-  rawItem: any;
+  /** Always a string — `""` when the shop gave the item no picture. */
+  image: string;
+  rawItem: InventoryItem;
 };
 
 function PublicProductDetailView({
@@ -54,7 +83,7 @@ function PublicProductDetailView({
   onBack,
 }: {
   entry: MenuItemEntry;
-  storeDetail: any;
+  storeDetail: PublicStoreDetail;
   orderUrl: string;
   onBack: () => void;
 }) {
@@ -62,7 +91,7 @@ function PublicProductDetailView({
   // the authenticated /api/business-currencies endpoint (useMoney), which
   // 401s for an anonymous visitor and bounces them to /login.
   const currencyCode = storeDetail?.displayCurrency || storeDetail?.baseCurrency || "USD";
-  const rawItem = entry.rawItem as InventoryItem;
+  const rawItem = entry.rawItem;
   const gallery = itemImageUrls(rawItem);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
@@ -270,14 +299,13 @@ export default function PublicMenuClient({
   storeItems,
   storeItemGroups = [],
 }: {
-  storeDetail: any;
-  storeItems: any[];
+  storeDetail: PublicStoreDetail;
+  storeItems: InventoryItem[];
   storeItemGroups?: PublicItemGroup[];
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
   const [selectedSubCategory, setSelectedSubCategory] = useState("All");
-  const [selectedItemEntry, setSelectedItemEntry] = useState<MenuItemEntry | null>(null);
 
   // Dynamically resolve store website / online ordering URL for ANY store or shop
   const orderUrl = useMemo(() => {
@@ -309,23 +337,35 @@ export default function PublicMenuClient({
     });
   }, [storeItems]);
 
-  // Restore full-page product detail view from URL query parameter ?item=<id> on page load / F5 refresh
-  useEffect(() => {
-    if (typeof window === "undefined" || !items.length) return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const itemIdFromUrl = urlParams.get("item") || urlParams.get("product") || urlParams.get("id");
-    if (itemIdFromUrl) {
-      const matched = items.find(
-        (i) =>
-          String(i.id) === String(itemIdFromUrl) ||
-          String(i.rawItem.code) === String(itemIdFromUrl) ||
-          String(i.rawItem.sku) === String(itemIdFromUrl)
+  /*
+   * A shared or refreshed ?item=<id> link opens straight into that item's
+   * detail view.
+   *
+   * Seeded as initial state rather than set from an effect: this route always
+   * renders dynamically, so `useSearchParams` returns the same value on the
+   * server and on hydration. Reading `window.location` in an effect meant the
+   * server could only ever emit the grid, so a shared link painted the wrong
+   * view and then replaced it — the cascading render the lint rule is about.
+   */
+  const searchParams = useSearchParams();
+  const [selectedItemEntry, setSelectedItemEntry] =
+    useState<MenuItemEntry | null>(() => {
+      const itemIdFromUrl =
+        searchParams.get("item") ||
+        searchParams.get("product") ||
+        searchParams.get("id");
+
+      if (!itemIdFromUrl) return null;
+
+      return (
+        items.find(
+          (i) =>
+            String(i.id) === String(itemIdFromUrl) ||
+            String(i.rawItem.code) === String(itemIdFromUrl) ||
+            String(i.rawItem.sku) === String(itemIdFromUrl)
+        ) ?? null
       );
-      if (matched) {
-        setSelectedItemEntry(matched);
-      }
-    }
-  }, [items]);
+    });
 
   const handleOpenDetail = (item: MenuItemEntry) => {
     setSelectedItemEntry(item);
@@ -428,10 +468,12 @@ export default function PublicMenuClient({
   }, [storeDetail]);
 
   const categoryName = useMemo(() => {
+    const category = storeDetail?.category;
+
     return (
-      storeDetail?.category?.name ||
+      (typeof category === "object" ? category?.name : undefined) ||
       storeDetail?.categoryName ||
-      (typeof storeDetail?.category === "string" ? storeDetail.category : "")
+      (typeof category === "string" ? category : "")
     );
   }, [storeDetail]);
 
@@ -539,7 +581,7 @@ export default function PublicMenuClient({
           <CategoryFilter
             categories={categories}
             subCategories={subCategories}
-            items={items as any}
+            items={items}
             selectedCategory={selectedMainCategory}
             selectedSubCategory={selectedSubCategory}
             searchQuery={searchQuery}
@@ -562,7 +604,7 @@ export default function PublicMenuClient({
           <CategoryFilter
             categories={categories}
             subCategories={subCategories}
-            items={items as any}
+            items={items}
             selectedCategory={selectedMainCategory}
             selectedSubCategory={selectedSubCategory}
             searchQuery={searchQuery}
@@ -622,13 +664,10 @@ export default function PublicMenuClient({
                 {filteredItems.map((item) => (
                   <MenuCard
                     key={item.id}
-                    id={item.id}
                     name={item.name}
                     category={item.category}
                     price={item.price}
-                    image={item.image as string}
-                    navigate={false}
-                    fallbackImage={false}
+                    image={item.image}
                     onClick={() => handleOpenDetail(item)}
                   />
                 ))}

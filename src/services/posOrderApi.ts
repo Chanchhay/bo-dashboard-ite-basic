@@ -229,7 +229,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                         "getCurrentOrder",
                         undefined,
                         (draft) => {
-                            let currentDraft = draft;
+                            const currentDraft = draft;
                             if (!currentDraft) {
                                 return {
                                     id: `offline-${Date.now()}`,

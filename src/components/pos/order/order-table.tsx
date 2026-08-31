@@ -62,7 +62,7 @@ export interface OrderTableProps {
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
   if (!phoneStr) return "";
-  let cleaned = phoneStr.trim();
+  const cleaned = phoneStr.trim();
   let digits = cleaned.replace(/\D/g, "");
   if (digits.startsWith("855") && digits.length >= 10) {
     digits = "0" + digits.slice(3);
