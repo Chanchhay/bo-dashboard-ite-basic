@@ -13,6 +13,8 @@ import {
     Crown,
     Filter,
     Calendar,
+    Phone,
+    ChevronDown,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -150,6 +152,16 @@ export default function CustomerManagement() {
     const [datePreset, setDatePreset] = useState<string>("ALL");
     const [fromDate, setFromDate] = useState<string>("");
     const [toDate, setToDate] = useState<string>("");
+    const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+    const toggleCardExpanded = (id: string) => {
+        setExpandedCards((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
 
     const handleDatePresetChange = (preset: string) => {
         setDatePreset(preset);
@@ -393,94 +405,118 @@ export default function CustomerManagement() {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Sticky Header Section */}
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
-                <InventoryPageHeader
-                    title="Customers"
-                    description="Manage customer profiles, phone numbers, lifetime spending, and loyalty visit records."
-                    action={
-                        <div className="flex items-center gap-3">
-                            <Button
-                                data-tour="add-customer-btn"
-                                onClick={openCreateDialog}
-                                className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-xs cursor-pointer"
-                            >
-                                <Plus className="h-4 w-4" /> Add Customer
-                            </Button>
-                            <TourButton />
-                        </div>
-                    }
-                />
+            {/* Header Section (sticky on desktop only) */}
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-3 sm:pt-4 pb-3 sm:pb-4 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3 sm:gap-4">
+                <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            Customers
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                            Manage customer profiles, phone numbers, lifetime spending, and loyalty visit records.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                        <Button
+                            data-tour="add-customer-btn"
+                            onClick={openCreateDialog}
+                            className="h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm bg-primary hover:bg-primary/90 text-white gap-1.5 sm:gap-2 shadow-xs cursor-pointer rounded-xl font-semibold"
+                        >
+                            <Plus className="h-4 w-4" /> Add Customer
+                        </Button>
+                        <TourButton />
+                    </div>
+                </div>
 
                 {/* Controls Bar & Filters */}
-                <div data-tour="customers-search-bar" className="flex flex-col gap-3 pt-1">
-                    {/* Top Control Row: Search + Status Filter + Column Dropdown */}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                <div data-tour="customers-search-bar" className="flex flex-col gap-2.5 sm:gap-3 pt-1">
+                    {/* Top Control Row: Search + Status Filter + Channel Filter + Column Dropdown */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
                             {/* Search Input */}
-                            <div className="relative w-full sm:w-72">
+                            <div className="relative w-full sm:w-80 lg:w-[380px] shrink-0">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Search by name or phone..."
-                                    className="h-10 pl-9 text-sm rounded-xl border border-border bg-card"
+                                    className="h-9 sm:h-10 pl-9 text-xs sm:text-sm rounded-xl border border-border bg-card shadow-2xs"
                                 />
                             </div>
 
-                            {/* Sales Channel Filter Dropdown */}
-                            <Select
-                                value={selectedChannelFilter}
-                                items={channelItemsMap}
-                                onValueChange={(val) => setSelectedChannelFilter(val || "ALL")}
-                            >
-                                <SelectTrigger size="sm" className="!h-10 w-44 rounded-xl bg-card border-border text-sm font-medium">
-                                    <SelectValue>
-                                        {channelItemsMap[selectedChannelFilter] || "All Channels"}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">All Channels</SelectItem>
-                                    {salesChannels.map((sc) => (
-                                        <SelectItem key={sc.id} value={sc.id}>
-                                            {sc.name}
-                                        </SelectItem>
-                                    ))}
-                                    <SelectItem value="NONE">Direct / No Channel</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {/* Filter controls in a single horizontally scrollable row on mobile, inline on desktop */}
+                            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap pb-1 sm:pb-0">
+                                {/* Sales Channel Filter Dropdown */}
+                                <div className="w-36 sm:w-44 shrink-0">
+                                    <Select
+                                        value={selectedChannelFilter}
+                                        items={channelItemsMap}
+                                        onValueChange={(val) => setSelectedChannelFilter(val || "ALL")}
+                                    >
+                                        <SelectTrigger size="sm" className="!h-9 sm:!h-10 rounded-xl bg-card border-border text-xs sm:text-sm font-medium">
+                                            <SelectValue>
+                                                {channelItemsMap[selectedChannelFilter] || "All Channels"}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">All Channels</SelectItem>
+                                            {salesChannels.map((sc) => (
+                                                <SelectItem key={sc.id} value={sc.id}>
+                                                    {sc.name}
+                                                </SelectItem>
+                                            ))}
+                                            <SelectItem value="NONE">Direct / No Channel</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
-                            {/* Status Filter Dropdown */}
-                            <Select
-                                value={statusFilter}
-                                items={statusItemsMap}
-                                onValueChange={(val) => setStatusFilter((val || "ALL") as "ALL" | "ACTIVE" | "INACTIVE")}
-                            >
-                                <SelectTrigger size="sm" className="!h-10 w-36 rounded-xl bg-card border-border text-sm font-medium">
-                                    <SelectValue>
-                                        {statusItemsMap[statusFilter] || "All Statuses"}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">All Statuses</SelectItem>
-                                    <SelectItem value="ACTIVE">Active</SelectItem>
-                                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                {/* Status Filter Dropdown */}
+                                <div className="w-32 sm:w-36 shrink-0">
+                                    <Select
+                                        value={statusFilter}
+                                        items={statusItemsMap}
+                                        onValueChange={(val) => setStatusFilter((val || "ALL") as "ALL" | "ACTIVE" | "INACTIVE")}
+                                    >
+                                        <SelectTrigger size="sm" className="!h-9 sm:!h-10 rounded-xl bg-card border-border text-xs sm:text-sm font-medium">
+                                            <SelectValue>
+                                                {statusItemsMap[statusFilter] || "All Statuses"}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ALL">All Statuses</SelectItem>
+                                            <SelectItem value="ACTIVE">Active</SelectItem>
+                                            <SelectItem value="INACTIVE">Inactive</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Columns Dropdown on mobile inside the horizontal filter row */}
+                                <div className="sm:hidden shrink-0">
+                                    <ColumnSelectDropdown
+                                        columns={customerCols}
+                                        onToggleColumn={toggleCol}
+                                        onResetDefaults={resetCols}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        <ColumnSelectDropdown
-                            columns={customerCols}
-                            onToggleColumn={toggleCol}
-                            onResetDefaults={resetCols}
-                        />
+                        {/* Columns Dropdown on Desktop (aligned right) */}
+                        <div className="hidden sm:block shrink-0">
+                            <ColumnSelectDropdown
+                                columns={customerCols}
+                                onToggleColumn={toggleCol}
+                                onResetDefaults={resetCols}
+                            />
+                        </div>
                     </div>
 
                     {/* Date Filter Toolbar Row */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-xs sm:text-sm text-foreground mr-1 flex items-center gap-1.5">
-                                <Calendar className="size-4 text-primary" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pt-1">
+                        {/* Presets row: horizontally scrollable on mobile */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap shrink-0">
+                            <span className="font-semibold text-xs sm:text-sm text-foreground mr-1 flex items-center gap-1.5 shrink-0">
+                                <Calendar className="size-3.5 sm:size-4 text-primary" />
                                 <span>Date:</span>
                             </span>
                             {[
@@ -494,7 +530,7 @@ export default function CustomerManagement() {
                                     type="button"
                                     onClick={() => handleDatePresetChange(p.id)}
                                     className={cn(
-                                        "px-3 py-1 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer",
+                                        "px-2.5 sm:px-3 py-1 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer shrink-0 whitespace-nowrap",
                                         datePreset === p.id && !fromDate && !toDate
                                             ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                                             : datePreset === p.id
@@ -507,15 +543,16 @@ export default function CustomerManagement() {
                             ))}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs sm:text-sm font-medium text-muted-foreground">From:</span>
-                                <div className="w-36 sm:w-40">
+                        {/* From / To Date Pickers: 2-column grid on mobile, flex on desktop */}
+                        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>
+                                <div className="flex-1 sm:w-40">
                                     <DatePicker
                                         value={fromDate}
                                         max={toDate || undefined}
                                         placeholder="Any date"
-                                        className="h-9"
+                                        className="!h-9 sm:!h-10 text-xs sm:text-sm"
                                         onValueChange={(val) => {
                                             setFromDate(val);
                                             setDatePreset("CUSTOM");
@@ -524,14 +561,14 @@ export default function CustomerManagement() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs sm:text-sm font-medium text-muted-foreground">To:</span>
-                                <div className="w-36 sm:w-40">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">To:</span>
+                                <div className="flex-1 sm:w-40">
                                     <DatePicker
                                         value={toDate}
                                         min={fromDate || undefined}
                                         placeholder="Any date"
-                                        className="h-9"
+                                        className="!h-9 sm:!h-10 text-xs sm:text-sm"
                                         onValueChange={(val) => {
                                             setToDate(val);
                                             setDatePreset("CUSTOM");
@@ -544,112 +581,51 @@ export default function CustomerManagement() {
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Table / Card Container */}
             <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isCustomersLoading ? (
                     <TableSkeleton rows={6} cols={6} />
                 ) : filteredCustomers.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground space-y-2">
                         <Users className="h-8 w-8 mx-auto opacity-40" />
-            <p className="font-medium text-base text-foreground">
-              No customers found
-            </p>
-            <p className="text-xs">
-              Add new customers to track their sales history and membership
-              rewards.
-            </p>
+                        <p className="font-medium text-base text-foreground">
+                            No customers found
+                        </p>
+                        <p className="text-xs">
+                            Add new customers to track their sales history and membership
+                            rewards.
+                        </p>
                     </div>
                 ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/40">
-                                {isColVisible("customerInfo") && (
-                                    <TableHead>Customer Name</TableHead>
-                                )}
-                                {isColVisible("phoneNumber") && <TableHead>Phone Number</TableHead>}
-                                {isColVisible("membershipType") && (
-                                    <TableHead>Membership Type</TableHead>
-                                )}
-                                {isColVisible("salesChannel") && (
-                                    <TableHead>Sales Channel</TableHead>
-                                )}
-                                {isColVisible("totalSpend") && (
-                                    <TableHead>Total Spend</TableHead>
-                                )}
-                                {isColVisible("status") && <TableHead>Status</TableHead>}
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                    <>
+                        {/* Mobile Cards (< md) */}
+                        <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                             {filteredCustomers.map((c) => {
-                                const displayName =
-                                    c.globalCustomer?.fullName || "Unnamed Customer";
+                                const displayName = c.globalCustomer?.fullName || "Unnamed Customer";
                                 const displayPhone = formatLocalPhone(c.globalCustomer?.phoneNumber);
+                                const isExpanded = expandedCards.has(c.id);
 
                                 return (
-                                    <TableRow
+                                    <div
                                         key={c.id}
-                                        className="hover:bg-muted/30 transition-colors"
+                                        className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all hover:border-primary/40"
                                     >
-                                        {isColVisible("customerInfo") && (
-                                            <TableCell>
-                                                <div className="font-bold text-foreground text-sm">
+                                        {/* Card Header */}
+                                        <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+                                                <span className="font-bold text-sm text-foreground dark:text-white truncate">
                                                     {displayName}
-                                                </div>
-                                            </TableCell>
-                                        )}
-                                        {isColVisible("phoneNumber") && (
-                                            <TableCell>
-                                                {displayPhone ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-foreground font-medium">
-                                                        {displayPhone}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground italic">
-                                                        —
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        {isColVisible("membershipType") && (
-                                            <TableCell>
-                                                {c.membershipType ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20 dark:text-amber-400">
-                                                        <Crown className="h-3 w-3" />
-                                                        {c.membershipType.typeName}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground italic">
-                                                        Regular
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        {isColVisible("salesChannel") && (
-                                            <TableCell>
-                                                {c.salesChannel ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
-                                                        {c.salesChannel.name}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        —
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        {isColVisible("totalSpend") && (
-                                            <TableCell>
-                                                <span className="font-semibold text-xs text-foreground">
-                                                    {formatMoney(c.totalSpend ?? 0)}
                                                 </span>
-                                            </TableCell>
-                                        )}
-                                        {isColVisible("status") && (
-                                            <TableCell>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 shrink-0">
                                                 <button
-                                                    onClick={() => handleToggleStatus(c)}
-                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleStatus(c);
+                                                    }}
+                                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${
                                                         c.active
                                                             ? "bg-primary/10 text-primary hover:bg-primary/20"
                                                             : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -657,31 +633,246 @@ export default function CustomerManagement() {
                                                 >
                                                     {c.active ? "Active" : "Inactive"}
                                                 </button>
-                                            </TableCell>
-                                        )}
-                                        <TableCell className="text-right space-x-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openEditDialog(c)}
-                                                className="h-8 w-8 p-0"
-                                            >
-                                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeletingCustomer(c)}
-                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openEditDialog(c);
+                                                    }}
+                                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+                                                    title="Edit Customer"
+                                                >
+                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDeletingCustomer(c);
+                                                    }}
+                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                    title="Delete Customer"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Card Key-Value Rows */}
+                                        <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Phone</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-medium text-foreground dark:text-slate-100">
+                                                        {displayPhone || "—"}
+                                                    </span>
+                                                    {displayPhone && (
+                                                        <a
+                                                            href={`tel:${displayPhone}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            aria-label="Call"
+                                                            className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                                                        >
+                                                            <Phone className="size-3 text-primary" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Membership</span>
+                                                <div>
+                                                    {c.membershipType ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20 dark:text-amber-400">
+                                                            <Crown className="h-3 w-3" />
+                                                            {c.membershipType.typeName}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground italic">Regular</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                                <span className="font-semibold text-foreground dark:text-slate-200">Total Spend</span>
+                                                <span className="text-sm font-bold text-primary">
+                                                    {formatMoney(c.totalSpend ?? 0)}
+                                                </span>
+                                            </div>
+
+                                            {isExpanded && (
+                                                <>
+                                                    <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                        <span className="text-muted-foreground dark:text-slate-400">Sales Channel</span>
+                                                        <span className="font-medium text-foreground dark:text-slate-200">
+                                                            {c.salesChannel?.name || "Direct / None"}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                        <span className="text-muted-foreground dark:text-slate-400">Customer ID</span>
+                                                        <span className="font-mono text-muted-foreground text-[11px]">
+                                                            #{c.id.slice(0, 8)}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* View More / Less Toggle */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleCardExpanded(c.id)}
+                                            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors border-t border-border/60"
+                                        >
+                                            <span>{isExpanded ? "View Less" : "View More"}</span>
+                                            <ChevronDown
+                                                className={cn("h-3.5 w-3.5 transition-transform duration-200", isExpanded && "rotate-180")}
+                                            />
+                                        </button>
+                                    </div>
                                 );
                             })}
-                        </TableBody>
-                    </Table>
+                        </div>
+
+                        {/* Desktop Table (>= md) */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/40">
+                                        {isColVisible("customerInfo") && (
+                                            <TableHead>Customer Name</TableHead>
+                                        )}
+                                        {isColVisible("phoneNumber") && <TableHead>Phone Number</TableHead>}
+                                        {isColVisible("membershipType") && (
+                                            <TableHead>Membership Type</TableHead>
+                                        )}
+                                        {isColVisible("salesChannel") && (
+                                            <TableHead>Sales Channel</TableHead>
+                                        )}
+                                        {isColVisible("totalSpend") && (
+                                            <TableHead>Total Spend</TableHead>
+                                        )}
+                                        {isColVisible("status") && <TableHead>Status</TableHead>}
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredCustomers.map((c) => {
+                                        const displayName =
+                                            c.globalCustomer?.fullName || "Unnamed Customer";
+                                        const displayPhone = formatLocalPhone(c.globalCustomer?.phoneNumber);
+
+                                        return (
+                                            <TableRow
+                                                key={c.id}
+                                                onClick={() => openEditDialog(c)}
+                                                className="hover:bg-muted/30 transition-colors cursor-pointer"
+                                            >
+                                                {isColVisible("customerInfo") && (
+                                                    <TableCell>
+                                                        <div className="font-bold text-foreground text-sm">
+                                                            {displayName}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isColVisible("phoneNumber") && (
+                                                    <TableCell>
+                                                        {displayPhone ? (
+                                                            <span className="inline-flex items-center gap-1 text-xs text-foreground font-medium">
+                                                                {displayPhone}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground italic">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                                {isColVisible("membershipType") && (
+                                                    <TableCell>
+                                                        {c.membershipType ? (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20 dark:text-amber-400">
+                                                                <Crown className="h-3 w-3" />
+                                                                {c.membershipType.typeName}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground italic">
+                                                                Regular
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                                {isColVisible("salesChannel") && (
+                                                    <TableCell>
+                                                        {c.salesChannel ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+                                                                {c.salesChannel.name}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                                {isColVisible("totalSpend") && (
+                                                    <TableCell>
+                                                        <span className="font-semibold text-xs text-foreground">
+                                                            {formatMoney(c.totalSpend ?? 0)}
+                                                        </span>
+                                                    </TableCell>
+                                                )}
+                                                {isColVisible("status") && (
+                                                    <TableCell>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleToggleStatus(c);
+                                                            }}
+                                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                                c.active
+                                                                    ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                                                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                            }`}
+                                                        >
+                                                            {c.active ? "Active" : "Inactive"}
+                                                        </button>
+                                                    </TableCell>
+                                                )}
+                                                <TableCell className="text-right space-x-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openEditDialog(c);
+                                                        }}
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setDeletingCustomer(c);
+                                                        }}
+                                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
                 )}
             </div>
 

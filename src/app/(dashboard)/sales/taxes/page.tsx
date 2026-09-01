@@ -296,8 +296,8 @@ function TaxesEditor({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner & Header */}
-      <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      {/* Top Banner & Header (sticky on desktop only) */}
+      <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Receipt className="h-6 w-6 text-primary" />

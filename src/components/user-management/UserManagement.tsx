@@ -48,7 +48,7 @@ export default function UserManagement({
 
     return (
         <div className="flex flex-col gap-5 pb-4">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 bg-shell/95 backdrop-blur-md pt-1 pb-4 flex flex-col gap-4">
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 bg-shell/95 lg:backdrop-blur-md pt-1 pb-4 flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
                     <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
                         Manage staff accounts, assign security role permissions, and view system audit logs.

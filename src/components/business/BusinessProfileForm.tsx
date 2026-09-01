@@ -481,10 +481,10 @@ function BusinessProfileEditor({
                     />
                 </div>
 
-                <section className="rounded-2xl bg-white/90 dark:bg-[#1e2330]/50 px-4 py-4 sm:px-6 sm:py-5">
+                <section className="flex flex-col gap-4 rounded-2xl pt-2 pb-0 sm:pt-3 sm:pb-0 xl:pt-0">
                     <SectionTitle>Business Identity</SectionTitle>
 
-                    <div className="mt-5 grid gap-x-4 gap-y-5 md:grid-cols-2">
+                    <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
                         <div data-tour="profile-name">
                             <Field
                                 label="Legal Name"

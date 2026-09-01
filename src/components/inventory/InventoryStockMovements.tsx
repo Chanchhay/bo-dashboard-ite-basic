@@ -32,8 +32,8 @@ export function InventoryStockMovements() {
 
     return (
         <div data-tour="stock-movements-ledger" className="flex flex-col gap-6">
-            {/* Sticky Header Section */}
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all">
+            {/* Header Section (Static on phone/tablet, Sticky on desktop) */}
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all">
                 <InventoryPageHeader
                     title="Movements"
                     description="Every stock in, stock out and adjustment, newest first. A recorded movement is never edited — it is corrected with an adjustment."

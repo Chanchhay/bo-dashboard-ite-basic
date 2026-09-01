@@ -283,35 +283,21 @@ export function AddOnsTab() {
                         }
                     />
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[720px] text-left text-sm">
-                            <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                <tr>
-                                    <th className="px-5 py-3">Name</th>
-                                    <th className="px-5 py-3">Unit</th>
-                                    <th className="px-5 py-3">One order uses</th>
-                                    <th className="px-5 py-3">Used by</th>
-                                    <th className="px-5 py-3 text-right">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {addOns.map((addOn) => {
-                                    const usage =
-                                        usageByAddOnId.get(addOn.id) ?? 0;
-
-                                    return (
-                                        <tr
-                                            key={addOn.id}
-                                            className="text-foreground hover:bg-muted/50"
-                                        >
-                                            <td className="px-5 py-4">
-                                                <p className="font-semibold">
+                    <div className="flex flex-col">
+                        {/* Mobile Cards Layout (md:hidden) */}
+                        <div className="flex flex-col divide-y divide-border md:hidden">
+                            {addOns.map((addOn) => {
+                                const usage = usageByAddOnId.get(addOn.id) ?? 0;
+                                return (
+                                    <div key={addOn.id} className="flex flex-col gap-3 p-3.5 sm:p-4 bg-card">
+                                        {/* Header: Name + Actions */}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-bold text-sm text-foreground truncate">
                                                     {addOn.name}
                                                 </p>
                                                 {addOn.uomConversions?.length ? (
-                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">
                                                         {addOn.uomConversions
                                                             .map(
                                                                 (conversion) =>
@@ -320,64 +306,160 @@ export function AddOnsTab() {
                                                             .join(" · ")}
                                                     </p>
                                                 ) : addOn.note ? (
-                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">
                                                         {addOn.note}
                                                     </p>
                                                 ) : null}
-                                            </td>
-                                            <td className="px-5 py-4 font-mono text-xs font-semibold text-muted-foreground">
-                                                {unitSymbol(addOn)}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                {formatAmount(
-                                                    addOn.usePerOrder ?? 1,
-                                                )}{" "}
-                                                {unitSymbol(addOn)}
-                                            </td>
-                                            <td className="px-5 py-4 text-muted-foreground">
-                                                {usage}{" "}
-                                                {usage === 1 ? "item" : "items"}
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        disabled={
-                                                            updateState.isLoading
-                                                        }
-                                                        aria-label={`Edit ${addOn.name}`}
-                                                        onClick={() =>
-                                                            openDialog(addOn.id)
-                                                        }
-                                                    >
-                                                        <Pencil className="size-4" />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        className="hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                        disabled={
-                                                            deleteState.isLoading
-                                                        }
-                                                        aria-label={`Delete ${addOn.name}`}
-                                                        onClick={() =>
-                                                            setDeleteTarget(
-                                                                addOn,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Trash2 className="size-4 text-brand-red" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                            </div>
+
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    disabled={updateState.isLoading}
+                                                    aria-label={`Edit ${addOn.name}`}
+                                                    onClick={() => openDialog(addOn.id)}
+                                                >
+                                                    <Pencil className="size-4" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    className="hover:bg-red-50 dark:hover:bg-red-950/40 text-brand-red"
+                                                    disabled={deleteState.isLoading}
+                                                    aria-label={`Delete ${addOn.name}`}
+                                                    onClick={() => setDeleteTarget(addOn)}
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Key-Value Details Grid */}
+                                        <div className="grid grid-cols-3 gap-2 bg-muted/20 dark:bg-muted/10 p-2.5 rounded-xl border border-border/50 text-xs">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] text-muted-foreground">Unit</span>
+                                                <span className="font-semibold text-foreground font-mono truncate">
+                                                    {unitSymbol(addOn)}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] text-muted-foreground">One order uses</span>
+                                                <span className="font-semibold text-foreground truncate">
+                                                    {formatAmount(addOn.usePerOrder ?? 1)} {unitSymbol(addOn)}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] text-muted-foreground">Used by</span>
+                                                <span className="font-semibold text-foreground truncate">
+                                                    {usage} {usage === 1 ? "item" : "items"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop Table (hidden md:block) */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full min-w-[720px] text-left text-sm">
+                                <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    <tr>
+                                        <th className="px-5 py-3">Name</th>
+                                        <th className="px-5 py-3">Unit</th>
+                                        <th className="px-5 py-3">One order uses</th>
+                                        <th className="px-5 py-3">Used by</th>
+                                        <th className="px-5 py-3 text-right">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {addOns.map((addOn) => {
+                                        const usage =
+                                            usageByAddOnId.get(addOn.id) ?? 0;
+
+                                        return (
+                                            <tr
+                                                key={addOn.id}
+                                                className="text-foreground hover:bg-muted/50"
+                                            >
+                                                <td className="px-5 py-4">
+                                                    <p className="font-semibold">
+                                                        {addOn.name}
+                                                    </p>
+                                                    {addOn.uomConversions?.length ? (
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {addOn.uomConversions
+                                                                .map(
+                                                                    (conversion) =>
+                                                                        `1 ${conversion.unit?.symbol || conversion.unit?.name} = ${formatAmount(conversion.factor ?? 1)} ${unitSymbol(addOn)}`,
+                                                                )
+                                                                .join(" · ")}
+                                                        </p>
+                                                    ) : addOn.note ? (
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {addOn.note}
+                                                        </p>
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-5 py-4 font-mono text-xs font-semibold text-muted-foreground">
+                                                    {unitSymbol(addOn)}
+                                                </td>
+                                                <td className="px-5 py-4">
+                                                    {formatAmount(
+                                                        addOn.usePerOrder ?? 1,
+                                                    )}{" "}
+                                                    {unitSymbol(addOn)}
+                                                </td>
+                                                <td className="px-5 py-4 text-muted-foreground">
+                                                    {usage}{" "}
+                                                    {usage === 1 ? "item" : "items"}
+                                                </td>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            disabled={
+                                                                updateState.isLoading
+                                                            }
+                                                            aria-label={`Edit ${addOn.name}`}
+                                                            onClick={() =>
+                                                                openDialog(addOn.id)
+                                                            }
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                            disabled={
+                                                                deleteState.isLoading
+                                                            }
+                                                            aria-label={`Delete ${addOn.name}`}
+                                                            onClick={() =>
+                                                                setDeleteTarget(
+                                                                    addOn,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="size-4 text-brand-red" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </ConfigSection>

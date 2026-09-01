@@ -146,7 +146,7 @@ export function StepCheckData({ job, stalled }: { job: ImportJob; stalled?: bool
                 </p>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2.5">
                 <Counter
                     label="Total rows"
                     value={job.totalRows}

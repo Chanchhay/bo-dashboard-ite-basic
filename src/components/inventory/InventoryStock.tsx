@@ -57,20 +57,24 @@ function MetricCard({
             type="button"
             onClick={onClick}
             className={cn(
-                "w-full text-left rounded-2xl border-0 bg-white dark:bg-card p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-all cursor-pointer hover:shadow-md"
+                "w-full text-left rounded-xl sm:rounded-2xl border-0 bg-white dark:bg-card p-3 sm:p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-all cursor-pointer hover:shadow-md",
+                active && " dark:bg-primary/10",
             )}
         >
             <div
-                className={`grid size-10 place-items-center rounded-xl ${accent}`}
+                className={cn(
+                    "grid size-8 sm:size-10 place-items-center rounded-lg sm:rounded-xl",
+                    accent,
+                )}
             >
-                <Icon className="size-5" />
+                <Icon className="size-4 sm:size-5" />
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">
+            <p className="mt-2.5 sm:mt-4 text-xs sm:text-sm text-muted-foreground truncate">{label}</p>
+            <p className="mt-0.5 sm:mt-1 text-lg sm:text-2xl font-semibold text-foreground truncate">
                 {value}
             </p>
             {hint ? (
-                <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+                <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-1 sm:line-clamp-none">{hint}</p>
             ) : null}
         </button>
     );
@@ -276,10 +280,10 @@ export function InventoryStock() {
 
         const createdFormatted = dateToDisplay
             ? new Date(dateToDisplay).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-              })
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+            })
             : null;
 
         return {
@@ -348,14 +352,14 @@ export function InventoryStock() {
 
     return (
         <div data-tour="inventory-stock-overview" className="flex flex-col gap-6 pb-12 sm:pb-16">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 backdrop-blur-md transition-all">
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 lg:backdrop-blur-md transition-all">
                 <InventoryPageHeader
                     title="Stock"
                     description="Record what comes in and what goes out. Every change is a movement, so the history stays complete."
                     action={<TourButton />}
                 />
 
-                <div data-tour="stock-metrics" className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div data-tour="stock-metrics" className="mt-4 sm:mt-6 grid grid-cols-2 gap-2.5 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <MetricCard
                         label="Tracked"
                         value={String(dateFilteredItemRows.length + dateFilteredAddOnRows.length)}
@@ -396,34 +400,34 @@ export function InventoryStock() {
             </div>
 
             <section className="overflow-clip rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                <div className="flex flex-col gap-4 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-3 sm:gap-4 border-b border-border p-3.5 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h2 className="font-semibold text-foreground">Items</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">
                             Counted in each item&apos;s base unit.
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div data-tour="stock-search" className="relative w-full sm:w-48">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
+                        <div data-tour="stock-search" className="relative w-full sm:w-48 lg:w-60">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={stockSearch}
                                 onChange={(event) =>
                                     dispatch(setStockSearch(event.target.value))
                                 }
-                                placeholder="Search"
-                                className="h-9 rounded-xl border border-border bg-card pl-9 text-sm text-foreground placeholder:text-muted-foreground"
+                                placeholder="Search items..."
+                                className="h-9 sm:h-10 rounded-xl border border-border bg-card pl-9 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground shadow-xs w-full"
                             />
                         </div>
 
                         {/* State Filter Pills */}
-                        <div className="flex flex-wrap items-center gap-1 rounded-xl bg-muted/60 p-1">
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-muted/60 p-1 w-full sm:w-auto">
                             <button
                                 type="button"
                                 onClick={() => setStateFilter("ALL")}
                                 className={cn(
-                                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                                    "shrink-0 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
                                     stateFilter === "ALL"
                                         ? "bg-card text-foreground shadow-xs"
                                         : "text-muted-foreground hover:text-foreground",
@@ -435,7 +439,7 @@ export function InventoryStock() {
                                 type="button"
                                 onClick={() => setStateFilter("IN")}
                                 className={cn(
-                                    "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                                    "shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
                                     stateFilter === "IN"
                                         ? "bg-card text-success shadow-xs font-bold"
                                         : "text-muted-foreground hover:text-foreground",
@@ -448,7 +452,7 @@ export function InventoryStock() {
                                 type="button"
                                 onClick={() => setStateFilter("LOW")}
                                 className={cn(
-                                    "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                                    "shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
                                     stateFilter === "LOW"
                                         ? "bg-warning/20 text-warning shadow-xs font-bold ring-1 ring-warning/30"
                                         : "text-muted-foreground hover:text-warning",
@@ -461,7 +465,7 @@ export function InventoryStock() {
                                 type="button"
                                 onClick={() => setStateFilter("OUT")}
                                 className={cn(
-                                    "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                                    "shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
                                     stateFilter === "OUT"
                                         ? "bg-danger/20 text-danger shadow-xs font-bold ring-1 ring-danger/30"
                                         : "text-muted-foreground hover:text-danger",
@@ -475,10 +479,10 @@ export function InventoryStock() {
                 </div>
 
                 {/* Styled Date Filter Bar matching /inventory/stock/movements */}
-                <div data-tour="movements-date-filter" className="flex flex-wrap items-center justify-between gap-3 p-4 border-t border-border/60 text-sm bg-card">
+                <div data-tour="movements-date-filter" className="flex flex-col gap-3 p-3.5 sm:p-4 border-t border-border/60 text-sm bg-card lg:flex-row lg:items-center lg:justify-between">
                     {/* Date Presets */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full lg:w-auto py-0.5">
+                        <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5 shrink-0 text-xs sm:text-sm">
                             <Calendar className="size-4 text-primary" />
                             <span>Date:</span>
                         </span>
@@ -493,12 +497,12 @@ export function InventoryStock() {
                                 type="button"
                                 onClick={() => handlePresetChange(p.id)}
                                 className={cn(
-                                    "px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all cursor-pointer",
+                                    "shrink-0 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer whitespace-nowrap",
                                     datePreset === p.id && !fromDate && !toDate
                                         ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                                         : datePreset === p.id
-                                          ? "bg-primary/10 text-primary font-semibold border border-primary/20"
-                                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
+                                            ? "bg-primary/10 text-primary font-semibold border border-primary/20"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
                                 )}
                             >
                                 {p.label}
@@ -507,15 +511,15 @@ export function InventoryStock() {
                     </div>
 
                     {/* Clean Custom Calendar Inputs */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">From:</span>
-                            <div className="w-44">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3 w-full lg:w-auto">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>
+                            <div className="flex-1 sm:w-40 md:w-44 min-w-0">
                                 <DatePicker
                                     value={fromDate}
                                     max={toDate || undefined}
                                     placeholder="Any date"
-                                    className="h-9"
+                                    className="h-9 text-xs sm:text-sm"
                                     onValueChange={(value) => {
                                         setFromDate(value);
                                         setDatePreset("CUSTOM");
@@ -524,14 +528,14 @@ export function InventoryStock() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">To:</span>
-                            <div className="w-44">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">To:</span>
+                            <div className="flex-1 sm:w-40 md:w-44 min-w-0">
                                 <DatePicker
                                     value={toDate}
                                     min={fromDate || undefined}
                                     placeholder="Any date"
-                                    className="h-9"
+                                    className="h-9 text-xs sm:text-sm"
                                     onValueChange={(value) => {
                                         setToDate(value);
                                         setDatePreset("CUSTOM");
