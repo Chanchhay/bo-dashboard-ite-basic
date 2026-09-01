@@ -4,6 +4,7 @@ import {
     inventoryValidationError,
 } from "@/lib/api/inventory-backend";
 import {
+    channelListingPath,
     saveChannelListingSchema,
     type ChannelListing,
 } from "@/lib/api/channel-pricing";
@@ -16,10 +17,6 @@ import {
  */
 type RouteContext = { params: Promise<{ channel: string }> };
 
-function listingPath(businessId: string, channelId: string) {
-    return `/api/v1/businesses/${businessId}/sales-channels/${encodeURIComponent(channelId)}/listing`;
-}
-
 /** What this channel sells, charges instead, and when it is open. */
 export async function GET(_request: Request, context: RouteContext) {
     try {
@@ -28,7 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
             getInventoryBusinessId(),
         ]);
         const listing = await backendRequest<ChannelListing>(
-            listingPath(businessId, channelId),
+            channelListingPath(businessId, channelId),
         );
 
         return Response.json(listing);
@@ -56,7 +53,7 @@ export async function PUT(request: Request, context: RouteContext) {
             getInventoryBusinessId(),
         ]);
         const listing = await backendRequest<ChannelListing>(
-            listingPath(businessId, channelId),
+            channelListingPath(businessId, channelId),
             { method: "PUT", body: JSON.stringify(result.data) },
         );
 

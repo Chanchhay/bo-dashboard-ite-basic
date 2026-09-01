@@ -35,7 +35,12 @@ import {
   matchScan,
   variantOf,
 } from "@/lib/pos/barcode-match";
-import { playScanAccepted, playScanRejected } from "@/lib/pos/scan-sound";
+import {
+  playPaid,
+  playScanAccepted,
+  playScanRejected,
+  playTick,
+} from "@/lib/pos/sounds";
 import { useGetDiscountsQuery } from "@/services/discountApi";
 import {
   useGetCurrentStockQuery,
@@ -49,6 +54,31 @@ import {
 } from "@/services/posOrderApi";
 
 const TABS_WITH_CART: PosTab[] = ["Point of Sale", "Order"];
+
+/**
+ * How few is few enough to say so, when the item itself does not say.
+ *
+ * An item carries its own `lowStockDefault` once someone has set one. Until
+ * then the till still has to draw the line somewhere, and drawing it at five
+ * is close enough to a shift's worth of a fast-moving item to be worth a
+ * cashier's attention without labelling half the grid.
+ */
+const DEFAULT_LOW_STOCK = 5;
+
+/**
+ * Whether there is a shelf behind this item at all.
+ *
+ * A service or a download has none, so no count says anything about whether
+ * it can be sold, and an item the shop has switched off inventory for is one
+ * it has asked not to be counted.
+ */
+function countsStock(entry: ChannelItem) {
+  if (entry.item.trackInventory === false) return false;
+
+  const itemType = entry.item.itemType;
+
+  return itemType !== "SERVICE" && itemType !== "DIGITAL";
+}
 
 /**
  * Whether ringing this up is a question rather than an answer.
@@ -172,6 +202,11 @@ export function PosScreen({
 
   const currentStockList = remoteStockList.length > 0 ? remoteStockList : cachedStockList;
 
+  // The same cached order the cart panel renders, so the mobile bar can never
+  // disagree with the panel behind it — and read before the grid, which now
+  // counts stock down by what this cart already holds.
+  const { data: currentOrder } = useGetCurrentOrderQuery();
+
   const stockByItemId = useMemo(() => {
     const map = new Map<string, number>();
     currentStockList.forEach((s) => {
@@ -215,7 +250,7 @@ export function PosScreen({
    * till may sell: the counter cannot sell past its share, and nobody can sell
    * what is not on the shelf.
    */
-  const stockFor = useCallback(
+  const shelfStockFor = useCallback(
     (itemId: string, variantId?: string) => {
       const key = variantId ? `${itemId}:${variantId}` : itemId;
       const onHand = stockByItemId.get(key);
@@ -247,6 +282,53 @@ export function PosScreen({
   );
 
   /**
+   * What the cart has already spoken for, keyed the way stock is.
+   *
+   * A line sold in a pack takes its whole factor off the shelf rather than one
+   * unit, so a case of twelve is twelve.
+   */
+  const claimedByCart = useMemo(() => {
+    const claimed = new Map<string, number>();
+
+    currentOrder?.items.forEach((line) => {
+      const taken = line.quantity * (line.unitFactor ?? 1);
+
+      claimed.set(line.itemId, (claimed.get(line.itemId) ?? 0) + taken);
+
+      // An option comes off its own shelf as well as the item's total.
+      if (line.variantId) {
+        const key = `${line.itemId}:${line.variantId}`;
+        claimed.set(key, (claimed.get(key) ?? 0) + taken);
+      }
+    });
+
+    return claimed;
+  }, [currentOrder]);
+
+  /**
+   * How many more the till may ring up: what is on the shelf, less what the
+   * cart already holds.
+   *
+   * A cart is stock that has not been taken off the shelf yet. Counting from
+   * the shelf alone lets a cashier ring up five of the three that exist and
+   * find out only when payment is refused, in front of the customer. Every
+   * reader of this — the grid, the option picker, the scanner — asks the same
+   * question, so they all answer the same way.
+   */
+  const stockFor = useCallback(
+    (itemId: string, variantId?: string) => {
+      const onShelf = shelfStockFor(itemId, variantId);
+
+      if (onShelf === undefined) return undefined;
+
+      const key = variantId ? `${itemId}:${variantId}` : itemId;
+
+      return Math.max(0, onShelf - (claimedByCart.get(key) ?? 0));
+    },
+    [claimedByCart, shelfStockFor],
+  );
+
+  /**
    * Whether there is nothing left to sell.
    *
    * Never stocked in counts as out, not as unknown: an item the shop has not
@@ -261,11 +343,7 @@ export function PosScreen({
    */
   const outOfStock = useCallback(
     (entry: ChannelItem) => {
-      if (entry.item.trackInventory === false) return false;
-
-      const itemType = entry.item.itemType;
-
-      if (itemType === "SERVICE" || itemType === "DIGITAL") return false;
+      if (!countsStock(entry)) return false;
 
       const stockVal = stockFor(entry.item.id);
       if (stockVal === undefined) return false;
@@ -356,6 +434,12 @@ export function PosScreen({
           }
         }
 
+        const stockLeft = countsStock(entry)
+          ? stockFor(entry.item.id)
+          : undefined;
+        const lowStockThreshold =
+          entry.item.lowStockDefault ?? DEFAULT_LOW_STOCK;
+
         return {
           id: entry.item.id,
           business_owner_id: "",
@@ -374,9 +458,25 @@ export function PosScreen({
               : outOfStock(entry)
                 ? "Out of stock"
                 : undefined,
+          // Zero is left to the "Out of stock" ribbon, which says the same
+          // thing in the words a cashier needs.
+          lowStockLeft:
+            stockLeft !== undefined &&
+            stockLeft > 0 &&
+            stockLeft <= lowStockThreshold
+              ? stockLeft
+              : undefined,
         };
       });
-  }, [channelItems, searchQuery, selectedCategoryId, outOfStock, activePosDiscounts, format]);
+  }, [
+    channelItems,
+    searchQuery,
+    selectedCategoryId,
+    outOfStock,
+    stockFor,
+    activePosDiscounts,
+    format,
+  ]);
 
   const filtersAreActive =
     searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
@@ -657,10 +757,6 @@ export function PosScreen({
     isPaused: scanningPaused,
   });
 
-  // The same cached order the cart panel renders, so the mobile bar can never
-  // disagree with the panel behind it.
-  const { data: currentOrder } = useGetCurrentOrderQuery();
-
   useCustomerDisplaySync({
     businessId: paidReceipt?.order.businessId || currentOrder?.businessId,
     terminalId: "term_default",
@@ -681,6 +777,7 @@ export function PosScreen({
   const subject = useSessionSubject();
 
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
+    playPaid();
     setPaidReceipt({ order, sale });
     setActiveTab("Point of Sale");
     setMobileCartOpen(false);
@@ -920,6 +1017,7 @@ export function PosScreen({
         <PosButton
           active={activeTab}
           onChange={(tab) => {
+            playTick();
             setActiveTab(tab);
             setOpenReceiptId(null);
           }}
@@ -943,6 +1041,7 @@ export function PosScreen({
       {showCart && (
         <div className="scrollbar-hide hidden w-[43.4vw] max-w-[625px] min-w-[500px] shrink-0 overflow-y-auto border-l border-[#d9d9d9] bg-white/90 min-[1025px]:flex min-[1025px]:flex-col">
           <OrderTable
+            stockFor={stockFor}
             onPaymentSuccess={handlePaymentSuccess}
             onOrderCreated={handleOrderCreated}
             isEditingOrder={editingOrderId !== null}
@@ -984,6 +1083,7 @@ export function PosScreen({
           </div>
           <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
             <OrderTable
+              stockFor={stockFor}
               onPaymentSuccess={handlePaymentSuccess}
               onOrderCreated={handleOrderCreated}
               isEditingOrder={editingOrderId !== null}

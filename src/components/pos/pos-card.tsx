@@ -26,6 +26,9 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
   const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
   const displayPrice = formattedPrice || format(item.price);
+  // Only worth saying while the item can still be sold: a dimmed card already
+  // carries "Out of stock", and two stock messages at once say less than one.
+  const stockLeft = isDisabled ? undefined : item.lowStockLeft;
 
   return (
     <button
@@ -34,7 +37,9 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
       aria-label={
         isDisabled && item.unavailableReason
           ? `${item.name}, ${displayPrice}, ${item.unavailableReason}`
-          : `${item.name}, ${displayPrice}`
+          : stockLeft !== undefined
+            ? `${item.name}, ${displayPrice}, only ${stockLeft} left`
+            : `${item.name}, ${displayPrice}`
       }
       onClick={() => onSelect?.(item)}
       style={{ touchAction: "manipulation" }}
@@ -51,6 +56,14 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
             {item.discountBadge}
           </span>
         )}
+
+        {/* Running out. Opposite corner from the discount badge so an item
+            that is both cheap and nearly gone says both. */}
+        {stockLeft !== undefined ? (
+          <span className="absolute top-2 left-2 z-10 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-background shadow-sm ring-1 ring-white/50">
+            {stockLeft} left
+          </span>
+        ) : null}
 
         {/* Why it is dimmed. "Out of stock" needs a delivery and
             "Unavailable" needs a switch flipped in Inventory — a cashier
@@ -102,6 +115,7 @@ export const PosCard = memo(
     prev.item.discountedPrice === next.item.discountedPrice &&
     prev.item.is_available === next.item.is_available &&
     prev.item.unavailableReason === next.item.unavailableReason &&
+    prev.item.lowStockLeft === next.item.lowStockLeft &&
     prev.formattedPrice === next.formattedPrice &&
     prev.onSelect === next.onSelect,
 );
