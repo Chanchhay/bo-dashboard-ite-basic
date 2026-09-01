@@ -29,6 +29,12 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
   // Only worth saying while the item can still be sold: a dimmed card already
   // carries "Out of stock", and two stock messages at once say less than one.
   const stockLeft = isDisabled ? undefined : item.lowStockLeft;
+  // Named, because the count is in the units stock is kept in and the item may
+  // well be sold in something larger.
+  const stockLabel =
+    stockLeft === undefined
+      ? undefined
+      : `${stockLeft}${item.stockUnit ? ` ${item.stockUnit}` : ""} left`;
 
   return (
     <button
@@ -38,7 +44,7 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
         isDisabled && item.unavailableReason
           ? `${item.name}, ${displayPrice}, ${item.unavailableReason}`
           : stockLeft !== undefined
-            ? `${item.name}, ${displayPrice}, only ${stockLeft} left`
+            ? `${item.name}, ${displayPrice}, only ${stockLabel}`
             : `${item.name}, ${displayPrice}`
       }
       onClick={() => onSelect?.(item)}
@@ -61,7 +67,7 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
             that is both cheap and nearly gone says both. */}
         {stockLeft !== undefined ? (
           <span className="absolute top-2 left-2 z-10 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-background shadow-sm ring-1 ring-white/50">
-            {stockLeft} left
+            {stockLabel}
           </span>
         ) : null}
 
@@ -116,6 +122,7 @@ export const PosCard = memo(
     prev.item.is_available === next.item.is_available &&
     prev.item.unavailableReason === next.item.unavailableReason &&
     prev.item.lowStockLeft === next.item.lowStockLeft &&
+    prev.item.stockUnit === next.item.stockUnit &&
     prev.formattedPrice === next.formattedPrice &&
     prev.onSelect === next.onSelect,
 );

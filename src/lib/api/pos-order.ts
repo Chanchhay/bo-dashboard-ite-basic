@@ -25,6 +25,21 @@ export type PosOrderItem = {
     trackInventory?: boolean | null;
 };
 
+/**
+ * What a line actually takes off the shelf, in the units stock is counted in.
+ *
+ * A pack is its whole factor: five bags of 10.5 are 52.5 apples, not five of
+ * anything. The cart's ceiling and the deduction made when a sale is settled
+ * have to agree on this figure — when they disagreed, the till refused the
+ * sixth bag and then handed the same stock back the moment the sale was paid.
+ */
+export function baseUnitsOf(line: {
+    quantity: number;
+    unitFactor?: number | null;
+}) {
+    return line.quantity * (line.unitFactor ?? 1);
+}
+
 export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
 
 

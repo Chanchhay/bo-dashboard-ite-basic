@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 
 import type { Item } from "@/types/pos-type";
-import type { PosOrder, Sale } from "@/lib/api/pos-order";
+import { baseUnitsOf, type PosOrder, type Sale } from "@/lib/api/pos-order";
 import type { ChannelItem } from "@/lib/api/sales-channels";
 import { itemThumbnail } from "@/lib/api/inventory";
 
@@ -48,10 +48,8 @@ import {
 } from "@/services/inventoryApi";
 import { useGetChannelStockAvailabilityQuery } from "@/services/salesChannelApi";
 import { channelAvailabilityMap } from "@/lib/api/channel-stock";
-import {
-  useAddOrderItemMutation,
-  useGetCurrentOrderQuery,
-} from "@/services/posOrderApi";
+import { useCartActions, useCurrentCart } from "@/lib/pos/use-cart";
+import { toPosOrder } from "@/lib/pos/local-cart";
 
 const TABS_WITH_CART: PosTab[] = ["Point of Sale", "Order"];
 
@@ -179,12 +177,17 @@ export function PosScreen({
   const { isOnline, cacheStockList, getCachedStockList } = usePosOffline();
   const { data: remoteStockList = [] } = useGetCurrentStockQuery();
   const [cachedStockList, setCachedStockList] = useState<any[]>([]);
+  /** Bumped when a sale has changed the cached balances under us. */
+  const [stockCacheVersion, setStockCacheVersion] = useState(0);
 
   useEffect(() => {
-    if (remoteStockList && remoteStockList.length > 0) {
+    // Only while connected. Offline, Redux is still holding the figures from
+    // before the connection dropped, and writing those back over the cache
+    // would undo every deduction the outage's own sales have made to it.
+    if (isOnline && remoteStockList && remoteStockList.length > 0) {
       void cacheStockList(remoteStockList);
     }
-  }, [remoteStockList, cacheStockList]);
+  }, [isOnline, remoteStockList, cacheStockList]);
 
   useEffect(() => {
     let isMounted = true;
@@ -198,14 +201,26 @@ export function PosScreen({
     return () => {
       isMounted = false;
     };
-  }, [isOnline, remoteStockList.length, getCachedStockList]);
+  }, [isOnline, remoteStockList.length, getCachedStockList, stockCacheVersion]);
 
-  const currentStockList = remoteStockList.length > 0 ? remoteStockList : cachedStockList;
+  /**
+   * The balances the ceiling is measured against.
+   *
+   * Offline the cached list wins even though Redux still has an answer: the
+   * cache is the one each offline sale is deducted from, so it knows about the
+   * hundred sold during the outage and the stale server figures do not.
+   */
+  const currentStockList =
+    !isOnline && cachedStockList.length > 0
+      ? cachedStockList
+      : remoteStockList.length > 0
+        ? remoteStockList
+        : cachedStockList;
 
-  // The same cached order the cart panel renders, so the mobile bar can never
-  // disagree with the panel behind it — and read before the grid, which now
-  // counts stock down by what this cart already holds.
-  const { data: currentOrder } = useGetCurrentOrderQuery();
+  // The same cart row the panel renders, so the mobile bar can never disagree
+  // with the panel behind it — and read before the grid, which counts stock
+  // down by what this cart already holds.
+  const { order: currentOrder } = useCurrentCart();
 
   const stockByItemId = useMemo(() => {
     const map = new Map<string, number>();
@@ -291,7 +306,7 @@ export function PosScreen({
     const claimed = new Map<string, number>();
 
     currentOrder?.items.forEach((line) => {
-      const taken = line.quantity * (line.unitFactor ?? 1);
+      const taken = baseUnitsOf(line);
 
       claimed.set(line.itemId, (claimed.get(line.itemId) ?? 0) + taken);
 
@@ -464,8 +479,11 @@ export function PosScreen({
             stockLeft !== undefined &&
             stockLeft > 0 &&
             stockLeft <= lowStockThreshold
-              ? stockLeft
+              ? // Trimmed, not rounded: a shelf holding 4.5 says 4.5, but a
+                // subtraction that lands on 41.99999 does not say so.
+                Number(stockLeft.toFixed(2))
               : undefined,
+          stockUnit: entry.item.unit?.symbol ?? entry.item.unit?.name,
         };
       });
   }, [
@@ -481,7 +499,7 @@ export function PosScreen({
   const filtersAreActive =
     searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
 
-  const [addOrderItem] = useAddOrderItemMutation();
+  const { addItem: addCartLine } = useCartActions();
   const { toast } = useToast();
 
   /** The full item behind each card: options, packs and the base unit. */
@@ -497,37 +515,35 @@ export function PosScreen({
     async (input: {
       itemId: string;
       variantId?: string;
+      variantName?: string;
       unitId?: string;
-      addOnIds?: string[];
+      unitName?: string;
+      unitFactor?: number;
+      addOns?: { addOnId: string; name: string; unitPrice: number }[];
       itemName: string;
       unitPrice: number;
     }) => {
-      // The order it comes back as, so a caller can say what the line now
-      // holds — a scanner ringing the same code four times has to report four.
-      try {
-        return await addOrderItem({
-          itemId: input.itemId,
-          ...(input.variantId ? { variantId: input.variantId } : {}),
-          ...(input.unitId ? { unitId: input.unitId } : {}),
-          ...(input.addOnIds?.length ? { addOnIds: input.addOnIds } : {}),
-          quantity: 1,
-          itemName: input.itemName,
-          unitPrice: input.unitPrice,
-        }).unwrap();
-      } catch (error) {
-        if (typeof window !== "undefined" && !navigator.onLine) {
-          // Offline mode: Item added to local optimistic cart state successfully
-          return undefined;
-        }
-        toast({
-          tone: "error",
-          title: "Could not add that item",
-          description: getApiErrorMessage(error, "Please try again."),
-        });
-        return undefined;
-      }
+      // The cart it comes back as, so a caller can say what the line now holds
+      // — a scanner ringing the same code four times has to report four. It is
+      // the saved cart, not a guess at one: the write has already happened.
+      const cart = await addCartLine({
+        itemId: input.itemId,
+        variantId: input.variantId ?? null,
+        variantName: input.variantName ?? null,
+        unitId: input.unitId ?? null,
+        unitName: input.unitName ?? null,
+        unitFactor: input.unitFactor ?? null,
+        addOns: input.addOns ?? [],
+        itemName: input.itemName,
+        unitPrice: input.unitPrice,
+        quantity: 1,
+        trackInventory:
+          channelItemsById.get(input.itemId)?.item.trackInventory ?? null,
+      });
+
+      return toPosOrder(cart);
     },
-    [addOrderItem, toast],
+    [addCartLine, channelItemsById],
   );
 
   const addItem = useCallback(
@@ -778,6 +794,13 @@ export function PosScreen({
 
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
     playPaid();
+
+    // The offline checkout has just taken these items off the cached balances.
+    // Read them back, or the next cart of the outage is counted against stock
+    // this one has already sold.
+    if (!isOnline) {
+      setStockCacheVersion((version) => version + 1);
+    }
     setPaidReceipt({ order, sale });
     setActiveTab("Point of Sale");
     setMobileCartOpen(false);
@@ -1113,8 +1136,13 @@ export function PosScreen({
           await sendItem({
             itemId: chosen.item.id,
             ...(choice.variantId ? { variantId: choice.variantId } : {}),
+            ...(choice.variantName ? { variantName: choice.variantName } : {}),
             ...(choice.unitId ? { unitId: choice.unitId } : {}),
-            ...(choice.addOnIds?.length ? { addOnIds: choice.addOnIds } : {}),
+            ...(choice.unitName ? { unitName: choice.unitName } : {}),
+            ...(choice.unitFactor != null
+              ? { unitFactor: choice.unitFactor }
+              : {}),
+            ...(choice.addOns?.length ? { addOns: choice.addOns } : {}),
             itemName: choice.label,
             unitPrice: choice.unitPrice,
           });

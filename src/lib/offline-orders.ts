@@ -1,5 +1,4 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { offlineDb } from "@/lib/offline/db";
 import { db } from "@/lib/db";
 import type { PosOrder, PosOrderItem } from "@/lib/api/pos-order";
 
@@ -84,14 +83,8 @@ export function offlineOrderToPosOrder(offline: any): PosOrder {
 }
 
 export function usePendingOfflineOrders(): PosOrder[] {
-    const offlineDbOrders = useLiveQuery(async () => {
-        try {
-            return await offlineDb.offlineOrders.toArray();
-        } catch {
-            return [];
-        }
-    }, []) ?? [];
-
+    // One queue. There used to be a second table holding a lossier copy of the
+    // same sales, read here alongside this one purely so neither was missed.
     const dbOrders = useLiveQuery(async () => {
         try {
             return await db.offline_orders.toArray();
@@ -102,7 +95,7 @@ export function usePendingOfflineOrders(): PosOrder[] {
 
     const map = new Map<string, PosOrder>();
 
-    [...offlineDbOrders, ...dbOrders].forEach((offline: any) => {
+    dbOrders.forEach((offline: any) => {
         if (!offline) return;
         if (offline.sync_status === "SYNCED" || offline.is_synced === true) return;
         const posOrder = offlineOrderToPosOrder(offline);
