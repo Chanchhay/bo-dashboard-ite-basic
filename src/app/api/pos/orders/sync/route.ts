@@ -47,6 +47,14 @@ export async function POST(request: Request) {
         item_name: i.productName || i.product_name || i.itemName || i.item_name || "Item",
         variantId: i.variantId || i.variant_id || null,
         variantName: i.variantName || i.variant_name || null,
+        // A pack is not one of anything: without the unit the backend takes a
+        // single base unit off the shelf for a case of twelve.
+        unitId: i.unitId || i.unit_id || null,
+        unit_id: i.unitId || i.unit_id || null,
+        unitFactor: i.unitFactor || i.unit_factor || null,
+        // The extras are stock too, and they were being dropped here.
+        addOnIds: i.addOnIds || i.add_on_ids || [],
+        add_on_ids: i.addOnIds || i.add_on_ids || [],
         quantity: i.quantity || 1,
         unitPrice: typeof i.unitPrice === "number" ? i.unitPrice : parseFloat(i.unit_price || i.unitPrice || "0"),
         discountAmount: typeof i.discountAmount === "number" ? i.discountAmount : parseFloat(i.discount_amount || i.discountAmount || "0"),
@@ -56,22 +64,37 @@ export async function POST(request: Request) {
 
     let backendResult: any = null;
     // Forward sync payload to Spring Boot Backend API (/api/v1/businesses/{businessId}/orders/sync)
+    //
+    // A failure here is reported as one. The till deletes an order from its
+    // own queue on the strength of this response, so answering "synced" when
+    // the backend refused destroys the only record of a sale that was taken
+    // in cash. Left queued, it is retried until it lands.
     try {
       backendResult = await backendRequest(ordersPath(businessId, "/sync"), {
         method: "POST",
         body: JSON.stringify({ orders: formattedOrders }),
       });
     } catch (err) {
-      console.warn("[POS Sync API] Spring Boot backend endpoint note:", err);
+      console.error("[POS Sync API] Backend refused the offline orders:", err);
+
+      return NextResponse.json(
+        {
+          error: "The server did not accept these offline sales.",
+          detail: err instanceof Error ? err.message : undefined,
+          queued: formattedOrders.length,
+        },
+        { status: 502 }
+      );
     }
 
+    // No list back means the backend took the lot; a list means it took those.
     const syncedUuids: string[] =
       Array.isArray(backendResult?.syncedUuids) && backendResult.syncedUuids.length > 0
         ? backendResult.syncedUuids
         : formattedOrders.map((o: any) => o.uuid).filter(Boolean);
 
     for (const order of formattedOrders) {
-      if (order?.uuid) {
+      if (order?.uuid && syncedUuids.includes(order.uuid)) {
         addSyncedOrder(order);
         console.log(
           `[POS Sync API] Successfully synced offline order ${order.uuid} (total: ${order.total})`

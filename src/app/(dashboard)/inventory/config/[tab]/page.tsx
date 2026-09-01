@@ -49,8 +49,8 @@ export default async function InventoryConfigTabPage({
     const Component = config.component;
 
     return (
-        <div className="flex flex-col gap-6">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 backdrop-blur-md transition-all">
+        <div className="flex flex-col gap-6 w-full max-w-full min-w-0 overflow-x-hidden">
+            <div className="static lg:sticky lg:top-0 lg:z-20 pt-2 pb-4 bg-shell/95 lg:backdrop-blur-md transition-all">
                 <InventoryPageHeader
                     title={config.title}
                     description={config.description}
@@ -58,7 +58,7 @@ export default async function InventoryConfigTabPage({
                 />
             </div>
 
-            <div>
+            <div className="w-full min-w-0">
                 <Component />
             </div>
         </div>

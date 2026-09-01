@@ -584,11 +584,10 @@ export function SplitStockDialog({
                                 </span>
                                 {method === "PERCENT" && (
                                     <span
-                                        className={`text-xs font-bold ${
-                                            percentTotal > 100
+                                        className={`text-xs font-bold ${percentTotal > 100
                                                 ? "text-destructive"
                                                 : "text-muted-foreground"
-                                        }`}
+                                            }`}
                                     >
                                         {percentTotal}% allocated
                                     </span>
@@ -608,11 +607,10 @@ export function SplitStockDialog({
                                     return (
                                         <div
                                             key={channel.id}
-                                            className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 transition-colors ${
-                                                isChecked
+                                            className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 transition-colors ${isChecked
                                                     ? "border-primary/40 bg-primary/10"
                                                     : "border-border bg-[#f5f5f5] dark:bg-muted/50"
-                                            }`}
+                                                }`}
                                         >
                                             <button
                                                 type="button"
@@ -622,22 +620,20 @@ export function SplitStockDialog({
                                                 className="flex cursor-pointer items-center gap-2 text-left"
                                             >
                                                 <span
-                                                    className={`grid size-4.5 place-items-center rounded-md transition-colors ${
-                                                        isChecked
+                                                    className={`grid size-4.5 place-items-center rounded-md transition-colors ${isChecked
                                                             ? "bg-primary text-primary-foreground"
                                                             : "border border-input bg-background"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {isChecked && (
                                                         <Check className="size-3 stroke-3" />
                                                     )}
                                                 </span>
                                                 <span
-                                                    className={`text-sm font-bold whitespace-nowrap ${
-                                                        isChecked
+                                                    className={`text-sm font-bold whitespace-nowrap ${isChecked
                                                             ? "text-foreground"
                                                             : "text-muted-foreground"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {channel.name}
                                                 </span>
@@ -653,7 +649,7 @@ export function SplitStockDialog({
                                                             placeholder="0"
                                                             value={
                                                                 percentages[
-                                                                    channel.id
+                                                                channel.id
                                                                 ] || ""
                                                             }
                                                             onChange={(event) =>
@@ -738,11 +734,10 @@ export function SplitStockDialog({
                                         >
                                             <span className="flex items-center gap-3">
                                                 <span
-                                                    className={`grid size-5 place-items-center rounded-md transition-colors ${
-                                                        isChecked
+                                                    className={`grid size-5 place-items-center rounded-md transition-colors ${isChecked
                                                             ? "bg-primary text-primary-foreground"
                                                             : "border border-input bg-background"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {isChecked && (
                                                         <Check className="size-3.5 stroke-3" />
@@ -826,11 +821,10 @@ export function SplitStockDialog({
                                                         return (
                                                             <td
                                                                 key={channel.id}
-                                                                className={`px-3 py-2 text-right tabular-nums ${
-                                                                    quantity
+                                                                className={`px-3 py-2 text-right tabular-nums ${quantity
                                                                         ? "font-bold text-foreground"
                                                                         : "text-muted-foreground/60"
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 {quantity ?? "—"}
                                                             </td>
@@ -863,8 +857,8 @@ export function SplitStockDialog({
                             {preview.items === 0
                                 ? "No items picked yet."
                                 : method === "SHARED"
-                                  ? `${preview.items} item${preview.items === 1 ? "" : "s"} back to shared stock.`
-                                  : `${preview.allocated} of ${preview.items} item${preview.items === 1 ? "" : "s"} will be split` +
+                                    ? `${preview.items} item${preview.items === 1 ? "" : "s"} back to shared stock.`
+                                    : `${preview.allocated} of ${preview.items} item${preview.items === 1 ? "" : "s"} will be split` +
                                     (preview.skipped
                                         ? ` · ${preview.skipped} not on those channels`
                                         : "")}

@@ -24,10 +24,14 @@ function MenuContent({
     className,
     align = "end",
     sideOffset = 8,
+    alignOffset,
+    collisionPadding = 8,
     ...props
 }: MenuPrimitive.Popup.Props & {
     align?: MenuPrimitive.Positioner.Props["align"];
     sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
+    alignOffset?: MenuPrimitive.Positioner.Props["alignOffset"];
+    collisionPadding?: MenuPrimitive.Positioner.Props["collisionPadding"];
 }) {
     return (
         <MenuPrimitive.Portal>
@@ -35,6 +39,8 @@ function MenuContent({
                 className="z-50 outline-none"
                 align={align}
                 sideOffset={sideOffset}
+                alignOffset={alignOffset}
+                collisionPadding={collisionPadding}
             >
                 <MenuPrimitive.Popup
                     data-slot="menu-content"

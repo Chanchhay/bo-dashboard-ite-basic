@@ -16,7 +16,7 @@ export function Panel({
 }) {
     return (
         <section
-            className={cn("rounded-[24px] bg-card border border-transparent dark:border-[#242937] p-6 lg:p-7 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]", className)}
+            className={cn("rounded-[24px] bg-card border border-transparent dark:border-[#242937] p-4 sm:p-6 lg:p-7 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]", className)}
         >
             {children}
         </section>
@@ -33,7 +33,7 @@ export function PanelHeader({
     action?: ReactNode;
 }) {
     return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
             <div className="min-w-0 flex-1">
                 <h2 className="text-[17px] font-medium text-foreground">
                     {title}
@@ -45,7 +45,7 @@ export function PanelHeader({
                 ) : null}
             </div>
             {action ? (
-                <div className="flex justify-end shrink-0 sm:justify-start">
+                <div className="flex items-center shrink-0">
                     {action}
                 </div>
             ) : null}

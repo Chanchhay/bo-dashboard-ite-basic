@@ -300,14 +300,14 @@ export default function SalesOrdersPage() {
 
     return (
         <div className="flex flex-col gap-5 pb-12 sm:pb-16">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 sm:pt-3 pb-3 sm:pb-3.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3.5 sm:gap-5">
+                <div className="flex items-start justify-between gap-3">
                     <div>
-                        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
-                            <Receipt className="h-6 w-6 text-primary" />
+                        <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                             Orders
                         </h1>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
                             Track every order from POS, storefront, Telegram, and Messenger — review receipts, approve pay-later tabs, and cancel open orders.
                         </p>
                     </div>
@@ -315,43 +315,43 @@ export default function SalesOrdersPage() {
                 </div>
                 <div
                     data-tour="orders-digital-menu"
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-card rounded-2xl border border-border p-3.5 sm:p-4 shadow-2xs"
                 >
                     <div>
-                        <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
-                        <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                        <h2 className="text-base sm:text-lg font-bold text-foreground">Digital Menu</h2>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
                         {storefrontError && (
                             <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
                         )}
                     </div>
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                        <div className="flex items-center gap-2 mr-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
+                        <div className="flex items-center gap-2.5">
                             <Switch
                                 id="menu-toggle"
                                 checked={Boolean(storefrontStatus?.listed)}
                                 disabled={isEnabling || isDisabling}
                                 onCheckedChange={handleMenuToggle}
                             />
-                            <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+                            <Label htmlFor="menu-toggle" className="text-xs sm:text-sm font-medium cursor-pointer whitespace-nowrap">Show Items on Website</Label>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 shrink-0">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setIsQrModalOpen(true)}
-                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-2xs"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl border-border bg-card px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-2xs h-8 sm:h-9"
                             >
-                                <QrCode className="h-4 w-4 text-primary" />
+                                <QrCode className="h-3.5 w-3.5 text-primary" />
                                 <span>QR Code</span>
                             </Button>
                             <Link
                                 href={subdomainUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors h-8 sm:h-9"
                             >
-                                <ExternalLink className="h-4 w-4" />
+                                <ExternalLink className="h-3.5 w-3.5" />
                                 Live Menu
                             </Link>
                         </div>
@@ -361,7 +361,7 @@ export default function SalesOrdersPage() {
                 <section
                     aria-label="Totals"
                     data-tour="orders-totals"
-                    className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+                    className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4"
                 >
                     <Stat
                         label="Orders"
@@ -393,9 +393,9 @@ export default function SalesOrdersPage() {
             >
                 <div
                     data-tour="orders-filters"
-                    className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs"
+                    className="static lg:sticky lg:top-0 lg:z-10 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-2.5 border-b border-border p-3 sm:p-4 bg-card rounded-t-2xl shadow-xs"
                 >
-                    <label className="relative min-w-50 flex-1">
+                    <label className="relative w-full sm:flex-1 sm:min-w-55">
                         <span className="sr-only">Search orders</span>
                         <Search
                             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -406,28 +406,30 @@ export default function SalesOrdersPage() {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Search this page by invoice, order name, phone or item"
-                            className="h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
+                            className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
                         />
                     </label>
 
-                    <FilterGroup
-                        label="Date range"
-                        options={DATE_FILTERS}
-                        value={range}
-                        onChange={applyFilter(setRange)}
-                    />
-                    <FilterGroup
-                        label="Status"
-                        options={STATUS_FILTERS}
-                        value={status}
-                        onChange={applyFilter(setStatus)}
-                    />
-                    <FilterGroup
-                        label="Channel"
-                        options={CHANNEL_FILTERS}
-                        value={channel}
-                        onChange={applyFilter(setChannel)}
-                    />
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+                        <FilterGroup
+                            label="Date range"
+                            options={DATE_FILTERS}
+                            value={range}
+                            onChange={applyFilter(setRange)}
+                        />
+                        <FilterGroup
+                            label="Status"
+                            options={STATUS_FILTERS}
+                            value={status}
+                            onChange={applyFilter(setStatus)}
+                        />
+                        <FilterGroup
+                            label="Channel"
+                            options={CHANNEL_FILTERS}
+                            value={channel}
+                            onChange={applyFilter(setChannel)}
+                        />
+                    </div>
                 </div>
 
                 {isLoading ? (
@@ -786,16 +788,16 @@ function LineItemListPanel({
 
     return (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div>
-                    <p className="text-sm font-bold uppercase tracking-wide text-foreground">
+            <div className="flex items-center justify-between border-b border-border px-3.5 sm:px-4 py-2.5 sm:py-3 gap-2">
+                <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-foreground">
                         Line Item List
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
                         Review products, quantity, and personalization details.
                     </p>
                 </div>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-foreground">
+                <span className="shrink-0 whitespace-nowrap inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-foreground">
                     {order.items.length} item{order.items.length === 1 ? "" : "s"}
                 </span>
             </div>
@@ -902,7 +904,7 @@ function FilterGroup<T extends string>({
         <div
             role="group"
             aria-label={label}
-            className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-none rounded-xl bg-muted p-1 border border-transparent dark:border-border shrink-0"
+            className="flex w-full sm:w-auto items-center gap-1 overflow-x-auto scrollbar-none flex-nowrap rounded-xl bg-muted p-1 border border-transparent dark:border-border shrink-0"
         >
             {options.map((option) => (
                 <button
