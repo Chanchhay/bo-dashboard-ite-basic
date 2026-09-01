@@ -29,6 +29,15 @@ export type Item = {
    * no shelf behind it.
    */
   lowStockLeft?: number;
+  /**
+   * What `lowStockLeft` is counted in.
+   *
+   * Stock is kept in base units, so an item sold in bags of ten still counts
+   * its shelf in kilos. A bare "4 left" on a card for something sold by the
+   * bag reads as four bags, and the cashier promises four times what the shop
+   * has.
+   */
+  stockUnit?: string;
   discountBadge?: string;
   discountedPrice?: string;
 };

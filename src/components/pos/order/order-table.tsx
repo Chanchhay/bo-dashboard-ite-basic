@@ -15,9 +15,15 @@ import {
 import { useMoney } from "@/hooks/useMoney";
 
 import type { Order } from "@/types/pos-type";
-import type { PosOrder, PosOrderItem, Sale } from "@/lib/api/pos-order";
+import {
+  baseUnitsOf,
+  type PosOrder,
+  type PosOrderItem,
+  type Sale,
+  type SetOrderCustomerInput,
+  type SetOrderDiscountInput,
+} from "@/lib/api/pos-order";
 
-import { useDispatch } from "react-redux";
 import { offlineDb } from "@/lib/offline/db";
 import { processOfflineCheckout } from "@/lib/checkout";
 import { useToast } from "@/components/ui/toast";
@@ -28,16 +34,13 @@ import { useGetDiscountsQuery } from "@/services/discountApi";
 import type { DiscountResponse } from "@/lib/api/discount";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
 import {
-  posOrderApi,
-  useGetCurrentOrderQuery,
   useParkOrderMutation,
-  isPendingLine,
-  useRemoveOrderItemMutation,
   usePayOrderMutation,
-  useUpdateOrderItemMutation,
   useSetOrderCustomerMutation,
   useSetOrderDiscountMutation,
 } from "@/services/posOrderApi";
+import { useCartActions, useCurrentCart } from "@/lib/pos/use-cart";
+import { flushCart } from "@/lib/pos/cart-sync";
 import { NewOrder } from "./new-order";
 import { Payment } from "./payment";
 import { CustomerSelectModal } from "../customer-select-modal";
@@ -528,27 +531,53 @@ export function OrderTable({
 }: OrderTableProps) {
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
-  const dispatch = useDispatch();
 
-  const { data: order, isLoading, error } = useGetCurrentOrderQuery();
+  // The cart comes off the device, not the network. Nothing here can be in a
+  // loading or failed state for long enough to need a screen of its own.
+  const { order, isLoading } = useCurrentCart();
+  const {
+    setQuantity,
+    removeItem,
+    setCustomer,
+    setDiscount,
+    clear: clearLocalCart,
+  } = useCartActions();
   const { data: customers = [] } = useGetCustomersQuery();
   const { data: discounts = [] } = useGetDiscountsQuery();
   const { data: business } = useGetBusinessProfileQuery();
 
-  const [updateOrderItem] = useUpdateOrderItemMutation();
-  const [removeOrderItem] = useRemoveOrderItemMutation();
   const [parkOrder, { isLoading: isParking }] = useParkOrderMutation();
   const [payOrder, { isLoading: isPaying }] = usePayOrderMutation();
-  const [setOrderCustomer] = useSetOrderCustomerMutation();
-  const [setOrderDiscount] = useSetOrderDiscountMutation();
-  // The auto-discount effect's PATCH updates the RTK cache *optimistically*,
-  // synchronously, before the request even reaches the server — so by the
-  // time a payment is attempted, `order.discountAmount` in the cache already
-  // looks correct even if the real PATCH is still in flight (or failed).
-  // Comparing against that cache (what the first version of this fix did)
-  // can never see a discrepancy to wait on. Tracking the actual in-flight
-  // promise instead lets a payment genuinely wait for server confirmation.
-  const pendingDiscountSyncRef = useRef<Promise<unknown> | null>(null);
+  const [setCustomerOnServer] = useSetOrderCustomerMutation();
+  const [setDiscountOnServer] = useSetOrderDiscountMutation();
+
+  /*
+   * The customer and the discount land on the cart first, and the server is
+   * told after.
+   *
+   * Same rule as the lines: what the panel shows is what is saved on this
+   * device. The server call is still returned so the callers that wait on it
+   * keep working — it is the telling, not the doing.
+   */
+  const setOrderCustomer = useCallback(
+    (input: SetOrderCustomerInput) => {
+      void setCustomer(input.customerId ?? null);
+      return setCustomerOnServer(input);
+    },
+    [setCustomer, setCustomerOnServer],
+  );
+
+  const setOrderDiscount = useCallback(
+    (input: SetOrderDiscountInput) => {
+      void setDiscount({
+        discountAmount: input.discountAmount,
+        discountId: input.discountId ?? null,
+        discountCode: input.discountCode ?? null,
+      });
+      return setDiscountOnServer(input);
+    },
+    [setDiscount, setDiscountOnServer],
+  );
 
   const [busyLineId, setBusyLineId] = useState("");
 
@@ -581,40 +610,21 @@ export function OrderTable({
   }, [order?.items]);
 
   /** Runs one line change, reporting rather than silently swallowing failure. */
-  async function runLineChange(
-    lineId: string,
-    change: () => Promise<unknown>,
-    failure: string,
-  ) {
-    // Every quantity change and removal passes through here, so the tick is
-    // fitted once rather than to each of the three buttons.
+  // No connection: the cart is this till's own, and so are its line ids.
+  const isOffline = typeof window !== "undefined" && !navigator.onLine;
+
+  /**
+   * Every quantity change and removal passes through here.
+   *
+   * There is nothing left to guard: the line's id belongs to this device, the
+   * write lands before the function returns, and telling the server is
+   * somebody else's problem. What used to be here — an in-flight check, a
+   * failure toast, a rule about which errors meant offline — was all the cost
+   * of a cart that lived somewhere else.
+   */
+  async function runLineChange(change: () => Promise<unknown>) {
     playTick();
-
-    // The line is on screen but the server has not answered the tap that rang
-    // it up, so its id is one this till invented. Editing it would ask the
-    // server about a line it has never heard of.
-    if (isPendingLine(lineId)) {
-      toast({
-        tone: "error",
-        title: "Still saving that item",
-        description: "Give it a moment, then try again.",
-      });
-      return;
-    }
-
-    try {
-      await change();
-    } catch (cause) {
-      if (typeof window !== "undefined" && !navigator.onLine) {
-        // Offline: Quantity / item removal applied locally to cart state
-        return;
-      }
-      toast({
-        tone: "error",
-        title: failure,
-        description: getApiErrorMessage(cause, "Please try again."),
-      });
-    }
+    await change();
   }
 
   /**
@@ -632,7 +642,7 @@ export function OrderTable({
       // Undefined is an item nobody counts, not an item at zero.
       if (left === undefined) return false;
 
-      return left < (item.unitFactor ?? 1);
+      return left < baseUnitsOf({ quantity: 1, unitFactor: item.unitFactor });
     },
     [stockFor],
   );
@@ -655,17 +665,9 @@ export function OrderTable({
       const nextQty = current + 1;
       lineQuantityRef.current.set(item.id, nextQty);
 
-      void runLineChange(
-        item.id,
-        () =>
-          updateOrderItem({
-            orderItemId: item.id,
-            quantity: nextQty,
-          }).unwrap(),
-        "Could not change the quantity",
-      );
+      void runLineChange(() => setQuantity(item.id, nextQty));
     },
-    [atStockLimit, toast, updateOrderItem],
+    [atStockLimit, setQuantity, toast],
   );
 
   const handleDecrease = useCallback(
@@ -674,31 +676,18 @@ export function OrderTable({
       const nextQty = Math.max(0, current - 1);
       lineQuantityRef.current.set(item.id, nextQty);
 
-      void runLineChange(
-        item.id,
-        () =>
-          nextQty <= 0
-            ? removeOrderItem(item.id).unwrap()
-            : updateOrderItem({
-                orderItemId: item.id,
-                quantity: nextQty,
-              }).unwrap(),
-        "Could not change the quantity",
-      );
+      // Zero removes the line; the store makes that the same call.
+      void runLineChange(() => setQuantity(item.id, nextQty));
     },
-    [removeOrderItem, updateOrderItem],
+    [setQuantity],
   );
 
   const handleRemove = useCallback(
     (orderItemId: string) => {
       lineQuantityRef.current.delete(orderItemId);
-      void runLineChange(
-        orderItemId,
-        () => removeOrderItem(orderItemId).unwrap(),
-        "Could not remove that item",
-      );
+      void runLineChange(() => removeItem(orderItemId));
     },
-    [removeOrderItem],
+    [removeItem],
   );
 
   const STORE_DEFAULT_DISCOUNT_KEY = "pos_store_default_discount";
@@ -1062,42 +1051,19 @@ export function OrderTable({
     }
   };
 
-  const isOffline = typeof window !== "undefined" && !navigator.onLine;
-
-  // Save active order cart to localStorage so offline refreshes don't lose items
-  useEffect(() => {
-    if (typeof window !== "undefined" && order && order.items && order.items.length > 0) {
-      try {
-        localStorage.setItem("ipos_offline_active_cart", JSON.stringify(order));
-      } catch {}
-    }
-  }, [order]);
-
-  const [savedOfflineCart] = useState<PosOrder | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem("ipos_offline_active_cart");
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  if (isLoading && !isOffline) {
+  /*
+   * No snapshot, no restore, no "could not load".
+   *
+   * The cart is a row on this device; a refresh reads it back and an outage
+   * never touched it. What used to be here — a JSON copy in localStorage and
+   * an effect that pushed it into the query cache when a request failed — was
+   * a second cart standing in for the first, and it outlived its own sale.
+   */
+  if (isLoading) {
     return <div className="p-6 text-sm text-gray-400">Loading order…</div>;
   }
 
-  if (error && !isOffline) {
-    return (
-      <div className="p-6 text-sm text-brand-red">
-        Could not load the current order.
-      </div>
-    );
-  }
-
-  const fallbackOrder: PosOrder = savedOfflineCart || {
+  const fallbackOrder: PosOrder = {
     id: "offline-current",
     businessId: "1",
     customerId: null,
@@ -1153,6 +1119,7 @@ export function OrderTable({
         localStorage.removeItem("pos_active_customer_id");
       } catch {}
       await parkOrder({ note: data.name.trim() }).unwrap();
+      await clearLocalCart();
 
       setNewOrderOpen(false);
       onOrderCreated?.();
@@ -1172,6 +1139,7 @@ export function OrderTable({
         localStorage.removeItem("pos_active_customer_id");
       } catch {}
       await parkOrder({}).unwrap();
+      await clearLocalCart();
       onOrderCreated?.();
     } catch (cause) {
       toast({
@@ -1228,6 +1196,13 @@ export function OrderTable({
           items: (order.items || []).map((i) => ({
             product_id: i.itemId,
             product_name: i.itemName,
+            variant_id: i.variantId ?? null,
+            variant_name: i.variantName ?? null,
+            unit_id: i.unitId ?? null,
+            unit_factor: i.unitFactor ?? null,
+            add_on_ids: (i.addOns ?? [])
+              .map((addOn) => addOn.addOnId)
+              .filter((id): id is string => Boolean(id)),
             quantity: i.quantity,
             unit_price: i.unitPrice,
             subtotal: i.lineTotal,
@@ -1238,13 +1213,19 @@ export function OrderTable({
           paymentMethod: method === "CASH" ? "CASH" : "CARD",
         });
 
-        // Deduct local stock balances for sold items in IndexedDB
+        // Take the sale off the cached balances, which are what the ceiling is
+        // measured against until the connection is back. In the units stock is
+        // counted in, not in packs: deducting the pack count left almost all of
+        // the shelf behind and the same stock could be sold over and over.
         for (const item of order.items || []) {
           if (item.itemId) {
             const key = item.variantId ? `${item.itemId}:${item.variantId}` : item.itemId;
             const existingStock = await offlineDb.stockList.get(key);
             if (existingStock) {
-              const newQty = Math.max(0, existingStock.quantityOnHand - item.quantity);
+              const newQty = Math.max(
+                0,
+                existingStock.quantityOnHand - baseUnitsOf(item),
+              );
               await offlineDb.stockList.update(key, { quantityOnHand: newQty });
             }
           }
@@ -1260,11 +1241,23 @@ export function OrderTable({
           createdAt: new Date().toISOString(),
         } as unknown as Sale;
 
-        (dispatch as any)(posOrderApi.util.updateQueryData("getCurrentOrder", undefined, () => null));
-        try {
-          localStorage.removeItem("ipos_offline_active_cart");
-        } catch {}
+        await clearLocalCart();
       } else {
+        // The backend prices the sale from its own order, so everything the
+        // till is holding has to be on it before the money is taken. This is
+        // the one moment a push cannot be left to the background.
+        const pushed = await flushCart();
+
+        if (!pushed) {
+          toast({
+            tone: "error",
+            title: "Could not reach the server",
+            description:
+              "The sale was not taken. Check the connection, or take it offline in cash.",
+          });
+          return;
+        }
+
         sale = await payOrder({
           paymentMethod: method,
           receivedAmount,
@@ -1277,10 +1270,7 @@ export function OrderTable({
           discountCode: activeDiscountRule?.discountCode,
         }).unwrap();
 
-        (dispatch as any)(posOrderApi.util.updateQueryData("getCurrentOrder", undefined, () => null));
-        try {
-          localStorage.removeItem("ipos_offline_active_cart");
-        } catch {}
+        await clearLocalCart();
       }
 
       if (sold.id) {
@@ -1615,6 +1605,7 @@ export function OrderTable({
       {paymentOpen && order && (
         <Payment
           open={paymentOpen}
+          offline={isOffline}
           onOpenChange={setPaymentOpen}
           order={legacyOrderShape(order, activePosDiscounts, activeDiscountRule)}
           onValidate={handleValidatePayment}

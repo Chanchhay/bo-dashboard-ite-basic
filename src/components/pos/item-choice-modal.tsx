@@ -21,8 +21,20 @@ import { cn } from "@/lib/utils";
 export type ItemChoice = {
     variantId?: string;
     unitId?: string;
+    /**
+     * The names and the factor travel with the choice.
+     *
+     * The cart is written on the device and has to read back correctly with no
+     * server to ask, so the line has to carry what it is — "Bag · 10.5 per
+     * pack" — rather than an id it would have to resolve later.
+     */
+    variantName?: string;
+    unitName?: string;
+    unitFactor?: number;
     /** Extras ticked on this line. */
     addOnIds?: string[];
+    /** The same extras with what they are called and cost, for a cart that has to read back offline. */
+    addOns?: { addOnId: string; name: string; unitPrice: number }[];
     /** For the optimistic line, before the order comes back. */
     label: string;
     unitPrice: number;
@@ -416,10 +428,30 @@ export function ItemChoiceModal({
                                 ...(chosenOption?.id
                                     ? { variantId: chosenOption.id }
                                     : {}),
-                                ...(chosenPack?.unit?.id
-                                    ? { unitId: chosenPack.unit.id }
+                                ...(chosenOption?.name
+                                    ? { variantName: chosenOption.name }
                                     : {}),
-                                ...(addOnIds.length ? { addOnIds } : {}),
+                                ...(chosenPack?.unit?.id
+                                    ? {
+                                          unitId: chosenPack.unit.id,
+                                          ...(chosenPack.unit.name
+                                              ? { unitName: chosenPack.unit.name }
+                                              : {}),
+                                          ...(chosenPack.factor != null
+                                              ? { unitFactor: chosenPack.factor }
+                                              : {}),
+                                      }
+                                    : {}),
+                                ...(addOnIds.length
+                                    ? {
+                                          addOnIds,
+                                          addOns: extras.map((addOn) => ({
+                                              addOnId: addOn.id,
+                                              name: addOn.name ?? "Extra",
+                                              unitPrice: addOn.price ?? 0,
+                                          })),
+                                      }
+                                    : {}),
                                 label,
                                 unitPrice: price ?? 0,
                             })
