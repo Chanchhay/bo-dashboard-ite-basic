@@ -601,6 +601,10 @@ export function OrderTable({
 
   const lineQuantityRef = useRef<Map<string, number>>(new Map());
 
+  // Holds the in-flight discount PATCH so a payment attempt can await the
+  // exact same promise instead of racing the optimistic cache update.
+  const pendingDiscountSyncRef = useRef<Promise<unknown> | null>(null);
+
   useEffect(() => {
     if (order?.items) {
       order.items.forEach((i) => {
