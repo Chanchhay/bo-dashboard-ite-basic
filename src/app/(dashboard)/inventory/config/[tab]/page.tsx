@@ -50,7 +50,7 @@ export default async function InventoryConfigTabPage({
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 backdrop-blur-md transition-all">
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-4 pb-4 bg-shell/95 lg:backdrop-blur-md transition-all">
                 <InventoryPageHeader
                     title={config.title}
                     description={config.description}

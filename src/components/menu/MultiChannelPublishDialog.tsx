@@ -528,7 +528,7 @@ export function MultiChannelPublishDialog({
         <>
             <Dialog open={open} onOpenChange={onClose}>
                 <DialogContent
-                    className={`rounded-2xl p-6 bg-white dark:bg-[#181b24] border-none shadow-2xl ${!initialItemId
+                    className={`max-h-[90vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-[#181b24] border-none shadow-2xl overflow-hidden w-[95vw] sm:w-full ${!initialItemId
                             ? "max-w-3xl"
                             : // The allocation grid needs room to lay a column out
                             // per channel; the plain channel checklist does not.
@@ -538,11 +538,11 @@ export function MultiChannelPublishDialog({
                         }`}
                 >
                     {/* Header */}
-                    <DialogHeader className="pb-3 border-none">
-                        <DialogTitle className="text-xl font-bold flex items-center gap-2.5 text-foreground">
-                            <CheckSquare className="h-6 w-6 text-primary" /> Manage Sales Channels
+                    <DialogHeader className="pb-2 sm:pb-3 border-none shrink-0">
+                        <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2.5 text-foreground">
+                            <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 text-primary" /> Manage Sales Channels
                         </DialogTitle>
-                        <DialogDescription className="text-sm text-muted-foreground">
+                        <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
                             {initialItemId
                                 ? `Select allowed sales channels for ${singleItem?.name || "this item"}.`
                                 : mode === "publish"
@@ -562,7 +562,8 @@ export function MultiChannelPublishDialog({
                         />
                     ))}
 
-                    <form onSubmit={handleSubmit} className="space-y-5 pt-1">
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden pt-1">
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                         {/* MODE 1: Single Row Item Mode */}
                         {initialItemId ? (
                             <div className="space-y-4">
@@ -916,14 +917,16 @@ export function MultiChannelPublishDialog({
                             </div>
                         )}
 
+                        </div>
+
                         {/* Modal Footer */}
-                        <DialogFooter className="pt-4 border-none flex items-center justify-end gap-2.5">
+                        <DialogFooter className="pt-3 sm:pt-4 border-t border-border/50 shrink-0 flex flex-row items-center justify-end gap-2 sm:gap-2.5 mt-2">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={onClose}
                                 disabled={isSaving}
-                                className="rounded-xl border-none bg-muted hover:bg-muted/80 font-bold text-sm h-11 px-5"
+                                className="rounded-xl border-none bg-muted hover:bg-muted/80 font-bold text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-5"
                             >
                                 Cancel
                             </Button>
@@ -935,7 +938,7 @@ export function MultiChannelPublishDialog({
                                         ? isSingleItemLoading
                                         : pendingPairs.length === 0)
                                 }
-                                className={`rounded-xl text-white font-bold text-sm h-11 px-6 shadow-sm cursor-pointer ${!initialItemId && mode === "unpublish"
+                                className={`rounded-xl text-white font-bold text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-6 shadow-xs cursor-pointer ${!initialItemId && mode === "unpublish"
                                         ? "bg-brand-red hover:bg-brand-red/90"
                                         : "bg-primary hover:bg-primary/90"
                                     }`}

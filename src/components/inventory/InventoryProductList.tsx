@@ -760,8 +760,8 @@ export function InventoryProductList() {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Sticky Header Section */}
-            <div className="sticky top-0 z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all">
+            {/* Header Section (sticky on desktop only) */}
+            <div className="static lg:sticky lg:top-0 lg:z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all">
                 <InventoryPageHeader
                     title="Master Items"
                     description="Manage the items and services available to your business."
@@ -1191,168 +1191,302 @@ export function InventoryProductList() {
                         }
                     />
                 ) : (
-                    <div className="overflow-auto max-h-[calc(100dvh-290px)] sm:max-h-[calc(100dvh-300px)]">
-                        <table className="w-full min-w-[820px] text-left text-sm">
-                            <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
-                                <tr>
-                                    {isColVisible("number") && (
-                                        <th className="w-14 px-5 py-3 text-muted-foreground bg-card">#</th>
-                                    )}
-                                    {isColVisible("name") && <th className="px-5 py-3 bg-card">Name</th>}
-                                    {isColVisible("category") && <th className="px-5 py-3 bg-card">Category</th>}
-                                    {isColVisible("type") && <th className="px-5 py-3 bg-card">Type</th>}
-                                    {isColVisible("unit") && <th className="px-5 py-3 bg-card">Unit</th>}
-                                    {isColVisible("status") && <th className="px-5 py-3 bg-card">Status</th>}
-                                    {isColVisible("actions") && (
-                                        <th className="px-5 py-3 text-right bg-card">Actions</th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {items.flatMap((item, index) => {
-                                    const hasExpandableContent = Boolean(
-                                        (item.variants && item.variants.length > 0) ||
-                                        (item.addOns && item.addOns.length > 0),
-                                    );
-                                    const isExpanded = hasExpandableContent && expandedAddOnItemIds.has(item.id);
-                                    const itemNumber = firstResult + index;
+                    <>
+                        {/* Mobile Cards (< md) */}
+                        <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                            {items.map((item, index) => {
+                                const hasExpandableContent = Boolean(
+                                    (item.variants && item.variants.length > 0) ||
+                                    (item.addOns && item.addOns.length > 0),
+                                );
+                                const isExpanded = hasExpandableContent && expandedAddOnItemIds.has(item.id);
+                                const itemNumber = firstResult + index;
 
-                                    const mainRow = (
-                                        <tr
-                                            key={item.id}
-                                            className={cn(
-                                                "text-foreground hover:bg-muted/50 transition-colors",
-                                                isExpanded && "bg-muted/30 font-medium",
-                                            )}
-                                        >
-                                            {isColVisible("number") && (
-                                                <td className="px-5 py-4 text-xs font-semibold tabular-nums text-muted-foreground">
-                                                    {itemNumber}
-                                                </td>
-                                            )}
-                                            {isColVisible("name") && (
-                                                <td className="px-5 py-4">
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <p className="font-semibold text-foreground">
-                                                                {item.name || "Unnamed"}
-                                                            </p>
-                                                            {hasExpandableContent ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAddOnTree(item.id)}
-                                                                    aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
-                                                                    aria-expanded={isExpanded}
-                                                                    className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
-                                                                    title="View options and add-ons"
-                                                                >
-                                                                    <ChevronDown
-                                                                        className={cn(
-                                                                            "size-4 transition-transform duration-200",
-                                                                            isExpanded
-                                                                                ? "rotate-180 text-primary"
-                                                                                : "rotate-0",
-                                                                        )}
-                                                                    />
-                                                                </button>
-                                                            ) : null}
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {item.sku || item.barcode || "No SKU or barcode"}
-                                                        </p>
-                                                    </div>
-                                                </td>
-                                            )}
-                                            {isColVisible("category") && (
-                                                <td className="px-5 py-4 text-muted-foreground">
-                                                    {item.itemGroup?.name || "—"}
-                                                </td>
-                                            )}
-                                            {isColVisible("type") && (
-                                                <td className="px-5 py-4 text-muted-foreground">
-                                                    {item.itemType ? titleCase(item.itemType) : "—"}
-                                                </td>
-                                            )}
-                                            {isColVisible("unit") && (
-                                                <td className="px-5 py-4 text-muted-foreground">
-                                                    {item.unit?.name || "—"}
-                                                </td>
-                                            )}
-                                            {isColVisible("status") && (
-                                                <td className="px-5 py-4">
-                                                    <span
-                                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
-                                                    >
-                                                        {item.status || "INACTIVE"}
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
+                                    >
+                                        {/* Card Header */}
+                                        <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                            <div className="flex flex-col min-w-0 pr-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-muted-foreground">#{itemNumber}</span>
+                                                    <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                                        {item.name || "Unnamed"}
                                                     </span>
-                                                </td>
-                                            )}
-                                            {isColVisible("actions") && (
-                                                <td className="px-5 py-4">
-                                                    <div data-tour={items.indexOf(item) === 0 ? "item-actions" : undefined} className="flex justify-end gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="icon-sm"
-                                                            aria-label={`Preview ${item.name || "item"} in the store`}
-                                                            onClick={() => setPreviewItem(toPreviewItem(item))}
-                                                        >
-                                                            <Eye />
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-sm"
-                                                            render={
-                                                                <Link
-                                                                    href={`/inventory/${item.id}/edit`}
-                                                                    aria-label={`Edit ${item.name || "item"}`}
-                                                                />
-                                                            }
-                                                            nativeButton={false}
-                                                        >
-                                                            <Edit3 />
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon-sm"
-                                                            className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                            aria-label={`Delete ${item.name || "item"}`}
-                                                            disabled={deleteState.isLoading}
-                                                            onClick={() =>
-                                                                setDeleteTarget({
-                                                                    id: item.id,
-                                                                    name: item.name,
-                                                                })
-                                                            }
-                                                        >
-                                                            <Trash2 className="size-4 text-brand-red" />
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    );
+                                                </div>
+                                                <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                                                    {item.sku || item.barcode || "No SKU / barcode"}
+                                                </p>
+                                            </div>
 
-                                    if (!isExpanded) return [mainRow];
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <span
+                                                    className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold mr-1 ${statusClassName(item.status)}`}
+                                                >
+                                                    {item.status || "INACTIVE"}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    className="h-7 w-7"
+                                                    aria-label={`Preview ${item.name || "item"}`}
+                                                    onClick={() => setPreviewItem(toPreviewItem(item))}
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    className="h-7 w-7"
+                                                    render={
+                                                        <Link
+                                                            href={`/inventory/${item.id}/edit`}
+                                                            aria-label={`Edit ${item.name || "item"}`}
+                                                        />
+                                                    }
+                                                    nativeButton={false}
+                                                >
+                                                    <Edit3 className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    className="h-7 w-7 text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                    aria-label={`Delete ${item.name || "item"}`}
+                                                    disabled={deleteState.isLoading}
+                                                    onClick={() =>
+                                                        setDeleteTarget({
+                                                            id: item.id,
+                                                            name: item.name,
+                                                        })
+                                                    }
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
 
-                                    const treeRow = (
-                                        <tr key={`${item.id}-addons-tree`} className="bg-muted/20">
-                                            <td
-                                                colSpan={visibleColCount}
-                                                className="border-b border-border px-5 py-4"
+                                        {/* Card Key-Value Rows */}
+                                        <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Category</span>
+                                                <span className="font-medium text-foreground dark:text-slate-200">
+                                                    {item.itemGroup?.name || "—"}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Type</span>
+                                                <span className="font-medium text-foreground dark:text-slate-200">
+                                                    {item.itemType ? titleCase(item.itemType) : "—"}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Unit</span>
+                                                <span className="font-medium text-foreground dark:text-slate-200">
+                                                    {item.unit?.name || "—"}
+                                                </span>
+                                            </div>
+
+                                            {hasExpandableContent && (
+                                                <div className="px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleAddOnTree(item.id)}
+                                                        className="w-full flex items-center justify-between text-xs font-semibold text-primary hover:underline cursor-pointer"
+                                                    >
+                                                        <span>Options & Add-ons</span>
+                                                        <ChevronDown
+                                                            className={cn(
+                                                                "size-4 transition-transform duration-200",
+                                                                isExpanded ? "rotate-180" : "rotate-0"
+                                                            )}
+                                                        />
+                                                    </button>
+
+                                                    {isExpanded && (
+                                                        <div className="mt-3 pt-3 border-t border-border/60">
+                                                            <ItemOptionsTree item={item} />
+                                                            <ItemAddOnsTreeRow item={item} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop Table (>= md) */}
+                        <div className="hidden md:block overflow-auto max-h-[calc(100dvh-290px)] sm:max-h-[calc(100dvh-300px)]">
+                            <table className="w-full min-w-[820px] text-left text-sm">
+                                <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
+                                    <tr>
+                                        {isColVisible("number") && (
+                                            <th className="w-14 px-5 py-3 text-muted-foreground bg-card">#</th>
+                                        )}
+                                        {isColVisible("name") && <th className="px-5 py-3 bg-card">Name</th>}
+                                        {isColVisible("category") && <th className="px-5 py-3 bg-card">Category</th>}
+                                        {isColVisible("type") && <th className="px-5 py-3 bg-card">Type</th>}
+                                        {isColVisible("unit") && <th className="px-5 py-3 bg-card">Unit</th>}
+                                        {isColVisible("status") && <th className="px-5 py-3 bg-card">Status</th>}
+                                        {isColVisible("actions") && (
+                                            <th className="px-5 py-3 text-right bg-card">Actions</th>
+                                        )}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {items.flatMap((item, index) => {
+                                        const hasExpandableContent = Boolean(
+                                            (item.variants && item.variants.length > 0) ||
+                                            (item.addOns && item.addOns.length > 0),
+                                        );
+                                        const isExpanded = hasExpandableContent && expandedAddOnItemIds.has(item.id);
+                                        const itemNumber = firstResult + index;
+
+                                        const mainRow = (
+                                            <tr
+                                                key={item.id}
+                                                className={cn(
+                                                    "text-foreground hover:bg-muted/50 transition-colors",
+                                                    isExpanded && "bg-muted/30 font-medium",
+                                                )}
                                             >
-                                                <ItemOptionsTree item={item} />
-                                                <ItemAddOnsTreeRow item={item} />
-                                            </td>
-                                        </tr>
-                                    );
+                                                {isColVisible("number") && (
+                                                    <td className="px-5 py-4 text-xs font-semibold tabular-nums text-muted-foreground">
+                                                        {itemNumber}
+                                                    </td>
+                                                )}
+                                                {isColVisible("name") && (
+                                                    <td className="px-5 py-4">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <p className="font-semibold text-foreground">
+                                                                    {item.name || "Unnamed"}
+                                                                </p>
+                                                                {hasExpandableContent ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => toggleAddOnTree(item.id)}
+                                                                        aria-label={`Toggle options and add-ons for ${item.name || "item"}`}
+                                                                        aria-expanded={isExpanded}
+                                                                        className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full bg-muted/70 text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus:outline-none"
+                                                                        title="View options and add-ons"
+                                                                    >
+                                                                        <ChevronDown
+                                                                            className={cn(
+                                                                                "size-4 transition-transform duration-200",
+                                                                                isExpanded
+                                                                                    ? "rotate-180 text-primary"
+                                                                                    : "rotate-0",
+                                                                            )}
+                                                                        />
+                                                                    </button>
+                                                                ) : null}
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {item.sku || item.barcode || "No SKU or barcode"}
+                                                            </p>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                {isColVisible("category") && (
+                                                    <td className="px-5 py-4 text-muted-foreground">
+                                                        {item.itemGroup?.name || "—"}
+                                                    </td>
+                                                )}
+                                                {isColVisible("type") && (
+                                                    <td className="px-5 py-4 text-muted-foreground">
+                                                        {item.itemType ? titleCase(item.itemType) : "—"}
+                                                    </td>
+                                                )}
+                                                {isColVisible("unit") && (
+                                                    <td className="px-5 py-4 text-muted-foreground">
+                                                        {item.unit?.name || "—"}
+                                                    </td>
+                                                )}
+                                                {isColVisible("status") && (
+                                                    <td className="px-5 py-4">
+                                                        <span
+                                                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(item.status)}`}
+                                                        >
+                                                            {item.status || "INACTIVE"}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {isColVisible("actions") && (
+                                                    <td className="px-5 py-4">
+                                                        <div data-tour={items.indexOf(item) === 0 ? "item-actions" : undefined} className="flex justify-end gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                aria-label={`Preview ${item.name || "item"} in the store`}
+                                                                onClick={() => setPreviewItem(toPreviewItem(item))}
+                                                            >
+                                                                <Eye />
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                render={
+                                                                    <Link
+                                                                        href={`/inventory/${item.id}/edit`}
+                                                                        aria-label={`Edit ${item.name || "item"}`}
+                                                                    />
+                                                                }
+                                                                nativeButton={false}
+                                                            >
+                                                                <Edit3 />
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon-sm"
+                                                                className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                                aria-label={`Delete ${item.name || "item"}`}
+                                                                disabled={deleteState.isLoading}
+                                                                onClick={() =>
+                                                                    setDeleteTarget({
+                                                                        id: item.id,
+                                                                        name: item.name,
+                                                                    })
+                                                                }
+                                                            >
+                                                                <Trash2 className="size-4 text-brand-red" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        );
 
-                                    return [mainRow, treeRow];
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                        if (!isExpanded) return [mainRow];
+
+                                        const treeRow = (
+                                            <tr key={`${item.id}-addons-tree`} className="bg-muted/20">
+                                                <td
+                                                    colSpan={visibleColCount}
+                                                    className="border-b border-border px-5 py-4"
+                                                >
+                                                    <ItemOptionsTree item={item} />
+                                                    <ItemAddOnsTreeRow item={item} />
+                                                </td>
+                                            </tr>
+                                        );
+
+                                        return [mainRow, treeRow];
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
 
                 {!error && totalElements ? (

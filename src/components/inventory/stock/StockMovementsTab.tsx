@@ -633,24 +633,137 @@ export function StockMovementsTab({
                     No movements match your selected filter.
                 </div>
             ) : (
-                <div className="overflow-auto max-h-[calc(100dvh-340px)] sm:max-h-[calc(100dvh-360px)]">
-                    <table className="w-full min-w-[980px] text-left text-sm">
-                        <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
-                            <tr>
-                                <th className="px-5 py-3 bg-card">Date</th>
-                                <th className="px-5 py-3 bg-card">Item</th>
-                                <th className="px-5 py-3 bg-card">Movement</th>
-                                <th className="px-5 py-3 text-right bg-card">Change</th>
-                                <th className="px-5 py-3 text-right bg-card">
-                                    Balance
-                                </th>
-                                <th className="px-5 py-3 bg-card">Recorded by</th>
-                                <th className="px-5 py-3 text-right bg-card">
-                                    <span className="sr-only">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
+                <>
+                    {/* Mobile Cards View (< md) */}
+                    <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                        {pageRows.map((row) => (
+                            <div
+                                key={row.id}
+                                onClick={() => setOpenedRow(row)}
+                                className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
+                            >
+                                {/* Card Header */}
+                                <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                    <div className="flex flex-col min-w-0 pr-2">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                                {row.name}
+                                            </span>
+                                            {row.isAddOn && (
+                                                <span className="rounded-full border border-border bg-muted px-1.5 py-0.2 text-[9px] font-semibold text-muted-foreground">
+                                                    Add-on
+                                                </span>
+                                            )}
+                                            {row.optionName && (
+                                                <span className="rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.2 text-[9px] font-semibold text-primary">
+                                                    {row.optionName}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {row.unitLabel && (
+                                            <span className="text-[11px] text-muted-foreground mt-0.5">
+                                                in {row.unitLabel}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <span
+                                            className={cn(
+                                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                                kindBadgeClassName[row.kind],
+                                            )}
+                                        >
+                                            {row.typeLabel || kindLabels[row.kind]}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Card Key-Value Rows */}
+                                <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Date & Time</span>
+                                        <span className="text-muted-foreground dark:text-slate-300">
+                                            {row.at ? `${dateFormat.format(new Date(row.at))} · ${timeFormat.format(new Date(row.at))}` : "—"}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Change</span>
+                                        <span
+                                            className={cn(
+                                                "inline-flex items-center gap-1 font-bold text-sm tabular-nums",
+                                                row.kind === "ADJUST"
+                                                    ? "text-warning"
+                                                    : row.change >= 0
+                                                      ? "text-success"
+                                                      : "text-danger",
+                                            )}
+                                        >
+                                            {row.kind === "ADJUST" ? (
+                                                <SlidersHorizontal className="size-3.5" />
+                                            ) : row.change >= 0 ? (
+                                                <ArrowDownToLine className="size-3.5" />
+                                            ) : (
+                                                <ArrowUpFromLine className="size-3.5" />
+                                            )}
+                                            {row.change > 0 ? "+" : ""}
+                                            {formatAmount(row.change)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Balance</span>
+                                        <div className="text-xs font-semibold tabular-nums text-foreground dark:text-slate-200">
+                                            {row.after === undefined ? (
+                                                <span className="text-muted-foreground">—</span>
+                                            ) : (
+                                                <>
+                                                    <span className="text-muted-foreground font-normal">{formatAmount(row.before ?? 0)}</span>
+                                                    <span className="px-1 text-muted-foreground">→</span>
+                                                    <span>{formatAmount(row.after)}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                        <span className="text-muted-foreground dark:text-slate-400">Recorded By</span>
+                                        <span className="font-medium text-foreground dark:text-slate-200">
+                                            {row.actor ? row.actor.name : "Not signed"}
+                                        </span>
+                                    </div>
+
+                                    {(row.linkedRecord || row.note) && (
+                                        <div className="px-3.5 py-2 text-[11px] text-muted-foreground bg-muted/5">
+                                            {row.linkedRecord && <p className="font-medium text-foreground/80">{row.linkedRecord}</p>}
+                                            {row.note && <p className="mt-0.5 italic">{row.note}</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desktop Table (>= md) */}
+                    <div className="hidden md:block overflow-auto max-h-[calc(100dvh-340px)] sm:max-h-[calc(100dvh-360px)]">
+                        <table className="w-full min-w-[980px] text-left text-sm">
+                            <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
+                                <tr>
+                                    <th className="px-5 py-3 bg-card">Date</th>
+                                    <th className="px-5 py-3 bg-card">Item</th>
+                                    <th className="px-5 py-3 bg-card">Movement</th>
+                                    <th className="px-5 py-3 text-right bg-card">Change</th>
+                                    <th className="px-5 py-3 text-right bg-card">
+                                        Balance
+                                    </th>
+                                    <th className="px-5 py-3 bg-card">Recorded by</th>
+                                    <th className="px-5 py-3 text-right bg-card">
+                                        <span className="sr-only">Actions</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
                             {pageRows.map((row) => (
                                 <tr
                                     key={row.id}
@@ -854,6 +967,7 @@ export function StockMovementsTab({
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
 
             {/* Pagination */}

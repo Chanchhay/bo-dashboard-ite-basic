@@ -491,8 +491,8 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                             type="button"
                             onClick={() => setMode("CATEGORY")}
                             className={`rounded-full px-3 py-2 text-sm font-semibold ${mode === "CATEGORY"
-                                    ? "bg-primary text-white"
-                                    : "text-[#657064] dark:text-[#94a3b8]"
+                                ? "bg-primary text-white"
+                                : "text-[#657064] dark:text-[#94a3b8]"
                                 }`}
                         >
                             Category
@@ -501,8 +501,8 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                             type="button"
                             onClick={() => setMode("SUBCATEGORY")}
                             className={`rounded-full px-3 py-2 text-sm font-semibold ${mode === "SUBCATEGORY"
-                                    ? "bg-primary text-white"
-                                    : "text-[#657064] dark:text-[#94a3b8]"
+                                ? "bg-primary text-white"
+                                : "text-[#657064] dark:text-[#94a3b8]"
                                 }`}
                         >
                             Subcategory

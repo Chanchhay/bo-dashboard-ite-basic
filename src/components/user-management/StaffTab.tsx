@@ -1,7 +1,7 @@
 "use client";
 
 import { PaginationBar } from "@/components/ui/PaginationBar";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import {
     ArrowDown,
     ArrowUp,
@@ -129,12 +129,43 @@ export default function StaffTab() {
     const [editor, setEditor] = useState<Editor>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
+    const formRef = useRef<HTMLDivElement>(null);
+
+    const openEditor = (nextEditor: Editor) => {
+        setEditor(nextEditor);
+        setFieldErrors({});
+        requestAnimationFrame(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    };
 
     const roles = useMemo(() => rolesQuery.data || [], [rolesQuery.data]);
     const roleNames = useMemo(
         () => new Map(roles.map((role) => [role.id, role.name || role.id])),
         [roles],
     );
+
+    const roleOptions = useMemo(() => {
+        const opts = [
+            { value: NO_ROLE, label: "No role" },
+            ...roles.map((role) => ({
+                value: role.id,
+                label: role.name || role.id,
+            })),
+        ];
+        if (
+            editor &&
+            editor.mode === "edit" &&
+            editor.staff.roleId &&
+            !roles.some((r) => r.id === editor.staff.roleId)
+        ) {
+            opts.push({
+                value: editor.staff.roleId,
+                label: roleNames.get(editor.staff.roleId) || "Selected Role",
+            });
+        }
+        return opts;
+    }, [roles, editor, roleNames]);
 
     const toggleColumn = (id: string) => {
         setColumnConfigs((prev) =>
@@ -356,36 +387,38 @@ export default function StaffTab() {
     return (
         <div className="flex flex-col gap-5">
             {editor && (
-                <Panel>
-                    <PanelHeader
-                        title={
-                            editor.mode === "create"
-                                ? "Add a user"
-                                : `Edit ${staffFullName(editor.staff)}`
-                        }
-                        description={
-                            editor.mode === "create"
-                                ? "The user signs in with these credentials."
-                                : "Sign-in details can only be changed by the user."
-                        }
-                        action={
-                            <Button
-                                type="button"
-                                onClick={closeEditor}
-                                aria-label="Close the form"
-                                variant="ghost"
-                                size="icon"
-                            >
-                                <X className="size-4" aria-hidden="true" />
-                            </Button>
-                        }
-                    />
+                <div ref={formRef}>
+                    <Panel>
+                        <PanelHeader
+                            title={
+                                editor.mode === "create"
+                                    ? "Add a user"
+                                    : `Edit ${staffFullName(editor.staff)}`
+                            }
+                            description={
+                                editor.mode === "create"
+                                    ? "The user signs in with these credentials."
+                                    : "Sign-in details can only be changed by the user."
+                            }
+                            action={
+                                <Button
+                                    type="button"
+                                    onClick={closeEditor}
+                                    aria-label="Close the form"
+                                    variant="ghost"
+                                    size="icon"
+                                >
+                                    <X className="size-4" aria-hidden="true" />
+                                </Button>
+                            }
+                        />
 
-                    <form
-                        onSubmit={handleSubmit}
-                        noValidate
-                        className="mt-6 flex flex-col gap-5"
-                    >
+                        <form
+                            key={editor.mode === "edit" ? editor.staff.id : "create"}
+                            onSubmit={handleSubmit}
+                            noValidate
+                            className="mt-6 flex flex-col gap-5"
+                        >
                         <div className="grid gap-5 sm:grid-cols-2">
                             {editor.mode === "create" && (
                                 <>
@@ -518,63 +551,57 @@ export default function StaffTab() {
                                             ? editor.staff.roleId || NO_ROLE
                                             : NO_ROLE
                                     }
-                                    options={[
-                                        { value: NO_ROLE, label: "No role" },
-                                        ...roles.map((role) => ({
-                                            value: role.id,
-                                            label: role.name || role.id,
-                                        })),
-                                    ]}
+                                    options={roleOptions}
                                 />
                             </FormField>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-                            <Button
-                                type="button"
-                                onClick={closeEditor}
-                                variant="outline"
-                                className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={saving}
-                                className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
-                            >
-                                {saving
-                                    ? "Saving…"
-                                    : editor.mode === "create"
-                                        ? "Create user"
-                                        : "Save changes"}
-                            </Button>
+                        <div className="sticky -bottom-8 z-30 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 lg:-mx-7 lg:-mb-7 mt-4 rounded-b-[24px] border-t border-border bg-card px-4 py-3.5 sm:px-6 sm:py-4 lg:px-7">
+                            <div className="flex w-full flex-row items-center justify-end gap-2.5 sm:w-auto sm:ml-auto sm:gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={closeEditor}
+                                    variant="outline"
+                                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
+                                >
+                                    {saving
+                                        ? "Saving…"
+                                        : editor.mode === "create"
+                                            ? "Create user"
+                                            : "Save changes"}
+                                </Button>
+                            </div>
                         </div>
                     </form>
                 </Panel>
-            )}
+            </div>
+        )}
 
-            <Panel data-tour="user-list">
-                <PanelHeader
-                    title="Users"
-                    description="People who can sign in to this business."
-                    action={
-                        !editor ? (
-                            <Button
-                                type="button"
-                                data-tour="add-user"
-                                onClick={() => {
-                                    setEditor({ mode: "create" });
-                                    setFieldErrors({});
-                                }}
-                                className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
-                            >
-                                <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
-                                <span>Add user</span>
-                            </Button>
-                        ) : null
-                    }
-                />
+        <Panel data-tour="user-list">
+            <PanelHeader
+                title="Users"
+                description="People who can sign in to this business."
+                action={
+                    !editor ? (
+                        <Button
+                            type="button"
+                            data-tour="add-user"
+                            onClick={() => openEditor({ mode: "create" })}
+                            className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs sm:text-sm gap-1 sm:gap-2"
+                        >
+                            <Plus className="size-3.5 sm:size-4" aria-hidden="true" />
+                            <span>Add user</span>
+                        </Button>
+                    ) : null
+                }
+            />
 
                 <div data-tour="staff-filters" className="mt-6 flex flex-col gap-2.5 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 flex-1">
@@ -709,191 +736,294 @@ export default function StaffTab() {
                         }
                     />
                 ) : (
-                    <div
-                        className={cn(
-                            "mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
-                            staffQuery.isFetching && "opacity-60 pointer-events-none",
-                        )}
-                    >
-                        <table className="w-full min-w-[720px] border-collapse text-left">
-                            <caption className="sr-only">Users in this business</caption>
-                            <thead>
-                                <tr className="border-b border-border text-[12px] text-muted-foreground">
-                                    {isColVisible("name") && (
-                                        <th scope="col" className="py-3 pr-4 font-medium">
-                                            <button
+                    <>
+                        {/* Mobile Cards View (< md) */}
+                        <div className="flex flex-col gap-3 pt-3 md:hidden">
+                            {members.map((member: Staff) => (
+                                <div
+                                    key={member.id}
+                                    onClick={() => {
+                                        setEditor({
+                                            mode: "edit",
+                                            staff: member,
+                                        });
+                                        setFieldErrors({});
+                                    }}
+                                    className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
+                                >
+                                    {/* Card Header */}
+                                    <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                        <div className="flex flex-col min-w-0 pr-2">
+                                            <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                                {staffFullName(member)}
+                                            </span>
+                                            {member.username && (
+                                                <span className="text-[11px] text-muted-foreground mt-0.5">
+                                                    @{member.username}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <StatusPill active={member.status === "ACTIVE"} />
+                                            <Button
                                                 type="button"
-                                                onClick={() => handleSort("name")}
-                                                className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditor({
+                                                        mode: "edit",
+                                                        staff: member,
+                                                    });
+                                                }}
+                                                aria-label={`Edit ${staffFullName(member)}`}
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                className="h-7 w-7"
                                             >
-                                                <span>Name</span>
-                                                {sortColumn === "name" ? (
-                                                    sortDirection === "asc" ? (
-                                                        <ArrowUp className="size-3.5 text-primary" />
-                                                    ) : (
-                                                        <ArrowDown className="size-3.5 text-primary" />
-                                                    )
-                                                ) : (
-                                                    <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
-                                                )}
-                                            </button>
-                                        </th>
-                                    )}
-                                    {isColVisible("contact") && (
-                                        <th scope="col" className="py-3 pr-4 font-medium">
-                                            <button
+                                                <Pencil className="size-3.5" aria-hidden="true" />
+                                            </Button>
+                                            <Button
                                                 type="button"
-                                                onClick={() => handleSort("contact")}
-                                                className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeleteTarget(member);
+                                                }}
+                                                aria-label={`Remove ${staffFullName(member)}`}
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                disabled={deleteState.isLoading}
                                             >
-                                                <span>Contact</span>
-                                                {sortColumn === "contact" ? (
-                                                    sortDirection === "asc" ? (
-                                                        <ArrowUp className="size-3.5 text-primary" />
-                                                    ) : (
-                                                        <ArrowDown className="size-3.5 text-primary" />
-                                                    )
-                                                ) : (
-                                                    <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                                <Trash2 className="size-3.5" aria-hidden="true" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Key-Value Rows */}
+                                    <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Role</span>
+                                            <span className="font-medium text-foreground dark:text-slate-200">
+                                                {member.roleId ? roleNames.get(member.roleId) || member.roleId : "No role"}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Contact</span>
+                                            <div className="text-right">
+                                                <p className="text-foreground dark:text-slate-200">{member.email || "—"}</p>
+                                                {member.phoneNumber && (
+                                                    <p className="text-[11px] text-muted-foreground">{member.phoneNumber}</p>
                                                 )}
-                                            </button>
-                                        </th>
-                                    )}
-                                    {isColVisible("role") && (
-                                        <th scope="col" className="py-3 pr-4 font-medium">
-                                            <button
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                            <span className="text-muted-foreground dark:text-slate-400">Account Access</span>
+                                            <Button
                                                 type="button"
-                                                onClick={() => handleSort("role")}
-                                                className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleStatus(member);
+                                                }}
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-6 px-2 text-[11px] font-semibold"
                                             >
-                                                <span>Role</span>
-                                                {sortColumn === "role" ? (
-                                                    sortDirection === "asc" ? (
-                                                        <ArrowUp className="size-3.5 text-primary" />
-                                                    ) : (
-                                                        <ArrowDown className="size-3.5 text-primary" />
-                                                    )
-                                                ) : (
-                                                    <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
-                                                )}
-                                            </button>
-                                        </th>
-                                    )}
-                                    {isColVisible("status") && (
-                                        <th scope="col" className="py-3 pr-4 font-medium">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleSort("status")}
-                                                className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
-                                            >
-                                                <span>Status</span>
-                                                {sortColumn === "status" ? (
-                                                    sortDirection === "asc" ? (
-                                                        <ArrowUp className="size-3.5 text-primary" />
-                                                    ) : (
-                                                        <ArrowDown className="size-3.5 text-primary" />
-                                                    )
-                                                ) : (
-                                                    <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
-                                                )}
-                                            </button>
-                                        </th>
-                                    )}
-                                    {isColVisible("actions") && (
-                                        <th scope="col" className="py-3 text-right font-medium">
-                                            Actions
-                                        </th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {members.map((member: Staff) => (
-                                    <tr
-                                        key={member.id}
-                                        className="border-b border-border last:border-0"
-                                    >
+                                                {member.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Desktop Table (>= md) */}
+                        <div
+                            className={cn(
+                                "hidden md:block mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
+                                staffQuery.isFetching && "opacity-60 pointer-events-none",
+                            )}
+                        >
+                            <table className="w-full min-w-[720px] border-collapse text-left">
+                                <caption className="sr-only">Users in this business</caption>
+                                <thead>
+                                    <tr className="border-b border-border text-[12px] text-muted-foreground">
                                         {isColVisible("name") && (
-                                            <td className="py-4 pr-4">
-                                                <p className="text-[15px] font-medium text-foreground">
-                                                    {staffFullName(member)}
-                                                </p>
-                                                {member.username && (
-                                                    <p className="text-[13px] text-muted-foreground">
-                                                        @{member.username}
-                                                    </p>
-                                                )}
-                                            </td>
+                                            <th scope="col" className="py-3 pr-4 font-medium">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSort("name")}
+                                                    className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                >
+                                                    <span>Name</span>
+                                                    {sortColumn === "name" ? (
+                                                        sortDirection === "asc" ? (
+                                                            <ArrowUp className="size-3.5 text-primary" />
+                                                        ) : (
+                                                            <ArrowDown className="size-3.5 text-primary" />
+                                                        )
+                                                    ) : (
+                                                        <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                                    )}
+                                                </button>
+                                            </th>
                                         )}
                                         {isColVisible("contact") && (
-                                            <td className="py-4 pr-4 text-[14px] text-muted-foreground">
-                                                <p>{member.email || "—"}</p>
-                                                <p className="text-[13px] text-muted-foreground">
-                                                    {member.phoneNumber || "—"}
-                                                </p>
-                                            </td>
+                                            <th scope="col" className="py-3 pr-4 font-medium">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSort("contact")}
+                                                    className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                >
+                                                    <span>Contact</span>
+                                                    {sortColumn === "contact" ? (
+                                                        sortDirection === "asc" ? (
+                                                            <ArrowUp className="size-3.5 text-primary" />
+                                                        ) : (
+                                                            <ArrowDown className="size-3.5 text-primary" />
+                                                        )
+                                                    ) : (
+                                                        <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                                    )}
+                                                </button>
+                                            </th>
                                         )}
                                         {isColVisible("role") && (
-                                            <td className="py-4 pr-4 text-[14px] text-muted-foreground">
-                                                {member.roleId
-                                                    ? roleNames.get(member.roleId) || member.roleId
-                                                    : "No role"}
-                                            </td>
+                                            <th scope="col" className="py-3 pr-4 font-medium">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSort("role")}
+                                                    className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                >
+                                                    <span>Role</span>
+                                                    {sortColumn === "role" ? (
+                                                        sortDirection === "asc" ? (
+                                                            <ArrowUp className="size-3.5 text-primary" />
+                                                        ) : (
+                                                            <ArrowDown className="size-3.5 text-primary" />
+                                                        )
+                                                    ) : (
+                                                        <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                                    )}
+                                                </button>
+                                            </th>
                                         )}
                                         {isColVisible("status") && (
-                                            <td className="py-4 pr-4">
-                                                <StatusPill active={member.status === "ACTIVE"} />
-                                            </td>
+                                            <th scope="col" className="py-3 pr-4 font-medium">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSort("status")}
+                                                    className="group inline-flex items-center gap-1.5 hover:text-foreground font-medium transition-colors cursor-pointer"
+                                                >
+                                                    <span>Status</span>
+                                                    {sortColumn === "status" ? (
+                                                        sortDirection === "asc" ? (
+                                                            <ArrowUp className="size-3.5 text-primary" />
+                                                        ) : (
+                                                            <ArrowDown className="size-3.5 text-primary" />
+                                                        )
+                                                    ) : (
+                                                        <ArrowUpDown className="size-3.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                                    )}
+                                                </button>
+                                            </th>
                                         )}
                                         {isColVisible("actions") && (
-                                            <td className="py-4">
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => toggleStatus(member)}
-                                                        variant="ghost"
-                                                        size="sm"
-                                                    >
-                                                        {member.status === "ACTIVE"
-                                                            ? "Deactivate"
-                                                            : "Activate"}
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditor({
-                                                                mode: "edit",
-                                                                staff: member,
-                                                            });
-                                                            setFieldErrors({});
-                                                        }}
-                                                        aria-label={`Edit ${staffFullName(member)}`}
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                    >
-                                                        <Pencil className="size-4" aria-hidden="true" />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => setDeleteTarget(member)}
-                                                        aria-label={`Remove ${staffFullName(member)}`}
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
-                                                        disabled={deleteState.isLoading}
-                                                    >
-                                                        <Trash2
-                                                            className="size-4 text-brand-red"
-                                                            aria-hidden="true"
-                                                        />
-                                                    </Button>
-                                                </div>
-                                            </td>
+                                            <th scope="col" className="py-3 text-right font-medium">
+                                                Actions
+                                            </th>
                                         )}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {members.map((member: Staff) => (
+                                        <tr
+                                            key={member.id}
+                                            className="border-b border-border last:border-0"
+                                        >
+                                            {isColVisible("name") && (
+                                                <td className="py-4 pr-4">
+                                                    <p className="text-[15px] font-medium text-foreground">
+                                                        {staffFullName(member)}
+                                                    </p>
+                                                    {member.username && (
+                                                        <p className="text-[13px] text-muted-foreground">
+                                                            @{member.username}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                            )}
+                                            {isColVisible("contact") && (
+                                                <td className="py-4 pr-4 text-[14px] text-muted-foreground">
+                                                    <p>{member.email || "—"}</p>
+                                                    <p className="text-[13px] text-muted-foreground">
+                                                        {member.phoneNumber || "—"}
+                                                    </p>
+                                                </td>
+                                            )}
+                                            {isColVisible("role") && (
+                                                <td className="py-4 pr-4 text-[14px] text-muted-foreground">
+                                                    {member.roleId
+                                                        ? roleNames.get(member.roleId) || member.roleId
+                                                        : "No role"}
+                                                </td>
+                                            )}
+                                            {isColVisible("status") && (
+                                                <td className="py-4 pr-4">
+                                                    <StatusPill active={member.status === "ACTIVE"} />
+                                                </td>
+                                            )}
+                                            {isColVisible("actions") && (
+                                                <td className="py-4">
+                                                    <div className="flex justify-end gap-1">
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => toggleStatus(member)}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                        >
+                                                            {member.status === "ACTIVE"
+                                                                ? "Deactivate"
+                                                                : "Activate"}
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                openEditor({
+                                                                    mode: "edit",
+                                                                    staff: member,
+                                                                });
+                                                            }}
+                                                            aria-label={`Edit ${staffFullName(member)}`}
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                        >
+                                                            <Pencil className="size-4" aria-hidden="true" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => setDeleteTarget(member)}
+                                                            aria-label={`Remove ${staffFullName(member)}`}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="grid size-9 place-items-center rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer p-0"
+                                                            disabled={deleteState.isLoading}
+                                                        >
+                                                            <Trash2
+                                                                className="size-4 text-brand-red"
+                                                                aria-hidden="true"
+                                                            />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
 
                 {staffTotalPages > 0 && (
