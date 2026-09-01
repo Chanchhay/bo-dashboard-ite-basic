@@ -1191,11 +1191,10 @@ export function OrderTable({
       const taxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
 
       if (isOfflineMode) {
-        const localUuid = `offline-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const recAmount = receivedAmount ?? summary.total;
         const chgAmount = Math.max(0, recAmount - summary.total);
 
-        await processOfflineCheckout({
+        const offline = await processOfflineCheckout({
           businessId: "1",
           items: (order.items || []).map((i) => ({
             product_id: i.itemId,
@@ -1235,15 +1234,49 @@ export function OrderTable({
           }
         }
 
+        /*
+         * A real Sale, not a cast over a few fields.
+         *
+         * The receipt reads paidAmount, soldAt, subtotal, the tax and the
+         * invoice number off this. What used to be built here named two of
+         * them differently — receivedAmount, createdAt — and simply omitted
+         * the rest, so an offline receipt printed a blank number, no tax line
+         * and no cash tendered, and the cast hid all of it from the compiler.
+         *
+         * The invoice number is the id the sale is queued under, which is what
+         * the backend records it as when it syncs — so the slip in the
+         * customer's hand names the same sale the shop will see later.
+         */
         sale = {
-          id: `sale-off-${Date.now()}`,
+          id: offline.uuid,
           orderId: order.id,
+          invoiceNumber: offline.uuid,
+          cashierId: null,
+          customerId: order.customerId,
+          customerName: null,
+          customerPhone: null,
+          customerEmail: null,
+          channel: "POS",
+          subtotal: summary.subtotal,
+          discountAmount: summary.discount,
+          discountLabel: activeDiscountRule?.label ?? null,
+          taxRate: summary.isTaxActive ? summary.taxRate : null,
+          taxAmount: summary.isTaxActive ? summary.taxAmount : null,
+          taxInclusionType: summary.isTaxActive ? taxInclusionType : null,
           totalAmount: summary.total,
-          receivedAmount: recAmount,
+          paidAmount: recAmount,
           changeAmount: chgAmount,
+          currency: order.currency,
+          displayCurrency: order.displayCurrency,
+          displayExchangeRate: order.displayExchangeRate,
           paymentMethod: method,
-          createdAt: new Date().toISOString(),
-        } as unknown as Sale;
+          itemCount: (order.items || []).reduce(
+            (count, line) => count + line.quantity,
+            0,
+          ),
+          note: order.note,
+          soldAt: new Date().toISOString(),
+        };
 
         await clearLocalCart();
       } else {

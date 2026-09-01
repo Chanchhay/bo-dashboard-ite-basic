@@ -4,6 +4,7 @@ import { Clock, Printer } from "lucide-react";
 
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import type { PosOrder, Sale } from "@/lib/api/pos-order";
+import { ACTIVE_CART_ID } from "@/lib/pos/local-cart";
 import { printReceipt } from "@/lib/print-receipt";
 import { useMoney } from "@/hooks/useMoney";
 import { useGetBusinessProfileQuery } from "@/services/businessApi";
@@ -24,7 +25,13 @@ export function PaidReceiptView({
   const { format } = useMoney();
   const businessQuery = useGetBusinessProfileQuery();
   const currenciesQuery = useGetBusinessCurrenciesQuery();
-  const receiptQuery = useGetReceiptQuery(sale.orderId);
+  /*
+   * A sale taken with no connection has no order on the server yet, so there
+   * is no printed-receipt record to ask for — and asking would be a request
+   * that can only fail. Everything the slip needs is already on the sale.
+   */
+  const isLocalOnly = !sale.orderId || sale.orderId === ACTIVE_CART_ID;
+  const receiptQuery = useGetReceiptQuery(sale.orderId, { skip: isLocalOnly });
   const isPayLater = sale.paymentMethod === "PAY_LATER";
 
   if (businessQuery.isLoading) {
