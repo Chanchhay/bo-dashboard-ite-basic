@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import {
     ChevronDown,
     FolderPlus,
@@ -148,6 +148,8 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
         setFormKey((current) => current + 1);
     }
 
+    const formRef = useRef<HTMLFormElement>(null);
+
     function startEditing(
         group:
             | ItemGroup
@@ -163,6 +165,9 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
         setMode(parentId ? "SUBCATEGORY" : "CATEGORY");
         setFieldError(null);
         setFormKey((current) => current + 1);
+        requestAnimationFrame(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -273,9 +278,9 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                 />
             )}
 
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-                <section data-tour="category-structure-list" className="overflow-clip rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                    <div className="border-b border-[#edf0ec] dark:border-[#242937] px-5 py-4">
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_390px] w-full min-w-0">
+                <section data-tour="category-structure-list" className="overflow-hidden w-full min-w-0 rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                    <div className="border-b border-[#edf0ec] dark:border-[#242937] px-4 py-3.5 sm:px-5 sm:py-4">
                         <h2 className="font-semibold text-[#161d16] dark:text-[#f8fafc]">
                             Category structure
                         </h2>
@@ -319,143 +324,299 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                             description={`Nothing matches "${query}". Try a different search.`}
                         />
                     ) : (
-                        <div className="divide-y divide-[#edf0ec] dark:divide-[#242937]">
-                            {filteredGroups.map((group) => {
-                                const subGroups = group.subGroups || [];
-                                const isCollapsed = collapsedGroupIds.has(group.id);
-                                const hasSubGroups = subGroups.length > 0;
+                        <div>
+                            {/* Mobile Table Cards View (< md) */}
+                            <div className="flex flex-col gap-3 p-3 bg-[#f8faf8] dark:bg-[#111622] rounded-b-2xl w-full min-w-0 md:hidden">
+                                {filteredGroups.map((group) => {
+                                    const subGroups = group.subGroups || [];
+                                    const isCollapsed = collapsedGroupIds.has(group.id);
+                                    const hasSubGroups = subGroups.length > 0;
 
-                                return (
-                                    <div key={group.id} className="py-1">
-                                        <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#f8faf8] dark:hover:bg-[#202533]/50 transition-colors rounded-xl">
-                                            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                                                <FolderPlus className="size-4" />
-                                            </span>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">
-                                                    {group.name ||
-                                                        "Unnamed category"}
-                                                </p>
-                                                <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                                                    {group.note ||
-                                                        `${subGroups.length} subcategories`}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {hasSubGroups ? (
+                                    return (
+                                        <div
+                                            key={group.id}
+                                            className="rounded-2xl border border-gray-200/90 dark:border-slate-800 bg-white dark:bg-[#151c28] shadow-xs overflow-hidden w-full min-w-0"
+                                        >
+                                            {/* Card Header (Title & Action Buttons) */}
+                                            <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-muted/25 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800 w-full min-w-0">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                                        <FolderPlus className="size-3.5" />
+                                                    </span>
+                                                    <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                                        {group.name || "Unnamed category"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-1 shrink-0">
                                                     <Button
                                                         type="button"
                                                         variant="ghost"
                                                         size="icon-sm"
-                                                        aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${group.name || "category"}`}
-                                                        aria-expanded={!isCollapsed}
+                                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                        aria-label={`Edit ${group.name || "category"}`}
+                                                        onClick={() => startEditing(group)}
+                                                    >
+                                                        <Pencil className="size-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0 text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                        aria-label={`Delete ${group.name || "category"}`}
+                                                        disabled={deleteState.isLoading}
                                                         onClick={() =>
-                                                            toggleGroup(group.id)
+                                                            setDeleteTarget({
+                                                                id: group.id,
+                                                                name: group.name || "category",
+                                                            })
                                                         }
                                                     >
-                                                        <ChevronDown
-                                                            className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-                                                        />
+                                                        <Trash2 className="size-3.5 text-brand-red" />
                                                     </Button>
-                                                ) : null}
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    aria-label={`Edit ${group.name || "category"}`}
-                                                    onClick={() =>
-                                                        startEditing(group)
-                                                    }
-                                                >
-                                                    <Pencil className="size-4" />
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    className="hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                    aria-label={`Delete ${group.name || "category"}`}
-                                                    disabled={
-                                                        deleteState.isLoading
-                                                    }
-                                                    onClick={() =>
-                                                        setDeleteTarget({
-                                                            id: group.id,
-                                                            name: group.name || "category",
-                                                        })
-                                                    }
-                                                >
-                                                    <Trash2 className="size-4 text-brand-red" />
-                                                </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Card Key-Value Rows */}
+                                            <div className="divide-y divide-gray-100 dark:divide-slate-800/70 text-xs w-full min-w-0">
+                                                <div className="flex items-center justify-between gap-2 px-3.5 py-2">
+                                                    <span className="text-muted-foreground dark:text-slate-400 shrink-0">Category Name</span>
+                                                    <span className="font-medium text-foreground dark:text-slate-200 truncate text-right">
+                                                        {group.name || "—"}
+                                                    </span>
+                                                </div>
+
+                                                {group.note && (
+                                                    <div className="flex items-center justify-between gap-2 px-3.5 py-2">
+                                                        <span className="text-muted-foreground dark:text-slate-400 shrink-0">Description</span>
+                                                        <span className="font-medium text-foreground dark:text-slate-200 text-right truncate">
+                                                            {group.note}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center justify-between gap-2 px-3.5 py-2">
+                                                    <span className="text-muted-foreground dark:text-slate-400 shrink-0">Subcategories</span>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <span className="font-medium text-foreground dark:text-slate-200">
+                                                            {subGroups.length} {subGroups.length === 1 ? "entry" : "entries"}
+                                                        </span>
+                                                        {hasSubGroups && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                className="h-6 w-6 rounded-md p-0"
+                                                                aria-label={`${isCollapsed ? "Expand" : "Collapse"} subcategories`}
+                                                                aria-expanded={!isCollapsed}
+                                                                onClick={() => toggleGroup(group.id)}
+                                                            >
+                                                                <ChevronDown
+                                                                    className={`size-3 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                                                                />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Nested Subcategories Section */}
+                                                {hasSubGroups && !isCollapsed && (
+                                                    <div className="bg-muted/15 dark:bg-[#0d121c] p-2.5 space-y-1.5 border-t border-gray-100 dark:border-slate-800 w-full min-w-0">
+                                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                                                            Subcategory List
+                                                        </p>
+                                                        {subGroups.map((subGroup) => (
+                                                            <div
+                                                                key={subGroup.id}
+                                                                className="flex items-center justify-between gap-2 rounded-xl bg-white dark:bg-[#18202d] border border-gray-200/80 dark:border-slate-700/80 px-3 py-2 shadow-2xs w-full min-w-0"
+                                                            >
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-xs font-semibold text-foreground dark:text-white truncate">
+                                                                        {subGroup.name || "Unnamed subcategory"}
+                                                                    </p>
+                                                                    <p className="text-[11px] text-muted-foreground truncate">
+                                                                        {subGroup.note || `Under ${group.name || "category"}`}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon-sm"
+                                                                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                                                        aria-label={`Edit ${subGroup.name || "subcategory"}`}
+                                                                        onClick={() => startEditing(subGroup, group.id)}
+                                                                    >
+                                                                        <Pencil className="size-3" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-6 w-6 p-0 text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                                        aria-label={`Delete ${subGroup.name || "subcategory"}`}
+                                                                        disabled={deleteState.isLoading}
+                                                                        onClick={() =>
+                                                                            setDeleteTarget({
+                                                                                id: subGroup.id,
+                                                                                name: subGroup.name || "subcategory",
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        <Trash2 className="size-3 text-brand-red" />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
+                                    );
+                                })}
+                            </div>
 
-                                        {hasSubGroups && !isCollapsed ? (
-                                            <div className="relative ml-9 border-l-2 border-primary/20 dark:border-primary/30 my-1.5 pl-4 space-y-1">
-                                                {subGroups.map((subGroup) => (
-                                                    <div
-                                                        key={subGroup.id}
-                                                        className="relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                            {/* Desktop Tree View (>= md) */}
+                            <div className="hidden md:block divide-y divide-[#edf0ec] dark:divide-[#242937]">
+                                {filteredGroups.map((group) => {
+                                    const subGroups = group.subGroups || [];
+                                    const isCollapsed = collapsedGroupIds.has(group.id);
+                                    const hasSubGroups = subGroups.length > 0;
+
+                                    return (
+                                        <div key={group.id} className="py-1">
+                                            <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#f8faf8] dark:hover:bg-[#202533]/50 transition-colors rounded-xl">
+                                                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                                                    <FolderPlus className="size-4" />
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-semibold text-[#1a222b] dark:text-[#f8fafc]">
+                                                        {group.name ||
+                                                            "Unnamed category"}
+                                                    </p>
+                                                    <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                                        {group.note ||
+                                                            `${subGroups.length} subcategories`}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {hasSubGroups ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${group.name || "category"}`}
+                                                            aria-expanded={!isCollapsed}
+                                                            onClick={() =>
+                                                                toggleGroup(group.id)
+                                                            }
+                                                        >
+                                                            <ChevronDown
+                                                                className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                                                            />
+                                                        </Button>
+                                                    ) : null}
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        aria-label={`Edit ${group.name || "category"}`}
+                                                        onClick={() =>
+                                                            startEditing(group)
+                                                        }
                                                     >
-                                                        {/* Horizontal branch indicator line */}
-                                                        <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
-
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
-                                                                {subGroup.name ||
-                                                                    "Unnamed subcategory"}
-                                                            </p>
-                                                            <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
-                                                                {subGroup.note ||
-                                                                    `Under ${group.name || "category"}`}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon-sm"
-                                                                aria-label={`Edit ${subGroup.name || "subcategory"}`}
-                                                                onClick={() =>
-                                                                    startEditing(
-                                                                        subGroup,
-                                                                        group.id,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Pencil className="size-4" />
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon-sm"
-                                                                className="hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                                aria-label={`Delete ${subGroup.name || "subcategory"}`}
-                                                                disabled={
-                                                                    deleteState.isLoading
-                                                                }
-                                                                onClick={() =>
-                                                                    setDeleteTarget({
-                                                                        id: subGroup.id,
-                                                                        name: subGroup.name || "subcategory",
-                                                                    })
-                                                                }
-                                                            >
-                                                                <Trash2 className="size-4 text-brand-red" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                        <Pencil className="size-4" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        className="hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                        aria-label={`Delete ${group.name || "category"}`}
+                                                        disabled={
+                                                            deleteState.isLoading
+                                                        }
+                                                        onClick={() =>
+                                                            setDeleteTarget({
+                                                                id: group.id,
+                                                                name: group.name || "category",
+                                                            })
+                                                        }
+                                                    >
+                                                        <Trash2 className="size-4 text-brand-red" />
+                                                    </Button>
+                                                </div>
                                             </div>
-                                        ) : null}
-                                    </div>
-                                );
-                            })}
+
+                                            {hasSubGroups && !isCollapsed ? (
+                                                <div className="relative ml-9 border-l-2 border-primary/20 dark:border-primary/30 my-1.5 pl-4 space-y-1">
+                                                    {subGroups.map((subGroup) => (
+                                                        <div
+                                                            key={subGroup.id}
+                                                            className="relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                                        >
+                                                            {/* Horizontal branch indicator line */}
+                                                            <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
+
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-sm font-semibold text-[#424841] dark:text-[#cbd5e1]">
+                                                                    {subGroup.name ||
+                                                                        "Unnamed subcategory"}
+                                                                </p>
+                                                                <p className="truncate text-xs text-[#7b857a] dark:text-[#94a3b8]">
+                                                                    {subGroup.note ||
+                                                                        `Under ${group.name || "category"}`}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon-sm"
+                                                                    aria-label={`Edit ${subGroup.name || "subcategory"}`}
+                                                                    onClick={() =>
+                                                                        startEditing(
+                                                                            subGroup,
+                                                                            group.id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Pencil className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon-sm"
+                                                                    className="hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                                    aria-label={`Delete ${subGroup.name || "subcategory"}`}
+                                                                    disabled={
+                                                                        deleteState.isLoading
+                                                                    }
+                                                                    onClick={() =>
+                                                                        setDeleteTarget({
+                                                                            id: subGroup.id,
+                                                                            name: subGroup.name || "subcategory",
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="size-4 text-brand-red" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </section>
 
                 <form
+                    ref={formRef}
                     key={formKey}
                     onSubmit={handleSubmit}
                     noValidate

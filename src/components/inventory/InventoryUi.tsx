@@ -24,7 +24,7 @@ export function InventoryPageHeader({
     action?: ReactNode;
 }) {
     return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
             <div className="min-w-0 flex-1">
                 <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
                     {title}
@@ -36,7 +36,7 @@ export function InventoryPageHeader({
                 ) : null}
             </div>
             {action ? (
-                <div className="flex justify-end shrink-0 sm:justify-start">
+                <div className="flex items-center shrink-0">
                     {action}
                 </div>
             ) : null}
