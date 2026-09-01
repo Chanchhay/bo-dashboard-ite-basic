@@ -30,7 +30,24 @@ function sanitizeAmount(raw: string): string {
   return cleanInt;
 }
 
-export function CashRegister({ onClose }: { onClose?: () => void }) {
+export type ClosedChannel = {
+  channelName: string;
+  todayHours?: string;
+  summary?: string;
+};
+
+export function CashRegister({
+  onClose,
+  closedChannel,
+}: {
+  onClose?: () => void;
+  /**
+   * Set when the POS channel is shut. The drawer cannot be opened while the
+   * channel it sells through is closed, so the keypad is inert rather than
+   * inviting a count that the server will refuse.
+   */
+  closedChannel?: ClosedChannel | null;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const { symbol } = useCurrencySymbol();
@@ -120,6 +137,8 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
   };
 
   const handleOpenRegister = async () => {
+    if (closedChannel) return;
+
     const openingBalance = Number.parseFloat(amount);
 
     if (!Number.isFinite(openingBalance) || openingBalance < 0) {
@@ -229,9 +248,28 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
           }}
           className="flex flex-col gap-5 px-6 py-6"
         >
-          <p className="text-center font-medium text-sm text-gray-500">
-            Open a new cash register session to continue
-          </p>
+          {closedChannel ? (
+            <div
+              role="alert"
+              className="flex flex-col gap-1 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-center"
+            >
+              <p className="text-sm font-bold text-warning">
+                {closedChannel.channelName} is closed
+              </p>
+              <p className="text-xs text-gray-600">
+                {closedChannel.todayHours
+                  ? `Today: ${closedChannel.todayHours}`
+                  : closedChannel.summary}
+              </p>
+              <p className="text-xs text-gray-500">
+                The register cannot be opened while the channel is closed.
+              </p>
+            </div>
+          ) : (
+            <p className="text-center font-medium text-sm text-gray-500">
+              Open a new cash register session to continue
+            </p>
+          )}
 
           {/* Starting cash */}
           <div className="flex flex-col gap-1.5">
@@ -259,7 +297,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
                 key={key}
                 type="button"
                 onClick={() => handleDigit(key)}
-                disabled={isLoading}
+                disabled={isLoading || Boolean(closedChannel)}
                 className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
               >
                 {key}
@@ -269,7 +307,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
             <button
               type="button"
               onClick={() => handleDigit(".")}
-              disabled={isLoading}
+              disabled={isLoading || Boolean(closedChannel)}
               className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
               .
@@ -278,7 +316,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
             <button
               type="button"
               onClick={() => handleDigit("0")}
-              disabled={isLoading}
+              disabled={isLoading || Boolean(closedChannel)}
               className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-semibold text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
               0
@@ -287,7 +325,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
             <button
               type="button"
               onClick={handleDelete}
-              disabled={isLoading}
+              disabled={isLoading || Boolean(closedChannel)}
               className="flex h-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform active:scale-95 active:bg-gray-50 disabled:opacity-40 cursor-pointer"
             >
               <Delete className="h-5 w-5 text-brand-red" />
@@ -311,7 +349,7 @@ export function CashRegister({ onClose }: { onClose?: () => void }) {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || Boolean(closedChannel)}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-bold text-white transition-transform active:scale-[0.98] active:bg-[#15803d] disabled:opacity-40 cursor-pointer"
           >
             <Calculator className="h-4 w-4" />
