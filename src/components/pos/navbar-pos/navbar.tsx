@@ -15,8 +15,10 @@ import {
   LayoutDashboard,
   Monitor,
   ShoppingBag,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
@@ -25,6 +27,7 @@ import { TourButton } from "@/components/onboarding/TourButton";
 import UserMenu from "@/components/layout/UserMenu";
 import { NotificationMenu } from "@/components/notification/Notification";
 import { usePosOffline } from "@/lib/offline/usePosOffline";
+import { isMuted, setMuted, subscribeMuted } from "@/lib/pos/sounds";
 import {
   Select,
   SelectContent,
@@ -138,6 +141,8 @@ export function Navbar({
           <span className="hidden sm:inline">Cash Register Open</span>
           <span className="sr-only sm:hidden">Close register</span>
         </button>
+
+        <SoundToggle />
 
         <div className="hidden items-center gap-1.5 text-xs lg:text-sm text-gray-700 dark:text-gray-200 font-medium xl:flex">
           <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
@@ -494,6 +499,42 @@ function MobileSearchTrigger({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Silences the till.
+ *
+ * Read through `useSyncExternalStore` rather than mirrored into state, so the
+ * button and the sound module cannot disagree about whether sound is on. The
+ * server snapshot is always "audible": the stored preference lives in
+ * `localStorage`, which the server cannot see, and claiming muted before
+ * hydration would flash the wrong icon.
+ */
+function SoundToggle() {
+  const muted = useSyncExternalStore(
+    subscribeMuted,
+    isMuted,
+    () => false,
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={() => setMuted(!muted)}
+      title={muted ? "Turn sound on" : "Turn sound off"}
+      aria-pressed={muted}
+      className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
+    >
+      {muted ? (
+        <VolumeX className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        <Volume2 className="h-4 w-4" aria-hidden="true" />
+      )}
+      <span className="sr-only">
+        {muted ? "Sound is off" : "Sound is on"}
+      </span>
+    </button>
   );
 }
 

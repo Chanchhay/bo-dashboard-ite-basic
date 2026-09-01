@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { getPosChannelState } from "@/lib/api/pos-channel-backend";
 import {
     normalizeRegisterSession,
     openSessionSchema,
@@ -26,6 +27,26 @@ export async function POST(request: Request) {
             return Response.json(
                 { message: result.error.issues[0]?.message },
                 { status: 400 },
+            );
+        }
+
+        // A till may not open while the channel it sells through is shut.
+        // Enforced here rather than only on the button: the rule has to hold
+        // for any caller, not just the one that renders our UI.
+        //
+        // An unknown answer permits opening — a backend blip is not the shop
+        // being closed, and failing shut would stop trading over a hiccup.
+        const channel = await getPosChannelState();
+
+        if (channel.known && !channel.open) {
+            return Response.json(
+                {
+                    message: `${channel.channelName} is closed right now.`,
+                    detail: channel.todayHours
+                        ? `Today: ${channel.todayHours}`
+                        : channel.summary,
+                },
+                { status: 409 },
             );
         }
 

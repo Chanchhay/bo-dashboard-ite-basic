@@ -1,6 +1,10 @@
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
-import { updateOrderItemSchema, type PosOrder } from "@/lib/api/pos-order";
+import {
+    POS_ORDER_COOKIE,
+    updateOrderItemSchema,
+    type PosOrder,
+} from "@/lib/api/pos-order";
 import { ordersPath, readOrderId } from "@/lib/api/pos-order-backend";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -19,7 +23,14 @@ async function linePath(orderItemId: string) {
     );
 }
 
-function noOrder() {
+function noOrder(orderItemId: string) {
+    // The cart cookie is the only thing tying this line to an order, so its
+    // absence is worth a line in the log: it means the browser never received
+    // the cookie, or something cleared it between ringing up and editing.
+    console.warn(
+        `order-items: no ${POS_ORDER_COOKIE} cookie when editing line ${orderItemId}`,
+    );
+
     return Response.json(
         { message: "There is no open order." },
         { status: 409 },
@@ -41,7 +52,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         const { id } = await context.params;
         const path = await linePath(id);
 
-        if (!path) return noOrder();
+        if (!path) return noOrder(id);
 
         const order = await backendRequest<PosOrder>(path, {
             method: "PATCH",
@@ -59,7 +70,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
         const { id } = await context.params;
         const path = await linePath(id);
 
-        if (!path) return noOrder();
+        if (!path) return noOrder(id);
 
         const order = await backendRequest<PosOrder | undefined>(path, {
             method: "DELETE",

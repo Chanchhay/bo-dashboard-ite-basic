@@ -927,6 +927,33 @@ export function ItemPricingTab() {
             </div>
 </div>
 
+            {/* When this channel takes orders. Orders arriving while it is shut
+                are turned away, so this is not a note to self. */}
+            {isBase ? null : (
+                <>
+                    {listingQuery.error ? (
+                        <InventoryError
+                            message={getApiErrorMessage(
+                                listingQuery.error,
+                                "Unable to load this channel.",
+                            )}
+                            retry={listingQuery.refetch}
+                        />
+                    ) : null}
+
+                    <ChannelScheduleCard
+                        channelName={channel?.name ?? "This channel"}
+                        schedule={draft?.schedule ?? emptySchedule()}
+                        onChange={(next) =>
+                            editDraft((current) => ({
+                                ...current,
+                                schedule: next,
+                            }))
+                        }
+                    />
+                </>
+            )}
+
             {/* Unsaved channel edits, said where they can be acted on. */}
             {!isBase && dirty ? (
                 <div className="sticky bottom-4 z-10 flex animate-in flex-wrap items-center gap-2.5 rounded-2xl border border-warning/40 bg-card p-3 shadow-lg fade-in duration-200">
