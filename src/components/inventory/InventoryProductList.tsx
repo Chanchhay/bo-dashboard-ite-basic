@@ -761,36 +761,36 @@ export function InventoryProductList() {
     return (
         <div className="flex flex-col gap-6">
             {/* Header Section (sticky on desktop only) */}
-            <div className="static lg:sticky lg:top-0 lg:z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all">
+            <div className="static lg:sticky lg:top-0 lg:z-30 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all w-full max-w-full min-w-0">
                 <InventoryPageHeader
                     title="Master Items"
                     description="Manage the items and services available to your business."
                     action={
-                        <div className="flex items-center gap-2">
-                            <div data-tour="export-header-excel" className="inline-flex">
+                        <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:items-center sm:w-auto">
+                            <div data-tour="export-header-excel" className="w-full sm:w-auto">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={handleExportExcel}
                                     disabled={!items.length || isExporting}
-                                    className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                                    className="h-9 sm:h-10 w-full sm:w-auto px-2.5 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl justify-center"
                                 >
                                     {isExporting ? (
                                         <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
                                     ) : (
                                         <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                     )}
-                                    <span>{isExporting ? "Exporting..." : "Export Excel"}</span>
+                                    <span className="truncate">{isExporting ? "Exporting..." : "Export Excel"}</span>
                                 </Button>
                             </div>
-                            <div data-tour="add-item" className="inline-flex">
+                            <div data-tour="add-item" className="w-full sm:w-auto">
                                 <Button
                                     render={<Link href="/inventory/new" />}
                                     nativeButton={false}
-                                    className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl shrink-0"
+                                    className="h-9 sm:h-10 w-full sm:w-auto px-2.5 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl justify-center"
                                 >
                                     <PackagePlus className="size-4 shrink-0" />
-                                    <span>Create Master Item</span>
+                                    <span className="truncate">Create Master Item</span>
                                 </Button>
                             </div>
                         </div>
