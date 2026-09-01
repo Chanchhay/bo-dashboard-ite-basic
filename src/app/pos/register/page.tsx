@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CashRegister } from "@/components/pos/cash-register";
+import { getPosChannelState } from "@/lib/api/pos-channel-backend";
 import { findCurrentRegisterSession } from "@/lib/api/pos-session-backend";
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 
@@ -34,7 +35,24 @@ export default async function OpenRegisterPage({
     redirect("/api/register/join");
   }
 
-  return <CashRegister />;
+  // Resolved on the server so the keypad never appears usable for a moment
+  // before turning itself off. An unknown answer permits opening, matching the
+  // rule the open endpoint enforces.
+  const channel = await getPosChannelState();
+
+  return (
+    <CashRegister
+      closedChannel={
+        channel.known && !channel.open
+          ? {
+              channelName: channel.channelName,
+              todayHours: channel.todayHours,
+              summary: channel.summary,
+            }
+          : null
+      }
+    />
+  );
 }
 
 function RegisterStatusError({ message }: { message: string }) {

@@ -69,7 +69,8 @@ export function isOvernight(window: TimeWindow) {
 }
 
 /** Monday-first index, unlike `Date.getDay()` which starts on Sunday. */
-function dayIndex(date: Date) {
+/** Monday-first index, matching `dayKeys`. */
+export function dayIndex(date: Date) {
     return (date.getDay() + 6) % 7;
 }
 

@@ -22,6 +22,7 @@ import { offlineDb } from "@/lib/offline/db";
 import { processOfflineCheckout } from "@/lib/checkout";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { playTick } from "@/lib/pos/sounds";
 import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetDiscountsQuery } from "@/services/discountApi";
 import type { DiscountResponse } from "@/lib/api/discount";
@@ -30,6 +31,7 @@ import {
   posOrderApi,
   useGetCurrentOrderQuery,
   useParkOrderMutation,
+  isPendingLine,
   useRemoveOrderItemMutation,
   usePayOrderMutation,
   useUpdateOrderItemMutation,
@@ -54,6 +56,16 @@ export interface OrderTableProps {
   discountModalMode?: "COUPON" | "CUSTOM";
   customerModalOpen?: boolean;
   onCustomerModalOpenChange?: (open: boolean) => void;
+  /**
+   * How many more of an item the till may still sell, the cart's own claim
+   * already taken off.
+   *
+   * Passed in rather than worked out here: the terminal already answers this
+   * for the grid, the option picker and the scanner, and a second answer that
+   * forgot the channel's share of the stock would let the cart sell past a
+   * ceiling the cards respect. Absent means nobody counts this item.
+   */
+  stockFor?: (itemId: string, variantId?: string) => number | undefined;
 }
 
 /**
@@ -371,6 +383,8 @@ interface ItemRowProps {
   onRemove: (orderItemId: string) => void;
   /** Quantity buttons are held while the line is being written. */
   busy?: boolean;
+  /** Nothing left on the shelf for one more of this line. */
+  atStockLimit?: boolean;
   discountInfo?: { discountAmount: number; label?: string };
 }
 
@@ -381,6 +395,7 @@ const ItemRow = memo(function ItemRow({
   onDecrease,
   onRemove,
   busy,
+  atStockLimit,
   discountInfo,
 }: ItemRowProps) {
   const { format } = useMoney();
@@ -452,10 +467,14 @@ const ItemRow = memo(function ItemRow({
 
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || atStockLimit}
             onClick={() => onIncrease(item)}
             className="flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-40"
-            title="Increase quantity"
+            title={
+              atStockLimit
+                ? "No more of this in stock"
+                : "Increase quantity"
+            }
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -505,6 +524,7 @@ export function OrderTable({
   discountModalMode,
   customerModalOpen: externalCustomerModalOpen,
   onCustomerModalOpenChange,
+  stockFor,
 }: OrderTableProps) {
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
@@ -562,10 +582,26 @@ export function OrderTable({
 
   /** Runs one line change, reporting rather than silently swallowing failure. */
   async function runLineChange(
-    _lineId: string,
+    lineId: string,
     change: () => Promise<unknown>,
     failure: string,
   ) {
+    // Every quantity change and removal passes through here, so the tick is
+    // fitted once rather than to each of the three buttons.
+    playTick();
+
+    // The line is on screen but the server has not answered the tap that rang
+    // it up, so its id is one this till invented. Editing it would ask the
+    // server about a line it has never heard of.
+    if (isPendingLine(lineId)) {
+      toast({
+        tone: "error",
+        title: "Still saving that item",
+        description: "Give it a moment, then try again.",
+      });
+      return;
+    }
+
     try {
       await change();
     } catch (cause) {
@@ -581,8 +617,40 @@ export function OrderTable({
     }
   }
 
+  /**
+   * Whether one more of this line would sell stock the shop does not have.
+   *
+   * A pack is its whole factor: one more case of twelve needs twelve on the
+   * shelf, not one.
+   */
+  const atStockLimit = useCallback(
+    (item: PosOrderItem) => {
+      if (!stockFor || item.trackInventory === false) return false;
+
+      const left = stockFor(item.itemId, item.variantId ?? undefined);
+
+      // Undefined is an item nobody counts, not an item at zero.
+      if (left === undefined) return false;
+
+      return left < (item.unitFactor ?? 1);
+    },
+    [stockFor],
+  );
+
   const handleIncrease = useCallback(
     (item: PosOrderItem) => {
+      // The button is disabled too, but that is the look. A line can hit the
+      // limit between the row rendering and the press landing — and the same
+      // press arrives from the keyboard, where nothing is dimmed.
+      if (atStockLimit(item)) {
+        toast({
+          tone: "error",
+          title: `No more ${item.itemName} in stock`,
+          description: "Receive stock for it before selling more.",
+        });
+        return;
+      }
+
       const current = lineQuantityRef.current.get(item.id) ?? item.quantity;
       const nextQty = current + 1;
       lineQuantityRef.current.set(item.id, nextQty);
@@ -597,7 +665,7 @@ export function OrderTable({
         "Could not change the quantity",
       );
     },
-    [updateOrderItem],
+    [atStockLimit, toast, updateOrderItem],
   );
 
   const handleDecrease = useCallback(
@@ -1292,6 +1360,7 @@ export function OrderTable({
       item={item}
       currency={order?.currency}
       busy={busyLineId === item.id}
+      atStockLimit={atStockLimit(item)}
       onIncrease={handleIncrease}
       onDecrease={handleDecrease}
       onRemove={handleRemove}

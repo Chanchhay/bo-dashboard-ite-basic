@@ -1,3 +1,9 @@
+import type {
+    FetchArgs,
+    FetchBaseQueryError,
+    QueryReturnValue,
+} from "@reduxjs/toolkit/query/react";
+
 import { baseApi } from "@/lib/baseApi";
 import type {
     AddOrderItemInput,
@@ -41,6 +47,66 @@ function orderFilterParams(input: OrderHistoryQuery | void | null) {
 let inFlightCount = 0;
 
 /**
+ * Cart writes go to the server one at a time.
+ *
+ * The first item rung up is also what opens the order, and the server knows
+ * which cart it is only by a cookie set on that first response. Two taps in
+ * flight at once both arrive without that cookie, so both open an order — the
+ * losing one's lines then hang off a cart the till has already forgotten, and
+ * every edit afterwards answers "There is no open order". Queueing costs
+ * nothing on screen: the optimistic updates below still land on the first
+ * frame, only the requests behind them are ordered.
+ */
+let cartWrites: Promise<unknown> = Promise.resolve();
+
+function enqueueCartWrite<Result>(
+    baseQuery: (args: FetchArgs) => unknown,
+    args: FetchArgs,
+): Promise<QueryReturnValue<Result, FetchBaseQueryError, object>> {
+    const run = cartWrites.then(() => baseQuery(args)) as Promise<
+        QueryReturnValue<Result, FetchBaseQueryError, object>
+    >;
+
+    // A refused write must not strand the taps queued behind it.
+    cartWrites = run.then(
+        () => undefined,
+        () => undefined,
+    );
+
+    return run;
+}
+
+/** Optimistic lines whose own add has not come back from the server yet. */
+const pendingLines = new Set<string>();
+
+let tempLineSeq = 0;
+
+function nextTempLineId() {
+    tempLineSeq += 1;
+    return `temp-${Date.now()}-${tempLineSeq}`;
+}
+
+/** True while a line exists only in the cache, so its id means nothing to the server. */
+export function isPendingLine(orderItemId: string) {
+    return orderItemId.startsWith("temp-");
+}
+
+/**
+ * A cart the server no longer has. Reloading it is the only honest answer —
+ * otherwise the panel keeps showing lines that every further edit will refuse.
+ */
+function recoverFromMissingOrder(
+    dispatch: (action: unknown) => unknown,
+    cause: unknown,
+) {
+    const status = (cause as { error?: { status?: unknown } })?.error?.status;
+
+    if (status === 409) {
+        dispatch(posOrderApi.util.invalidateTags(["PosOrder"]));
+    }
+}
+
+/**
  * Mirrors the backend's TaxCalculator so an optimistic cart edit never shows
  * a tax-free total for the instant before the real response lands — the
  * order's own taxRate/taxInclusionType carry over unchanged by a line edit,
@@ -69,22 +135,63 @@ function optimisticTotal(
     return { taxAmount, total: round2(net + taxAmount) };
 }
 
+/**
+ * Puts the server's order into the cache without dropping lines whose own add
+ * is still in flight.
+ *
+ * Every cart write answers with the whole order, so the response is the truth —
+ * but only as of the tap that asked for it. Ignoring it whenever anything else
+ * was in flight (as this used to) left the cart holding temporary line ids that
+ * no later edit could resolve; taking it wholesale would blink the not-yet-saved
+ * taps out of the panel. Merging keeps both.
+ */
 function handleFulfilled(dispatch: any, data: PosOrder | null) {
-    if (inFlightCount <= 0 && data) {
-        dispatch(
-            posOrderApi.util.updateQueryData(
-                "getCurrentOrder",
-                undefined,
-                () => data,
-            ),
-        );
-    }
+    if (!data) return;
+
+    dispatch(
+        posOrderApi.util.updateQueryData(
+            "getCurrentOrder",
+            undefined,
+            (draft) => {
+                const stillAdding =
+                    draft?.items.filter((line) => pendingLines.has(line.id)) ??
+                    [];
+
+                if (!draft || stillAdding.length === 0) return data;
+
+                Object.assign(draft, data, {
+                    items: [...data.items, ...stillAdding],
+                });
+
+                draft.subtotal = draft.items.reduce(
+                    (sum, line) => sum + line.lineTotal + line.discountAmount,
+                    0,
+                );
+
+                const { taxAmount, total } = optimisticTotal(
+                    draft.subtotal,
+                    draft.discountAmount,
+                    draft.taxRate,
+                    draft.taxInclusionType,
+                );
+
+                draft.taxAmount = taxAmount;
+                draft.total = total;
+            },
+        ),
+    );
 }
 
 export const posOrderApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getCurrentOrder: builder.query<PosOrder | null, void>({
-            query: () => "/orders/current",
+            // Behind the writes, not alongside them: a read that overtakes a
+            // pending edit answers with the cart as it was and puts that stale
+            // answer in the cache, undoing the edit on screen.
+            queryFn: (_arg, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder | null>(baseQuery, {
+                    url: "/orders/current",
+                }),
             providesTags: ["PosOrder"],
         }),
 
@@ -155,11 +262,12 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         parkOrder: builder.mutation<PosOrder, ParkOrderInput>({
-            query: (body) => ({
-                url: "/orders/current/park",
-                method: "POST",
-                body,
-            }),
+            queryFn: (body, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: "/orders/current/park",
+                    method: "POST",
+                    body,
+                }),
             invalidatesTags: [
                 "PosOrder",
                 "PosOrderHistory",
@@ -168,10 +276,11 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         loadOrderForEdit: builder.mutation<PosOrder, string>({
-            query: (orderId) => ({
-                url: `/orders/${encodeURIComponent(orderId)}/edit`,
-                method: "POST",
-            }),
+            queryFn: (orderId, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: `/orders/${encodeURIComponent(orderId)}/edit`,
+                    method: "POST",
+                }),
             onQueryStarted: writeBackOrder,
         }),
 
@@ -217,13 +326,22 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         addOrderItem: builder.mutation<PosOrder, AddOrderItemInput>({
-            query: ({ itemId, variantId, unitId, addOnIds, quantity }) => ({
-                url: "/orders/current/items",
-                method: "POST",
-                body: { itemId, variantId, unitId, addOnIds, quantity },
-            }),
+            queryFn: (
+                { itemId, variantId, unitId, addOnIds, quantity },
+                _api,
+                _extraOptions,
+                baseQuery,
+            ) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: "/orders/current/items",
+                    method: "POST",
+                    body: { itemId, variantId, unitId, addOnIds, quantity },
+                }),
             async onQueryStarted(arg, { dispatch, queryFulfilled }) {
                 inFlightCount++;
+                // One id for whichever branch below rings this tap up, so the
+                // line can be recognised as still-unsaved until it comes back.
+                const tempLineId = nextTempLineId();
                 const patchResult = dispatch(
                     posOrderApi.util.updateQueryData(
                         "getCurrentOrder",
@@ -231,6 +349,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                         (draft) => {
                             const currentDraft = draft;
                             if (!currentDraft) {
+                                pendingLines.add(tempLineId);
                                 return {
                                     id: `offline-${Date.now()}`,
                                     businessId: "1",
@@ -245,7 +364,7 @@ export const posOrderApi = baseApi.injectEndpoints({
                                     createdDate: null,
                                     items: [
                                         {
-                                            id: `temp-${Date.now()}-${Math.random()}`,
+                                            id: tempLineId,
                                             itemId: arg.itemId,
                                             variantId: arg.variantId ?? null,
                                             unitId: arg.unitId ?? null,
@@ -288,8 +407,9 @@ export const posOrderApi = baseApi.injectEndpoints({
                             } else {
                                 const unitPrice = arg.unitPrice ?? 0;
                                 const lineTotal = addQty * unitPrice;
+                                pendingLines.add(tempLineId);
                                 currentDraft.items.push({
-                                    id: `temp-${Date.now()}-${Math.random()}`,
+                                    id: tempLineId,
                                     itemId: arg.itemId,
                                     variantId: arg.variantId ?? null,
                                     unitId: arg.unitId ?? null,
@@ -320,12 +440,15 @@ export const posOrderApi = baseApi.injectEndpoints({
                 try {
                     const { data } = await queryFulfilled;
                     inFlightCount = Math.max(0, inFlightCount - 1);
+                    pendingLines.delete(tempLineId);
                     handleFulfilled(dispatch, data);
-                } catch {
+                } catch (cause) {
                     inFlightCount = Math.max(0, inFlightCount - 1);
+                    pendingLines.delete(tempLineId);
                     if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
                         patchResult.undo();
                     }
+                    recoverFromMissingOrder(dispatch, cause);
                 }
             },
         }),
@@ -334,11 +457,12 @@ export const posOrderApi = baseApi.injectEndpoints({
             PosOrder,
             { orderItemId: string } & UpdateOrderItemInput
         >({
-            query: ({ orderItemId, quantity }) => ({
-                url: `/order-items/${orderItemId}`,
-                method: "PATCH",
-                body: { quantity },
-            }),
+            queryFn: ({ orderItemId, quantity }, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: `/order-items/${orderItemId}`,
+                    method: "PATCH",
+                    body: { quantity },
+                }),
             async onQueryStarted({ orderItemId, quantity }, { dispatch, queryFulfilled }) {
                 inFlightCount++;
                 const patchResult = dispatch(
@@ -373,20 +497,22 @@ export const posOrderApi = baseApi.injectEndpoints({
                     const { data } = await queryFulfilled;
                     inFlightCount = Math.max(0, inFlightCount - 1);
                     handleFulfilled(dispatch, data);
-                } catch {
+                } catch (cause) {
                     inFlightCount = Math.max(0, inFlightCount - 1);
                     if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
                         patchResult.undo();
                     }
+                    recoverFromMissingOrder(dispatch, cause);
                 }
             },
         }),
 
         removeOrderItem: builder.mutation<PosOrder | null, string>({
-            query: (orderItemId) => ({
-                url: `/order-items/${orderItemId}`,
-                method: "DELETE",
-            }),
+            queryFn: (orderItemId, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder | null>(baseQuery, {
+                    url: `/order-items/${orderItemId}`,
+                    method: "DELETE",
+                }),
             async onQueryStarted(orderItemId, { dispatch, queryFulfilled }) {
                 inFlightCount++;
                 const patchResult = dispatch(
@@ -416,26 +542,32 @@ export const posOrderApi = baseApi.injectEndpoints({
                     const { data } = await queryFulfilled;
                     inFlightCount = Math.max(0, inFlightCount - 1);
                     handleFulfilled(dispatch, data);
-                } catch {
+                } catch (cause) {
                     inFlightCount = Math.max(0, inFlightCount - 1);
                     if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
                         patchResult.undo();
                     }
+                    recoverFromMissingOrder(dispatch, cause);
                 }
             },
         }),
 
         renameOrder: builder.mutation<PosOrder, { note: string }>({
-            query: (body) => ({
-                url: "/orders/current/rename",
-                method: "PATCH",
-                body,
-            }),
+            queryFn: (body, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: "/orders/current/rename",
+                    method: "PATCH",
+                    body,
+                }),
             onQueryStarted: writeBackOrder,
         }),
 
         clearOrder: builder.mutation<null, void>({
-            query: () => ({ url: "/orders/current/clear", method: "POST" }),
+            queryFn: (_arg, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<null>(baseQuery, {
+                    url: "/orders/current/clear",
+                    method: "POST",
+                }),
             invalidatesTags: [
                 "PosOrder",
                 "PosOrderHistory",
@@ -452,7 +584,13 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         generateKhqr: builder.mutation<Khqr, void>({
-            query: () => ({ url: "/orders/current/khqr", method: "POST" }),
+            // Queued so the code is priced off the finished cart, never off one
+            // with a tap still on its way to the server.
+            queryFn: (_arg, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<Khqr>(baseQuery, {
+                    url: "/orders/current/khqr",
+                    method: "POST",
+                }),
         }),
 
         /**
@@ -488,11 +626,12 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         setOrderCustomer: builder.mutation<PosOrder, SetOrderCustomerInput>({
-            query: (body) => ({
-                url: "/orders/current/customer",
-                method: "PATCH",
-                body,
-            }),
+            queryFn: (body, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: "/orders/current/customer",
+                    method: "PATCH",
+                    body,
+                }),
             async onQueryStarted(body, { dispatch, queryFulfilled }) {
                 inFlightCount++;
                 const patchResult = dispatch(
@@ -520,11 +659,12 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         setOrderDiscount: builder.mutation<PosOrder, SetOrderDiscountInput>({
-            query: (body) => ({
-                url: "/orders/current/discount",
-                method: "PATCH",
-                body,
-            }),
+            queryFn: (body, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<PosOrder>(baseQuery, {
+                    url: "/orders/current/discount",
+                    method: "PATCH",
+                    body,
+                }),
             async onQueryStarted(body, { dispatch, queryFulfilled }) {
                 inFlightCount++;
                 const patchResult = dispatch(
@@ -561,11 +701,14 @@ export const posOrderApi = baseApi.injectEndpoints({
 
         /** Settles the sale. The cart is gone afterwards, so the cache is dropped. */
         payOrder: builder.mutation<Sale, PayOrderInput>({
-            query: (body) => ({
-                url: "/orders/current/pay",
-                method: "POST",
-                body,
-            }),
+            // Last in the queue, so payment settles the cart the cashier can
+            // see rather than one an unfinished tap is about to change.
+            queryFn: (body, _api, _extraOptions, baseQuery) =>
+                enqueueCartWrite<Sale>(baseQuery, {
+                    url: "/orders/current/pay",
+                    method: "POST",
+                    body,
+                }),
             invalidatesTags: [
                 "PosOrder",
                 "PosOrderHistory",
