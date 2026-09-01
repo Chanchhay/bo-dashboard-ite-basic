@@ -134,10 +134,17 @@ export function CustomerSelectModal({
         }
 
         try {
-            const posChannel = salesChannels.find(
-                (sc) => sc.name?.toUpperCase().includes("POS") || sc.code?.toUpperCase().includes("POS")
-            );
-            const effectiveChannelId = salesChannelId || posChannel?.id || salesChannels[0]?.id || undefined;
+            const posChannel =
+                salesChannels.find(
+                    (sc) =>
+                        sc.code?.toUpperCase() === "POS" ||
+                        sc.name?.toUpperCase().includes("POS") ||
+                        sc.name?.toUpperCase().includes("POINT OF SALE")
+                ) || salesChannels[0];
+
+            const effectiveChannelId =
+                (salesChannelId && salesChannelId !== "NONE" ? salesChannelId : undefined) ||
+                posChannel?.id;
 
             const newCust = await createCustomer({
                 fullName: fullName.trim() || undefined,

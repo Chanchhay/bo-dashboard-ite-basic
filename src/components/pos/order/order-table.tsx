@@ -875,7 +875,19 @@ export function OrderTable({
     if (order?.id) {
       const { needsSync, payload } = resolveDiscountSync(order, rule);
       if (needsSync) {
-        void setOrderDiscount(payload);
+        const promise = setOrderDiscount(payload).unwrap();
+        pendingDiscountSyncRef.current = promise;
+        promise
+          // A payment attempt awaits this exact promise to find out whether
+          // the sync failed; this second handler just keeps that rejection
+          // from also surfacing as an unhandled-rejection console warning
+          // for the common case where no payment ever awaits it at all.
+          .catch(() => {})
+          .finally(() => {
+            if (pendingDiscountSyncRef.current === promise) {
+              pendingDiscountSyncRef.current = null;
+            }
+          });
       }
     }
   }, [
@@ -1153,7 +1165,18 @@ export function OrderTable({
       // persists it fire-and-forget, for a snappy preview. Paying before
       // that PATCH lands would validate `receivedAmount` against the
       // backend's still-stale, pre-discount `order.total` and reject a
-      // correct payment — awaiting the same sync here closes that race.
+      // correct payment. Waiting on the in-flight promise itself (rather
+      // than re-checking the cache, which the optimistic update already
+      // made look "in sync" before the server ever confirmed it) is what
+      // actually closes this race.
+      if (pendingDiscountSyncRef.current) {
+        await pendingDiscountSyncRef.current;
+      }
+
+      // Belt and braces: nothing was in flight, but this payment attempt is
+      // itself the first thing to notice the order's stored discount is
+      // out of date (e.g. the modal was opened before the effect above ever
+      // ran) — sync it for real here too.
       const { needsSync, payload } = resolveDiscountSync(order, activeDiscountRule);
       if (needsSync) {
         await setOrderDiscount(payload).unwrap();

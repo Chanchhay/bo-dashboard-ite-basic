@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, History, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { TourButton } from "@/components/onboarding/TourButton";
+import { cn } from "@/lib/utils";
 import { InventoryPageHeader, getApiErrorMessage } from "@/components/inventory/InventoryUi";
 import { ImportResult } from "@/components/inventory/import/ImportResult";
 import { ImportStepper } from "@/components/inventory/import/ImportStepper";
@@ -239,24 +240,28 @@ export function ImportWizard() {
     const action = primary();
 
     return (
-        <div className="flex flex-col gap-6">
-            <InventoryPageHeader
-                title="Import data"
-                description="Bring your items, categories and stock across from your old system. Nothing is added until you have seen what will happen."
-                action={
-                    <div className="flex items-center gap-2">
-                        <Link
-                            href="/inventory/import/history"
-                            data-tour="import-history-link"
-                            className={buttonVariants({ variant: "outline" })}
-                        >
-                            <History className="size-4" />
-                            History
-                        </Link>
-                        <TourButton />
-                    </div>
-                }
-            />
+        <div className="flex flex-col gap-5 sm:gap-6">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                        Import data
+                    </h1>
+                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">
+                        Bring your items, categories and stock across from your old system. Nothing is added until you have seen what will happen.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                        href="/inventory/import/history"
+                        data-tour="import-history-link"
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl text-xs sm:text-sm gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3")}
+                    >
+                        <History className="size-3.5 sm:size-4" />
+                        <span>History</span>
+                    </Link>
+                    <TourButton />
+                </div>
+            </div>
 
             <div data-tour="import-stepper">
                 <ImportStepper

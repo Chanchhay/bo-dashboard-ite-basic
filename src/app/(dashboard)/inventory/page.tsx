@@ -1,4 +1,5 @@
 
+
 import { InventoryProductList } from "@/components/inventory/InventoryProductList";
 import { TourButton } from "@/components/onboarding/TourButton";
 

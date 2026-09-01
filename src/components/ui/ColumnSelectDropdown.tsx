@@ -43,23 +43,23 @@ export function ColumnSelectDropdown({
                 type="button"
                 variant="outline"
                 onClick={() => setIsOpen(!isOpen)}
-                className="h-10 gap-2 rounded-xl border border-border bg-card px-3.5 text-sm font-medium text-foreground hover:bg-muted/80 shadow-xs transition-colors"
+                className="h-10 gap-1.5 sm:gap-2 rounded-xl border border-border bg-card px-2.5 sm:px-3.5 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 shadow-xs transition-colors whitespace-nowrap"
             >
-                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+                <SlidersHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                 <span>Columns</span>
             </Button>
 
             {isOpen && (
                 <div className="absolute right-0 z-50 mt-2 w-56 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-lg ring-1 ring-foreground/5 animate-in fade-in-0 zoom-in-95">
                     <div className="flex items-center justify-between px-2 py-1.5 border-b border-border mb-1">
-                        <span className="text-xs font-semibold text-foreground">
+                        <span className="text-xs sm:text-sm font-semibold text-foreground">
                             Display Columns
                         </span>
                         {onResetDefaults && (
                             <button
                                 type="button"
                                 onClick={onResetDefaults}
-                                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                                className="flex items-center gap-1 text-[11px] sm:text-xs font-medium text-primary hover:underline"
                             >
                                 <RotateCcw className="h-3 w-3" />
                                 Reset
@@ -73,7 +73,7 @@ export function ColumnSelectDropdown({
                                 key={col.id}
                                 type="button"
                                 onClick={() => onToggleColumn(col.id)}
-                                className="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-lg hover:bg-muted/80 transition-colors text-left text-foreground"
+                                className="w-full flex items-center justify-between px-2 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg hover:bg-muted/80 transition-colors text-left text-foreground"
                             >
                                 <span className="truncate">{col.label}</span>
                                 <div

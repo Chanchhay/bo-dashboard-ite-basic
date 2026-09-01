@@ -66,7 +66,68 @@ export function ImportRowsTable({
 
     return (
         <div className="flex flex-col">
-            <div className="overflow-x-auto">
+            {/* Mobile Cards Layout (md:hidden) */}
+            <div className="flex flex-col divide-y divide-border md:hidden">
+                {rows.length === 0 ? (
+                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        {emptyMessage}
+                    </div>
+                ) : (
+                    rows.map((row) => (
+                        <div key={row.id} className="flex flex-col gap-3 p-3.5 sm:p-4 bg-card">
+                            {/* Card Header: Row Number & Status */}
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-xs font-semibold tabular-nums text-foreground">
+                                    Row {row.rowNumber}
+                                </span>
+                                <ImportRowStatusPill status={row.status} />
+                            </div>
+
+                            {/* Key-Value Fields Grid */}
+                            <div className="grid grid-cols-2 gap-2 text-xs bg-muted/20 dark:bg-muted/10 p-2.5 rounded-xl border border-border/50">
+                                {valueColumns.map((column) => (
+                                    <div key={column.key} className="flex flex-col min-w-0">
+                                        <span className="text-[11px] text-muted-foreground">
+                                            {column.label}
+                                        </span>
+                                        <span className="font-medium text-foreground truncate">
+                                            {readable(row.values?.[column.key])}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Issues / What we found */}
+                            {row.issues.length > 0 && (
+                                <div className="rounded-xl border border-border/70 bg-muted/30 p-2.5 text-xs">
+                                    <p className="text-[11px] font-semibold text-muted-foreground mb-1">
+                                        What we found:
+                                    </p>
+                                    <ul className="flex flex-col gap-1">
+                                        {row.issues.map((issue, index) => (
+                                            <li
+                                                key={`${issue.code}-${index}`}
+                                                className={
+                                                    issue.severity === "ERROR"
+                                                        ? "text-[var(--destructive)] font-medium"
+                                                        : issue.severity === "WARNING"
+                                                          ? "text-[var(--warning)] font-medium"
+                                                          : "text-muted-foreground"
+                                                }
+                                            >
+                                                • {issue.message}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* Desktop Table (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-160 border-collapse text-sm">
                     <thead>
                         <tr className="border-b border-border bg-muted/40 text-left">

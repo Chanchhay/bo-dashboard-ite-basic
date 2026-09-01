@@ -436,7 +436,7 @@ function CurrencyEditor({
             noValidate
             className="flex min-h-[795px] flex-col"
         >
-            <section className="rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section className="rounded-2xl bg-card border border-border p-4 sm:p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>General Configuration</SectionTitle>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -598,10 +598,10 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <section data-tour="currency-calculator" className="mt-4 rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="currency-calculator" className="mt-4 rounded-2xl bg-card border border-border p-4 sm:p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>Exchange Rate &amp; Calculator</SectionTitle>
 
-                <div className="mt-5 max-w-[630px] rounded-2xl border border-border bg-muted/30 p-4 sm:p-6">
+                <div className="mt-5 max-w-[630px] rounded-2xl border border-border bg-muted/30 p-3.5 sm:p-6">
                     {base && target ? (
                         <>
                             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">

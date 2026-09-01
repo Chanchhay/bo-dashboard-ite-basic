@@ -261,9 +261,10 @@ export function ItemPricingFilters({
     }
 
     return (
-        <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-                <div className="relative min-w-55 flex-1">
+        <div className="flex flex-col gap-2.5 sm:gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
+                {/* Search input */}
+                <div className="relative w-full sm:flex-1 min-w-0">
                     <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         type="text"
@@ -271,7 +272,7 @@ export function ItemPricingFilters({
                         onChange={(event) => onSearchChange(event.target.value)}
                         placeholder="Search items by name, SKU or barcode..."
                         aria-label="Search items"
-                        className={`${controlClassName} !h-10 rounded-xl border-border bg-card pr-9 pl-10 text-sm font-medium`}
+                        className={`${controlClassName} !h-9 sm:!h-10 rounded-xl border-border bg-card pr-9 pl-10 text-xs sm:text-sm font-medium w-full`}
                     />
                     {searchQuery ? (
                         <button
@@ -280,40 +281,43 @@ export function ItemPricingFilters({
                             aria-label="Clear search"
                             className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
-                            <X className="size-4" />
+                            <X className="size-3.5 sm:size-4" />
                         </button>
                     ) : null}
                 </div>
 
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => onPanelOpenChange(!panelOpen)}
-                    aria-expanded={panelOpen}
-                    className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
-                >
-                    <SlidersHorizontal className="size-4 shrink-0" />
-                    <span>Advanced filters</span>
-                    {activeFilterCount ? (
-                        <span className="grid size-5 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            {activeFilterCount}
-                        </span>
-                    ) : null}
-                </Button>
+                {/* Actions: 2-column grid on mobile, flex on desktop */}
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onPanelOpenChange(!panelOpen)}
+                        aria-expanded={panelOpen}
+                        className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-semibold"
+                    >
+                        <SlidersHorizontal className="size-3.5 sm:size-4 shrink-0" />
+                        <span>Advanced filters</span>
+                        {activeFilterCount ? (
+                            <span className="grid size-4.5 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-xs font-bold text-primary-foreground">
+                                {activeFilterCount}
+                            </span>
+                        ) : null}
+                    </Button>
 
-                {/* Straight to the one item in your hand, which is the whole
-                    point of a barcode on a pricing screen. */}
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onScan}
-                    className="!h-10 shrink-0 gap-2 rounded-xl px-3.5 text-sm font-semibold"
-                >
-                    <ScanBarcode className="size-4 shrink-0" />
-                    <span>Scan barcode</span>
-                </Button>
+                    {/* Straight to the one item in your hand, which is the whole
+                        point of a barcode on a pricing screen. */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onScan}
+                        className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-semibold"
+                    >
+                        <ScanBarcode className="size-3.5 sm:size-4 shrink-0" />
+                        <span>Scan barcode</span>
+                    </Button>
 
-                {extra}
+                    {extra}
+                </div>
             </div>
 
             {panelOpen ? (

@@ -21,6 +21,7 @@ import {
 import { AmountReceived } from "@/components/pos/amount-received";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { PaginationBar } from "@/components/ui/PaginationBar";
+import { cn } from "@/lib/utils";
 import {
     getApiErrorMessage,
     InventoryEmpty,
@@ -428,7 +429,113 @@ export function PayLaterList() {
                 data-tour="pay-later-list"
                 className="overflow-clip rounded-2xl border border-border bg-card shadow-xs"
             >
-                <div className="overflow-x-auto">
+                {/* Mobile Cards View (< md) */}
+                <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                    {pagedSales.length === 0 ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground">
+                            {query ? `No sales match "${query}".` : "No sales on this page."}
+                        </div>
+                    ) : (
+                        pagedSales.map((sale) => {
+                            const Icon = channelIcons[sale.channel] ?? ShoppingBag;
+                            const owed = sale.totalAmount - sale.paidAmount;
+                            const overdueBy = daysSince(sale.soldAt);
+                            const isOverdue = (overdueBy ?? 0) > OVERDUE_DAYS;
+
+                            return (
+                                <div
+                                    key={sale.id}
+                                    onClick={() => setCollecting(sale)}
+                                    className={cn(
+                                        "rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]",
+                                        isOverdue && "border-danger/30 bg-danger/[0.02]"
+                                    )}
+                                >
+                                    {/* Card Header */}
+                                    <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                                <Icon className="size-3.5" />
+                                            </span>
+                                            <span className="font-bold text-sm text-foreground dark:text-white">
+                                                {sale.invoiceNumber ?? "—"}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isOverdue ? (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-danger/15 px-2.5 py-0.5 text-[11px] font-semibold text-danger">
+                                                    <AlertTriangle className="size-3" />
+                                                    Overdue · {overdueBy}d
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-semibold text-warning">
+                                                    Pending
+                                                </span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setCollecting(sale);
+                                                }}
+                                                className="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                                            >
+                                                Collect
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Key-Value Rows */}
+                                    <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Customer</span>
+                                            <div className="flex items-center gap-1.5 font-medium text-foreground dark:text-slate-100">
+                                                <span>
+                                                    {sale.customerName || sale.customerPhone || sale.customerEmail || "Walk-in"}
+                                                </span>
+                                                {sale.customerPhone && (
+                                                    <a
+                                                        href={`tel:${sale.customerPhone}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        aria-label="Call customer"
+                                                        className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                                                    >
+                                                        <Phone className="size-3 text-primary" />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Channel</span>
+                                            <span className="font-medium text-foreground dark:text-slate-200">
+                                                {channelNames[sale.channel] ?? sale.channel}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Sold At</span>
+                                            <span className="text-muted-foreground dark:text-slate-300">
+                                                {sale.soldAt ? new Date(sale.soldAt).toLocaleString() : "—"}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                            <span className="font-semibold text-foreground dark:text-slate-200">Owed Amount</span>
+                                            <span className="text-sm font-bold text-danger">
+                                                {format(owed, sale.currency)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Desktop Table (>= md) */}
+                <div className="hidden md:block overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -476,7 +583,11 @@ export function PayLaterList() {
                                     return (
                                         <TableRow
                                             key={sale.id}
-                                            className={isOverdue ? "bg-danger/[0.03] hover:bg-danger/[0.06]" : undefined}
+                                            onClick={() => setCollecting(sale)}
+                                            className={cn(
+                                                "cursor-pointer hover:bg-muted/40 transition-colors",
+                                                isOverdue ? "bg-danger/[0.03] hover:bg-danger/[0.06]" : undefined
+                                            )}
                                         >
                                             {visibleColumns.sale && (
                                                 <TableCell className="py-3">
@@ -512,6 +623,7 @@ export function PayLaterList() {
                                                             {sale.customerPhone && (
                                                                 <a
                                                                     href={`tel:${sale.customerPhone}`}
+                                                                    onClick={(e) => e.stopPropagation()}
                                                                     aria-label={`Call ${sale.customerName || sale.customerPhone}`}
                                                                     className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                                                                 >
@@ -566,7 +678,10 @@ export function PayLaterList() {
                                                 <TableCell className="text-right">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setCollecting(sale)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setCollecting(sale);
+                                                        }}
                                                         className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
                                                     >
                                                         Collect

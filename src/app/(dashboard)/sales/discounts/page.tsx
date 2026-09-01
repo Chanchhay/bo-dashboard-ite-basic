@@ -22,8 +22,10 @@ import {
     SlidersHorizontal,
     X,
     Package,
+    ChevronDown,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { TourButton } from "@/components/onboarding/TourButton";
@@ -106,6 +108,16 @@ export default function DiscountsAndCouponsPage() {
     const [selectedStatusFilter, setSelectedStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
     const [selectedChannelFilter, setSelectedChannelFilter] = useState<"ALL" | "WEB" | "TELEGRAM" | "MESSENGER" | "POS">("ALL");
     const [selectedItemCategoryFilter, setSelectedItemCategoryFilter] = useState<string>("ALL");
+    const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+    const toggleCardExpanded = (id: string) => {
+        setExpandedCards((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
 
     // --- Column Visibility States ---
     const [discountCols, setDiscountCols] = useState([
@@ -383,13 +395,37 @@ export default function DiscountsAndCouponsPage() {
         const result: Array<{
             item: typeof items[0];
             discount: DiscountResponse;
-            originalPrice: number;
-            discountedPrice: number;
+            lowestPrice: number;
+            highestPrice: number;
+            discountedLowest: number;
+            discountedHighest: number;
+            isPriced: boolean;
             discountRateLabel: string;
         }> = [];
 
         items.forEach((item) => {
-            const origPrice = Number(item.price) || 0;
+            // Collect all prices for this item across base price, variants/options, and packs
+            const prices: number[] = [];
+            if (item.price !== undefined && item.price !== null && Number(item.price) > 0) {
+                prices.push(Number(item.price));
+            }
+            (item.variants || []).forEach((v) => {
+                if (v.price !== undefined && v.price !== null && Number(v.price) > 0) {
+                    prices.push(Number(v.price));
+                }
+            });
+            (item.uomConversions || []).forEach((u) => {
+                if (u.price !== undefined && u.price !== null && Number(u.price) > 0) {
+                    prices.push(Number(u.price));
+                }
+            });
+            if (prices.length === 0 && item.compareAtPrice !== undefined && item.compareAtPrice !== null && Number(item.compareAtPrice) > 0) {
+                prices.push(Number(item.compareAtPrice));
+            }
+
+            const isPriced = prices.length > 0;
+            const lowestPrice = isPriced ? Math.min(...prices) : 0;
+            const highestPrice = isPriced ? Math.max(...prices) : 0;
 
             // 1. Specific item discount match
             let matchedDisc = activeAutoDiscounts.find((d) => {
@@ -420,29 +456,38 @@ export default function DiscountsAndCouponsPage() {
             }
 
             if (matchedDisc) {
-                let discPrice = origPrice;
-                let rateLabel = "";
+                const applyDiscount = (price: number) => {
+                    if (matchedDisc!.type === "PERCENTAGE") {
+                        const val = matchedDisc!.value ?? 0;
+                        return Math.max(0, price * (1 - val / 100));
+                    } else if (matchedDisc!.type === "FIXED_AMOUNT" || (matchedDisc!.type as any) === "FIXED") {
+                        const val = matchedDisc!.value ?? 0;
+                        return Math.max(0, price - val);
+                    } else if (matchedDisc!.ruleType === "BUY_X_GET_Y" || (matchedDisc!.buyQuantity && matchedDisc!.getQuantity)) {
+                        return price;
+                    }
+                    return Math.max(0, price * (1 - (matchedDisc!.value ?? 0) / 100));
+                };
 
+                let rateLabel = "";
                 if (matchedDisc.type === "PERCENTAGE") {
-                    const val = matchedDisc.value ?? 0;
-                    rateLabel = `${val}% OFF`;
-                    discPrice = Math.max(0, origPrice * (1 - val / 100));
+                    rateLabel = `${matchedDisc.value ?? 0}% OFF`;
                 } else if (matchedDisc.type === "FIXED_AMOUNT" || (matchedDisc.type as any) === "FIXED") {
-                    const val = matchedDisc.value ?? 0;
-                    rateLabel = `-${format(val)}`;
-                    discPrice = Math.max(0, origPrice - val);
+                    rateLabel = `-${format(matchedDisc.value ?? 0)}`;
                 } else if (matchedDisc.ruleType === "BUY_X_GET_Y" || (matchedDisc.buyQuantity && matchedDisc.getQuantity)) {
                     rateLabel = `Buy ${matchedDisc.buyQuantity} Get ${matchedDisc.getQuantity}`;
                 } else {
                     rateLabel = `${matchedDisc.value ?? 0}% OFF`;
-                    discPrice = Math.max(0, origPrice * (1 - (matchedDisc.value ?? 0) / 100));
                 }
 
                 result.push({
                     item,
                     discount: matchedDisc,
-                    originalPrice: origPrice,
-                    discountedPrice: discPrice,
+                    lowestPrice,
+                    highestPrice,
+                    discountedLowest: applyDiscount(lowestPrice),
+                    discountedHighest: applyDiscount(highestPrice),
+                    isPriced,
                     discountRateLabel: rateLabel,
                 });
             }
@@ -769,21 +814,21 @@ export default function DiscountsAndCouponsPage() {
     return (
         <div className="space-y-6">
             {/* Header section */}
-            <div data-tour="discounts-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div data-tour="discounts-list" className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                         Discounts & Coupons
                     </h1>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
                         Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3">
                     <TourButton />
                     <Button
                         data-tour="create-discount-btn"
                         onClick={activeTab === "coupons" ? openCreateCoupon : openCreateDiscount}
-                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm text-xs sm:text-sm h-9 sm:h-10 px-3.5 sm:px-4"
                     >
                         <Plus className="h-4 w-4" />
                         {activeTab === "coupons" ? "Create Coupon" : "Create Discount"}
@@ -792,63 +837,63 @@ export default function DiscountsAndCouponsPage() {
             </div>
 
             {/* Navigation Tabs */}
-            <div data-tour="discounts-tabs" className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+            <div data-tour="discounts-tabs" className="flex items-center gap-1.5 sm:gap-2 border-b border-border pb-2.5 sm:pb-3 overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap">
                 <button
                     onClick={() => setActiveTab("discounts")}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "discounts"
                             ? "bg-primary/10 text-primary dark:text-primary font-semibold"
                             : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                    <Tag className="h-4 w-4" />
+                    <Tag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Discounts ({discounts.length})
                 </button>
                 <button
                     onClick={() => setActiveTab("coupons")}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "coupons"
                             ? "bg-primary/10 text-primary dark:text-primary font-semibold"
                             : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                    <Ticket className="h-4 w-4" />
+                    <Ticket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Coupons ({coupons.length})
                 </button>
                 <button
                     onClick={() => setActiveTab("channels")}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "channels"
                             ? "bg-primary/10 text-primary dark:text-primary font-semibold"
                             : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                    <Layers className="h-4 w-4" />
+                    <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Channel Discounts
                 </button>
                 <button
                     onClick={() => setActiveTab("discounted-items")}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "discounted-items"
                             ? "bg-primary/10 text-primary dark:text-primary font-semibold"
                             : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                    <Package className="h-4 w-4" />
+                    <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Discounted Items ({discountedItemsList.length})
                 </button>
             </div>
 
             {/* Toolbar: Search, Filters & Columns */}
-            <div data-tour="discounts-search-bar" className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
-                    <div className="relative flex-1 sm:max-w-xs min-w-48">
+            <div data-tour="discounts-search-bar" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0">
+                    <div className="relative w-full sm:w-80 lg:w-[380px] shrink-0">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={`Search ${activeTab === "channels" ? "channel rules" : activeTab === "discounted-items" ? "discounted items" : activeTab}...`}
-                            className="!h-10 pl-9 pr-8 text-sm rounded-xl border border-border bg-card shadow-2xs font-medium"
+                            className="!h-9 sm:!h-10 pl-9 pr-8 text-xs sm:text-sm rounded-xl border border-border bg-card shadow-2xs font-medium w-full"
                         />
                         {searchQuery && (
                             <button
@@ -861,77 +906,92 @@ export default function DiscountsAndCouponsPage() {
                         )}
                     </div>
 
-                    {/* Status Filter */}
-                    {activeTab !== "channels" && activeTab !== "discounted-items" && (
-                        <div className="w-36 shrink-0">
-                            <SelectField
-                                size="sm"
-                                value={selectedStatusFilter}
-                                onValueChange={(val) => setSelectedStatusFilter(val as "ALL" | "ACTIVE" | "INACTIVE")}
-                                options={[
-                                    { value: "ALL", label: "All Status" },
-                                    { value: "ACTIVE", label: "Active" },
-                                    { value: "INACTIVE", label: "Inactive" },
-                                ]}
-                                className="!h-10 rounded-xl text-sm border-border bg-card shadow-2xs font-medium"
-                            />
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0 flex-nowrap sm:flex-wrap">
+                        {/* Status Filter */}
+                        {activeTab !== "channels" && activeTab !== "discounted-items" && (
+                            <div className="w-32 sm:w-36 shrink-0">
+                                <SelectField
+                                    size="sm"
+                                    value={selectedStatusFilter}
+                                    onValueChange={(val) => setSelectedStatusFilter(val as "ALL" | "ACTIVE" | "INACTIVE")}
+                                    options={[
+                                        { value: "ALL", label: "All Status" },
+                                        { value: "ACTIVE", label: "Active" },
+                                        { value: "INACTIVE", label: "Inactive" },
+                                    ]}
+                                    className="!h-9 sm:!h-10 rounded-xl text-xs sm:text-sm border-border bg-card shadow-2xs font-medium"
+                                />
+                            </div>
+                        )}
 
-                    {/* Category Filter for Discounted Items */}
-                    {activeTab === "discounted-items" && (
-                        <div className="w-44 shrink-0">
-                            <SelectField
-                                size="sm"
-                                value={selectedItemCategoryFilter}
-                                onValueChange={(val) => setSelectedItemCategoryFilter(val)}
-                                options={[
-                                    { value: "ALL", label: "All Categories" },
-                                    ...availableCategoryOptions.map((c) => ({
-                                        value: c.id,
-                                        label: `${c.name} (${categoryItemCountMap[c.id] || 0})`,
-                                    })),
-                                ]}
-                                className="!h-10 rounded-xl text-sm border-border bg-card shadow-2xs font-medium"
-                            />
-                        </div>
-                    )}
+                        {/* Category Filter for Discounted Items */}
+                        {activeTab === "discounted-items" && (
+                            <div className="w-36 sm:w-44 shrink-0">
+                                <SelectField
+                                    size="sm"
+                                    value={selectedItemCategoryFilter}
+                                    onValueChange={(val) => setSelectedItemCategoryFilter(val)}
+                                    options={[
+                                        { value: "ALL", label: "All Categories" },
+                                        ...availableCategoryOptions.map((c) => ({
+                                            value: c.id,
+                                            label: `${c.name} (${categoryItemCountMap[c.id] || 0})`,
+                                        })),
+                                    ]}
+                                    className="!h-9 sm:!h-10 rounded-xl text-xs sm:text-sm border-border bg-card shadow-2xs font-medium"
+                                />
+                            </div>
+                        )}
 
-                    {/* Channel Filter (for Discounts & Discounted Items) */}
-                    {(activeTab === "discounts" || activeTab === "discounted-items") && (
-                        <div className="w-40 shrink-0">
-                            <SelectField
-                                size="sm"
-                                value={selectedChannelFilter}
-                                onValueChange={(val) => setSelectedChannelFilter(val as any)}
-                                options={[
-                                    { value: "ALL", label: "All Channels" },
-                                    { value: "POS", label: "POS" },
-                                    { value: "WEB", label: "Web Storefront" },
-                                    { value: "TELEGRAM", label: "Telegram" },
-                                    { value: "MESSENGER", label: "Messenger" },
-                                ]}
-                                className="!h-10 rounded-xl text-sm border-border bg-card shadow-2xs font-medium"
-                            />
-                        </div>
-                    )}
+                        {/* Channel Filter (for Discounts & Discounted Items) */}
+                        {(activeTab === "discounts" || activeTab === "discounted-items") && (
+                            <div className="w-36 sm:w-40 shrink-0">
+                                <SelectField
+                                    size="sm"
+                                    value={selectedChannelFilter}
+                                    onValueChange={(val) => setSelectedChannelFilter(val as any)}
+                                    options={[
+                                        { value: "ALL", label: "All Channels" },
+                                        { value: "POS", label: "POS" },
+                                        { value: "WEB", label: "Web Storefront" },
+                                        { value: "TELEGRAM", label: "Telegram" },
+                                        { value: "MESSENGER", label: "Messenger" },
+                                    ]}
+                                    className="!h-9 sm:!h-10 rounded-xl text-xs sm:text-sm border-border bg-card shadow-2xs font-medium"
+                                />
+                            </div>
+                        )}
+
+                        {/* Columns Dropdown on mobile inside the horizontal filter row */}
+                        {activeTab !== "channels" && activeTab !== "discounted-items" && (
+                            <div className="sm:hidden shrink-0">
+                                <ColumnSelectDropdown
+                                    columns={activeTab === "discounts" ? discountCols : couponCols}
+                                    onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
+                                    onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Columns Dropdown next to filters / aligned right */}
+                {/* Columns Dropdown on Desktop (aligned right) */}
                 {activeTab !== "channels" && activeTab !== "discounted-items" && (
-                    <ColumnSelectDropdown
-                        columns={activeTab === "discounts" ? discountCols : couponCols}
-                        onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
-                        onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
-                    />
+                    <div className="hidden sm:block shrink-0">
+                        <ColumnSelectDropdown
+                            columns={activeTab === "discounts" ? discountCols : couponCols}
+                            onToggleColumn={activeTab === "discounts" ? toggleDiscountCol : toggleCouponCol}
+                            onResetDefaults={activeTab === "discounts" ? resetDiscountCols : resetCouponCols}
+                        />
+                    </div>
                 )}
             </div>
 
             {/* Discounts Table */}
             {activeTab === "discounts" && (
-                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
-                        <TableSkeleton rows={5} cols={6} />
+                        <div className="p-4"><TableSkeleton rows={5} cols={6} /></div>
                     ) : filteredDiscounts.length === 0 ? (
                         <div className="text-center py-16 text-muted-foreground space-y-2">
                             <Tag className="h-8 w-8 mx-auto opacity-40" />
@@ -939,142 +999,277 @@ export default function DiscountsAndCouponsPage() {
                             <p className="text-xs">Create discount rules to offer promotional pricing across POS and storefront channels.</p>
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/40">
-                                    {isDiscColVisible("name") && <TableHead>Rule Name</TableHead>}
-                                    {isDiscColVisible("typeValue") && <TableHead>Type & Value</TableHead>}
-                                    {isDiscColVisible("scope") && <TableHead>Scope</TableHead>}
-                                    {isDiscColVisible("condition") && <TableHead>Condition</TableHead>}
-                                    {isDiscColVisible("channels") && <TableHead>Channels</TableHead>}
-                                    {isDiscColVisible("status") && <TableHead>Status</TableHead>}
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredDiscounts.map((d) => (
-                                    <TableRow key={d.id} className="hover:bg-muted/30 transition-colors">
-                                        {isDiscColVisible("name") && (
-                                            <TableCell>
-                                                <div className="font-semibold text-foreground">{d.name}</div>
-                                                {d.description && (
-                                                    <div className="text-xs text-muted-foreground truncate max-w-xs">
-                                                        {d.description}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        {isDiscColVisible("typeValue") && (
-                                            <TableCell>
-                                                <div className="inline-flex items-center gap-1 font-bold text-primary">
-                                                    {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
-                                                        ? `Buy ${d.buyQuantity ?? "X"} Get ${d.getQuantity ?? "Y"}`
-                                                        : d.type === "PERCENTAGE"
-                                                        ? `${d.value}%`
-                                                        : format(d.value)}
+                        <>
+                            {/* Mobile Card List (< md) */}
+                            <div className="flex flex-col gap-3 md:hidden p-3">
+                                {filteredDiscounts.map((d) => {
+                                    const isExpanded = expandedCards.has(d.id);
+                                    return (
+                                        <div
+                                            key={d.id}
+                                            className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
+                                        >
+                                            {/* Card Top Header */}
+                                            <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
+                                                <div className="min-w-0 flex-1 pr-2">
+                                                    <h4 className="font-bold text-sm text-foreground truncate">{d.name}</h4>
+                                                    {d.description && (
+                                                        <p className="text-xs text-muted-foreground truncate">{d.description}</p>
+                                                    )}
                                                 </div>
-                                            </TableCell>
-                                        )}
-                                        {isDiscColVisible("scope") && (
-                                            <TableCell>
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                                                    {d.scope === "ALL_ITEMS" || d.scope === "ORDER"
-                                                        ? "All Items"
-                                                        : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM"
-                                                        ? "Specific Items"
-                                                        : d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY"
-                                                        ? "Specific Categories"
-                                                        : d.scope === "SPECIFIC_MEMBERSHIP"
-                                                        ? "Specific Members"
-                                                        : d.scope}
-                                                </span>
-                                            </TableCell>
-                                        )}
-                                        {isDiscColVisible("condition") && (
-                                            <TableCell>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {d.ruleType === "NO_CONDITION" && "No condition"}
-                                                    {d.ruleType === "MIN_ORDER_AMOUNT" && `Min. ${format(d.minOrderAmount ?? 0)}`}
-                                                    {d.ruleType === "MIN_QUANTITY" && `Min. qty ${d.minQuantity}`}
-                                                    {d.ruleType === "BUY_X_GET_Y" && `Buy ${d.buyQuantity} get ${d.getQuantity}`}
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => openEditDiscount(d)}
+                                                        className="h-7 w-7 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                        title="Edit Discount"
+                                                    >
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setDeletingItem({ id: d.id, type: "discount", name: d.name })}
+                                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                        title="Delete Discount"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
                                                 </div>
-                                            </TableCell>
-                                        )}
-                                        {isDiscColVisible("channels") && (
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(d.applicableChannels && d.applicableChannels.length > 0
-                                                        ? d.applicableChannels
-                                                        : ["ALL"]
-                                                    ).map((ch) => (
-                                                        <span
-                                                            key={ch}
-                                                            className="px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium bg-muted text-muted-foreground rounded"
-                                                        >
-                                                            {ch}
-                                                        </span>
-                                                    ))}
+                                            </div>
+
+                                            {/* Key-Value Rows */}
+                                            <div className="divide-y divide-border/60 text-xs">
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Type & Value</span>
+                                                    <span className="font-bold text-primary">
+                                                        {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                            ? `Buy ${d.buyQuantity ?? "X"} Get ${d.getQuantity ?? "Y"}`
+                                                            : d.type === "PERCENTAGE"
+                                                            ? `${d.value}%`
+                                                            : format(d.value)}
+                                                    </span>
                                                 </div>
-                                            </TableCell>
-                                        )}
-                                        {isDiscColVisible("status") && (
-                                            <TableCell>
-                                                {(() => {
-                                                    if (d.status === "ACTIVE") {
-                                                        return (
-                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Scope</span>
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
+                                                        {d.scope === "ALL_ITEMS" || d.scope === "ORDER"
+                                                            ? "All Items"
+                                                            : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM"
+                                                            ? "Specific Items"
+                                                            : d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY"
+                                                            ? "Specific Categories"
+                                                            : d.scope === "SPECIFIC_MEMBERSHIP"
+                                                            ? "Specific Members"
+                                                            : d.scope}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Status</span>
+                                                    <span>
+                                                        {d.status === "ACTIVE" ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
                                                                 Active
                                                             </span>
-                                                        );
-                                                    }
-                                                    const pausedBy = discounts.find(
-                                                        (other) => other.status === "ACTIVE" && other.pausedDiscountIds?.includes(d.id)
-                                                    );
-                                                    if (pausedBy) {
-                                                        return (
-                                                            <span
-                                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
-                                                                title={`Paused while storewide discount "${pausedBy.name}" is active. Will auto-resume upon deactivation.`}
-                                                            >
-                                                                <Zap className="h-3 w-3" />
-                                                                Paused by Storewide
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+                                                                Inactive
                                                             </span>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                                                            Inactive
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </TableCell>
-                                        )}
-                                        <TableCell className="text-right whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEditDiscount(d)}
-                                                    className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
-                                                    title="Edit Discount"
-                                                >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setDeletingItem({ id: d.id, type: "discount", name: d.name })}
-                                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
-                                                    title="Delete Discount"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                        )}
+                                                    </span>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <>
+                                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                            <span className="text-muted-foreground">Condition</span>
+                                                            <span className="text-foreground font-medium">
+                                                                {d.ruleType === "NO_CONDITION" && "No condition"}
+                                                                {d.ruleType === "MIN_ORDER_AMOUNT" && `Min. ${format(d.minOrderAmount ?? 0)}`}
+                                                                {d.ruleType === "MIN_QUANTITY" && `Min. qty ${d.minQuantity}`}
+                                                                {d.ruleType === "BUY_X_GET_Y" && `Buy ${d.buyQuantity} get ${d.getQuantity}`}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                            <span className="text-muted-foreground">Channels</span>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {(d.applicableChannels && d.applicableChannels.length > 0
+                                                                    ? d.applicableChannels
+                                                                    : ["ALL"]
+                                                                ).map((ch) => (
+                                                                    <span
+                                                                        key={ch}
+                                                                        className="px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium bg-muted text-muted-foreground rounded"
+                                                                    >
+                                                                        {ch}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+
+                                            {/* View More / Less Toggle */}
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleCardExpanded(d.id)}
+                                                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors border-t border-border/60"
+                                            >
+                                                <span>{isExpanded ? "View Less" : "View More"}</span>
+                                                <ChevronDown
+                                                    className={cn("h-3.5 w-3.5 transition-transform duration-200", isExpanded && "rotate-180")}
+                                                />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop Table (>= md) */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/40">
+                                            {isDiscColVisible("name") && <TableHead>Rule Name</TableHead>}
+                                            {isDiscColVisible("typeValue") && <TableHead>Type & Value</TableHead>}
+                                            {isDiscColVisible("scope") && <TableHead>Scope</TableHead>}
+                                            {isDiscColVisible("condition") && <TableHead>Condition</TableHead>}
+                                            {isDiscColVisible("channels") && <TableHead>Channels</TableHead>}
+                                            {isDiscColVisible("status") && <TableHead>Status</TableHead>}
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredDiscounts.map((d) => (
+                                            <TableRow key={d.id} className="hover:bg-muted/30 transition-colors">
+                                                {isDiscColVisible("name") && (
+                                                    <TableCell>
+                                                        <div className="font-semibold text-foreground">{d.name}</div>
+                                                        {d.description && (
+                                                            <div className="text-xs text-muted-foreground truncate max-w-xs">
+                                                                {d.description}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                                {isDiscColVisible("typeValue") && (
+                                                    <TableCell>
+                                                        <div className="inline-flex items-center gap-1 font-bold text-primary">
+                                                            {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                                ? `Buy ${d.buyQuantity ?? "X"} Get ${d.getQuantity ?? "Y"}`
+                                                                : d.type === "PERCENTAGE"
+                                                                ? `${d.value}%`
+                                                                : format(d.value)}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isDiscColVisible("scope") && (
+                                                    <TableCell>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                                            {d.scope === "ALL_ITEMS" || d.scope === "ORDER"
+                                                                ? "All Items"
+                                                                : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM"
+                                                                ? "Specific Items"
+                                                                : d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY"
+                                                                ? "Specific Categories"
+                                                                : d.scope === "SPECIFIC_MEMBERSHIP"
+                                                                ? "Specific Members"
+                                                                : d.scope}
+                                                        </span>
+                                                    </TableCell>
+                                                )}
+                                                {isDiscColVisible("condition") && (
+                                                    <TableCell>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {d.ruleType === "NO_CONDITION" && "No condition"}
+                                                            {d.ruleType === "MIN_ORDER_AMOUNT" && `Min. ${format(d.minOrderAmount ?? 0)}`}
+                                                            {d.ruleType === "MIN_QUANTITY" && `Min. qty ${d.minQuantity}`}
+                                                            {d.ruleType === "BUY_X_GET_Y" && `Buy ${d.buyQuantity} get ${d.getQuantity}`}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isDiscColVisible("channels") && (
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {(d.applicableChannels && d.applicableChannels.length > 0
+                                                                ? d.applicableChannels
+                                                                : ["ALL"]
+                                                            ).map((ch) => (
+                                                                <span
+                                                                    key={ch}
+                                                                    className="px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium bg-muted text-muted-foreground rounded"
+                                                                >
+                                                                    {ch}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isDiscColVisible("status") && (
+                                                    <TableCell>
+                                                        {(() => {
+                                                            if (d.status === "ACTIVE") {
+                                                                return (
+                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                                                        Active
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            const pausedBy = discounts.find(
+                                                                (other) => other.status === "ACTIVE" && other.pausedDiscountIds?.includes(d.id)
+                                                            );
+                                                            if (pausedBy) {
+                                                                return (
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                                                                        title={`Paused while storewide discount "${pausedBy.name}" is active. Will auto-resume upon deactivation.`}
+                                                                    >
+                                                                        <Zap className="h-3 w-3" />
+                                                                        Paused by Storewide
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                                                    Inactive
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                )}
+                                                <TableCell className="text-right whitespace-nowrap">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => openEditDiscount(d)}
+                                                            className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                            title="Edit Discount"
+                                                        >
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => setDeletingItem({ id: d.id, type: "discount", name: d.name })}
+                                                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                            title="Delete Discount"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
@@ -1083,7 +1278,7 @@ export default function DiscountsAndCouponsPage() {
             {activeTab === "coupons" && (
                 <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isCouponsLoading ? (
-                        <TableSkeleton rows={5} cols={6} />
+                        <div className="p-4"><TableSkeleton rows={5} cols={6} /></div>
                     ) : filteredCoupons.length === 0 ? (
                         <div className="text-center py-16 text-muted-foreground space-y-2">
                             <Ticket className="h-8 w-8 mx-auto opacity-40" />
@@ -1091,120 +1286,233 @@ export default function DiscountsAndCouponsPage() {
                             <p className="text-xs">Create coupon codes to share promo deals with customers.</p>
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/40">
-                                    {isCoupColVisible("code") && <TableHead>Coupon Code</TableHead>}
-                                    {isCoupColVisible("discount") && <TableHead>Linked Discount Rule</TableHead>}
-                                    {isCoupColVisible("usage") && <TableHead>Usage Limits</TableHead>}
-                                    {isCoupColVisible("minPurchase") && <TableHead>Min. Purchase</TableHead>}
-                                    {isCoupColVisible("validity") && <TableHead>Validity</TableHead>}
-                                    {isCoupColVisible("status") && <TableHead>Status</TableHead>}
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredCoupons.map((c) => (
-                                    <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
-                                        {isCoupColVisible("code") && (
-                                            <TableCell>
-                                                <div className="font-mono font-bold text-base text-primary">
-                                                    {c.code}
+                        <>
+                            {/* Mobile Card List (< md) */}
+                            <div className="flex flex-col gap-3 md:hidden p-3">
+                                {filteredCoupons.map((c) => {
+                                    const isExpanded = expandedCards.has(c.id);
+                                    return (
+                                        <div
+                                            key={c.id}
+                                            className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
+                                        >
+                                            {/* Card Top Header */}
+                                            <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
+                                                <div className="min-w-0 flex-1 pr-2">
+                                                    <span className="font-mono font-bold text-sm text-primary">{c.code}</span>
                                                 </div>
-                                            </TableCell>
-                                        )}
-                                        {isCoupColVisible("discount") && (
-                                            <TableCell>
-                                                <div className="font-medium text-foreground">
-                                                    {c.discount?.name || "Linked Discount"}
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => openEditCoupon(c)}
+                                                        className="h-7 w-7 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                        title="Edit Coupon"
+                                                    >
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setDeletingItem({ id: c.id, type: "coupon", name: c.code })}
+                                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                        title="Delete Coupon"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
                                                 </div>
-                                                {c.discount && (
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {c.discount.type === "PERCENTAGE" ? `${c.discount.value}% OFF` : `${format(c.discount.value)} OFF`}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                        )}
-                                        {isCoupColVisible("usage") && (
-                                            <TableCell>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {c.usedCount ?? 0} used / {c.usageLimit ?? "∞"} max
-                                                </div>
-                                            </TableCell>
-                                        )}
-                                        {isCoupColVisible("minPurchase") && (
-                                            <TableCell className="text-xs text-muted-foreground">
-                                                {c.minPurchaseAmount ? format(c.minPurchaseAmount) : "None"}
-                                            </TableCell>
-                                        )}
-                                        {isCoupColVisible("validity") && (
-                                            <TableCell className="text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3 opacity-60" />
-                                                    {c.startsAt ? new Date(c.startsAt).toLocaleDateString() : "—"} to{" "}
-                                                    {c.endsAt ? new Date(c.endsAt).toLocaleDateString() : "—"}
-                                                </div>
-                                            </TableCell>
-                                        )}
-                                        {isCoupColVisible("status") && (
-                                            <TableCell>
-                                                {(() => {
-                                                    if (c.status === "INACTIVE") {
-                                                        return (
-                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                                                                Inactive
-                                                            </span>
-                                                        );
-                                                    }
-                                                    const now = new Date();
-                                                    if (c.endsAt && new Date(c.endsAt) < now) {
-                                                        return (
-                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-                                                                Expired
-                                                            </span>
-                                                        );
-                                                    }
-                                                    if (c.usageLimit != null && (c.usedCount ?? 0) >= c.usageLimit) {
-                                                        return (
-                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-                                                                Used Up
-                                                            </span>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                                                            Active
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </TableCell>
-                                        )}
-                                        <TableCell className="text-right whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEditCoupon(c)}
-                                                    className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
-                                                    title="Edit Coupon"
-                                                >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setDeletingItem({ id: c.id, type: "coupon", name: c.code })}
-                                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
-                                                    title="Delete Coupon"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+
+                                            {/* Key-Value Rows */}
+                                            <div className="divide-y divide-border/60 text-xs">
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Linked Discount</span>
+                                                    <span className="font-medium text-foreground text-right truncate max-w-[180px]">
+                                                        {c.discount?.name || "Linked Discount"}
+                                                        {c.discount && (
+                                                            <span className="text-primary font-bold ml-1">
+                                                                ({c.discount.type === "PERCENTAGE" ? `${c.discount.value}% OFF` : `${format(c.discount.value)} OFF`})
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Usage</span>
+                                                    <span className="font-medium text-foreground">
+                                                        {c.usedCount ?? 0} / {c.usageLimit ?? "∞"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Status</span>
+                                                    <span>
+                                                        {c.status === "INACTIVE" ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">Inactive</span>
+                                                        ) : c.endsAt && new Date(c.endsAt) < new Date() ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">Expired</span>
+                                                        ) : c.usageLimit != null && (c.usedCount ?? 0) >= c.usageLimit ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">Used Up</span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">Active</span>
+                                                        )}
+                                                    </span>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <>
+                                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                            <span className="text-muted-foreground">Min. Purchase</span>
+                                                            <span className="font-medium text-foreground">
+                                                                {c.minPurchaseAmount ? format(c.minPurchaseAmount) : "None"}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                            <span className="text-muted-foreground">Validity</span>
+                                                            <span className="text-muted-foreground text-right">
+                                                                {c.startsAt ? new Date(c.startsAt).toLocaleDateString() : "—"} to{" "}
+                                                                {c.endsAt ? new Date(c.endsAt).toLocaleDateString() : "—"}
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {/* View More / Less Toggle */}
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleCardExpanded(c.id)}
+                                                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors border-t border-border/60"
+                                            >
+                                                <span>{isExpanded ? "View Less" : "View More"}</span>
+                                                <ChevronDown
+                                                    className={cn("h-3.5 w-3.5 transition-transform duration-200", isExpanded && "rotate-180")}
+                                                />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop Table (>= md) */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/40">
+                                            {isCoupColVisible("code") && <TableHead>Coupon Code</TableHead>}
+                                            {isCoupColVisible("discount") && <TableHead>Linked Discount Rule</TableHead>}
+                                            {isCoupColVisible("usage") && <TableHead>Usage Limits</TableHead>}
+                                            {isCoupColVisible("minPurchase") && <TableHead>Min. Purchase</TableHead>}
+                                            {isCoupColVisible("validity") && <TableHead>Validity</TableHead>}
+                                            {isCoupColVisible("status") && <TableHead>Status</TableHead>}
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredCoupons.map((c) => (
+                                            <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
+                                                {isCoupColVisible("code") && (
+                                                    <TableCell>
+                                                        <div className="font-mono font-bold text-base text-primary">
+                                                            {c.code}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isCoupColVisible("discount") && (
+                                                    <TableCell>
+                                                        <div className="font-medium text-foreground">
+                                                            {c.discount?.name || "Linked Discount"}
+                                                        </div>
+                                                        {c.discount && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {c.discount.type === "PERCENTAGE" ? `${c.discount.value}% OFF` : `${format(c.discount.value)} OFF`}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                                {isCoupColVisible("usage") && (
+                                                    <TableCell>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {c.usedCount ?? 0} used / {c.usageLimit ?? "∞"} max
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isCoupColVisible("minPurchase") && (
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        {c.minPurchaseAmount ? format(c.minPurchaseAmount) : "None"}
+                                                    </TableCell>
+                                                )}
+                                                {isCoupColVisible("validity") && (
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3 opacity-60" />
+                                                            {c.startsAt ? new Date(c.startsAt).toLocaleDateString() : "—"} to{" "}
+                                                            {c.endsAt ? new Date(c.endsAt).toLocaleDateString() : "—"}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                                {isCoupColVisible("status") && (
+                                                    <TableCell>
+                                                        {(() => {
+                                                            if (c.status === "INACTIVE") {
+                                                                return (
+                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                                                        Inactive
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            const now = new Date();
+                                                            if (c.endsAt && new Date(c.endsAt) < now) {
+                                                                return (
+                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                                                        Expired
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            if (c.usageLimit != null && (c.usedCount ?? 0) >= c.usageLimit) {
+                                                                return (
+                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                                                        Used Up
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                                                    Active
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                )}
+                                                <TableCell className="text-right whitespace-nowrap">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => openEditCoupon(c)}
+                                                            className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg"
+                                                            title="Edit Coupon"
+                                                        >
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => setDeletingItem({ id: c.id, type: "coupon", name: c.code })}
+                                                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                            title="Delete Coupon"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
@@ -1213,17 +1521,11 @@ export default function DiscountsAndCouponsPage() {
             {activeTab === "channels" && (
                 <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
-                        <TableSkeleton rows={4} cols={3} />
+                        <div className="p-4"><TableSkeleton rows={4} cols={3} /></div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/40">
-                                    <TableHead className="w-1/3">Sales Channel</TableHead>
-                                    <TableHead className="w-1/2">Active Applied Promotions</TableHead>
-                                    <TableHead className="text-right">Channel Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        <>
+                            {/* Mobile Card List (< md) */}
+                            <div className="flex flex-col gap-3 md:hidden p-3">
                                 {[
                                     { channel: "WEB" as OrderChannel, title: "Web Storefront", subtitle: "Online customer storefront checkout", icon: Globe, color: "text-blue-500 bg-blue-500/10" },
                                     { channel: "TELEGRAM" as OrderChannel, title: "Telegram Bot", subtitle: "Social messaging catalog & checkout", icon: Send, color: "text-sky-500 bg-sky-500/10" },
@@ -1233,43 +1535,47 @@ export default function DiscountsAndCouponsPage() {
                                     const channelDiscounts = discounts.filter(
                                         (d) =>
                                             d.status === "ACTIVE" &&
-                                            !d.requiresCoupon &&
+                                             !d.requiresCoupon &&
                                             (!d.applicableChannels || d.applicableChannels.length === 0 || d.applicableChannels.includes(channel))
                                     );
-
                                     return (
-                                        <TableRow key={channel} className="hover:bg-muted/30 transition-colors">
-                                            <TableCell className="align-top py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-2.5 rounded-xl shrink-0 ${color}`}>
-                                                        <Icon className="h-5 w-5" />
+                                        <div
+                                            key={channel}
+                                            className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
+                                        >
+                                            <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className={`p-2 rounded-xl shrink-0 ${color}`}>
+                                                        <Icon className="h-4 w-4" />
                                                     </div>
                                                     <div>
-                                                        <div className="font-semibold text-foreground text-sm">{title}</div>
-                                                        <div className="text-xs text-muted-foreground">{subtitle}</div>
+                                                        <div className="font-bold text-sm text-foreground">{title}</div>
+                                                        <div className="text-[11px] text-muted-foreground">{subtitle}</div>
                                                     </div>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell className="align-top py-4">
+                                                {channelDiscounts.length > 0 ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                        <CheckCircle2 className="h-3 w-3" />
+                                                        {channelDiscounts.length} Active
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+                                                        Standard
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="p-3">
                                                 {channelDiscounts.length === 0 ? (
-                                                    <p className="text-xs text-muted-foreground italic py-1">
-                                                        No active promotions assigned to this channel.
-                                                    </p>
+                                                    <p className="text-xs text-muted-foreground italic">No active promotions assigned to this channel.</p>
                                                 ) : (
                                                     <div className="space-y-2">
                                                         {channelDiscounts.map((d) => (
                                                             <div
                                                                 key={d.id}
-                                                                className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20 text-xs"
+                                                                className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border bg-muted/20 text-xs"
                                                             >
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    <span className="font-semibold text-foreground truncate">
-                                                                        {d.name}
-                                                                    </span>
-                                                                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20 shrink-0">
-                                                                        {d.scope === "ALL_ITEMS" || d.scope === "ORDER" ? "Storewide" : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM" ? "Specific Items" : d.scope}
-                                                                    </span>
-                                                                </div>
+                                                                <span className="font-semibold text-foreground truncate">{d.name}</span>
                                                                 <span className="font-bold text-primary shrink-0">
                                                                     {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
                                                                         ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
@@ -1281,24 +1587,100 @@ export default function DiscountsAndCouponsPage() {
                                                         ))}
                                                     </div>
                                                 )}
-                                            </TableCell>
-                                            <TableCell className="text-right align-top py-4 whitespace-nowrap">
-                                                {channelDiscounts.length > 0 ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                                        <CheckCircle2 className="h-3.5 w-3.5" />
-                                                        {channelDiscounts.length} {channelDiscounts.length === 1 ? "Promotion Active" : "Promotions Active"}
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-                                                        Standard Price (No discounts)
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
+                                            </div>
+                                        </div>
                                     );
                                 })}
-                            </TableBody>
-                        </Table>
+                            </div>
+
+                            {/* Desktop Table (>= md) */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/40">
+                                            <TableHead className="w-1/3">Sales Channel</TableHead>
+                                            <TableHead className="w-1/2">Active Applied Promotions</TableHead>
+                                            <TableHead className="text-right">Channel Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {[
+                                            { channel: "WEB" as OrderChannel, title: "Web Storefront", subtitle: "Online customer storefront checkout", icon: Globe, color: "text-blue-500 bg-blue-500/10" },
+                                            { channel: "TELEGRAM" as OrderChannel, title: "Telegram Bot", subtitle: "Social messaging catalog & checkout", icon: Send, color: "text-sky-500 bg-sky-500/10" },
+                                            { channel: "MESSENGER" as OrderChannel, title: "Messenger Bot", subtitle: "Facebook Messenger checkout", icon: MessageSquare, color: "text-purple-500 bg-purple-500/10" },
+                                            { channel: "POS" as OrderChannel, title: "POS Terminal", subtitle: "In-store cashier checkout", icon: Monitor, color: "text-amber-500 bg-amber-500/10" },
+                                        ].map(({ channel, title, subtitle, icon: Icon, color }) => {
+                                            const channelDiscounts = discounts.filter(
+                                                (d) =>
+                                                    d.status === "ACTIVE" &&
+                                                     !d.requiresCoupon &&
+                                                    (!d.applicableChannels || d.applicableChannels.length === 0 || d.applicableChannels.includes(channel))
+                                            );
+
+                                            return (
+                                                <TableRow key={channel} className="hover:bg-muted/30 transition-colors">
+                                                    <TableCell className="align-top py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`p-2.5 rounded-xl shrink-0 ${color}`}>
+                                                                <Icon className="h-5 w-5" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-semibold text-foreground text-sm">{title}</div>
+                                                                <div className="text-xs text-muted-foreground">{subtitle}</div>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="align-top py-4">
+                                                        {channelDiscounts.length === 0 ? (
+                                                            <p className="text-xs text-muted-foreground italic py-1">
+                                                                No active promotions assigned to this channel.
+                                                            </p>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                {channelDiscounts.map((d) => (
+                                                                    <div
+                                                                        key={d.id}
+                                                                        className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20 text-xs"
+                                                                    >
+                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                            <span className="font-semibold text-foreground truncate">
+                                                                                {d.name}
+                                                                            </span>
+                                                                            <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20 shrink-0">
+                                                                                {d.scope === "ALL_ITEMS" || d.scope === "ORDER" ? "Storewide" : d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM" ? "Specific Items" : d.scope}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="font-bold text-primary shrink-0">
+                                                                            {d.ruleType === "BUY_X_GET_Y" || String(d.type) === "BUY_X_GET_Y"
+                                                                                ? `Buy ${d.buyQuantity} Get ${d.getQuantity}`
+                                                                                : d.type === "PERCENTAGE"
+                                                                                ? `${d.value}% OFF`
+                                                                                : format(d.value)}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right align-top py-4 whitespace-nowrap">
+                                                        {channelDiscounts.length > 0 ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                                                {channelDiscounts.length} {channelDiscounts.length === 1 ? "Promotion Active" : "Promotions Active"}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                                                Standard Price (No discounts)
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
@@ -1307,7 +1689,7 @@ export default function DiscountsAndCouponsPage() {
             {activeTab === "discounted-items" && (
                 <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
-                        <TableSkeleton rows={5} cols={7} />
+                        <div className="p-4"><TableSkeleton rows={5} cols={7} /></div>
                     ) : filteredDiscountedItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
                             <Package className="h-10 w-10 text-muted-foreground/50 mb-3" />
@@ -1317,86 +1699,207 @@ export default function DiscountsAndCouponsPage() {
                             </p>
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/40">
-                                    <TableHead className="w-[30%]">Product</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Original Price</TableHead>
-                                    <TableHead>Active Promotion</TableHead>
-                                    <TableHead>Discount Rate</TableHead>
-                                    <TableHead>Discounted Price</TableHead>
-                                    <TableHead>Channels</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredDiscountedItems.map(({ item, discount, originalPrice, discountedPrice, discountRateLabel }) => (
-                                    <TableRow key={`${item.id}-${discount.id}`} className="hover:bg-muted/30 transition-colors">
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <div className="size-10 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
-                                                    {itemThumbnail(item) ? (
-                                                        <img
-                                                            src={itemThumbnail(item)!}
-                                                            alt={item.name || "Product"}
-                                                            className="size-full object-cover"
-                                                            onError={(e) => {
-                                                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <Package className="h-5 w-5 text-muted-foreground/60" />
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="font-semibold text-foreground text-sm truncate">{item.name || "Unnamed"}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {item.barcode ? `Barcode: ${item.barcode}` : item.sku ? `SKU: ${item.sku}` : `ID: ${item.id.slice(0, 8)}`}
+                        <>
+                            {/* Mobile Card List (< md) */}
+                            <div className="flex flex-col gap-3 md:hidden p-3">
+                                {filteredDiscountedItems.map(({ item, discount, lowestPrice, highestPrice, discountedLowest, discountedHighest, isPriced, discountRateLabel }) => {
+                                    const cardKey = `${item.id}-${discount.id}`;
+                                    const isExpanded = expandedCards.has(cardKey);
+                                    return (
+                                        <div
+                                            key={cardKey}
+                                            className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
+                                        >
+                                            {/* Card Top Header */}
+                                            <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
+                                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                    <div className="size-9 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
+                                                        {itemThumbnail(item) ? (
+                                                            <img
+                                                                src={itemThumbnail(item)!}
+                                                                alt={item.name || "Product"}
+                                                                className="size-full object-cover"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <Package className="h-4 w-4 text-muted-foreground/60" />
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="font-bold text-sm text-foreground truncate">{item.name || "Unnamed"}</h4>
+                                                        <p className="text-[11px] text-muted-foreground truncate">{item.itemGroup?.name || "Uncategorized"}</p>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="text-xs text-muted-foreground">
-                                                {item.itemGroup?.name || "Uncategorized"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="font-mono text-xs text-muted-foreground line-through">
-                                                {format(originalPrice)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="space-y-0.5">
-                                                <div className="font-semibold text-xs text-foreground truncate max-w-[180px]">{discount.name}</div>
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
-                                                    {discount.scope === "ALL_ITEMS" || discount.scope === "ORDER" ? "Storewide" : discount.scope === "SPECIFIC_ITEMS" || discount.scope === "ITEM" ? "Specific Items" : "Category"}
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                                    {discountRateLabel}
                                                 </span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="inline-flex items-center font-bold text-xs text-[#d14341]">
-                                                {discountRateLabel}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="font-mono font-bold text-sm text-[#006b26]">
-                                                {format(discountedPrice)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {(discount.applicableChannels && discount.applicableChannels.length > 0 ? discount.applicableChannels : ["POS", "WEB"]).map((ch) => (
-                                                    <span key={ch} className="px-1.5 py-0.5 text-[10px] font-semibold bg-muted border border-border rounded text-muted-foreground">
-                                                        {ch}
+
+                                            {/* Key-Value Rows */}
+                                            <div className="divide-y divide-border/60 text-xs">
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Discounted Price</span>
+                                                    <span className="font-bold text-sm text-primary">
+                                                        {isPriced ? (
+                                                            discountedLowest === discountedHighest
+                                                                ? format(discountedLowest)
+                                                                : `${format(discountedLowest)} – ${format(discountedHighest)}`
+                                                        ) : "Not priced"}
                                                     </span>
-                                                ))}
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Original Price</span>
+                                                    <span className="font-mono text-muted-foreground line-through">
+                                                        {isPriced ? (
+                                                            lowestPrice === highestPrice
+                                                                ? format(lowestPrice)
+                                                                : `${format(lowestPrice)} – ${format(highestPrice)}`
+                                                        ) : "—"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground">Promotion</span>
+                                                    <span className="font-medium text-foreground truncate max-w-[180px]">{discount.name}</span>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <>
+                                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                            <span className="text-muted-foreground">SKU / Barcode</span>
+                                                            <span className="font-mono text-muted-foreground">
+                                                                {item.barcode || item.sku || item.id.slice(0, 8)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15">
+                                                            <span className="text-muted-foreground">Channels</span>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {(discount.applicableChannels && discount.applicableChannels.length > 0 ? discount.applicableChannels : ["ALL"]).map((ch) => (
+                                                                    <span key={ch} className="px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium bg-muted text-muted-foreground rounded">{ch}</span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+
+                                            {/* View More / Less Toggle */}
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleCardExpanded(cardKey)}
+                                                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors border-t border-border/60"
+                                            >
+                                                <span>{isExpanded ? "View Less" : "View More"}</span>
+                                                <ChevronDown
+                                                    className={cn("h-3.5 w-3.5 transition-transform duration-200", isExpanded && "rotate-180")}
+                                                />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop Table (>= md) */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/40">
+                                            <TableHead className="w-[30%]">Product</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead>Original Price</TableHead>
+                                            <TableHead>Active Promotion</TableHead>
+                                            <TableHead>Discount Rate</TableHead>
+                                            <TableHead>Discounted Price</TableHead>
+                                            <TableHead>Channels</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredDiscountedItems.map(({ item, discount, lowestPrice, highestPrice, discountedLowest, discountedHighest, isPriced, discountRateLabel }) => (
+                                            <TableRow key={`${item.id}-${discount.id}`} className="hover:bg-muted/30 transition-colors">
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="size-10 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
+                                                            {itemThumbnail(item) ? (
+                                                                <img
+                                                                    src={itemThumbnail(item)!}
+                                                                    alt={item.name || "Product"}
+                                                                    className="size-full object-cover"
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <Package className="h-5 w-5 text-muted-foreground/60" />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-semibold text-foreground text-sm truncate">{item.name || "Unnamed"}</div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {item.barcode ? `Barcode: ${item.barcode}` : item.sku ? `SKU: ${item.sku}` : `ID: ${item.id.slice(0, 8)}`}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {item.itemGroup?.name || "Uncategorized"}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isPriced ? (
+                                                        <span className="font-mono text-xs text-muted-foreground line-through">
+                                                            {lowestPrice === highestPrice
+                                                                ? format(lowestPrice)
+                                                                : `${format(lowestPrice)} – ${format(highestPrice)}`}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">
+                                                            Not priced yet
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-0.5">
+                                                        <div className="font-semibold text-xs text-foreground truncate max-w-[180px]">{discount.name}</div>
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                                                            {discount.scope === "ALL_ITEMS" || discount.scope === "ORDER" ? "Storewide" : discount.scope === "SPECIFIC_ITEMS" || discount.scope === "ITEM" ? "Specific Items" : "Category"}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="inline-flex items-center font-bold text-xs text-[#d14341]">
+                                                        {discountRateLabel}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isPriced ? (
+                                                        <span className="font-mono font-bold text-sm text-[#006b26]">
+                                                            {discountedLowest === discountedHighest
+                                                                ? format(discountedLowest)
+                                                                : `${format(discountedLowest)} – ${format(discountedHighest)}`}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(discount.applicableChannels && discount.applicableChannels.length > 0 ? discount.applicableChannels : ["POS", "WEB"]).map((ch) => (
+                                                            <span key={ch} className="px-1.5 py-0.5 text-[10px] font-semibold bg-muted border border-border rounded text-muted-foreground">
+                                                                {ch}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
