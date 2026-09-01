@@ -44,6 +44,11 @@ export type ChannelPriceLine = z.infer<typeof channelPriceLineSchema>;
 export type ChannelOverrideInput = z.infer<typeof channelOverrideSchema>;
 export type SaveChannelListingInput = z.infer<typeof saveChannelListingSchema>;
 
+/** Where a channel's listing lives on the backend. */
+export function channelListingPath(businessId: string, channelId: string) {
+    return `/api/v1/businesses/${businessId}/sales-channels/${encodeURIComponent(channelId)}/listing`;
+}
+
 export type ChannelListing = {
     channelId: string;
     name?: string;

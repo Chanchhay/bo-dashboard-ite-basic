@@ -19,6 +19,16 @@ export type Item = {
    * cashier who only sees a dimmed card has to go and find out which.
    */
   unavailableReason?: string;
+  /**
+   * How many are left to sell, set only once that number is low enough to
+   * change what the cashier does.
+   *
+   * A card reading "127 left" is noise on every tap of the day; one reading
+   * "2 left" is the difference between promising a customer an item and
+   * having to take it back. Absent on anything nobody counts — a haircut has
+   * no shelf behind it.
+   */
+  lowStockLeft?: number;
   discountBadge?: string;
   discountedPrice?: string;
 };
