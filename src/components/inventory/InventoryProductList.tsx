@@ -765,6 +765,7 @@ export function InventoryProductList() {
                 <InventoryPageHeader
                     title="Master Items"
                     description="Manage the items and services available to your business."
+                    className="flex-col sm:flex-row sm:items-start"
                     action={
                         <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:items-center sm:w-auto">
                             <div data-tour="export-header-excel" className="w-full sm:w-auto">

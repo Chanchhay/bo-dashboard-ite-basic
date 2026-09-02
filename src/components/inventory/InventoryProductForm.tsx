@@ -1930,6 +1930,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 <InventoryPageHeader
                     title={isEditing ? "Edit Master Item" : "Create Master Item"}
                     description="Define the item before it can be sold or tracked."
+                    className="flex-col sm:flex-row sm:items-start"
                     action={
                         <div className="flex gap-2">
                             <Button

@@ -415,7 +415,7 @@ export function RegisterSessionsHistory() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none">
+        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
           {/* Status Tabs */}
           <div className="inline-flex h-9 sm:h-10 shrink-0 items-center rounded-xl bg-muted dark:bg-[#0d121c] p-1 border border-border/60 dark:border-slate-800/60">
             {STATUS_OPTIONS.map((st) => (
@@ -444,8 +444,9 @@ export function RegisterSessionsHistory() {
               <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground dark:text-slate-400" />
               <span>{dateRange}</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 text-muted-foreground dark:text-slate-400 transition-transform ${dateDropdownOpen ? "rotate-180" : ""
-                  }`}
+                className={`h-3.5 w-3.5 text-muted-foreground dark:text-slate-400 transition-transform ${
+                  dateDropdownOpen ? "rotate-180" : ""
+                }`}
               />
             </button>
 
@@ -455,7 +456,7 @@ export function RegisterSessionsHistory() {
                   className="fixed inset-0 z-20"
                   onClick={() => setDateDropdownOpen(false)}
                 />
-                <div className="absolute left-0 mt-2 z-30 w-40 rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 p-1.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-foreground dark:text-slate-100">
+                <div className="absolute right-0 sm:left-0 mt-2 z-30 w-40 rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 p-1.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-foreground dark:text-slate-100">
                   {DATE_RANGES.map((d) => {
                     const isActive = dateRange === d;
                     return (
