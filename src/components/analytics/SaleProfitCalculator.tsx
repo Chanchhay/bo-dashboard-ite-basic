@@ -292,8 +292,10 @@ export function SaleProfitCalculator() {
                                             max={95}
                                             step="1"
                                             value={targetMarginPercent}
+                                            onFocus={(e) => e.target.select()}
                                             onChange={(e) => {
-                                                const next = Number(e.target.value);
+                                                const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                                                const next = Number(cleaned);
                                                 setTargetMarginPercent(
                                                     Number.isFinite(next)
                                                         ? Math.min(
@@ -435,9 +437,11 @@ export function SaleProfitCalculator() {
                                         min={0}
                                         step="0.01"
                                         value={operatingExpense}
-                                        onChange={(e) =>
-                                            setOperatingExpense(Number(e.target.value) || 0)
-                                        }
+                                        onFocus={(e) => e.target.select()}
+                                        onChange={(e) => {
+                                            const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                                            setOperatingExpense(Number(cleaned) || 0);
+                                        }}
                                         aria-label="Operating expenses"
                                         className="h-9 w-36 rounded-xl pr-3 text-right font-bold tabular-nums"
                                     />
@@ -547,11 +551,14 @@ function PerItemTable({
                                     max={99.9}
                                     step="1"
                                     value={bulkMarginPercent}
-                                    onChange={(e) =>
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => {
+                                        const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                                        const num = Number(cleaned);
                                         onBulkMarginChange(
-                                            Number(e.target.value) || 0,
-                                        )
-                                    }
+                                            Number.isFinite(num) ? Math.min(99.9, Math.max(0, num)) : 0,
+                                        );
+                                    }}
                                     aria-label="Margin to apply to every item"
                                     className="h-8 w-20 rounded-lg pr-5 text-right text-xs font-bold tabular-nums"
                                 />
@@ -641,14 +648,15 @@ function PerItemTable({
                                                     max={99.9}
                                                     step="1"
                                                     value={row.marginPercent}
-                                                    onChange={(e) =>
+                                                    onFocus={(e) => e.target.select()}
+                                                    onChange={(e) => {
+                                                        const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                                                        const num = Number(cleaned);
                                                         onUpdateMargin(
                                                             row.id,
-                                                            Number(
-                                                                e.target.value,
-                                                            ) || 0,
-                                                        )
-                                                    }
+                                                            Number.isFinite(num) ? Math.min(99.9, Math.max(0, num)) : 0,
+                                                        );
+                                                    }}
                                                     className="h-8 w-20 rounded-lg pr-5 text-right text-xs font-bold tabular-nums"
                                                 />
                                                 <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-muted-foreground">
