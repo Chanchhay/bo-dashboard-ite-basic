@@ -675,57 +675,57 @@ function OrderCard({
     return (
         <div
             onClick={onClick}
-            className={`flex cursor-pointer flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 ${isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
+            className={`flex cursor-pointer flex-col gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-3 sm:p-4 transition-colors hover:border-primary/40 ${isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
                 }`}
         >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-bold text-primary">
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <p className="font-bold text-xs sm:text-sm text-primary">
                             {order.invoiceNumber ?? "—"}
                         </p>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[11px] sm:text-xs text-muted-foreground">
                             {formatOrderDate(order.createdDate)} · {CHANNEL_LABELS[order.channel]}
                         </span>
                     </div>
                     {displayName && (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-sm font-medium text-foreground">
-                            <User className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs sm:text-sm font-medium text-foreground">
+                            <User className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                             <span>{displayName}</span>
                             {customerName && noteName && customerName !== noteName && (
-                                <span className="text-xs text-muted-foreground font-normal">
+                                <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
                                     ({noteName})
                                 </span>
                             )}
                         </p>
                     )}
                     {phone && (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] sm:text-xs text-muted-foreground">
                             <Phone className="size-3 shrink-0" aria-hidden="true" />
                             <span>{phone}</span>
                         </p>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 shrink-0">
                     {order.status === "CONFIRMED" ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] sm:text-xs font-semibold text-primary">
                             <PackageCheck className="size-3" aria-hidden="true" />
                             Confirmed
                         </span>
                     ) : isAwaitingPayment ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-semibold text-warning">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] sm:text-xs font-semibold text-warning">
                             <Clock className="size-3" aria-hidden="true" />
                             Pending
                         </span>
                     ) : (
                         <span
-                            className={`inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium ${STATUS_STYLES[order.status]}`}
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[11px] sm:text-xs font-medium ${STATUS_STYLES[order.status]}`}
                         >
                             {order.status}
                         </span>
                     )}
-                    <span className="text-lg font-bold tabular-nums text-foreground">
+                    <span className="text-sm sm:text-lg font-bold tabular-nums text-foreground">
                         {format(displayTotal, order.currency)}
                     </span>
                 </div>
@@ -734,8 +734,8 @@ function OrderCard({
             <LineItemListPanel order={order} itemThumbnailById={itemThumbnailById} />
 
             {order.status === "PENDING" && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 rounded-xl border border-warning/30 bg-warning/5 p-2.5 sm:px-3 sm:py-2">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground">
                         {order.awaitingPayLaterApproval
                             ? "Customer chose to pay later — approving takes stock off the shelf now."
                             : "Order is awaiting payment or processing."}
@@ -748,7 +748,7 @@ function OrderCard({
                                 onCancelOrder();
                             }}
                             disabled={isConfirming || isCancelling}
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 transition-colors hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold text-red-600 dark:text-red-400 transition-colors hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
                         >
                             <X className="size-3.5" aria-hidden="true" />
                             {isCancelling ? "Cancelling…" : "Cancel order"}
@@ -763,7 +763,7 @@ function OrderCard({
                                     onApprovePayLater();
                                 }}
                                 disabled={isConfirming || isCancelling}
-                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
                             >
                                 <PackageCheck className="size-3.5" aria-hidden="true" />
                                 {isConfirming ? "Approving…" : "Approve order"}
@@ -787,8 +787,8 @@ function LineItemListPanel({
     const { format } = useMoney();
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-3.5 sm:px-4 py-2.5 sm:py-3 gap-2">
+        <div className="overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-3 sm:px-4 py-2 sm:py-2.5 gap-2">
                 <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-foreground">
                         Line Item List
@@ -797,7 +797,7 @@ function LineItemListPanel({
                         Review products, quantity, and personalization details.
                     </p>
                 </div>
-                <span className="shrink-0 whitespace-nowrap inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-foreground">
+                <span className="shrink-0 whitespace-nowrap inline-flex items-center rounded-full bg-muted px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-bold text-foreground">
                     {order.items.length} item{order.items.length === 1 ? "" : "s"}
                 </span>
             </div>
@@ -808,32 +808,43 @@ function LineItemListPanel({
                     return (
                         <div
                             key={item.id}
-                            className="flex items-center gap-3 px-4 py-3"
+                            className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3"
                         >
                             <ItemThumbnail
                                 url={itemThumbnailById.get(item.itemId)}
-                                size="size-10"
+                                size="size-9 sm:size-10"
                             />
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-foreground">
+                                <p className="truncate text-xs sm:text-sm font-semibold text-foreground">
                                     {item.itemName}
                                 </p>
-                                <p className="truncate text-xs text-muted-foreground">
-                                    {subtitle || "—"}
-                                </p>
+                                <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                                    <span className="inline-flex sm:hidden font-semibold text-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">
+                                        x{item.quantity}
+                                    </span>
+                                    <span className="inline-flex sm:hidden tabular-nums">
+                                        {format(item.unitPrice, order.currency)}
+                                    </span>
+                                    {subtitle && (
+                                        <p className="truncate text-muted-foreground">
+                                            <span className="inline-flex sm:hidden text-muted-foreground/40 mr-1">·</span>
+                                            {subtitle}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                            <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
+                            <span className="hidden sm:inline-flex shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
                                 x{item.quantity}
                             </span>
-                            <span className="w-16 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                            <span className="hidden sm:inline-block w-16 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
                                 {format(item.unitPrice, order.currency)}
                             </span>
-                            <div className="w-20 shrink-0 text-right">
-                                <p className="text-sm font-bold tabular-nums text-foreground">
+                            <div className="shrink-0 text-right">
+                                <p className="text-xs sm:text-sm font-bold tabular-nums text-foreground">
                                     {format(item.lineTotal, order.currency)}
                                 </p>
                                 {item.discountAmount > 0 && (
-                                    <p className="text-xs tabular-nums text-red-500">
+                                    <p className="text-[10px] sm:text-xs tabular-nums text-red-500">
                                         -{format(item.discountAmount, order.currency)}
                                     </p>
                                 )}
