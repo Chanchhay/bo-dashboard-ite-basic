@@ -230,12 +230,46 @@ export default function SalesOrdersPage() {
     // Cached on the filters alone, so turning a page never recounts the range.
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
+    /*
+     * Sales still waiting to reach the server.
+     *
+     * They live on this device, so the filters the server applied to its page
+     * have to be applied to them here — otherwise a Paid-only or Web-only view
+     * still lists them, and a date range excludes everything except them.
+     */
+    const offlineOrders = useMemo(
+        () =>
+            pendingOfflineOrders.filter((order: PosOrder) => {
+                if (status !== "ALL" && order.status !== status) return false;
+                if (channel !== "ALL" && order.channel !== channel) return false;
+
+                if (from && order.createdDate) {
+                    if (new Date(order.createdDate) < new Date(from)) return false;
+                }
+
+                return true;
+            }),
+        [pendingOfflineOrders, status, channel, from],
+    );
+
+    /*
+     * Pinned to the first page, not repeated on every one.
+     *
+     * They are not part of the server's paging, so prepending them to each
+     * page it returned put the same unsynced sale on page one, page two and
+     * page nine — and made every page one row too long.
+     */
     const orders = useMemo(() => {
         const serverOrders = data?.content ?? [];
-        const pendingIds = new Set(pendingOfflineOrders.map((o: PosOrder) => o.id));
-        const filteredServer = serverOrders.filter((o: PosOrder) => !pendingIds.has(o.id));
-        return [...pendingOfflineOrders, ...filteredServer];
-    }, [data, pendingOfflineOrders]);
+        const offlineIds = new Set(offlineOrders.map((o: PosOrder) => o.id));
+        const filteredServer = serverOrders.filter(
+            (o: PosOrder) => !offlineIds.has(o.id),
+        );
+
+        return page === 0
+            ? [...offlineOrders, ...filteredServer]
+            : filteredServer;
+    }, [data, offlineOrders, page]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
@@ -286,9 +320,12 @@ export default function SalesOrdersPage() {
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
-    const totalElements = metadata?.totalElements ?? rows.length;
-    const firstRow = totalElements === 0 ? 0 : page * pageSize + 1;
-    const lastRow = Math.min(page * pageSize + orders.length, totalElements);
+    // The unsynced ones are real sales, so they are counted. They ride on the
+    // first page, which is why the running span is handed to the bar rather
+    // than left to page × size.
+    const totalElements =
+        (metadata?.totalElements ?? rows.length) + offlineOrders.length;
+    const rowsBefore = page === 0 ? 0 : offlineOrders.length + page * pageSize;
 
     /** Any filter change starts the list from the first page again. */
     function applyFilter<T>(set: (next: T) => void) {
@@ -378,6 +415,29 @@ export default function SalesOrdersPage() {
                     />
                 </section>
 
+                {/*
+                  * A dash on every card is honest but silent — it reads the
+                  * same whether the totals are still coming or never will.
+                  * The table below says when it could not load; these say so
+                  * too, rather than leaving the reader to guess which.
+                  */}
+                {summaryQuery.error ? (
+                    <p role="alert" className="-mt-2 text-[13px] text-danger">
+                        Totals could not be loaded.{" "}
+                        {getApiErrorMessage(
+                            summaryQuery.error,
+                            "Check the connection and try again.",
+                        )}{" "}
+                        <button
+                            type="button"
+                            onClick={() => void summaryQuery.refetch()}
+                            className="font-medium underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                            Try again
+                        </button>
+                    </p>
+                ) : null}
+
                 {summaryQuery.data?.truncated && (
                     <p className="-mt-2 text-[13px] text-muted-foreground">
                         Totals cover the most recent orders in this range only.
@@ -466,12 +526,31 @@ export default function SalesOrdersPage() {
                             </div>
                         )}
 
+                        {/*
+                          * Said plainly, because the count below cannot say it.
+                          *
+                          * The search runs over the orders already loaded, so
+                          * the total beside it is the range's total and not the
+                          * number of matches — a reader comparing "3" against
+                          * "of 252" would otherwise conclude the other 249 did
+                          * not match, rather than that they were never looked at.
+                          */}
+                        {search && (
+                            <p className="border-t border-border bg-card px-4 py-2 text-[13px] text-muted-foreground">
+                                Showing matches from this page only. Turn the
+                                page, or narrow the filters above, to search the
+                                rest.
+                            </p>
+                        )}
+
                         <div className="border-t border-border bg-card rounded-b-2xl">
                             <PaginationBar
                                 page={page}
                                 size={pageSize}
                                 totalElements={totalElements}
                                 totalPages={pageCount}
+                                rowsBefore={rowsBefore}
+                                rowsOnPage={rows.length}
                                 onPageChange={setPage}
                                 onSizeChange={(next) => {
                                     setPageSize(next);

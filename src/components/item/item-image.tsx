@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useOfflineImage } from "@/lib/offline/image-cache";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,6 +49,12 @@ export function ItemImage({
      * and comparing the URL does that without an effect to reset it.
      */
     const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    /*
+     * The kept copy where the device has one. Fitted here rather than at each
+     * of the twenty callers: an item's picture is an item's picture, and the
+     * till, the grid and the receipt all want the one that works offline.
+     */
+    const resolvedSrc = useOfflineImage(src);
     const showFallback = !src || failedSrc === src;
 
     if (showFallback) {
@@ -73,9 +80,11 @@ export function ItemImage({
         <span className={cn("overflow-hidden", className)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-                src={src}
+                src={resolvedSrc ?? src}
                 alt={alt}
                 aria-hidden="true"
+                // Keyed on the item's own URL, not the resolved one: a blob
+                // that fails is still that item's picture failing.
                 onError={() => setFailedSrc(src)}
                 className={cn("h-full w-full object-cover", imageClassName)}
             />

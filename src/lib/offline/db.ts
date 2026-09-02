@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { ChannelItem } from "@/lib/api/sales-channels";
 import type { LocalCart } from "@/lib/pos/local-cart";
+import type { CachedImage } from "@/lib/offline/image-cache";
 
 export interface OfflineCustomer {
   id: string;
@@ -68,6 +69,8 @@ export class PosOfflineDatabase extends Dexie {
   stockList!: Table<OfflineStockItem, string>;
   /** The cart being rung up. One row, whose key is a constant. */
   cart!: Table<LocalCart, string>;
+  /** Catalogue pictures, so the grid is not forty identical tiles offline. */
+  images!: Table<CachedImage, string>;
 
   constructor() {
     super("iPOS_Offline_DB");
@@ -83,6 +86,12 @@ export class PosOfflineDatabase extends Dexie {
     // indexed: there is one row, and nothing ever queries it by anything else.
     this.version(2).stores({
       cart: "id",
+    });
+
+    // Keyed by the URL it was fetched from, which is the only way anything
+    // asks for it.
+    this.version(3).stores({
+      images: "url",
     });
   }
 }

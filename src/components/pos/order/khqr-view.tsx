@@ -12,6 +12,8 @@ const POLL_MS = 2000;
 
 export interface KhqrViewProps {
     khqr: Khqr;
+    /** Whose till this is, shown on the card the way every KHQR card shows it. */
+    merchantName?: string | null;
     /** Called once, when Bakong confirms and the sale exists. */
     onPaid: (sale: Sale) => void;
     onCancel: () => void;
@@ -27,6 +29,7 @@ export interface KhqrViewProps {
  */
 export function KhqrView({
     khqr,
+    merchantName,
     onPaid,
     onCancel,
     onRegenerate,
@@ -95,45 +98,72 @@ export function KhqrView({
 
     return (
         <div className="flex flex-col items-center gap-4 py-2">
-            <div className="text-center">
-                <p className="text-sm text-gray-500">To pay</p>
-                <p className="text-3xl font-bold text-primary">
-                    {formatAmount(khqr.amount, khqr.currency)}
-                </p>
-                {khqr.billNumber && (
-                    <p className="mt-1 text-xs text-gray-400">
-                        Bill {khqr.billNumber}
+            {/*
+              * Laid out the way every other KHQR terminal in the country lays
+              * it out — the scheme's band, then who is being paid, then how
+              * much, then the code. A customer holding their phone up should
+              * recognise what they are looking at before they read a word of
+              * it, and ours was a bare square that could have been anything.
+              *
+              * The scheme's own red, and a white card in both themes, on
+              * purpose: a payment mark is not ours to re-tint, and a QR has to
+              * stay dark-on-light or half the phones in the queue will not
+              * read it.
+              */}
+            <div className="w-full max-w-[300px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex items-center justify-center bg-[#e21b23] py-2.5">
+                    <span className="text-[22px] font-extrabold leading-none tracking-[0.1em] text-white">
+                        KHQR
+                    </span>
+                </div>
+
+                <div className="px-5 pt-4">
+                    {merchantName ? (
+                        <p className="truncate text-[17px] font-semibold text-[#111827]">
+                            {merchantName}
+                        </p>
+                    ) : null}
+                    <p className="mt-0.5 text-2xl font-bold text-[#111827]">
+                        {formatAmount(khqr.amount, khqr.currency)}
                     </p>
-                )}
+                </div>
+
+                <div className="mx-5 mt-4 border-t border-dashed border-gray-300" />
+
+                <div className="relative flex items-center justify-center px-5 py-5">
+                    {khqr.qrImage ? (
+                        /* A data URI from the backend — not an external fetch. */
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={khqr.qrImage}
+                            alt="Scan to pay with KHQR"
+                            className="h-56 w-56 object-contain"
+                        />
+                    ) : (
+                        <div className="flex h-56 w-56 flex-col items-center justify-center gap-2 text-center text-gray-400">
+                            <QrCode className="h-10 w-10" aria-hidden="true" />
+                            <p className="px-4 text-xs">
+                                The code could not be displayed. Regenerate to
+                                try again.
+                            </p>
+                        </div>
+                    )}
+
+                    {expired && (
+                        <div className="absolute inset-0 grid place-items-center bg-white/90">
+                            <p className="text-sm font-bold text-brand-red">
+                                Code expired
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="relative rounded-2xl border border-gray-200 bg-white p-3">
-                {khqr.qrImage ? (
-                    /* A data URI from the backend — not an external fetch. */
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={khqr.qrImage}
-                        alt="Scan to pay with KHQR"
-                        className="h-56 w-56 object-contain"
-                    />
-                ) : (
-                    <div className="flex h-56 w-56 flex-col items-center justify-center gap-2 text-center text-gray-400">
-                        <QrCode className="h-10 w-10" aria-hidden="true" />
-                        <p className="px-4 text-xs">
-                            The code could not be displayed. Regenerate to try
-                            again.
-                        </p>
-                    </div>
-                )}
-
-                {expired && (
-                    <div className="absolute inset-0 grid place-items-center rounded-2xl bg-white/90">
-                        <p className="text-sm font-bold text-brand-red">
-                            Code expired
-                        </p>
-                    </div>
-                )}
-            </div>
+            {khqr.billNumber && (
+                <p className="-mt-1 text-xs text-gray-400">
+                    Bill {khqr.billNumber}
+                </p>
+            )}
 
             {/* One live line: what the terminal is doing right now. */}
             <div

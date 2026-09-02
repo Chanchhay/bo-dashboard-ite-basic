@@ -90,12 +90,30 @@ export function Navbar({
           isOnline={isOnline}
         />
 
+        {/*
+          * The way out is shut while the connection is.
+          *
+          * The terminal is the only screen kept on the device; the dashboard
+          * behind this is fetched, so leaving mid-outage lands the cashier on
+          * a page that cannot load and no obvious way back to the till they
+          * were serving from. The cart survives — it is a row in IndexedDB —
+          * but the till is what they need, not a reload.
+          */}
         <button
           type="button"
+          disabled={!isOnline}
           onClick={() => router.push(SALES_HOME)}
-          title="Back to sales dashboard"
-          aria-label="Back to sales dashboard"
-          className="flex h-7 sm:h-9 w-auto shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          title={
+            isOnline
+              ? "Back to sales dashboard"
+              : "No connection — the dashboard cannot load. Stay on the till."
+          }
+          aria-label={
+            isOnline
+              ? "Back to sales dashboard"
+              : "Back to sales dashboard, unavailable while offline"
+          }
+          className="flex h-7 sm:h-9 w-auto shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
         >
           <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-7 lg:h-8 w-auto shrink-0" />
         </button>
@@ -293,14 +311,20 @@ function MobileMenu({
             <div className="flex flex-col gap-2 px-4 pb-4 pt-1">
               <button
                 type="button"
+                disabled={!isOnline}
                 onClick={() => {
                   setIsOpen(false);
                   router.push(SALES_HOME);
                 }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                title={
+                  isOnline
+                    ? undefined
+                    : "No connection — the dashboard cannot load."
+                }
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
-                Back to dashboard
+                {isOnline ? "Back to dashboard" : "Dashboard needs a connection"}
               </button>
               <button
                 type="button"

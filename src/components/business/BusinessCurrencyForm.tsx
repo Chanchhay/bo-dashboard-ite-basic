@@ -797,7 +797,7 @@ export default function BusinessCurrencyForm() {
             <CurrencyQueryError
                 message={getApiErrorMessage(
                     query.error,
-                    "The business currency API could not be reached.",
+                    "Your currencies could not be loaded. Check the connection and try again.",
                 )}
                 onRetry={() => void query.refetch()}
             />

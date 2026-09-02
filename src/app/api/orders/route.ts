@@ -5,10 +5,8 @@ import {
     isRealOrder,
     orderFiltersFromQuery,
 } from "@/lib/api/order-filters";
-import type { PosOrder, PosOrderPage } from "@/lib/api/pos-order";
+import type { PosOrderPage } from "@/lib/api/pos-order";
 import { filterOrders } from "@/lib/api/pos-order-backend";
-
-import { getSyncedOrders } from "@/lib/synced-orders-store";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -25,36 +23,28 @@ export async function GET(request: Request) {
             { min: 1, max: MAX_PAGE_SIZE },
         );
         const businessId = await getCurrentBusinessId();
-        let resultContent: PosOrder[] = [];
-        let resultPage = { number: page, size, totalElements: 0, totalPages: 1 };
 
-        try {
-            const result = await filterOrders(
-                businessId,
-                orderFiltersFromQuery(url),
-                { page, size },
-            );
-            resultContent = result.content.filter(isRealOrder);
-            resultPage = result.page;
-        } catch {
-            // Fallback if backend server endpoint fails or is un-configured
-        }
-
-        const synced = getSyncedOrders(url);
-        const combinedContent = [...synced, ...resultContent];
-        const totalElements = (resultPage.totalElements || 0) + synced.length;
-        const totalPages = Math.max(
-            1,
-            Math.ceil(totalElements / Math.max(size, 1)),
+        /*
+         * A backend that cannot answer is reported, not hidden.
+         *
+         * This used to swallow the failure and return an empty page, which
+         * reads as "no sales today" — the one answer a shop must never be
+         * given wrongly. It was survivable only while a fallback list was
+         * merged in below it; there is none now, so the empty page would be
+         * all there was.
+         *
+         * Offline sales need no special case here: they appear as the orders
+         * the backend recorded when they synced.
+         */
+        const result = await filterOrders(
+            businessId,
+            orderFiltersFromQuery(url),
+            { page, size },
         );
 
         return Response.json({
-            content: combinedContent,
-            page: {
-                ...resultPage,
-                totalElements,
-                totalPages,
-            },
+            content: result.content.filter(isRealOrder),
+            page: result.page,
         } satisfies PosOrderPage);
     } catch (error) {
         return backendErrorResponse(error);
