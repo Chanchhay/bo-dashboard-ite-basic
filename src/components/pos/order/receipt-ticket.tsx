@@ -185,7 +185,17 @@ export function ReceiptTicket({
   // `sale` is only ever passed right after a live payment; every other
   // viewer (Sales history, a reopened receipt) has to fall back to the
   // order's own record of how it was paid.
-  const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
+  const paymentMethod = sale?.paymentMethod ?? order.paymentMethod;
+  const isPayLater = paymentMethod === "PAY_LATER";
+
+  const paymentMethodLabel =
+    paymentMethod === "CASH"
+      ? "Cash"
+      : paymentMethod === "DIGITAL"
+        ? "KHQR"
+        : paymentMethod === "PAY_LATER"
+          ? "Pay later"
+          : "—";
 
   // Tax was computed once, server-side, when the order was created (or last
   // repriced) — reading it straight off the record matches every other
@@ -529,14 +539,9 @@ export function ReceiptTicket({
         ) : (
           <>
             <div className="flex justify-between gap-4">
-              <dt>
-                Paid
-                {(sale?.paymentMethod ?? order.paymentMethod) === "CASH"
-                  ? " · Cash"
-                  : (sale?.paymentMethod ?? order.paymentMethod) === "DIGITAL"
-                    ? " · Digital"
-                    : ""}
-              </dt>
+              {/* Named as the customer paid it. "Digital" is the field's own
+                  word for it; KHQR is what they scanned. */}
+              <dt>Paid · {paymentMethodLabel}</dt>
               <dd className="font-mono text-[#0e140e]">
                 {formatMoney(
                   sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
@@ -544,7 +549,9 @@ export function ReceiptTicket({
                 )}
               </dd>
             </div>
-            {sale?.paymentMethod === "CASH" && (
+            {/* Only where there is a sale record to read it from: an order
+                on its own does not remember what was handed over. */}
+            {paymentMethod === "CASH" && sale && (
               <div className="flex justify-between gap-4">
                 <dt>Change / អាប់</dt>
                 <dd className="font-mono text-[#0e140e]">

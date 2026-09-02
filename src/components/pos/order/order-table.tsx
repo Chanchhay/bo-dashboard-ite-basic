@@ -40,6 +40,7 @@ import {
   useSetOrderDiscountMutation,
 } from "@/services/posOrderApi";
 import { useCartActions, useCurrentCart } from "@/lib/pos/use-cart";
+import { setCartTax } from "@/lib/pos/local-cart";
 import { flushCart } from "@/lib/pos/cart-sync";
 import { NewOrder } from "./new-order";
 import { Payment } from "./payment";
@@ -534,7 +535,7 @@ export function OrderTable({
 
   // The cart comes off the device, not the network. Nothing here can be in a
   // loading or failed state for long enough to need a screen of its own.
-  const { order, isLoading } = useCurrentCart();
+  const { cart, order, isLoading } = useCurrentCart();
   const {
     setQuantity,
     removeItem,
@@ -546,6 +547,25 @@ export function OrderTable({
   const { data: discounts = [] } = useGetDiscountsQuery();
   const { data: business } = useGetBusinessProfileQuery();
 
+  /*
+   * A cart opened with no connection has never been priced by the server, so
+   * it starts with no tax rule of its own. The shop's own setting fills that
+   * in — otherwise a VAT-charging shop rings up an untaxed total offline and
+   * only finds out when the sale reconciles at a different figure.
+   *
+   * Only when the cart has none: once the server has answered, its rate is
+   * the one that was actually charged.
+   */
+  useEffect(() => {
+    if (!cart || cart.taxRate !== null || !business) return;
+    if (business.taxRate == null) return;
+
+    void setCartTax({
+      taxRate: business.taxRate,
+      taxInclusionType: business.taxInclusionType ?? "EXCLUSIVE",
+    });
+  }, [business, cart]);
+
   const [parkOrder, { isLoading: isParking }] = useParkOrderMutation();
   const [payOrder, { isLoading: isPaying }] = usePayOrderMutation();
   const [setCustomerOnServer] = useSetOrderCustomerMutation();
@@ -556,15 +576,36 @@ export function OrderTable({
    * told after.
    *
    * Same rule as the lines: what the panel shows is what is saved on this
-   * device. The server call is still returned so the callers that wait on it
-   * keep working — it is the telling, not the doing.
+   * device. Callers still get something with `unwrap()` on it so they read
+   * unchanged, but a request that never reached a server is not an error to
+   * them — the cart already holds the discount, and letting the rejection
+   * through meant a discounted sale could not be taken offline at all.
    */
+  const tolerateOffline = useCallback(
+    <T,>(pending: { unwrap: () => Promise<T> }) => ({
+      unwrap: async (): Promise<T | undefined> => {
+        try {
+          return await pending.unwrap();
+        } catch (cause) {
+          const status = (cause as { status?: unknown })?.status;
+
+          if (status === "FETCH_ERROR" || status === "TIMEOUT_ERROR") {
+            return undefined;
+          }
+
+          throw cause;
+        }
+      },
+    }),
+    [],
+  );
+
   const setOrderCustomer = useCallback(
     (input: SetOrderCustomerInput) => {
       void setCustomer(input.customerId ?? null);
-      return setCustomerOnServer(input);
+      return tolerateOffline(setCustomerOnServer(input));
     },
-    [setCustomer, setCustomerOnServer],
+    [setCustomer, setCustomerOnServer, tolerateOffline],
   );
 
   const setOrderDiscount = useCallback(
@@ -574,9 +615,9 @@ export function OrderTable({
         discountId: input.discountId ?? null,
         discountCode: input.discountCode ?? null,
       });
-      return setDiscountOnServer(input);
+      return tolerateOffline(setDiscountOnServer(input));
     },
-    [setDiscount, setDiscountOnServer],
+    [setDiscount, setDiscountOnServer, tolerateOffline],
   );
 
   const [busyLineId, setBusyLineId] = useState("");
@@ -1067,9 +1108,12 @@ export function OrderTable({
     return <div className="p-6 text-sm text-gray-400">Loading order…</div>;
   }
 
+  // An empty cart, for the panel to draw before anything has been rung up.
+  // It names no business: nothing is sent from it, and a made-up id here is a
+  // number that could be somebody else's.
   const fallbackOrder: PosOrder = {
     id: "offline-current",
-    businessId: "1",
+    businessId: "",
     customerId: null,
     invoiceNumber: null,
     channel: "POS",
@@ -1195,24 +1239,37 @@ export function OrderTable({
         const chgAmount = Math.max(0, recAmount - summary.total);
 
         const offline = await processOfflineCheckout({
-          businessId: "1",
           items: (order.items || []).map((i) => ({
             product_id: i.itemId,
             product_name: i.itemName,
             variant_id: i.variantId ?? null,
             variant_name: i.variantName ?? null,
             unit_id: i.unitId ?? null,
+            unit_name: i.unitName ?? null,
+            add_ons: (i.addOns ?? []).flatMap((addOn) =>
+              addOn.addOnId
+                ? [{
+                    addOnId: addOn.addOnId,
+                    name: addOn.name,
+                    unitPrice: addOn.unitPrice,
+                  }]
+                : [],
+            ),
             unit_factor: i.unitFactor ?? null,
-            add_on_ids: (i.addOns ?? [])
-              .map((addOn) => addOn.addOnId)
-              .filter((id): id is string => Boolean(id)),
             quantity: i.quantity,
             unit_price: i.unitPrice,
             subtotal: i.lineTotal,
           })),
           subtotal: summary.subtotal,
           discountAmount: summary.discount,
+          discountLabel: activeDiscountRule?.label ?? null,
+          taxRate: summary.isTaxActive ? summary.taxRate : null,
+          taxAmount: summary.isTaxActive ? summary.taxAmount : null,
+          taxInclusionType: summary.isTaxActive ? taxInclusionType : null,
           total: summary.total,
+          currency: order.currency,
+          paidAmount: recAmount,
+          changeAmount: chgAmount,
           paymentMethod: method === "CASH" ? "CASH" : "CARD",
         });
 
@@ -1646,7 +1703,7 @@ export function OrderTable({
           onOpenChange={setPaymentOpen}
           order={legacyOrderShape(order, activePosDiscounts, activeDiscountRule)}
           onValidate={handleValidatePayment}
-          onDigitalPaid={(sale) => {
+          onDigitalPaid={async (sale) => {
             if (order.id) {
               localStorage.removeItem(`pos_cart_discount_${order.id}`);
             }
@@ -1688,6 +1745,17 @@ export function OrderTable({
               taxAmount: summary.taxAmount,
               totalAmount: summary.total,
             };
+
+            /*
+             * The sale is over, so the cart is too.
+             *
+             * A KHQR sale settles at the bank and reaches us through the
+             * payment poller, not through the Pay button — so it never passed
+             * the place where cash and pay-later clear the till, and the lines
+             * sat there to be sold a second time. Cleared here from the copy
+             * already captured above, which is what the receipt renders.
+             */
+            await clearLocalCart();
 
             setPaymentOpen(false);
             onPaymentSuccess?.(orderWithDiscounts, finalSale);
