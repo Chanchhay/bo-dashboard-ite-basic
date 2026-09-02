@@ -66,6 +66,12 @@ function matchesQuery(item: InventoryItem, query: InventoryItemQuery) {
         return false;
     }
 
+    if (query.isDeleted === true) {
+        if (!item.isDeleted) return false;
+    } else {
+        if (item.isDeleted) return false;
+    }
+
     return true;
 }
 
@@ -96,7 +102,8 @@ export async function getInventoryItemsPage(
         query.minPrice !== undefined ||
         query.maxPrice !== undefined ||
         query.sku ||
-        query.barcode
+        query.barcode ||
+        query.isDeleted !== undefined
     );
 
    

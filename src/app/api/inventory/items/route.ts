@@ -28,6 +28,7 @@ export async function GET(request: Request) {
             maxPrice: incoming.get("maxPrice") ?? undefined,
             sku: incoming.get("sku") ?? undefined,
             barcode: incoming.get("barcode") ?? undefined,
+            isDeleted: incoming.get("isDeleted") ?? undefined,
         });
 
         if (!result.success) {

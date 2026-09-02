@@ -191,6 +191,20 @@ export const inventoryApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: [...itemReadTags, "InventoryStock"],
         }),
+        restoreInventoryItem: builder.mutation<InventoryItem, string>({
+            query: (itemId) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/restore`,
+                method: "PATCH",
+            }),
+            invalidatesTags: [...itemReadTags, "InventoryStock"],
+        }),
+        permanentDeleteInventoryItem: builder.mutation<void, string>({
+            query: (itemId) => ({
+                url: `/inventory/items/${encodeURIComponent(itemId)}/permanent`,
+                method: "DELETE",
+            }),
+            invalidatesTags: [...itemReadTags, "InventoryStock"],
+        }),
         getItemGroups: builder.query<ItemGroup[], void>({
             query: () => "/inventory/item-groups",
             providesTags: ["InventoryItemGroups"],
@@ -483,6 +497,8 @@ export const {
     useCreateInventoryItemMutation,
     useUpdateInventoryItemMutation,
     useDeleteInventoryItemMutation,
+    useRestoreInventoryItemMutation,
+    usePermanentDeleteInventoryItemMutation,
     useUploadItemImagesMutation,
     useReorderItemImagesMutation,
     useDeleteItemImageMutation,
