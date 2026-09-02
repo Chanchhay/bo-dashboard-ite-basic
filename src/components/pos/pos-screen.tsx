@@ -24,7 +24,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { linesOf } from "@/components/sales/pricing/channel-lines";
 import { authClient } from "@/lib/auth/auth-client";
 import { useSessionSubject } from "@/lib/auth/session-context";
-import { useCreateNotificationMutation } from "@/services/notificationApi";
+import { useNotifyWithPush } from "@/hooks/useNotifyWithPush";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
 import {
   useBarcodeKeyboard,
@@ -786,7 +786,7 @@ export function PosScreen({
   const cartTotal = currentOrder?.total ?? 0;
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
-  const [createNotification] = useCreateNotificationMutation();
+  const createNotification = useNotifyWithPush();
   const { data: session } = authClient.useSession();
   /* The backend matches receiverId against the Keycloak subject, not against
      Better Auth's local user.id. */
