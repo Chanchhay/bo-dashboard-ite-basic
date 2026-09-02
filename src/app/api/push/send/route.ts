@@ -58,5 +58,10 @@ export async function POST(request: Request) {
     tag: typeof body?.tag === "string" ? body.tag : undefined,
   });
 
+  // A 200 here means the request was well-formed, not that a phone actually
+  // heard anything — `sent: 0` (no subscription on file for that user) is a
+  // silent no-op otherwise, so it's worth a server-side line to grep for.
+  console.log(`[push] POST /api/push/send userIds=${JSON.stringify(userIds)} ->`, result);
+
   return Response.json(result);
 }
