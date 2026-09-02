@@ -355,43 +355,44 @@ export function PayLaterList() {
                     )}
                 </div>
 
-                <select
-                    value={channelFilter}
-                    onChange={(event) => {
-                        setChannelFilter(event.target.value as ChannelFilter);
-                        setPage(0);
-                    }}
-                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
-                >
-                    {CHANNEL_FILTERS.map((c) => (
-                        <option key={c} value={c}>
-                            {c === "ALL" ? "All channels" : channelNames[c] ?? c}
-                        </option>
-                    ))}
-                </select>
+                <div className="flex items-center gap-2 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none w-full sm:w-auto">
+                    <select
+                        value={channelFilter}
+                        onChange={(event) => {
+                            setChannelFilter(event.target.value as ChannelFilter);
+                            setPage(0);
+                        }}
+                        className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
+                    >
+                        {CHANNEL_FILTERS.map((c) => (
+                            <option key={c} value={c}>
+                                {c === "ALL" ? "All channels" : channelNames[c] ?? c}
+                            </option>
+                        ))}
+                    </select>
 
-                <select
-                    value={sortMode}
-                    onChange={(event) => setSortMode(event.target.value as SortMode)}
-                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary">
-                    {SORT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                        </option>
-                    ))}
-                </select>
+                    <select
+                        value={sortMode}
+                        onChange={(event) => setSortMode(event.target.value as SortMode)}
+                        className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary">
+                        {SORT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
 
-                <div className="relative inline-block shrink-0 text-left">
-                    <button
-                        type="button"
-                        onClick={() => setColumnsOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted">
-                        <Columns3 className="size-4 text-muted-foreground" />
-                        Columns
-                        <span className="ml-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
-                            {activeColumnCount}/{PAY_LATER_COLUMNS.length}
-                        </span>
-                    </button>
+                    <div className="relative inline-block shrink-0 text-left">
+                        <button
+                            type="button"
+                            onClick={() => setColumnsOpen((prev) => !prev)}
+                            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                            <Columns3 className="size-4 text-muted-foreground" />
+                            <span>Columns</span>
+                            <span className="ml-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                                {activeColumnCount}/{PAY_LATER_COLUMNS.length}
+                            </span>
+                        </button>
 
                     {columnsOpen && (
                         <>
@@ -424,6 +425,7 @@ export function PayLaterList() {
                     )}
                 </div>
             </div>
+        </div>
 
             <section
                 data-tour="pay-later-list"

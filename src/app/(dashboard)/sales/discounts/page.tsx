@@ -815,16 +815,23 @@ export default function DiscountsAndCouponsPage() {
         <div className="space-y-6">
             {/* Header section */}
             <div data-tour="discounts-list" className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                        Discounts & Coupons
-                    </h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
-                        Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
-                    </p>
+                <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            Discounts & Coupons
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                            Manage promotional discounts, custom rule conditions, and customer promo coupon codes.
+                        </p>
+                    </div>
+                    <div className="sm:hidden shrink-0">
+                        <TourButton />
+                    </div>
                 </div>
-                <div className="flex items-center gap-2.5 sm:gap-3">
-                    <TourButton />
+                <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                    <div className="hidden sm:block">
+                        <TourButton />
+                    </div>
                     <Button
                         data-tour="create-discount-btn"
                         onClick={activeTab === "coupons" ? openCreateCoupon : openCreateDiscount}

@@ -487,67 +487,23 @@ export function StockLevelTable({
                                                 className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
                                             >
                                                 {/* Card Header */}
-                                                <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
-                                                    <div className="flex flex-col min-w-0 pr-2">
-                                                        <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                                <div className="flex items-start justify-between gap-2.5 p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                        <span className="font-bold text-sm text-foreground dark:text-white break-words">
                                                             {row.name}
                                                         </span>
                                                         {row.subtitle && (
-                                                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                            <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
                                                                 {row.subtitle}
                                                             </p>
                                                         )}
                                                     </div>
 
-                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                        <span
-                                                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${stateClassName[row.state]}`}
-                                                        >
-                                                            {stockStateLabels[row.state]}
-                                                        </span>
-                                                        {hasActions && (
-                                                            <div className="flex items-center gap-1">
-                                                                {onStockIn && !row.options?.length && (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-7 px-2 text-xs"
-                                                                        onClick={() => onStockIn(row.id)}
-                                                                        aria-label={`Stock in ${row.name}`}
-                                                                    >
-                                                                        <ArrowDownToLine className="size-3" />
-                                                                        In
-                                                                    </Button>
-                                                                )}
-                                                                {onStockOut && !row.options?.length && (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-7 px-2 text-xs"
-                                                                        disabled={row.onHand <= 0}
-                                                                        onClick={() => onStockOut(row.id)}
-                                                                        aria-label={`Stock out ${row.name}`}
-                                                                    >
-                                                                        <ArrowUpFromLine className="size-3" />
-                                                                        Out
-                                                                    </Button>
-                                                                )}
-                                                                {onViewBatches && (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-7 px-2 text-xs"
-                                                                        onClick={() => onViewBatches(row.id)}
-                                                                    >
-                                                                        Batches
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    <span
+                                                        className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${stateClassName[row.state]}`}
+                                                    >
+                                                        {stockStateLabels[row.state]}
+                                                    </span>
                                                 </div>
 
                                                 {/* Card Key-Value Rows */}
@@ -624,6 +580,50 @@ export function StockLevelTable({
                                                         </div>
                                                     )}
                                                 </div>
+
+                                                {/* Card Action Row */}
+                                                {hasActions && (
+                                                    <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30 border-t border-border/70 dark:border-slate-800/80">
+                                                        {onStockIn && !row.options?.length && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 px-2.5 text-xs gap-1.5 rounded-full"
+                                                                onClick={() => onStockIn(row.id)}
+                                                                aria-label={`Stock in ${row.name}`}
+                                                            >
+                                                                <ArrowDownToLine className="size-3" />
+                                                                In
+                                                            </Button>
+                                                        )}
+                                                        {onStockOut && !row.options?.length && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 px-2.5 text-xs gap-1.5 rounded-full"
+                                                                disabled={row.onHand <= 0}
+                                                                onClick={() => onStockOut(row.id)}
+                                                                aria-label={`Stock out ${row.name}`}
+                                                            >
+                                                                <ArrowUpFromLine className="size-3" />
+                                                                Out
+                                                            </Button>
+                                                        )}
+                                                        {onViewBatches && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground rounded-full"
+                                                                onClick={() => onViewBatches(row.id)}
+                                                            >
+                                                                Batches
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
