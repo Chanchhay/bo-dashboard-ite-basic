@@ -1,6 +1,6 @@
 import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
-import { payOrderSchema, type PosOrder, type Sale } from "@/lib/api/pos-order";
+import { payOrderSchema, type Sale } from "@/lib/api/pos-order";
 import {
     forgetOrder,
     getCurrentOrder,
@@ -9,8 +9,17 @@ import {
 
 /**
  * Settles the sale.
- * Ensures payment validation compares cash tendered against the real discounted total
- * and bypasses Spring backend un-discounted validation exceptions.
+ *
+ * This used to re-patch the discount here too — a second, independent copy
+ * of the sync `cart-sync.ts` already does before payment, with its own
+ * silent `catch {}` around a failed patch. That duplicate could fail
+ * quietly and leave `order.total` at the undiscounted price fetched a
+ * moment earlier, which is exactly what made a correctly-discounted cash
+ * amount from the till read as short here. The order fetched below is
+ * already the one `flushCart()` pushed the discount onto before payment was
+ * ever allowed to start (see `order-table.tsx`); trusting `order.total`
+ * outright, rather than re-deriving it, is what keeps this route from being
+ * a second, weaker copy of that guarantee.
  */
 export async function POST(request: Request) {
     try {
@@ -41,7 +50,6 @@ export async function POST(request: Request) {
 
         const businessId = await getCurrentBusinessId();
 
-        // Calculate real financial flow breakdown
         const grossSubtotal = order.items.reduce(
             (sum, item) => sum + item.unitPrice * item.quantity,
             0
@@ -53,63 +61,6 @@ export async function POST(request: Request) {
         const subtotal = Math.max(0, grossSubtotal - itemDiscount);
         const discountAmount = Math.max(0, order.discountAmount ?? 0);
 
-        const targetDiscountId = result.data.discountId || order.discountId;
-        const targetDiscountCode = result.data.discountCode || order.discountCode;
-
-        // Sync order discount to Spring Java backend prior to payment validation
-        if (discountAmount > 0 || targetDiscountId || targetDiscountCode) {
-            try {
-                const patchedOrder = await backendRequest<PosOrder>(
-                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
-                    {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                            discountAmount,
-                            discountId: targetDiscountId ?? undefined,
-                            discountCode: targetDiscountCode ?? undefined,
-                        }),
-                    }
-                );
-                if (patchedOrder) {
-                    if (patchedOrder.discountAmount !== undefined) order.discountAmount = patchedOrder.discountAmount;
-                    if (patchedOrder.total !== undefined) order.total = patchedOrder.total;
-                }
-            } catch {
-                try {
-                    // Fallback: patch manual discount amount without discountId if target rules failed
-                    const fallbackOrder = await backendRequest<PosOrder>(
-                        ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
-                        {
-                            method: "PATCH",
-                            body: JSON.stringify({
-                                discountAmount,
-                            }),
-                        }
-                    );
-                    if (fallbackOrder) {
-                        if (fallbackOrder.discountAmount !== undefined) order.discountAmount = fallbackOrder.discountAmount;
-                        if (fallbackOrder.total !== undefined) order.total = fallbackOrder.total;
-                    }
-                } catch {}
-            }
-        } else if ((order.discountAmount ?? 0) > 0) {
-            // If discount was cleared on cart
-            try {
-                await backendRequest<unknown>(
-                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
-                    {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                            discountAmount: 0,
-                        }),
-                    }
-                );
-            } catch {}
-        }
-
-        // The discount patch above refreshes order.total from the backend,
-        // which already has this business's tax rate folded in — that is
-        // what is actually owed, not something to recompute here.
         const effectiveTotal = Math.max(0, order.total ?? subtotal);
 
         const userReceived = result.data.receivedAmount;
@@ -132,23 +83,6 @@ export async function POST(request: Request) {
         // Pay later collects nothing right now — whatever the client sent is
         // ignored, so a stray value can never be mistaken for cash in hand.
         const paidVal = isPayLater ? 0 : (userReceived ?? effectiveTotal);
-
-        // Sync order discount to Spring Java backend prior to payment
-        if (discountAmount > 0) {
-            try {
-                await backendRequest<unknown>(
-                    ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
-                    {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                            discountAmount,
-                        }),
-                    }
-                );
-            } catch {
-                // Ignore discount patch error if endpoint not reached
-            }
-        }
 
         // Send payment to Spring Java backend. Tax is not sent — the backend
         // already applied the business's configured rate when the order was

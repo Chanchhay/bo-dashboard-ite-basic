@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Banknote, X, Delete } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
@@ -76,6 +76,26 @@ export function AmountReceived({
     return () => clearTimeout(timer);
   }, [open]);
 
+  // Where the caret belongs once React has re-rendered the input with the
+  // new value — restored in a layout effect (before the browser paints)
+  // rather than a `setTimeout`, which used to leave a visible flash on
+  // every keypress: the browser moves a controlled input's caret to the end
+  // the instant its value changes, and a macrotask timeout doesn't correct
+  // it until well after that has already painted. A cashier typing a whole
+  // amount digit by digit saw every one of those as the caret jumping to
+  // the end and snapping back, which read as the keypad lagging behind the
+  // taps rather than the display just catching up a frame late.
+  const pendingCaretRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (pendingCaretRef.current === null) return;
+    const caret = pendingCaretRef.current;
+    pendingCaretRef.current = null;
+    const input = inputRef.current;
+    input?.focus();
+    input?.setSelectionRange(caret, caret);
+  }, [received]);
+
   // Keypad presses insert at the caret rather than always appending, so a
   // mistyped digit in the middle can be fixed without clearing the field.
   const handleKey = useCallback((key: string) => {
@@ -87,10 +107,7 @@ export function AmountReceived({
     const commit = (next: string, caret: number) => {
       setReceived(next);
       receivedRef.current = next;
-      setTimeout(() => {
-        input?.focus();
-        input?.setSelectionRange(caret, caret);
-      }, 0);
+      pendingCaretRef.current = caret;
     };
 
     if (key === "back") {

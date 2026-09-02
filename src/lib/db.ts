@@ -79,3 +79,12 @@ class PosDatabase extends Dexie {
 }
 
 export const db = new PosDatabase();
+
+// See src/lib/offline/db.ts for why this exists: without it, an older tab's
+// open connection can block this one from ever finishing its own open.
+if (typeof window !== "undefined") {
+    db.on("versionchange", () => {
+        db.close();
+        window.location.reload();
+    });
+}

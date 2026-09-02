@@ -370,11 +370,37 @@ export function PosScreen({
 
   const { data: discounts = [] } = useGetDiscountsQuery();
 
+  /**
+   * Same window the backend checks when the discount is actually applied
+   * (`OrderServiceImpl.validateDiscountForOrder`) — schedule and day-of-week
+   * included, not just the status toggle. Without those two, a discount
+   * outside its own date range or restricted to days that aren't today still
+   * showed here as pickable, and the backend correctly refused it at
+   * checkout with a 409 the cashier had no way to see coming.
+   */
   const activePosDiscounts = useMemo(() => {
+    const now = new Date();
+    const today = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][
+      now.getDay()
+    ];
+
     return discounts.filter((d) => {
       if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
-      if (d.applicableChannels && d.applicableChannels.length > 0) {
-        return d.applicableChannels.includes("POS");
+      if (
+        d.applicableChannels &&
+        d.applicableChannels.length > 0 &&
+        !d.applicableChannels.includes("POS")
+      ) {
+        return false;
+      }
+      if (d.startsAt && now < new Date(d.startsAt)) return false;
+      if (d.endsAt && now > new Date(d.endsAt)) return false;
+      if (
+        d.selectedDays &&
+        d.selectedDays.length > 0 &&
+        !d.selectedDays.includes(today)
+      ) {
+        return false;
       }
       return true;
     });

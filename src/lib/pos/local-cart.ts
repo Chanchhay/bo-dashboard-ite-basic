@@ -51,6 +51,12 @@ export type LocalCartLine = {
     addOns: { addOnId: string; name: string; unitPrice: number }[];
     itemName: string;
     quantity: number;
+    /**
+     * How many of `quantity` a Buy X Get Y offer gave away, as last told to
+     * this device by the server — the till has no bundle rules of its own to
+     * decide this with; it only ever learns it back from a push.
+     */
+    freeQuantity: number;
     unitPrice: number;
     discountAmount: number;
     trackInventory: boolean | null;
@@ -65,6 +71,16 @@ export type LocalCart = {
     discountId: string | null;
     discountCode: string | null;
     discountLabel: string | null;
+    /**
+     * The order's own discount total, last learned back from a push — covers
+     * a discount nobody here picked, such as a storewide Buy X Get Y whose
+     * free unit depends on everything in the basket and so is only ever
+     * decided server-side. Never pushed itself, only read: `discountAmount`
+     * above stays the till's own record of what it asked the server to
+     * apply, and this is what came back.
+     */
+    autoDiscountAmount: number;
+    autoDiscountLabel: string | null;
     taxRate: number | null;
     taxInclusionType: TaxInclusionType | null;
     currency: string;
@@ -82,6 +98,8 @@ export function emptyCart(overrides: Partial<LocalCart> = {}): LocalCart {
         discountId: null,
         discountCode: null,
         discountLabel: null,
+        autoDiscountAmount: 0,
+        autoDiscountLabel: null,
         taxRate: null,
         taxInclusionType: null,
         currency: "USD",
@@ -199,6 +217,7 @@ export async function addLine(input: AddLineInput) {
             addOns: input.addOns ?? [],
             itemName: input.itemName,
             quantity,
+            freeQuantity: 0,
             unitPrice: input.unitPrice,
             discountAmount: 0,
             trackInventory: input.trackInventory ?? null,
@@ -287,16 +306,26 @@ export async function attachServerLine(lineId: string, serverLineId: string) {
  * Takes the ids and the money rules back from a push, without disturbing what
  * the cashier has done in the meantime.
  *
- * Only the fields the server is the authority on are copied over. Quantities
- * are not: a tap that landed while the request was in flight is newer than the
- * answer coming back, and the next push will carry it.
+ * Most fields the server is simply the authority on and are copied over.
+ * Quantity is not one of those — a tap that landed while the request was in
+ * flight is newer than the answer coming back, and the next push will carry
+ * it. The one exception is `freeQuantity`: a Buy X Get Y bundle is a decision
+ * the *server* makes (the till has no bundle rules of its own), so it can
+ * only ever be learned back from a push, never invented locally. Applied as
+ * a delta on top of whatever quantity already sits here — adding exactly
+ * however many more free units the server just granted (or removing however
+ * many it just took back) — rather than overwriting the total outright,
+ * which would stomp a tap that landed in the same window.
  */
 export async function applyServerCart(input: {
     serverOrderId: string;
     lineIds: Record<string, string>;
+    freeQuantities: Record<string, number>;
     taxRate?: number | null;
     taxInclusionType?: TaxInclusionType | null;
     currency?: string | null;
+    discountAmount?: number | null;
+    discountLabel?: string | null;
 }) {
     return mutate((cart) => {
         cart.serverOrderId = input.serverOrderId;
@@ -306,11 +335,26 @@ export async function applyServerCart(input: {
         if (input.taxInclusionType !== undefined) {
             cart.taxInclusionType = input.taxInclusionType;
         }
+        if (input.discountAmount !== undefined) {
+            cart.autoDiscountAmount = input.discountAmount ?? 0;
+        }
+        if (input.discountLabel !== undefined) {
+            cart.autoDiscountLabel = input.discountLabel ?? null;
+        }
 
         cart.lines.forEach((line) => {
-            const serverLineId = input.lineIds[lineKey(line)];
+            const key = lineKey(line);
+            const serverLineId = input.lineIds[key];
 
             if (serverLineId) line.serverLineId = serverLineId;
+
+            const serverFree = input.freeQuantities[key] ?? 0;
+            const previousFree = line.freeQuantity ?? 0;
+
+            if (serverFree !== previousFree) {
+                line.quantity = Math.max(0, line.quantity + (serverFree - previousFree));
+                line.freeQuantity = serverFree;
+            }
         });
 
         return cart;
@@ -351,6 +395,7 @@ export async function loadCartFrom(order: PosOrder) {
                 ),
                 itemName: line.itemName,
                 quantity: line.quantity,
+                freeQuantity: line.freeQuantity ?? 0,
                 unitPrice: line.unitPrice,
                 discountAmount: line.discountAmount ?? 0,
                 trackInventory: line.trackInventory ?? null,
@@ -385,11 +430,22 @@ export function cartTotals(cart: LocalCart) {
     const subtotal = round2(
         cart.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
     );
-    const lineDiscounts = cart.lines.reduce(
-        (sum, line) => sum + line.discountAmount,
-        0,
+    // An explicit pick (a coupon, a membership, or a custom amount someone
+    // typed by hand) and the order's own auto-detected discount are
+    // alternatives, never a sum — the pick, once made, is already the whole
+    // discount for whatever it applies to, worked out server-side across
+    // every line it touches. Nothing here writes to a line's own
+    // `discountAmount` any more (a storewide or item-scoped catalog
+    // discount is carried on `autoDiscountAmount` instead, never on a
+    // line), so it is not part of this either; adding it back in used to
+    // double an item-scoped bundle's discount the moment its amount was
+    // also learned back per line.
+    const hasExplicitPick = Boolean(
+        cart.discountId || cart.discountCode || cart.discountAmount > 0,
     );
-    const discountAmount = round2(lineDiscounts + cart.discountAmount);
+    const discountAmount = round2(
+        hasExplicitPick ? cart.discountAmount : (cart.autoDiscountAmount ?? 0),
+    );
     const net = Math.max(0, subtotal - discountAmount);
     const rate = cart.taxRate ?? 0;
 
@@ -433,6 +489,7 @@ export function toPosOrder(cart: LocalCart): PosOrder {
         addOns: line.addOns,
         itemName: line.itemName,
         quantity: line.quantity,
+        freeQuantity: line.freeQuantity ?? 0,
         unitPrice: line.unitPrice,
         discountAmount: line.discountAmount,
         lineTotal: lineTotalOf(line),
@@ -452,7 +509,7 @@ export function toPosOrder(cart: LocalCart): PosOrder {
         discountAmount: totals.discountAmount,
         discountId: cart.discountId,
         discountCode: cart.discountCode,
-        discountLabel: cart.discountLabel,
+        discountLabel: cart.discountLabel ?? cart.autoDiscountLabel,
         taxRate: cart.taxRate,
         taxAmount: totals.taxAmount,
         taxInclusionType: cart.taxInclusionType,

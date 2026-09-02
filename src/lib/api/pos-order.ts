@@ -17,6 +17,8 @@ export type PosOrderItem = {
     selections?: { attributeName: string; value: string; label: string }[];
     itemName: string;
     quantity: number;
+    /** How many of `quantity` a Buy X Get Y offer gave away — 0 for an ordinary line. */
+    freeQuantity?: number;
     unitPrice: number;
     discountAmount: number;
     /** Name of the discount that produced discountAmount for this line, if any. */

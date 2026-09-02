@@ -8,7 +8,14 @@ import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
 
 /**
  * Sets or updates the discount amount on the current POS order.
- * Distributes discount across backend order items so Spring backend order totals match.
+ *
+ * This used to fall back to a locally-fabricated order whenever the backend
+ * call failed, so a rejected discount still came back as a 200 with the
+ * numbers the till expected. That is worse than an error: the till believed
+ * the discount had been saved, charged the customer the discounted amount,
+ * and the order sitting on the server — the one Sale Management reads and
+ * the one `/orders/current/pay` prices the payment against — never moved off
+ * the full price. A real failure here has to come back as one.
  */
 export async function PATCH(request: Request) {
     try {
@@ -25,40 +32,20 @@ export async function PATCH(request: Request) {
         const order = await ensureCurrentOrder(businessId);
         const discountAmount = Math.max(0, result.data.discountAmount);
 
-        // Compute items subtotal
-        const itemsSubtotal = order.items.reduce(
-            (sum, item) => sum + item.unitPrice * item.quantity,
-            0
-        ) || order.subtotal || 1;
+        const updated = await backendRequest<PosOrder>(
+            ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
+            {
+                method: "PATCH",
+                body: JSON.stringify({
+                    discountAmount,
+                    discountId: result.data.discountId,
+                    discountCode: result.data.discountCode,
+                    discountIds: result.data.discountIds,
+                }),
+            },
+        );
 
-        const discountRatio = discountAmount / itemsSubtotal;
-        const runningDiscountTotal = 0;
-
-        // 1. Try explicit order discount patch directly to Spring backend
-        try {
-            const updated = await backendRequest<PosOrder>(
-                ordersPath(businessId, `/${encodeURIComponent(order.id)}/discount`),
-                {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                        discountAmount,
-                        discountId: result.data.discountId,
-                        discountCode: result.data.discountCode,
-                        discountIds: result.data.discountIds,
-                    }),
-                }
-            );
-            return Response.json(updated);
-        } catch {
-            // 2. Fallback: update local order state
-            const updated: PosOrder = {
-                ...order,
-                subtotal: itemsSubtotal,
-                discountAmount,
-                total: Math.max(0, itemsSubtotal - discountAmount),
-            };
-            return Response.json(updated);
-        }
+        return Response.json(updated);
     } catch (error) {
         return backendErrorResponse(error);
     }
