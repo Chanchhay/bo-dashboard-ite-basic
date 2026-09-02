@@ -68,7 +68,7 @@ function matchesQuery(item: InventoryItem, query: InventoryItemQuery) {
 
     if (query.isDeleted === true) {
         if (!item.isDeleted) return false;
-    } else {
+    } else if (query.isDeleted === false) {
         if (item.isDeleted) return false;
     }
 
