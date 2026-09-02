@@ -15,6 +15,7 @@ import {
     User,
     QrCode,
     X,
+    Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { CardListSkeleton } from "@/components/ui/skeleton";
 import { ItemImage } from "@/components/item/item-image";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
+import { DeleteOrderDialog } from "@/components/pos/order/delete-order-dialog";
 import { useToast } from "@/components/ui/toast";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 import { cn } from "@/lib/utils";
@@ -39,6 +41,7 @@ import { itemThumbnail } from "@/lib/api/inventory";
 import {
     useApprovePayLaterOrderMutation,
     useCancelOpenOrderMutation,
+    useDeleteOrderMutation,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
@@ -110,9 +113,12 @@ export default function SalesOrdersPage() {
     const { toast } = useToast();
     const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
     const [cancelOpenOrder] = useCancelOpenOrderMutation();
+    const [deleteOrderMutation] = useDeleteOrderMutation();
     const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
     const [orderToCancel, setOrderToCancel] = useState<PosOrder | null>(null);
+    const [orderToDelete, setOrderToDelete] = useState<PosOrder | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     async function handleApprovePayLaterOrder(order: PosOrder) {
         setConfirmingOrderId(order.id);
@@ -152,6 +158,30 @@ export default function SalesOrdersPage() {
             });
         } finally {
             setIsCancelling(false);
+        }
+    }
+
+    async function handleDeleteOrder(order: PosOrder) {
+        setIsDeleting(true);
+        try {
+            await deleteOrderMutation(order.id).unwrap();
+            setOrderToDelete(null);
+            if (selectedOrderId === order.id) {
+                setSelectedOrderId(null);
+            }
+            toast({
+                tone: "success",
+                title: "Order deleted",
+                description: `${order.invoiceNumber ?? "This order"} has been deleted.`,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not delete the order",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        } finally {
+            setIsDeleting(false);
         }
     }
 
@@ -519,8 +549,10 @@ export default function SalesOrdersPage() {
                                         customerPhoneById={customerPhoneById}
                                         onApprovePayLater={() => void handleApprovePayLaterOrder(order)}
                                         onCancelOrder={() => setOrderToCancel(order)}
+                                        onDeleteOrder={() => setOrderToDelete(order)}
                                         isConfirming={confirmingOrderId === order.id}
                                         isCancelling={isCancelling && orderToCancel?.id === order.id}
+                                        isDeleting={isDeleting && orderToDelete?.id === order.id}
                                     />
                                 ))}
                             </div>
@@ -644,6 +676,18 @@ export default function SalesOrdersPage() {
                 }}
             />
 
+            <DeleteOrderDialog
+                open={Boolean(orderToDelete)}
+                orderName={orderToDelete?.invoiceNumber || orderToDelete?.note?.trim() || "This order"}
+                isDeleting={isDeleting}
+                onOpenChange={(open) => {
+                    if (!open) setOrderToDelete(null);
+                }}
+                onConfirm={() => {
+                    if (orderToDelete) void handleDeleteOrder(orderToDelete);
+                }}
+            />
+
             {/* Digital Menu QR Code Modal */}
             <MenuQRModal
                 isOpen={isQrModalOpen}
@@ -699,7 +743,6 @@ function ItemThumbnail({
     return <ItemImage src={url} className={`${size} shrink-0 rounded-md`} />;
 }
 
-
 function OrderCard({
     order,
     onClick,
@@ -708,8 +751,10 @@ function OrderCard({
     customerPhoneById,
     onApprovePayLater,
     onCancelOrder,
+    onDeleteOrder,
     isConfirming,
     isCancelling,
+    isDeleting,
 }: {
     order: PosOrder;
     onClick: () => void;
@@ -718,8 +763,10 @@ function OrderCard({
     customerPhoneById?: Map<string, string>;
     onApprovePayLater: () => void;
     onCancelOrder: () => void;
+    onDeleteOrder: () => void;
     isConfirming: boolean;
     isCancelling?: boolean;
+    isDeleting?: boolean;
 }) {
     const { format } = useMoney();
 
@@ -807,6 +854,19 @@ function OrderCard({
                     <span className="text-sm sm:text-lg font-bold tabular-nums text-foreground">
                         {format(displayTotal, order.currency)}
                     </span>
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteOrder();
+                        }}
+                        disabled={isConfirming || isCancelling || isDeleting}
+                        title="Delete order"
+                        className="inline-flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 transition-colors active:scale-95 disabled:opacity-50 cursor-pointer ml-1"
+                    >
+                        <Trash2 className="size-3.5 sm:size-4" />
+                        <span className="sr-only">Delete order</span>
+                    </button>
                 </div>
             </div>
 

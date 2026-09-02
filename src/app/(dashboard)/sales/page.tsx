@@ -10,6 +10,7 @@ import {
     Search,
     ExternalLink,
     Columns3,
+    Trash2,
 } from "lucide-react";
 
 import {
@@ -28,6 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { DeleteOrderDialog } from "@/components/pos/order/delete-order-dialog";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 import {
@@ -47,6 +50,7 @@ import {
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
+    useDeleteOrderMutation,
 } from "@/services/posOrderApi";
 import {
     useGetBusinessProfileQuery,
@@ -89,7 +93,8 @@ export type SalesColumnKey =
     | "taxRate"
     | "taxAmount"
     | "total"
-    | "status";
+    | "status"
+    | "actions";
 
 export type SalesColumnConfig = {
     key: SalesColumnKey;
@@ -109,6 +114,7 @@ const SALES_COLUMNS: SalesColumnConfig[] = [
     { key: "taxAmount", label: "Tax Amount", defaultVisible: true },
     { key: "total", label: "Total", defaultVisible: true },
     { key: "status", label: "Status", defaultVisible: true },
+    { key: "actions", label: "Actions", defaultVisible: true },
 ];
 
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
@@ -195,6 +201,31 @@ export default function SalesOrdersPage() {
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const { toast } = useToast();
+    const [deleteOrderMutation, { isLoading: isDeletingOrder }] = useDeleteOrderMutation();
+    const [orderToDelete, setOrderToDelete] = useState<PosOrder | null>(null);
+
+    const handleDeleteOrder = async () => {
+        if (!orderToDelete) return;
+        try {
+            await deleteOrderMutation(orderToDelete.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Order deleted",
+                description: `Order ${orderToDelete.invoiceNumber ?? ""} has been deleted.`,
+            });
+            setOrderToDelete(null);
+            if (selectedOrderId === orderToDelete.id) {
+                setSelectedOrderId(null);
+            }
+        } catch (err) {
+            toast({
+                tone: "error",
+                title: "Failed to delete order",
+                description: getApiErrorMessage(err, "An error occurred while deleting the order."),
+            });
+        }
+    };
 
     const [visibleColumns, setVisibleColumns] = useState<Record<SalesColumnKey, boolean>>(() => {
         if (typeof window !== "undefined") {
@@ -590,9 +621,23 @@ export default function SalesOrdersPage() {
 
                                             <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
                                                 <span className="font-semibold text-foreground dark:text-slate-200">Total</span>
-                                                <span className="text-sm font-bold text-foreground dark:text-white">
-                                                    {format(displayTotal, order.currency)}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-foreground dark:text-white">
+                                                        {format(displayTotal, order.currency)}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOrderToDelete(order);
+                                                        }}
+                                                        title="Delete order"
+                                                        className="inline-flex size-7 items-center justify-center rounded-lg border-0 bg-transparent text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 transition-colors active:scale-95 cursor-pointer"
+                                                    >
+                                                        <Trash2 className="size-3.5" />
+                                                        <span className="sr-only">Delete order</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -623,6 +668,7 @@ export default function SalesOrdersPage() {
                                         {visibleColumns.taxAmount && <TableHead className="text-right">Tax Amount</TableHead>}
                                         {visibleColumns.total && <TableHead className="text-right">Total</TableHead>}
                                         {visibleColumns.status && <TableHead>Status</TableHead>}
+                                        {visibleColumns.actions && <TableHead className="text-right">Actions</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -633,6 +679,7 @@ export default function SalesOrdersPage() {
                                             visibleColumns={visibleColumns}
                                             customerNameById={customerNameById}
                                             onClick={() => setSelectedOrderId(order.id)}
+                                            onDelete={() => setOrderToDelete(order)}
                                         />
                                     ))}
                                 </TableBody>
@@ -693,6 +740,18 @@ export default function SalesOrdersPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {orderToDelete && (
+                <DeleteOrderDialog
+                    open={Boolean(orderToDelete)}
+                    orderName={orderToDelete.invoiceNumber ?? "this order"}
+                    isDeleting={isDeletingOrder}
+                    onOpenChange={(open) => {
+                        if (!open) setOrderToDelete(null);
+                    }}
+                    onConfirm={handleDeleteOrder}
+                />
+            )}
         </div>
     );
 }
@@ -733,11 +792,13 @@ function OrderRow({
     visibleColumns,
     customerNameById,
     onClick,
+    onDelete,
 }: {
     order: PosOrder;
     visibleColumns: Record<SalesColumnKey, boolean>;
     customerNameById: Map<string, string>;
     onClick: () => void;
+    onDelete: () => void;
 }) {
     const { format } = useMoney();
     const itemCount = order.items.reduce(
@@ -839,6 +900,22 @@ function OrderRow({
                             {order.status}
                         </span>
                     )}
+                </TableCell>
+            )}
+            {visibleColumns.actions && (
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                        title="Delete order"
+                        className="inline-flex size-8 items-center justify-center rounded-lg border-0 bg-transparent text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 transition-colors active:scale-95 cursor-pointer"
+                    >
+                        <Trash2 className="size-4" />
+                        <span className="sr-only">Delete order</span>
+                    </button>
                 </TableCell>
             )}
         </TableRow>
