@@ -214,20 +214,27 @@ export default function MembershipTypesPage() {
         <div className="space-y-6">
             {/* Header section */}
             <div data-tour="membership-tiers-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Member Types
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
-                    </p>
+                <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            Member Types
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                            Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
+                        </p>
+                    </div>
+                    <div className="sm:hidden shrink-0">
+                        <TourButton />
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <TourButton />
+                <div className="flex items-center gap-3 shrink-0">
+                    <div className="hidden sm:block">
+                        <TourButton />
+                    </div>
                     <Button
                         data-tour="add-member-type-btn"
                         onClick={openCreateDialog}
-                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm text-xs sm:text-sm h-9 sm:h-10 px-3.5 sm:px-4"
                     >
                         <Plus className="h-4 w-4" /> Add Member Type
                     </Button>

@@ -408,23 +408,30 @@ export default function CustomerManagement() {
             {/* Header Section (sticky on desktop only) */}
             <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-3 sm:pt-4 pb-3 sm:pb-4 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3 sm:gap-4">
                 <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                            Customers
-                        </h1>
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
-                            Manage customer profiles, phone numbers, lifetime spending, and loyalty visit records.
-                        </p>
+                    <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                                Customers
+                            </h1>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                                Manage customer profiles, phone numbers, lifetime spending, and loyalty visit records.
+                            </p>
+                        </div>
+                        <div className="sm:hidden shrink-0">
+                            <TourButton />
+                        </div>
                     </div>
                     <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                         <Button
                             data-tour="add-customer-btn"
                             onClick={openCreateDialog}
-                            className="h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm bg-primary hover:bg-primary/90 text-white gap-1.5 sm:gap-2 shadow-xs cursor-pointer rounded-xl font-semibold"
+                            className="h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm bg-primary hover:bg-primary/90 text-white gap-1.5 sm:gap-2 shadow-xs cursor-pointer rounded-xl font-semibold w-auto"
                         >
                             <Plus className="h-4 w-4" /> Add Customer
                         </Button>
-                        <TourButton />
+                        <div className="hidden sm:block">
+                            <TourButton />
+                        </div>
                     </div>
                 </div>
 

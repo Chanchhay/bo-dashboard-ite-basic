@@ -14,17 +14,21 @@ export const inventoryTextareaClassName = textareaClassName;
 
 export { getApiErrorMessage } from "@/lib/api-error";
 
+import { cn } from "@/lib/utils";
+
 export function InventoryPageHeader({
     title,
     description,
     action,
+    className,
 }: {
     title: string;
     description: string;
     action?: ReactNode;
+    className?: string;
 }) {
     return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 w-full">
+        <div className={cn("flex items-start justify-between gap-3 sm:gap-4 w-full", className)}>
             <div className="min-w-0 flex-1">
                 <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
                     {title}
@@ -36,7 +40,7 @@ export function InventoryPageHeader({
                 ) : null}
             </div>
             {action ? (
-                <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                     {action}
                 </div>
             ) : null}
