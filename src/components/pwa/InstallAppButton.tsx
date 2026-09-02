@@ -19,12 +19,14 @@ export function InstallAppButton({
   size = "sm",
   label = "Install App",
   floating = false,
+  hideLabelOnMobile = false,
 }: {
   className?: string;
   variant?: "outline" | "ghost" | "default";
   size?: "sm" | "default";
   label?: string;
   floating?: boolean;
+  hideLabelOnMobile?: boolean;
 }) {
   const { toast } = useToast();
   const { canInstall, isInstalled, isIOS, promptInstall } = usePwaInstall();
@@ -50,14 +52,22 @@ export function InstallAppButton({
     }
   }
 
+  const labelNode = label ? (
+    <span className={cn(hideLabelOnMobile && "hidden sm:inline")}>{label}</span>
+  ) : null;
+
   if (isIOS) {
     return (
       <Popover>
-        <PopoverTrigger className={triggerClassName}>
-          <Download className="size-4" aria-hidden="true" />
-          {label}
+        <PopoverTrigger
+          aria-label={label}
+          title={label}
+          className={triggerClassName}
+        >
+          <Download className="size-4 shrink-0" aria-hidden="true" />
+          {labelNode}
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-64">
+        <PopoverContent align="end" className="w-64 max-w-[calc(100vw-32px)]">
           <p className="mb-2 text-sm font-semibold text-foreground">
             Install FluxiBiz
           </p>
@@ -78,9 +88,15 @@ export function InstallAppButton({
   }
 
   return (
-    <button type="button" onClick={handleInstall} className={triggerClassName}>
-      <Download className="size-4" aria-hidden="true" />
-      {label}
+    <button
+      type="button"
+      onClick={handleInstall}
+      aria-label={label}
+      title={label}
+      className={triggerClassName}
+    >
+      <Download className="size-4 shrink-0" aria-hidden="true" />
+      {labelNode}
     </button>
   );
 }
