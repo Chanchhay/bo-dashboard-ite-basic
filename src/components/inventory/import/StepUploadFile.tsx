@@ -109,7 +109,7 @@ export function StepUploadFile({
                                     "shrink-0",
                                 )}
                             >
-                                <Download className="size-4" />
+                                <Download className="size-4 text-primary" />
                                 Download
                             </a>
                         </div>
@@ -129,7 +129,7 @@ export function StepUploadFile({
                                 "self-start",
                             )}
                         >
-                            <Download className="size-4" />
+                            <Download className="size-4 text-primary" />
                             Sample file
                         </a>
                     ) : null}

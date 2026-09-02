@@ -191,7 +191,7 @@ export function BarcodeScannerOverlay({
                             }
                             nativeButton={false}
                         >
-                            <Download />
+                            <Download className="size-4 text-primary" />
                             Download PNG
                         </Button>
                         <Button

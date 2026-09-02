@@ -141,6 +141,21 @@ export const posOrderApi = baseApi.injectEndpoints({
             ],
         }),
 
+        /** Deletes an order completely. */
+        deleteOrder: builder.mutation<void, string>({
+            query: (orderId) => ({
+                url: `/orders/${encodeURIComponent(orderId)}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: (_result, _error, orderId) => [
+                "PosOrder",
+                "PosOrderHistory",
+                { type: "PosOpenOrders", id: orderId },
+                { type: "PosOpenOrders", id: "LIST" },
+                "InventoryStock",
+            ],
+        }),
+
         /** Accepts a pending order and takes its stock off the shelf now, ahead of payment. */
         confirmOrder: builder.mutation<PosOrder, string>({
             query: (orderId) => ({
@@ -273,6 +288,7 @@ export const {
     useParkOrderMutation,
     useLoadOrderForEditMutation,
     useCancelOpenOrderMutation,
+    useDeleteOrderMutation,
     useConfirmOrderMutation,
     useApprovePayLaterOrderMutation,
     useSetOrderCustomerMutation,

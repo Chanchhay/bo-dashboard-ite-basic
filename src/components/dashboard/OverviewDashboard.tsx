@@ -895,7 +895,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 Recent Orders
                             </CardTitle>
                             <Button variant="outline" size="sm" onClick={handleExportRecentOrders} className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold cursor-pointer">
-                                <Download className="size-3.5" />
+                                <Download className="size-3.5 text-primary" />
                                 Export
                             </Button>
                         </CardHeader>
@@ -1032,7 +1032,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 Best Selling Products
                             </CardTitle>
                             <Button variant="outline" size="sm" onClick={handleExportBestSelling} className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold cursor-pointer">
-                                <Download className="size-3.5" />
+                                <Download className="size-3.5 text-primary" />
                                 Export
                             </Button>
                         </CardHeader>
