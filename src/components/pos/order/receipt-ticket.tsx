@@ -436,7 +436,7 @@ export function ReceiptTicket({
                     <span className="text-[11px] font-normal text-[#d14341] line-through">
                       {formatMoney(grossAmount, currency)}
                     </span>
-                    <span className="font-bold text-[#006b26]">
+                    <span className="font-bold text-primary">
                       {formatMoney(netAmount, currency)}
                     </span>
                   </div>
@@ -461,7 +461,7 @@ export function ReceiptTicket({
             <dt className="flex items-center gap-1">
               Discount / បញ្ចុះតម្លៃ
               {discountLabel && (
-                <span className="font-semibold text-xs text-[#006b26]">
+                <span className="font-semibold text-xs text-primary">
                   ({discountLabel})
                 </span>
               )}
@@ -482,7 +482,7 @@ export function ReceiptTicket({
         )}
 
         {effectiveShowTax && !isTaxInclusive && taxAmount > 0 && (
-          <div className="flex justify-between gap-4 font-medium text-[#006b26]">
+          <div className="flex justify-between gap-4 font-medium text-primary">
             <dt className="flex items-center gap-1">
               +
               {effectiveTaxName}
@@ -495,12 +495,12 @@ export function ReceiptTicket({
         )}
       </dl>
 
-      <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">
+      <dl className="mt-2.5 rounded-xl border border-primary/25 bg-primary/10 px-3 py-2.5 text-primary dark:border-primary/40 dark:bg-primary/20">
         <div className="flex items-center justify-between gap-4">
-          <dt className="text-sm font-bold uppercase">
+          <dt className="text-sm font-bold uppercase text-primary">
             Total / សរុប
           </dt>
-          <dd className="font-mono text-xl font-bold leading-none">
+          <dd className="font-mono text-xl font-bold leading-none text-primary">
             {formatMoney(total, currency)}
           </dd>
         </div>

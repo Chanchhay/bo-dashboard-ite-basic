@@ -57,12 +57,13 @@ export default function AppLauncher({
                     <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-8 w-auto shrink-0" />
                 </Link>
 
-                <div className="flex items-center gap-3 sm:gap-5">
+                <div className="flex items-center gap-2 sm:gap-5">
                     <InstallAppButton
                         label="Install App"
                         variant="default"
                         size="sm"
-                        className="hidden sm:inline-flex bg-white text-primary border-primary rounded-4xl hover:bg-white hover:scale-103 transition-transform duration-200"
+                        hideLabelOnMobile
+                        className="inline-flex items-center justify-center size-9 p-0 sm:size-auto sm:h-9 sm:px-3.5 sm:py-1.5 sm:gap-2 bg-white text-primary border border-primary rounded-full sm:rounded-4xl hover:bg-white hover:scale-103 dark:bg-[#1a1e29] dark:text-primary dark:border-primary dark:hover:bg-[#222736] transition-all duration-200 shadow-xs"
                     />
 
                     <div data-tour="topbar-icons" className="inline-flex h-10 items-center justify-center gap-1.5 sm:gap-3">
