@@ -45,15 +45,54 @@ export function isForbiddenError(error: unknown): boolean {
     return false;
 }
 
-export function getApiErrorMessage(
-    error: unknown,
-    fallback: string,
-    duplicate?: string,
-) {
-    if (isForbiddenError(error)) {
-        return "Access Forbidden — You do not have permission to access this resource.";
-    }
+/*
+ * Words that mean the server is talking to a developer, not to the person at
+ * the till.
+ *
+ * A cashier with a queue does not need a class path, and a customer reading
+ * the screen over their shoulder should never see one. Anything matching here
+ * is dropped for the caller's own sentence, which at least says what the
+ * reader was trying to do.
+ */
+const TECHNICAL_MARKERS = [
+    "exception",
+    "stack trace",
+    "stacktrace",
+    "sqlstate",
+    "constraint",
+    "org.springframework",
+    "java.",
+    "jakarta.",
+    "hibernate",
+    "econnrefused",
+    "enotfound",
+    "etimedout",
+    "fetch failed",
+    "socket hang up",
+    "internal server error",
+    "cannot read propert",
+    "is not a function",
+    "null pointer",
+    "no such column",
+    "no such table",
+];
 
+function looksTechnical(message: string) {
+    const trimmed = message.trim();
+    const lower = trimmed.toLowerCase();
+
+    if (TECHNICAL_MARKERS.some((marker) => lower.includes(marker))) return true;
+
+    // A stack frame, a serialised object, or a paragraph. None is a sentence
+    // anyone can act on.
+    if (/\bat\s+[\w.$]+\s*\(/.test(trimmed)) return true;
+    if (/^[{[<]/.test(trimmed)) return true;
+    if (trimmed.length > 200) return true;
+
+    return false;
+}
+
+function rawApiMessage(error: unknown) {
     if (
         typeof error === "object" &&
         error !== null &&
@@ -63,10 +102,33 @@ export function getApiErrorMessage(
         "message" in error.data &&
         typeof error.data.message === "string"
     ) {
-        const msg = error.data.message;
+        return error.data.message;
+    }
 
+    return undefined;
+}
+
+export function getApiErrorMessage(
+    error: unknown,
+    fallback: string,
+    duplicate?: string,
+) {
+    if (isForbiddenError(error)) {
+        return "You do not have permission to do that.";
+    }
+
+    const msg = rawApiMessage(error);
+
+    if (msg) {
         if (duplicate && msg.toLowerCase().includes("duplicate key")) {
             return duplicate;
+        }
+
+        // The caller's fallback names what the reader was doing; a stack frame
+        // names what the server was doing. Only one of those helps.
+        if (looksTechnical(msg)) {
+            console.error("[api] technical error hidden from the UI:", msg);
+            return fallback;
         }
 
         return msg;
@@ -76,21 +138,17 @@ export function getApiErrorMessage(
 }
 
 /**
- * Whether the backend answered with a message of its own, rather than the
- * request failing to reach it. Screens use this to decide between explaining
- * what the server said and pointing at the connection.
+ * Whether the backend answered with something worth repeating, rather than the
+ * request failing to reach it — or falling over in its own words.
+ *
+ * Screens use this to decide between explaining what the server said and
+ * pointing at the connection. A stack trace is neither, so it counts as no
+ * message at all.
  */
 export function hasApiErrorMessage(error: unknown) {
-    return (
-        typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof error.data === "object" &&
-        error.data !== null &&
-        "message" in error.data &&
-        typeof error.data.message === "string" &&
-        error.data.message.trim().length > 0
-    );
+    const message = rawApiMessage(error)?.trim();
+
+    return Boolean(message && !looksTechnical(message));
 }
 
 export type FieldErrors = Record<string, string[] | undefined>;

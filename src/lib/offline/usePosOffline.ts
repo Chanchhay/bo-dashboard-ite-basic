@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { offlineDb } from "./db";
 import type { ChannelItem } from "@/lib/api/sales-channels";
+import { itemThumbnail } from "@/lib/api/inventory";
+import { cacheImages } from "@/lib/offline/image-cache";
 import { useDispatch } from "react-redux";
 import { db } from "@/lib/db";
 import { syncOfflineOrders as syncOfflineDbOrders } from "@/lib/sync";
@@ -92,6 +94,12 @@ export function usePosOffline() {
       await offlineDb.channelItems.clear();
       await offlineDb.channelItems.bulkPut(items);
       console.log(`[Offline POS] Cached ${items.length} catalog items.`);
+
+      // The pictures follow the catalogue, in the background: a cashier picks
+      // by sight, and a grid of items that have all fallen back to the brand
+      // mark is forty identical tiles. Not awaited — the catalogue is usable
+      // the moment it lands, and the pictures arrive behind it.
+      void cacheImages(items.map((entry) => itemThumbnail(entry.item)));
     } catch (err) {
       console.error("[Offline POS] Failed to cache catalog items:", err);
     }
@@ -144,7 +152,7 @@ export function usePosOffline() {
     try {
       setIsSyncing(true);
 
-      const dbOk = await syncOfflineDbOrders("1", dispatch);
+      const dbOk = await syncOfflineDbOrders(dispatch);
 
       await refreshPendingCount();
 

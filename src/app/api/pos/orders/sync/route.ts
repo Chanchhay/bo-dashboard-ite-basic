@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { addSyncedOrder } from "@/lib/synced-orders-store";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { backendRequest } from "@/lib/api/backend";
 import { ordersPath } from "@/lib/api/pos-order-backend";
@@ -24,10 +23,10 @@ export async function POST(request: Request) {
       );
     }
 
-    let businessId = "1";
-    try {
-      businessId = await getCurrentBusinessId();
-    } catch {}
+    // No fallback business. Posting a shift's takings to whichever business
+    // happens to be "1" is worse than refusing: the till keeps its queue and
+    // retries, and nothing lands in a stranger's ledger.
+    const businessId = await getCurrentBusinessId();
 
     // Format and normalize offline order payload for Spring Boot Backend API
     const formattedOrders = ordersToSync.map((o: any) => ({
@@ -37,6 +36,14 @@ export async function POST(request: Request) {
       subtotal: typeof o.subtotal === "number" ? o.subtotal : parseFloat(o.subtotal || "0"),
       total: typeof o.total === "number" ? o.total : parseFloat(o.total || "0"),
       discountAmount: typeof o.discountAmount === "number" ? o.discountAmount : parseFloat(o.discount_amount || o.discountAmount || "0"),
+      // The total already includes tax; without the breakdown the recorded
+      // sale cannot show a VAT line and its parts do not add up to it.
+      taxRate: o.taxRate ?? o.tax_rate ?? null,
+      tax_rate: o.taxRate ?? o.tax_rate ?? null,
+      taxAmount: o.taxAmount ?? o.tax_amount ?? null,
+      tax_amount: o.taxAmount ?? o.tax_amount ?? null,
+      taxInclusionType: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
+      tax_inclusion_type: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
       createdAt: o.createdAt || o.created_at || new Date().toISOString(),
       items: (o.items || []).map((i: any) => ({
         productId: i.productId || i.product_id,
@@ -93,11 +100,20 @@ export async function POST(request: Request) {
         ? backendResult.syncedUuids
         : formattedOrders.map((o: any) => o.uuid).filter(Boolean);
 
+    /*
+     * The backend holds these now, so nothing is kept here.
+     *
+     * A copy used to be stashed in this server's memory and merged into the
+     * orders list, from a time when the sync could not be relied on. Since a
+     * refusal is reported as one, this code is only ever reached after the
+     * backend accepted the sale — so the copy could only ever be a second row
+     * for the same sale, priced at zero because it read the line fields under
+     * names this route does not use.
+     */
     for (const order of formattedOrders) {
       if (order?.uuid && syncedUuids.includes(order.uuid)) {
-        addSyncedOrder(order);
         console.log(
-          `[POS Sync API] Successfully synced offline order ${order.uuid} (total: ${order.total})`
+          `[POS Sync API] Synced offline order ${order.uuid} (total: ${order.total})`
         );
       }
     }

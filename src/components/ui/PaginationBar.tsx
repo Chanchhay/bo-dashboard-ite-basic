@@ -69,6 +69,18 @@ export type PaginationBarProps = {
   itemLabel?: string;
   itemLabelPlural?: string;
   className?: string;
+
+  /**
+   * How many rows the pages before this one held, and how many this one is
+   * showing, where that is not simply `page * size`.
+   *
+   * A list that pins rows to its first page — unsynced sales waiting to reach
+   * the server — has a first page longer than the rest, and the running count
+   * has to say so rather than working it out from arithmetic that no longer
+   * holds. Left out, the bar counts the usual way.
+   */
+  rowsBefore?: number;
+  rowsOnPage?: number;
 };
 
 export function PaginationBar({
@@ -83,12 +95,18 @@ export function PaginationBar({
   itemLabel = "row",
   itemLabelPlural,
   className,
+  rowsBefore,
+  rowsOnPage,
 }: PaginationBarProps) {
   const safeTotalPages = Math.max(totalPages, 1);
   const currentPage = Math.min(Math.max(page, 0), safeTotalPages - 1);
 
-  const firstRow = totalElements === 0 ? 0 : currentPage * size + 1;
-  const lastRow = Math.min((currentPage + 1) * size, totalElements);
+  const before = rowsBefore ?? currentPage * size;
+  const firstRow = totalElements === 0 ? 0 : before + 1;
+  const lastRow =
+    rowsOnPage === undefined
+      ? Math.min((currentPage + 1) * size, totalElements)
+      : before + rowsOnPage;
 
   const plural = itemLabelPlural ?? `${itemLabel}s`;
   const noun = totalElements === 1 ? itemLabel : plural;

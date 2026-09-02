@@ -197,6 +197,7 @@ export function Payment({
           {khqr ? (
             <KhqrView
               khqr={khqr}
+              merchantName={business?.name}
               isRegenerating={isGenerating}
               onRegenerate={() => void showKhqr()}
               onCancel={() => {

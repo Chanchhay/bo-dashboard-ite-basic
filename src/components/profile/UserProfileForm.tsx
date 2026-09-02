@@ -652,7 +652,7 @@ export default function UserProfileForm() {
             <ProfileQueryError
                 message={getApiErrorMessage(
                     profileQuery.error,
-                    "The user profile API could not be reached.",
+                    "Your profile could not be loaded. Check the connection and try again.",
                 )}
                 onRetry={() => void profileQuery.refetch()}
             />

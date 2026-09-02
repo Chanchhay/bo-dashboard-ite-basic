@@ -785,7 +785,7 @@ export default function BusinessProfileForm() {
             <ProfileQueryError
                 message={getApiErrorMessage(
                     businessQuery.error,
-                    "The business API could not be reached.",
+                    "Your business details could not be loaded. Check the connection and try again.",
                 )}
                 answered={hasApiErrorMessage(businessQuery.error)}
                 onRetry={() => {
