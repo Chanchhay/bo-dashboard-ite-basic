@@ -23,6 +23,16 @@ const cartLineSchema = z.object({
     unitId: z.string().nullish(),
     addOnIds: z.array(z.string()).optional(),
     quantity: z.coerce.number().int().positive(),
+    /**
+     * How many of `quantity` the till already knows are a Buy X Get Y
+     * freebie, last learned from a previous push. The backend's add/update
+     * endpoints take a *paid* quantity — they decide the free portion
+     * themselves — so this is subtracted before either is called; without
+     * it, a total that already includes a granted freebie would be resent
+     * as if the cashier meant to pay for it too, compounding the bundle on
+     * every edit after the first.
+     */
+    freeQuantity: z.coerce.number().int().nonnegative().optional(),
 });
 
 const putCartSchema = z.object({
@@ -105,6 +115,12 @@ export async function PUT(request: Request) {
                 (candidate) => keyOfServerLine(candidate) === key,
             );
 
+            // The backend's add/update endpoints decide the free portion of a
+            // Buy X Get Y bundle themselves and expect to be told only what
+            // the cashier is actually paying for — never a total that may
+            // already have a previously-granted freebie baked into it.
+            const paidQuantity = Math.max(0, line.quantity - (line.freeQuantity ?? 0));
+
             if (!existing) {
                 order = await backendRequest<PosOrder>(
                     ordersPath(businessId, `/${encodeURIComponent(order.id)}/items`),
@@ -115,7 +131,7 @@ export async function PUT(request: Request) {
                             variantId: line.variantId ?? undefined,
                             unitId: line.unitId ?? undefined,
                             addOnIds: line.addOnIds,
-                            quantity: line.quantity,
+                            quantity: paidQuantity,
                         }),
                     },
                 );
@@ -132,7 +148,7 @@ export async function PUT(request: Request) {
                 ),
                 {
                     method: "PATCH",
-                    body: JSON.stringify({ quantity: line.quantity }),
+                    body: JSON.stringify({ quantity: paidQuantity }),
                 },
             );
         }
@@ -143,6 +159,12 @@ export async function PUT(request: Request) {
             order,
             lineIds: Object.fromEntries(
                 order.items.map((line) => [keyOfServerLine(line), line.id]),
+            ),
+            // How many of each line the backend's Buy X Get Y engine gave
+            // away for free — the till has no bundle rules of its own, so
+            // this is the only way it ever learns a bundle completed.
+            freeQuantities: Object.fromEntries(
+                order.items.map((line) => [keyOfServerLine(line), line.freeQuantity ?? 0]),
             ),
         });
     } catch (error) {

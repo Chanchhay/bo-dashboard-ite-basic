@@ -8,6 +8,14 @@ import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
 
 /**
  * Attaches or detaches a customer on the current order.
+ *
+ * Two real backend shapes are tried — the order's own `/customer` endpoint,
+ * then a plain PATCH on the order itself — because either could be the one
+ * this backend actually implements. What used to follow both was a silent
+ * fallback to a locally-fabricated order, which meant a customer that failed
+ * to attach on the server still looked attached on the till. That is worse
+ * than surfacing the failure: the receipt and the customer's purchase
+ * history would silently disagree about who this sale was for.
  */
 export async function PATCH(request: Request) {
     try {
@@ -27,7 +35,6 @@ export async function PATCH(request: Request) {
         let updated: PosOrder;
 
         try {
-            // Try explicit endpoint first
             updated = await backendRequest<PosOrder>(
                 ordersPath(businessId, `/${encodeURIComponent(order.id)}/customer`),
                 {
@@ -36,22 +43,13 @@ export async function PATCH(request: Request) {
                 },
             );
         } catch {
-            try {
-                // Fallback to main order PATCH
-                updated = await backendRequest<PosOrder>(
-                    ordersPath(businessId, `/${encodeURIComponent(order.id)}`),
-                    {
-                        method: "PATCH",
-                        body: JSON.stringify({ customerId }),
-                    },
-                );
-            } catch {
-                // If backend does not persist customerId yet, return local order with customerId attached
-                updated = {
-                    ...order,
-                    customerId,
-                };
-            }
+            updated = await backendRequest<PosOrder>(
+                ordersPath(businessId, `/${encodeURIComponent(order.id)}`),
+                {
+                    method: "PATCH",
+                    body: JSON.stringify({ customerId }),
+                },
+            );
         }
 
         return Response.json(updated);

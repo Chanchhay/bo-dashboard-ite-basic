@@ -48,6 +48,7 @@ import {
     userProfileApi,
 } from "@/services/userProfileApi";
 import { useAppDispatch } from "@/store/hooks";
+import { NotificationSettingsCard } from "@/components/profile/NotificationSettingsCard";
 
 type FieldName = keyof UserProfileInput;
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -447,6 +448,8 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         />
                     </div>
                 </section>
+
+                <NotificationSettingsCard />
             </aside>
 
             <form
