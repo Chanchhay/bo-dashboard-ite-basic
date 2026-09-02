@@ -777,9 +777,9 @@ export function InventoryProductList() {
                                     className="h-9 sm:h-10 w-full sm:w-auto px-2.5 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl justify-center"
                                 >
                                     {isExporting ? (
-                                        <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                                        <LoaderCircle className="size-4 shrink-0 animate-spin text-primary" />
                                     ) : (
-                                        <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                        <Download className="size-4 shrink-0 text-primary" />
                                     )}
                                     <span className="truncate">{isExporting ? "Exporting..." : "Export Excel"}</span>
                                 </Button>
