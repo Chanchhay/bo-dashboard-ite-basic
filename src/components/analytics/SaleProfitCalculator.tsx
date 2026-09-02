@@ -15,6 +15,8 @@ import {
     Search,
     Sparkles,
     Info,
+    Download,
+    FileSpreadsheet,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -121,6 +123,223 @@ function marginForPrice(cost: number, price: number): number | null {
     return ((price - cost) / price) * 100;
 }
 
+function downloadCsvFile(filename: string, rows: (string | number | null | undefined)[][]) {
+    const csvContent = rows
+        .map((row) =>
+            row
+                .map((cell) => {
+                    if (cell === null || cell === undefined) return "";
+                    const value = String(cell);
+                    return /[",\n]/.test(value)
+                        ? `"${value.replaceAll('"', '""')}"`
+                        : value;
+                })
+                .join(","),
+        )
+        .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportMarginPerItemCsv(
+    rows: PricedRow[],
+    kpis: {
+        revenue: number;
+        cost: number;
+        grossProfit: number;
+        grossMargin: number;
+        operatingExpense: number;
+        netProfit: number;
+        netMarginPercent: number;
+    },
+) {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const dataRows: (string | number | null | undefined)[][] = [
+        ["=== SALE PROFIT CALCULATOR - MARGIN PER ITEM REPORT ==="],
+        ["Generated Date", new Date().toLocaleString()],
+        ["Mode", "Margin Per Item"],
+        ["Operating Expense ($)", kpis.operatingExpense.toFixed(2)],
+        ["Total Revenue ($)", kpis.revenue.toFixed(2)],
+        ["Cost of Goods ($)", kpis.cost.toFixed(2)],
+        ["Gross Profit ($)", kpis.grossProfit.toFixed(2)],
+        ["Gross Margin (%)", `${kpis.grossMargin.toFixed(1)}%`],
+        ["Estimated Net Profit ($)", kpis.netProfit.toFixed(2)],
+        ["Estimated Net Margin (%)", `${kpis.netMarginPercent.toFixed(1)}%`],
+        [],
+        [
+            "Item Name",
+            "Unit Cost ($)",
+            "Quantity",
+            "Margin (%)",
+            "Predicted Price ($)",
+            "Predicted Revenue ($)",
+            "Predicted Profit ($)",
+        ],
+    ];
+
+    for (const row of rows) {
+        dataRows.push([
+            row.name,
+            row.cost.toFixed(2),
+            row.qty,
+            `${row.marginPercent.toFixed(1)}%`,
+            row.price === null ? "—" : row.price.toFixed(2),
+            row.revenue.toFixed(2),
+            row.price === null ? "—" : row.profit.toFixed(2),
+        ]);
+    }
+
+    downloadCsvFile(`sale-profit-margin-per-item-${dateStr}.csv`, dataRows);
+}
+
+function exportBusinessTargetCsv(
+    rows: Array<
+        ItemRow & {
+            price: number | null;
+            newPrice: number | null;
+            newMargin: number | null;
+        }
+    >,
+    kpis: {
+        targetMarginPercent: number;
+        revenue: number;
+        cost: number;
+        grossProfit: number;
+        grossMargin: number;
+        operatingExpense: number;
+        netProfit: number;
+        netMarginPercent: number;
+    },
+) {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const dataRows: (string | number | null | undefined)[][] = [
+        ["=== SALE PROFIT CALCULATOR - BUSINESS TARGET REPORT ==="],
+        ["Generated Date", new Date().toLocaleString()],
+        ["Mode", "Business Target"],
+        ["Target Gross Margin Goal (%)", `${kpis.targetMarginPercent.toFixed(1)}%`],
+        ["Operating Expense ($)", kpis.operatingExpense.toFixed(2)],
+        ["Target Total Revenue ($)", kpis.revenue.toFixed(2)],
+        ["Cost of Goods ($)", kpis.cost.toFixed(2)],
+        ["Target Gross Profit ($)", kpis.grossProfit.toFixed(2)],
+        ["Target Gross Margin (%)", `${kpis.grossMargin.toFixed(1)}%`],
+        ["Estimated Net Profit ($)", kpis.netProfit.toFixed(2)],
+        ["Estimated Net Margin (%)", `${kpis.netMarginPercent.toFixed(1)}%`],
+        [],
+        [
+            "Item Name",
+            "Unit Cost ($)",
+            "Quantity",
+            "Current Price ($)",
+            "Target Price ($)",
+            "Target Margin (%)",
+            "Target Revenue ($)",
+            "Target Profit ($)",
+        ],
+    ];
+
+    for (const row of rows) {
+        const targetRev = row.newPrice === null ? 0 : row.newPrice * row.qty;
+        const targetProfit = row.newPrice === null ? 0 : (row.newPrice - row.cost) * row.qty;
+        dataRows.push([
+            row.name,
+            row.cost.toFixed(2),
+            row.qty,
+            row.price === null ? "—" : row.price.toFixed(2),
+            row.newPrice === null ? "—" : row.newPrice.toFixed(2),
+            row.newMargin === null ? "—" : `${row.newMargin.toFixed(1)}%`,
+            targetRev.toFixed(2),
+            row.newPrice === null ? "—" : targetProfit.toFixed(2),
+        ]);
+    }
+
+    downloadCsvFile(`sale-profit-business-target-${dateStr}.csv`, dataRows);
+}
+
+function exportCombinedCsv(
+    marginRows: PricedRow[],
+    targetRows: Array<
+        ItemRow & {
+            price: number | null;
+            newPrice: number | null;
+            newMargin: number | null;
+        }
+    >,
+    targetMarginPercent: number,
+    operatingExpense: number,
+    marginKpis: {
+        revenue: number;
+        cost: number;
+        grossProfit: number;
+        grossMargin: number;
+        netProfit: number;
+        netMarginPercent: number;
+    },
+    targetKpis: {
+        revenue: number;
+        cost: number;
+        grossProfit: number;
+        grossMargin: number;
+        netProfit: number;
+        netMarginPercent: number;
+    },
+) {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const dataRows: (string | number | null | undefined)[][] = [
+        ["=== SALE PROFIT CALCULATOR - COMPLETE ANALYSIS REPORT ==="],
+        ["Generated Date", new Date().toLocaleString()],
+        ["Operating Expense ($)", operatingExpense.toFixed(2)],
+        ["Target Gross Margin Goal (%)", `${targetMarginPercent.toFixed(1)}%`],
+        [],
+        ["--- SUMMARY KPI COMPARISON ---"],
+        ["Metric", "Margin Per Item Mode", `Business Target Mode (${targetMarginPercent}%)`],
+        ["Revenue ($)", marginKpis.revenue.toFixed(2), targetKpis.revenue.toFixed(2)],
+        ["Cost of Goods ($)", marginKpis.cost.toFixed(2), targetKpis.cost.toFixed(2)],
+        ["Gross Profit ($)", marginKpis.grossProfit.toFixed(2), targetKpis.grossProfit.toFixed(2)],
+        ["Gross Margin (%)", `${marginKpis.grossMargin.toFixed(1)}%`, `${targetKpis.grossMargin.toFixed(1)}%`],
+        ["Estimated Net Profit ($)", marginKpis.netProfit.toFixed(2), targetKpis.netProfit.toFixed(2)],
+        ["Estimated Net Margin (%)", `${marginKpis.netMarginPercent.toFixed(1)}%`, `${targetKpis.netMarginPercent.toFixed(1)}%`],
+        [],
+        ["--- ITEM-BY-ITEM COMPARATIVE PREDICTIONS ---"],
+        [
+            "Item Name",
+            "Unit Cost ($)",
+            "Quantity",
+            "Margin Per Item (%)",
+            "Margin Per Item Price ($)",
+            "Margin Per Item Profit ($)",
+            "Business Target Price ($)",
+            "Business Target Margin (%)",
+            "Business Target Profit ($)",
+        ],
+    ];
+
+    for (let i = 0; i < marginRows.length; i++) {
+        const mRow = marginRows[i];
+        const tRow = targetRows[i] ?? mRow;
+        const targetProfit = tRow.newPrice === null ? 0 : (tRow.newPrice - tRow.cost) * tRow.qty;
+
+        dataRows.push([
+            mRow.name,
+            mRow.cost.toFixed(2),
+            mRow.qty,
+            `${mRow.marginPercent.toFixed(1)}%`,
+            mRow.price === null ? "—" : mRow.price.toFixed(2),
+            mRow.price === null ? "—" : mRow.profit.toFixed(2),
+            tRow.newPrice === null ? "—" : tRow.newPrice.toFixed(2),
+            tRow.newMargin === null ? "—" : `${tRow.newMargin.toFixed(1)}%`,
+            tRow.newPrice === null ? "—" : targetProfit.toFixed(2),
+        ]);
+    }
+
+    downloadCsvFile(`sale-profit-full-analysis-${dateStr}.csv`, dataRows);
+}
+
 export function SaleProfitCalculator() {
     const { format } = useMoney();
     const [mode, setMode] = useState<CalculatorMode>("PER_ITEM");
@@ -216,6 +435,76 @@ export function SaleProfitCalculator() {
     const grossMargin = mode === "PER_ITEM" ? currentGrossMargin : targetMarginPercent;
     const netProfit = grossProfit - operatingExpense;
     const netMarginPercent = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+    const handleExportPerItem = () => {
+        exportMarginPerItemCsv(currentRows, {
+            revenue: currentRevenue,
+            cost,
+            grossProfit: currentGrossProfit,
+            grossMargin: currentGrossMargin,
+            operatingExpense,
+            netProfit: currentGrossProfit - operatingExpense,
+            netMarginPercent:
+                currentRevenue > 0
+                    ? ((currentGrossProfit - operatingExpense) / currentRevenue) * 100
+                    : 0,
+        });
+    };
+
+    const handleExportTarget = () => {
+        const tRev = requiredRevenue ?? currentRevenue;
+        const tProfit = targetGrossProfit ?? currentGrossProfit;
+        const tNetProfit = tProfit - operatingExpense;
+        exportBusinessTargetCsv(targetRows, {
+            targetMarginPercent,
+            revenue: tRev,
+            cost,
+            grossProfit: tProfit,
+            grossMargin: targetMarginPercent,
+            operatingExpense,
+            netProfit: tNetProfit,
+            netMarginPercent: tRev > 0 ? (tNetProfit / tRev) * 100 : 0,
+        });
+    };
+
+    const handleExportCombined = () => {
+        const tRev = requiredRevenue ?? currentRevenue;
+        const tProfit = targetGrossProfit ?? currentGrossProfit;
+        const tNetProfit = tProfit - operatingExpense;
+        exportCombinedCsv(
+            currentRows,
+            targetRows,
+            targetMarginPercent,
+            operatingExpense,
+            {
+                revenue: currentRevenue,
+                cost,
+                grossProfit: currentGrossProfit,
+                grossMargin: currentGrossMargin,
+                netProfit: currentGrossProfit - operatingExpense,
+                netMarginPercent:
+                    currentRevenue > 0
+                        ? ((currentGrossProfit - operatingExpense) / currentRevenue) * 100
+                        : 0,
+            },
+            {
+                revenue: tRev,
+                cost,
+                grossProfit: tProfit,
+                grossMargin: targetMarginPercent,
+                netProfit: tNetProfit,
+                netMarginPercent: tRev > 0 ? (tNetProfit / tRev) * 100 : 0,
+            },
+        );
+    };
+
+    const handleExportCurrentMode = () => {
+        if (mode === "PER_ITEM") {
+            handleExportPerItem();
+        } else {
+            handleExportTarget();
+        }
+    };
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">
@@ -399,6 +688,7 @@ export function SaleProfitCalculator() {
                                 bulkMarginPercent={bulkMarginPercent}
                                 onBulkMarginChange={setBulkMarginPercent}
                                 onApplyMarginToAll={applyMarginToAll}
+                                onExport={handleExportPerItem}
                             />
                             <p className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
                                 <Info className="size-3.5 shrink-0" />
@@ -413,6 +703,7 @@ export function SaleProfitCalculator() {
                             rows={targetRows}
                             format={format}
                             atTarget={atTarget}
+                            onExport={handleExportTarget}
                         />
                     )}
 
@@ -492,6 +783,7 @@ function PerItemTable({
     bulkMarginPercent,
     onBulkMarginChange,
     onApplyMarginToAll,
+    onExport,
 }: {
     rows: PricedRow[];
     format: (value: number) => string;
@@ -500,6 +792,7 @@ function PerItemTable({
     bulkMarginPercent: number;
     onBulkMarginChange: (marginPercent: number) => void;
     onApplyMarginToAll: () => void;
+    onExport?: () => void;
 }) {
     const [search, setSearch] = useState("");
     const pricedCount = rows.filter((row) => row.price !== null).length;
@@ -576,6 +869,18 @@ function PerItemTable({
                                 Apply to all
                             </Button>
                         </div>
+                        {onExport ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={onExport}
+                                className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-bold hover:bg-card"
+                            >
+                                <Download className="size-3.5 text-muted-foreground" />
+                                Export CSV
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
@@ -700,6 +1005,7 @@ function TargetTable({
     rows,
     format,
     atTarget,
+    onExport,
 }: {
     rows: Array<
         ItemRow & {
@@ -710,9 +1016,27 @@ function TargetTable({
     >;
     format: (value: number) => string;
     atTarget: boolean;
+    onExport?: () => void;
 }) {
     return (
         <Card className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs">
+            <div className="flex items-center justify-between border-b border-border/80 px-4 py-3 sm:px-5">
+                <span className="text-xs font-bold text-foreground">
+                    Business Target Pricing Predictions
+                </span>
+                {onExport ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onExport}
+                        className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-bold hover:bg-muted/40"
+                    >
+                        <Download className="size-3.5 text-muted-foreground" />
+                        Export CSV
+                    </Button>
+                ) : null}
+            </div>
             {atTarget ? (
                 <div className="flex items-center gap-2 border-b border-border/80 bg-success/10 px-4 py-3 text-sm font-bold text-success sm:px-5">
                     <CheckCircle2 className="size-4 shrink-0" />

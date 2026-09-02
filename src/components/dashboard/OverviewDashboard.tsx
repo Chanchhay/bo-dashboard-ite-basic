@@ -18,7 +18,13 @@ import {
     MoreHorizontal,
     ChevronLeft,
     ChevronRight,
+    FileText,
+    FileSpreadsheet,
+    FileType,
+    Loader2,
 } from "lucide-react";
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
 import {
     ResponsiveContainer,
     AreaChart,
@@ -89,6 +95,36 @@ const stockChartConfig = {
         color: "#feb90d",
     },
 } satisfies ChartConfig;
+
+type CapturedChart = { dataUrl: string; width: number; height: number };
+
+// Renders a dashboard card to a PNG data URI for embedding in exported reports (Excel/Word).
+// Strips SVG glow filters first — html2canvas rasterizes them as a muddy smear instead of a soft glow.
+// Returns the canvas's real pixel dimensions too, so callers can size the <img> without
+// distorting it — Word/Excel's HTML importer stretches images when only one dimension is set.
+async function captureChartImage(selector: string): Promise<CapturedChart | null> {
+    const el = document.querySelector(selector);
+    if (!el) return null;
+    const canvas = await html2canvas(el as HTMLElement, {
+        scale: 1.5,
+        logging: false,
+        onclone: (clonedDoc) => {
+            clonedDoc.querySelectorAll("[filter]").forEach((node) => node.removeAttribute("filter"));
+            clonedDoc.querySelectorAll<HTMLElement>("[style*='filter']").forEach((node) => {
+                node.style.filter = "none";
+            });
+        },
+    });
+    return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
+}
+
+// Builds an <img> tag with an explicit width/height (derived from the real capture aspect
+// ratio) at the given display width, so it renders at a clean, undistorted size.
+function chartImgTag(chart: CapturedChart | null, filename: string, displayWidth: number, style = ""): string {
+    if (!chart) return "";
+    const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
+    return `<img src="${filename}" width="${displayWidth}" height="${displayHeight}" style="border:1px solid #d9d9d9; border-radius: 8px; ${style}" />`;
+}
 
 export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardProps) {
     const { format } = useMoney();
@@ -444,6 +480,493 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
         URL.revokeObjectURL(url);
     };
 
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+    const handleExportPDF = async () => {
+        const dashboardEl = document.getElementById("dashboard-container");
+        if (!dashboardEl) return;
+
+        try {
+            setIsExportingPdf(true);
+            await new Promise((r) => setTimeout(r, 150));
+
+            const canvas = await html2canvas(dashboardEl, {
+                scale: 3, // Ultra-high resolution 3x rendering for crisp text & sharp charts
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff", // Print report on a clean white page, not the app's gray shell backdrop
+                onclone: (clonedDoc) => {
+                    // 1. Hide export action toolbar from PDF report printout
+                    const toolbar = clonedDoc.querySelector("[data-pdf-ignore='true']");
+                    if (toolbar) {
+                        (toolbar as HTMLElement).style.display = "none";
+                    }
+
+                    // Force a clean white page background — the live dashboard's gray shell
+                    // backdrop looks like a dull tint once printed to a PDF page.
+                    clonedDoc.body.style.backgroundColor = "#ffffff";
+                    const dashboardClone = clonedDoc.getElementById("dashboard-container");
+                    if (dashboardClone) {
+                        dashboardClone.style.backgroundColor = "#ffffff";
+                    }
+
+                    // 2. Inject Executive PDF Header into cloned document
+                    const container = clonedDoc.getElementById("dashboard-container");
+                    if (container) {
+                        const dateStr = new Date().toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                        });
+
+                        const header = clonedDoc.createElement("div");
+                        header.style.display = "flex";
+                        header.style.justifyContent = "space-between";
+                        header.style.alignItems = "center";
+                        header.style.paddingBottom = "12px";
+                        header.style.marginBottom = "16px";
+                        header.style.borderBottom = "2px solid #00932a";
+
+                        header.innerHTML = `
+                          <div>
+                            <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; font-family: system-ui, -apple-system, sans-serif;">BUSINESS DASHBOARD OVERVIEW</h1>
+                            <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0; font-family: system-ui, -apple-system, sans-serif;">Executive Analytics Report &bull; Generated on ${dateStr}</p>
+                          </div>
+                          <div style="text-align: right;">
+                            <span style="background-color: #00932a; color: #ffffff; font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; font-family: system-ui, -apple-system, sans-serif; letter-spacing: 0.5px;">EXECUTIVE REPORT</span>
+                          </div>
+                        `;
+
+                        container.insertBefore(header, container.firstChild);
+                    }
+
+                    // 3. Strip SVG glow filters (feGaussianBlur) — html2canvas rasterizes them
+                    // as a muddy smear instead of a soft glow, so drop them for the static export.
+                    clonedDoc.querySelectorAll("[filter]").forEach((el) => el.removeAttribute("filter"));
+                    clonedDoc.querySelectorAll<HTMLElement>("[style*='filter']").forEach((el) => {
+                        el.style.filter = "none";
+                    });
+                },
+            });
+
+            const imgData = canvas.toDataURL("image/png");
+
+            // Size the page to the content itself (fixed A4 width, dynamic height) so the
+            // whole report fits on a single page instead of being cut across multiple pages.
+            const margin = 6; // Tight 6mm margins for full-width presentation
+            const pageWidth = 210; // A4 width in mm
+            const imgWidth = pageWidth - margin * 2;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const pageHeight = imgHeight + margin * 2;
+
+            const pdf = new jsPDF({
+                orientation: pageHeight >= pageWidth ? "p" : "l",
+                unit: "mm",
+                format: [pageWidth, pageHeight],
+            });
+
+            pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight, undefined, "FAST");
+
+            const dateStr = new Date().toISOString().split("T")[0];
+            pdf.save(`business-dashboard-report-${dateStr}.pdf`);
+        } catch (err) {
+            console.error("Failed to export high-res PDF:", err);
+        } finally {
+            setIsExportingPdf(false);
+        }
+    };
+
+    const [isExportingDocs, setIsExportingDocs] = useState(false);
+
+    const handleExportDocs = async () => {
+        try {
+            setIsExportingDocs(true);
+            await new Promise((r) => setTimeout(r, 100));
+
+            const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
+            const profitChartImg = await captureChartImage("[data-tour='dashboard-cumulative-profit']");
+            const barChartImg = await captureChartImage("[data-tour='dashboard-item-vector']");
+            const stockChartImg = await captureChartImage("[data-tour='dashboard-stock-on-hand']");
+
+            const dateStr = new Date().toISOString().split("T")[0];
+            const generatedOn = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+            const section = (title: string, bodyHtml: string) => `
+              <h2 style="font-size: 15px; font-weight: 700; color: #1f4e79; border-bottom: 1px solid #d9e1f2; padding-bottom: 6px; margin: 26px 0 12px 0;">${title}</h2>
+              ${bodyHtml}
+            `;
+
+            const dataTable = (headers: string[], rows: (string | number)[][]) => `
+              <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
+                <tr>${headers.map((h) => `<td class="header-cell">${h}</td>`).join("")}</tr>
+                ${rows.map((row) => `<tr>${row.map((cell) => `<td class="data-cell">${cell}</td>`).join("")}</tr>`).join("")}
+              </table>
+            `;
+
+            const docHtml = `
+              <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+              <head>
+                <meta charset="utf-8">
+                <style>
+                  body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; font-size: 12px; color: #1f2937; margin: 30px; }
+                  .header-cell { background-color: #d9e1f2; color: #000000; font-weight: bold; border: 1px solid #b4c6e7; padding: 6px 10px; font-size: 12px; text-align: left; }
+                  .data-cell { border: 1px solid #e0e0e0; font-size: 11px; padding: 5px 10px; }
+                  .kpi-cell { border: 1px solid #b4c6e7; background-color: #f2f4f8; text-align: center; padding: 10px; }
+                  .kpi-label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+                  .kpi-val { font-size: 18px; font-weight: bold; color: #0f172a; margin-top: 4px; }
+                </style>
+              </head>
+              <body>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #00932a; padding-bottom: 12px; margin-bottom: 20px;">
+                  <div>
+                    <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0;">BUSINESS DASHBOARD OVERVIEW</h1>
+                    <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0;">Executive Analytics Report &bull; Generated on ${generatedOn}</p>
+                  </div>
+                  <span style="background-color: #00932a; color: #ffffff; font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 9999px;">EXECUTIVE REPORT</span>
+                </div>
+
+                <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
+                  <tr>
+                    <td class="kpi-cell"><div class="kpi-label">Total Revenue</div><div class="kpi-val">$${kpiData.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div></td>
+                    <td class="kpi-cell"><div class="kpi-label">Total Items</div><div class="kpi-val">${kpiData.totalItem.toLocaleString("en-US")}</div></td>
+                    <td class="kpi-cell"><div class="kpi-label">Total Categories</div><div class="kpi-val">${kpiData.totalCategory.toLocaleString("en-US")}</div></td>
+                    <td class="kpi-cell"><div class="kpi-label">Total Inventory</div><div class="kpi-val">${kpiData.inventory.toLocaleString("en-US")}</div></td>
+                  </tr>
+                </table>
+
+                ${section("Percentage of Channel", `
+                  ${chartImgTag(pieChartImg, "pieChart.png", 300, "margin-bottom: 12px;")}
+                  ${dataTable(
+                      ["Channel", "Revenue ($)", "Revenue Share (%)"],
+                      channelPercentageData.map((c) => [c.name, `$${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, `${c.value}%`]),
+                  )}
+                `)}
+
+                ${section("Cumulative Profit", `
+                  ${chartImgTag(profitChartImg, "profitChart.png", 460, "margin-bottom: 12px;")}
+                  ${dataTable(
+                      ["Period", "Period Profit ($)", "Cumulative Profit ($)"],
+                      cumulativeProfitData.map((p) => [p.fullDate, `$${p.profit.toFixed(2)}`, `$${p.cumulative.toFixed(2)}`]),
+                  )}
+                `)}
+
+                ${section("Total Amount of Item Type", `
+                  ${chartImgTag(barChartImg, "barChart.png", 460, "margin-bottom: 12px;")}
+                  ${dataTable(
+                      ["Item Name", "Quantity Sold", "Total Amount ($)"],
+                      itemVectorData.map((iv) => [iv.name, iv.itemCount, `$${iv.totalAmount.toFixed(2)}`]),
+                  )}
+                `)}
+
+                ${section("Stock Inventory", `
+                  ${chartImgTag(stockChartImg, "stockChart.png", 300, "margin-bottom: 12px;")}
+                  ${dataTable(
+                      ["Item Name", "Quantity On Hand", "Total Value ($)"],
+                      stockInventoryData.map((st) => [st.name, st.itemCount, `$${st.totalAmount.toFixed(2)}`]),
+                  )}
+                `)}
+
+                ${section("Recent Orders", dataTable(
+                    ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"],
+                    recentOrders.map((o) => [o.id, o.customer, o.product, o.category, `$${o.amount.toFixed(2)}`, o.status]),
+                ))}
+
+                ${section("Best Selling Products", dataTable(
+                    ["Product Name", "Category", "Total Sales ($)", "Units Sold"],
+                    bestSellingProducts.map((bp) => [bp.name, bp.category, `$${bp.sales.toFixed(2)}`, bp.sold]),
+                ))}
+              </body>
+              </html>
+            `;
+
+            // Word's HTML importer can't resolve `data:` image URIs \u2014 package the report as
+            // an MHTML (multipart/related) archive instead, same as the Excel export, with
+            // each chart image as its own MIME part.
+            const boundary = "----=DocsReportBoundary";
+            const mhtmlParts: string[] = [
+                "MIME-Version: 1.0",
+                `Content-Type: multipart/related; boundary="${boundary}"`,
+                "",
+                `--${boundary}`,
+                'Content-Type: text/html; charset="utf-8"',
+                "Content-Location: report.html",
+                "",
+                docHtml,
+                "",
+            ];
+
+            const addImagePart = (chart: CapturedChart | string, filename: string) => {
+                const dataUrl = typeof chart === "string" ? chart : chart.dataUrl;
+                const base64 = dataUrl.split(",")[1] ?? "";
+                mhtmlParts.push(
+                    `--${boundary}`,
+                    "Content-Type: image/png",
+                    "Content-Transfer-Encoding: base64",
+                    `Content-Location: ${filename}`,
+                    "",
+                    base64,
+                    "",
+                );
+            };
+
+            if (pieChartImg) addImagePart(pieChartImg, "pieChart.png");
+            if (profitChartImg) addImagePart(profitChartImg, "profitChart.png");
+            if (barChartImg) addImagePart(barChartImg, "barChart.png");
+            if (stockChartImg) addImagePart(stockChartImg, "stockChart.png");
+
+            mhtmlParts.push(`--${boundary}--`);
+
+            const blob = new Blob([mhtmlParts.join("\r\n")], { type: "application/msword;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `dashboard-report-${dateStr}.doc`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Failed to export Docs report:", err);
+        } finally {
+            setIsExportingDocs(false);
+        }
+    };
+
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
+
+    const handleExportExcel = async () => {
+        try {
+            setIsExportingExcel(true);
+            await new Promise((r) => setTimeout(r, 100));
+
+            const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
+            const profitChartImg = await captureChartImage("[data-tour='dashboard-cumulative-profit']");
+            const barChartImg = await captureChartImage("[data-tour='dashboard-item-vector']");
+            const stockChartImg = await captureChartImage("[data-tour='dashboard-stock-on-hand']");
+
+            const totalChannelRev = channelPercentageData.reduce((acc, c) => acc + c.revenue, 0) || 1;
+            const totalOrdersCount = (receiptsQuery.data as any)?.totalElements ?? recentOrders.length;
+            const dateStr = new Date().toISOString().split("T")[0];
+
+            const excelHtml = `
+              <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+              <head>
+                <meta charset="utf-8">
+                <style>
+                  body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; margin: 20px; }
+                  .kpi-card { background-color: #2b579a; color: #ffffff; font-family: Calibri, sans-serif; text-align: center; vertical-align: middle; border: 1px solid #1e3d6f; }
+                  .kpi-title { font-size: 11px; font-weight: bold; padding-top: 6px; }
+                  .kpi-val { font-size: 18px; font-weight: bold; padding-bottom: 8px; }
+                  .header-cell { background-color: #d9e1f2; color: #000000; font-weight: bold; border: 1px solid #b4c6e7; padding: 6px 10px; font-size: 12px; }
+                  .header-num { background-color: #d9e1f2; color: #000000; font-weight: bold; border: 1px solid #b4c6e7; padding: 6px 10px; font-size: 12px; text-align: right; }
+                  .data-cell { border: 1px solid #e0e0e0; font-size: 11px; padding: 5px 10px; }
+                  .data-num { border: 1px solid #e0e0e0; font-size: 11px; padding: 5px 10px; text-align: right; }
+                  .total-cell { font-weight: bold; background-color: #f2f4f8; border-top: 1.5pt solid #2b579a; border-bottom: 2pt double #2b579a; padding: 6px 10px; font-size: 11px; }
+                  .total-num { font-weight: bold; background-color: #f2f4f8; border-top: 1.5pt solid #2b579a; border-bottom: 2pt double #2b579a; padding: 6px 10px; font-size: 11px; text-align: right; }
+                  .section-title { font-size: 14px; font-weight: bold; color: #1f4e79; padding-bottom: 8px; margin-top: 10px; }
+                </style>
+              </head>
+              <body>
+                <table>
+                  <!-- TOP KPI CARDS (MATCHING EXCEL DASHBOARD MOCKUP) -->
+                  <tr>
+                    <td colspan="2" class="kpi-card kpi-title">TOTAL REVENUE</td>
+                    <td></td>
+                    <td colspan="2" class="kpi-card kpi-title">UNITS SOLD / INVENTORY</td>
+                    <td></td>
+                    <td colspan="2" class="kpi-card kpi-title">TOTAL ORDERS</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" class="kpi-card kpi-val">$${kpiData.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                    <td></td>
+                    <td colspan="2" class="kpi-card kpi-val">${kpiData.inventory.toLocaleString("en-US")}</td>
+                    <td></td>
+                    <td colspan="2" class="kpi-card kpi-val">${totalOrdersCount.toLocaleString("en-US")}</td>
+                  </tr>
+                  <tr><td colspan="8" style="height: 15px;"></td></tr>
+
+                  <!-- MAIN TABLES & EMBEDDED CHARTS -->
+                  <tr>
+                    <!-- LEFT SIDE TABLES -->
+                    <td colspan="4" valign="top">
+                      <!-- 1. SALES BY CHANNEL / CUSTOMER TYPE -->
+                      <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
+                        <tr>
+                          <td class="header-cell">Sales by Channel / Customer</td>
+                          <td class="header-num">Sum of Total Sales ($)</td>
+                          <td class="header-num">% of Share</td>
+                        </tr>
+                        ${channelPercentageData.map(c => `
+                          <tr>
+                            <td class="data-cell">${c.name}</td>
+                            <td class="data-num">$${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                            <td class="data-num">${((c.revenue / totalChannelRev) * 100).toFixed(2)}%</td>
+                          </tr>
+                        `).join("")}
+                        <tr>
+                          <td class="total-cell">Grand Total</td>
+                          <td class="total-num">$${totalChannelRev.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                          <td class="total-num">100.00%</td>
+                        </tr>
+                      </table>
+
+                      <br/><br/>
+
+                      <!-- 2. SALE BY CATEGORY / TOP ITEMS -->
+                      <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
+                        <tr>
+                          <td class="header-cell">Sale by Category / Item</td>
+                          <td class="header-num">Sum of Total Sales ($)</td>
+                          <td class="header-num">% of Share</td>
+                        </tr>
+                        ${itemVectorData.map(iv => {
+                          const totalItemRev = itemVectorData.reduce((acc, i) => acc + i.totalAmount, 0) || 1;
+                          const pct = (iv.totalAmount / totalItemRev) * 100;
+                          return `
+                            <tr>
+                              <td class="data-cell">${iv.name}</td>
+                              <td class="data-num">$${iv.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                              <td class="data-num">${pct.toFixed(2)}%</td>
+                            </tr>
+                          `;
+                        }).join("")}
+                        <tr>
+                          <td class="total-cell">Grand Total</td>
+                          <td class="total-num">$${itemVectorData.reduce((acc, i) => acc + i.totalAmount, 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                          <td class="total-num">100.00%</td>
+                        </tr>
+                      </table>
+                    </td>
+
+                    <!-- RIGHT SIDE EMBEDDED CHARTS (laid out to mirror the live dashboard grid) -->
+                    <td colspan="2" valign="top" style="padding-left: 20px;">
+                      ${pieChartImg ? `
+                        <div class="section-title">Percentage of Channel</div>
+                        ${chartImgTag(pieChartImg, "pieChart.png", 260)}
+                      ` : ''}
+                    </td>
+
+                    <td colspan="2" valign="top" style="padding-left: 20px;">
+                      ${stockChartImg ? `
+                        <div class="section-title">Stock Inventory</div>
+                        ${chartImgTag(stockChartImg, "stockChart.png", 260)}
+                      ` : ''}
+                    </td>
+
+                    <td colspan="4" valign="top" style="padding-left: 20px;">
+                      ${profitChartImg ? `
+                        <div class="section-title">Cumulative Profit</div>
+                        ${chartImgTag(profitChartImg, "profitChart.png", 380, "margin-bottom: 16px;")}
+                      ` : ''}
+                      ${barChartImg ? `
+                        <div class="section-title">Total Amount of Item Type</div>
+                        ${chartImgTag(barChartImg, "barChart.png", 380)}
+                      ` : ''}
+                    </td>
+                  </tr>
+                  <tr><td colspan="8" style="height: 20px;"></td></tr>
+
+                  <!-- RECENT ORDERS & BEST SELLING PRODUCTS -->
+                  <tr>
+                    <td colspan="6" valign="top">
+                      <div class="section-title">Recent Orders</div>
+                      <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
+                        <tr>
+                          <td class="header-cell">Order ID</td>
+                          <td class="header-cell">Customer</td>
+                          <td class="header-cell">Product</td>
+                          <td class="header-cell">Category</td>
+                          <td class="header-num">Amount ($)</td>
+                          <td class="header-cell">Status</td>
+                        </tr>
+                        ${recentOrders.map((o) => `
+                          <tr>
+                            <td class="data-cell">${o.id}</td>
+                            <td class="data-cell">${o.customer}</td>
+                            <td class="data-cell">${o.product}</td>
+                            <td class="data-cell">${o.category}</td>
+                            <td class="data-num">$${o.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                            <td class="data-cell">${o.status}</td>
+                          </tr>
+                        `).join("")}
+                      </table>
+                    </td>
+
+                    <td colspan="2" valign="top" style="padding-left: 20px;">
+                      <div class="section-title">Best Selling Products</div>
+                      <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
+                        <tr>
+                          <td class="header-cell">Product Name</td>
+                          <td class="header-cell">Category</td>
+                          <td class="header-num">Sales ($)</td>
+                          <td class="header-num">Sold</td>
+                        </tr>
+                        ${bestSellingProducts.map((p) => `
+                          <tr>
+                            <td class="data-cell">${p.name}</td>
+                            <td class="data-cell">${p.category}</td>
+                            <td class="data-num">$${p.sales.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                            <td class="data-num">${p.sold.toLocaleString("en-US")}</td>
+                          </tr>
+                        `).join("")}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </body>
+              </html>
+            `;
+
+            // Excel's HTML importer can't resolve `data:` image URIs — it treats them as
+            // broken external links. Package the report as an MHTML (multipart/related)
+            // archive instead, with each chart image as its own MIME part, which Excel
+            // opens and embeds natively.
+            const boundary = "----=ExcelReportBoundary";
+            const mhtmlParts: string[] = [
+                "MIME-Version: 1.0",
+                `Content-Type: multipart/related; boundary="${boundary}"`,
+                "",
+                `--${boundary}`,
+                'Content-Type: text/html; charset="utf-8"',
+                "Content-Location: report.html",
+                "",
+                excelHtml,
+                "",
+            ];
+
+            const addImagePart = (chart: CapturedChart | string, filename: string) => {
+                const dataUrl = typeof chart === "string" ? chart : chart.dataUrl;
+                const base64 = dataUrl.split(",")[1] ?? "";
+                mhtmlParts.push(
+                    `--${boundary}`,
+                    "Content-Type: image/png",
+                    "Content-Transfer-Encoding: base64",
+                    `Content-Location: ${filename}`,
+                    "",
+                    base64,
+                    "",
+                );
+            };
+
+            if (pieChartImg) addImagePart(pieChartImg, "pieChart.png");
+            if (profitChartImg) addImagePart(profitChartImg, "profitChart.png");
+            if (barChartImg) addImagePart(barChartImg, "barChart.png");
+            if (stockChartImg) addImagePart(stockChartImg, "stockChart.png");
+
+            mhtmlParts.push(`--${boundary}--`);
+
+            const blob = new Blob([mhtmlParts.join("\r\n")], { type: "application/vnd.ms-excel;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `dashboard-excel-report-${dateStr}.xls`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Failed to export Excel report:", err);
+        } finally {
+            setIsExportingExcel(false);
+        }
+    };
+
     const isDashboardLoading = salesProfitQuery.isLoading && periodProfitQuery.isLoading && itemProfitQuery.isLoading;
 
     if (isDashboardLoading) {
@@ -451,7 +974,61 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
     }
 
     return (
-        <div data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
+        <div id="dashboard-container" data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
+            {/* Dashboard Actions Bar: Export PDF, Export Excel Report, Export Docs */}
+            <div data-pdf-ignore="true" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+                <div>
+                    <h3 className="text-sm font-bold text-foreground">Dashboard Export & Reports</h3>
+                    <p className="text-xs text-muted-foreground">Export visual PDF, formatted Excel (.xls) with embedded charts & tables, or a Word (.doc) report</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleExportPDF}
+                        disabled={isExportingPdf}
+                        className="h-10 gap-2 rounded-xl border-border/80 font-bold shadow-xs hover:border-primary hover:bg-primary/5 hover:text-primary transition-all"
+                    >
+                        {isExportingPdf ? (
+                            <Loader2 className="size-4 animate-spin text-primary" />
+                        ) : (
+                            <FileText className="size-4 text-rose-500" />
+                        )}
+                        <span>{isExportingPdf ? "Generating PDF..." : "Export PDF"}</span>
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleExportExcel}
+                        disabled={isExportingExcel}
+                        className="h-10 gap-2 rounded-xl border-border/80 font-bold shadow-xs hover:border-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 transition-all"
+                    >
+                        {isExportingExcel ? (
+                            <Loader2 className="size-4 animate-spin text-emerald-600" />
+                        ) : (
+                            <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        )}
+                        <span>{isExportingExcel ? "Generating Excel..." : "Export Excel (.xls)"}</span>
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleExportDocs}
+                        disabled={isExportingDocs}
+                        className="h-10 gap-2 rounded-xl border-border/80 font-bold shadow-xs hover:border-blue-600 hover:bg-blue-500/10 hover:text-blue-600 transition-all"
+                    >
+                        {isExportingDocs ? (
+                            <Loader2 className="size-4 animate-spin text-blue-600" />
+                        ) : (
+                            <FileType className="size-4 text-blue-600 dark:text-blue-400" />
+                        )}
+                        <span>{isExportingDocs ? "Generating Docs..." : "Export Docs"}</span>
+                    </Button>
+                </div>
+            </div>
+
             {/* KPI Metric Cards Row (Top 3) */}
             <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* 1. TOTAL REVENUE */}
@@ -584,7 +1161,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 2. TOP-RIGHT: `profit` (Cumulative Profit — USD by Date) */}
-                <Card className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-8">
+                <Card data-tour="dashboard-cumulative-profit" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-8">
                     <CardHeader className="p-0 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
@@ -727,7 +1304,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                 </Card>
 
                 {/* 3. BOTTOM-LEFT: `trending_items` (Total Amount of Item Type — Vertical Bar Chart) */}
-                <Card className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-7">
+                <Card data-tour="dashboard-item-vector" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-7">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
                             <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
