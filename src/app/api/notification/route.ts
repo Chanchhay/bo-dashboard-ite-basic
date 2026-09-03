@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import {
     backendRequest,
     backendErrorResponse,
+    readJsonBody,
 } from "@/lib/api/backend";
 
 import {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
+        const body = await readJsonBody(request);
         const response = await backendRequest("/api/v1/notifications", {
             method: "POST",
             body: JSON.stringify(body),
@@ -56,4 +57,4 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         return backendErrorResponse(error);
     }
-}
+}

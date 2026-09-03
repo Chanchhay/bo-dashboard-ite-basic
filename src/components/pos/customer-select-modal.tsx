@@ -382,6 +382,7 @@ export function CustomerSelectModal({
                             <Input
                                 id="quick-fullName"
                                 value={fullName}
+                                maxLength={200}
                                 onChange={(e) => setFullName(e.target.value)}
                                 placeholder="e.g. John Smith"
                                 className="h-10 text-sm rounded-xl"
@@ -396,6 +397,7 @@ export function CustomerSelectModal({
                             <Input
                                 id="quick-phone"
                                 value={phone}
+                                maxLength={30}
                                 onChange={(e) => setPhone(e.target.value)}
                                 placeholder="012 345 678"
                                 className="h-10 text-sm rounded-xl"

@@ -102,44 +102,57 @@ const optionalPhoneSchema = z
         "Use 8–30 characters containing only numbers, spaces, and an optional +.",
     );
 
+/** `true` when the value parses as an http(s) URL whose host is one of
+ * `hosts` (or any host, when `hosts` is omitted). Subdomains count, so
+ * "web.facebook.com" passes for "facebook.com". */
+function isUrlOnHost(value: string, hosts?: readonly string[]) {
+    let url: URL;
+
+    try {
+        url = new URL(value);
+    } catch {
+        return false;
+    }
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return false;
+    }
+
+    if (!hosts) {
+        return true;
+    }
+
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+    return hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+}
+
 function optionalUrlSchema(
     label: string,
     example = "https://example.com",
+    hosts?: readonly string[],
 ) {
     return z
         .string()
         .trim()
         .max(255, `${label} must be 255 characters or fewer.`)
         .refine(
-            (value) => {
-                if (!value) return true;
-                try {
-                    const url = new URL(value);
-                    return url.protocol === "http:" || url.protocol === "https:";
-                } catch {
-                    return false;
-                }
-            },
+            (value) => !value || isUrlOnHost(value, hosts),
             `Enter a valid ${label.toLowerCase()} link (e.g. ${example}).`,
         );
 }
 
-const optionalGoogleMapUrlSchema = z
-    .string()
-    .trim()
-    .max(255, "Google Map URL must be 255 characters or fewer.")
-    .refine(
-        (value) => {
-            if (!value) return true;
-            try {
-                const url = new URL(value);
-                return url.protocol === "http:" || url.protocol === "https:";
-            } catch {
-                return false;
-            }
-        },
-        "Enter a valid Google Map link (e.g. https://maps.app.goo.gl/...).",
-    );
+/** The hosts Google hands out for a place — the long maps.google.com link,
+ * the "Share" short link, and the older goo.gl/maps one. */
+const GOOGLE_MAP_HOSTS = ["google.com", "goo.gl"] as const;
+
+const FACEBOOK_HOSTS = ["facebook.com", "fb.com", "fb.me"] as const;
+
+const optionalGoogleMapUrlSchema = optionalUrlSchema(
+    "Google Map",
+    "https://maps.app.goo.gl/...",
+    GOOGLE_MAP_HOSTS,
+);
 
 /** Cambodia's bounding box, padded — catches a mis-dropped pin, not a precise fence. */
 const coordinateBounds = { latitude: [9, 15], longitude: [102, 108] } as const;
@@ -165,11 +178,11 @@ export const businessProfileSchema = z.object({
         .trim()
         .min(1, "Legal name is required.")
         .max(200, "Legal name must be 200 characters or fewer."),
-    categoryId: z.string().trim(),
+    categoryId: z.string().trim().min(1, "Business type is required."),
     about: z
         .string()
         .trim()
-        .max(255, "Description must be 255 characters or fewer."),
+        .max(300, "Description must be 300 characters or fewer."),
     email: optionalEmailSchema,
     website: optionalUrlSchema("Website"),
     phoneNumber: optionalPhoneSchema,
@@ -181,6 +194,7 @@ export const businessProfileSchema = z.object({
     facebookPage: optionalUrlSchema(
         "Facebook Page",
         "https://facebook.com/yourpage",
+        FACEBOOK_HOSTS,
     ),
     provinceName: z
         .string()

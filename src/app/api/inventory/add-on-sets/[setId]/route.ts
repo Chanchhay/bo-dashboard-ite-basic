@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
@@ -18,7 +19,7 @@ type AddOnSetRouteContext = {
 
 export async function PUT(request: Request, context: AddOnSetRouteContext) {
     try {
-        const result = addOnSetSchema.safeParse(await request.json());
+        const result = addOnSetSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

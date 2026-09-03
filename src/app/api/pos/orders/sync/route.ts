@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
-import { backendRequest } from "@/lib/api/backend";
+import { RequestBodyError, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { ordersPath } from "@/lib/api/pos-order-backend";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
+    const record =
+      typeof body === "object" && body !== null && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : null;
 
     // Accept { orders: [...] }, array [...], or single order object
-    const ordersToSync = Array.isArray(body?.orders)
-      ? body.orders
+    const ordersToSync: unknown[] = Array.isArray(record?.orders)
+      ? record.orders
       : Array.isArray(body)
       ? body
-      : body && body.uuid
-      ? [body]
+      : record?.uuid
+      ? [record]
       : [];
 
     if (ordersToSync.length === 0) {
@@ -148,6 +152,12 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
+    // A body the till could not serialise is the till's problem, not this
+    // server's — and it must not read as "try again later".
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("[POS Sync API] Error syncing order:", error);
     return NextResponse.json(
       { error: "Failed to process offline order sync" },

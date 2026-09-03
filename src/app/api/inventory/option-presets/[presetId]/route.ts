@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
@@ -18,7 +19,7 @@ type PresetRouteContext = {
 
 export async function PUT(request: Request, context: PresetRouteContext) {
     try {
-        const result = optionPresetSchema.safeParse(await request.json());
+        const result = optionPresetSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

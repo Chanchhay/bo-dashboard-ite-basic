@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import {
     saleProfitCalculatorRequestSchema,
@@ -13,7 +13,7 @@ import {
 export async function POST(request: Request) {
     try {
         const result = saleProfitCalculatorRequestSchema.safeParse(
-            await request.json(),
+            await readJsonBody(request),
         );
 
         if (!result.success) {

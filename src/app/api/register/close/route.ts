@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import {
     closeSessionSchema,
     normalizeRegisterSession,
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     try {
-        const result = closeSessionSchema.safeParse(await request.json());
+        const result = closeSessionSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

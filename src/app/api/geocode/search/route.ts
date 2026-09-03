@@ -22,6 +22,15 @@ export async function GET(request: NextRequest) {
         return Response.json([]);
     }
 
+    // Nominatim is a shared public instance; there is no reason to forward a
+    // query longer than any real place name.
+    if (q.length > 200) {
+        return Response.json(
+            { message: "Search text is too long." },
+            { status: 400 },
+        );
+    }
+
     const params = new URLSearchParams({
         q,
         format: "jsonv2",
