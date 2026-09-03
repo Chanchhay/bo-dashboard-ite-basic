@@ -337,7 +337,7 @@ function legacyOrderShape(
 interface ItemRowProps {
   item: PosOrderItem;
   /** The order's own currency — an order opened before a base change keeps it. */
-  currency?: string;
+  currency?: string | null;
   onIncrease: (item: PosOrderItem) => void;
   onDecrease: (item: PosOrderItem) => void;
   onRemove: (orderItemId: string) => void;
@@ -1190,7 +1190,9 @@ export function OrderTable({
     discountAmount: 0,
     taxAmount: 0,
     total: 0,
-    currency: "USD",
+    // Nothing here is priced yet, so nothing here names a currency: an empty
+    // cart renders its zeroes in whatever the business prices in today.
+    currency: null,
     displayCurrency: null,
     displayExchangeRate: null,
     note: null,

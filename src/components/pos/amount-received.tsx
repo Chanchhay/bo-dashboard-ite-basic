@@ -10,7 +10,7 @@ export interface AmountReceivedDialogProps {
   onOpenChange: (open: boolean) => void;
   amountDue: number;
   /** The order's own currency, which a base-currency change must not relabel. */
-  currency?: string;
+  currency?: string | null;
   onValidate: (receivedAmount: number) => void;
   isProcessing?: boolean;
 }

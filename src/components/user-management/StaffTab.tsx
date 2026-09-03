@@ -40,6 +40,7 @@ import {
     createStaffSchema,
     genders,
     staffFullName,
+    staffRoleId,
     updateStaffSchema,
     type Staff,
 } from "@/lib/api/user-management";
@@ -157,12 +158,14 @@ export default function StaffTab() {
         if (
             editor &&
             editor.mode === "edit" &&
-            editor.staff.roleId &&
-            !roles.some((r) => r.id === editor.staff.roleId)
+            staffRoleId(editor.staff) &&
+            !roles.some((r) => r.id === staffRoleId(editor.staff))
         ) {
             opts.push({
-                value: editor.staff.roleId,
-                label: roleNames.get(editor.staff.roleId) || "Selected Role",
+                value: staffRoleId(editor.staff)!,
+                label:
+                    roleNames.get(staffRoleId(editor.staff)!) ||
+                    "Selected Role",
             });
         }
         return opts;
@@ -221,9 +224,11 @@ export default function StaffTab() {
 
         if (roleFilter !== "ALL") {
             if (roleFilter === "NO_ROLE") {
-                list = list.filter((member: Staff) => !member.roleId);
+                list = list.filter((member: Staff) => !staffRoleId(member));
             } else {
-                list = list.filter((member: Staff) => member.roleId === roleFilter);
+                list = list.filter(
+                    (member: Staff) => staffRoleId(member) === roleFilter,
+                );
             }
         }
 
@@ -243,8 +248,10 @@ export default function StaffTab() {
                     valA = (a.email || a.phoneNumber || "").toLowerCase();
                     valB = (b.email || b.phoneNumber || "").toLowerCase();
                 } else if (sortColumn === "role") {
-                    valA = (a.roleId ? roleNames.get(a.roleId) || a.roleId : "").toLowerCase();
-                    valB = (b.roleId ? roleNames.get(b.roleId) || b.roleId : "").toLowerCase();
+                    const roleA = staffRoleId(a);
+                    const roleB = staffRoleId(b);
+                    valA = (roleA ? roleNames.get(roleA) || roleA : "").toLowerCase();
+                    valB = (roleB ? roleNames.get(roleB) || roleB : "").toLowerCase();
                 } else if (sortColumn === "status") {
                     valA = (a.status || "").toLowerCase();
                     valB = (b.status || "").toLowerCase();
@@ -554,7 +561,7 @@ export default function StaffTab() {
                                     name="roleId"
                                     defaultValue={
                                         editor.mode === "edit"
-                                            ? editor.staff.roleId || NO_ROLE
+                                            ? staffRoleId(editor.staff) || NO_ROLE
                                             : NO_ROLE
                                     }
                                     options={roleOptions}
@@ -810,7 +817,10 @@ export default function StaffTab() {
                                         <div className="flex items-center justify-between px-3.5 py-2.5">
                                             <span className="text-muted-foreground dark:text-slate-400">Role</span>
                                             <span className="font-medium text-foreground dark:text-slate-200">
-                                                {member.roleId ? roleNames.get(member.roleId) || member.roleId : "No role"}
+                                                {staffRoleId(member)
+                                                    ? roleNames.get(staffRoleId(member)!) ||
+                                                      staffRoleId(member)
+                                                    : "No role"}
                                             </span>
                                         </div>
 
@@ -970,8 +980,9 @@ export default function StaffTab() {
                                             )}
                                             {isColVisible("role") && (
                                                 <td className="py-4 pr-4 text-[14px] text-muted-foreground">
-                                                    {member.roleId
-                                                        ? roleNames.get(member.roleId) || member.roleId
+                                                    {staffRoleId(member)
+                                                        ? roleNames.get(staffRoleId(member)!) ||
+                                                          staffRoleId(member)
                                                         : "No role"}
                                                 </td>
                                             )}

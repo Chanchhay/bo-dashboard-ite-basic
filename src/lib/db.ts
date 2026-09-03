@@ -56,7 +56,7 @@ export interface OfflineOrder {
   tax_amount?: number | null;
   tax_inclusion_type?: 'INCLUSIVE' | 'EXCLUSIVE' | null;
   total: number;
-  currency?: string;
+  currency?: string | null;
   payment_method: 'CASH' | 'KHQR' | 'CARD';
   paid_amount?: number;
   change_amount?: number;

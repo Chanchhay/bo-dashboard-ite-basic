@@ -44,7 +44,8 @@ export interface CustomerDisplayPayload {
   taxRate?: number | null;
   taxInclusionType?: "INCLUSIVE" | "EXCLUSIVE" | null;
   total: number;
-  currency: string;
+  /** Null while the till has not been told what the order is priced in — read as the business base. */
+  currency: string | null;
   invoiceNumber?: string | null;
   qrCodeUrl?: string | null;
   customerName?: string | null;

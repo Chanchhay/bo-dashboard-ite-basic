@@ -21,11 +21,11 @@ export type UseMoney = {
    */
   format: (
     value: string | number | null | undefined,
-    code?: string,
+    code?: string | null,
     options?: FormatMoneyOptions,
   ) => string;
   /** The converted equivalent to show alongside a total, when configured. */
-  secondary: (amount: number, code?: string) => SecondaryAmount | null;
+  secondary: (amount: number, code?: string | null) => SecondaryAmount | null;
   /**
    * The equivalent for an amount on an order or sale, using the rate that
    * record was priced at and only falling back to the live configuration when
@@ -35,7 +35,7 @@ export type UseMoney = {
     amount: number,
     record:
       | {
-          currency?: string;
+          currency?: string | null;
           displayCurrency?: string | null;
           displayExchangeRate?: number | null;
         }
@@ -62,8 +62,9 @@ export function useMoney(): UseMoney {
     const base = findCurrency(configuration, baseCode);
     const display = findCurrency(configuration, configuration?.displayCurrency);
 
-    function currencyFor(code?: string) {
-      // An unmatched code still formats sensibly through Intl defaults.
+    function currencyFor(code?: string | null) {
+      // No code at all means "whatever the business prices in" — the base.
+      // An unmatched one still formats sensibly through Intl defaults.
       return findCurrency(configuration, code) ?? code ?? base ?? baseCode;
     }
 

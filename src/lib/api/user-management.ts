@@ -14,8 +14,19 @@ export type Staff = {
     phoneNumber?: string;
     gender?: string;
     status?: StaffStatus;
-    roleId?: string;
+    /**
+     * The API moved from one role per person to a list. The form still offers
+     * a single choice, so this is normally zero or one entry — but read it
+     * through `staffRoleId`, because another client can assign several and the
+     * old singular `roleId` field no longer exists on the response.
+     */
+    roleIds?: string[];
 };
+
+/** The role shown for a staff member: the first, when several are assigned. */
+export function staffRoleId(staff: Staff) {
+    return staff.roleIds?.[0];
+}
 
 export type StaffPage = PageResult<Staff>;
 
@@ -60,9 +71,23 @@ export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 export type StaffStatusInput = z.infer<typeof staffStatusSchema>;
 
 
+/**
+ * Shapes a form value for the API, which takes `roleIds` as a list.
+ *
+ * Sending the old singular `roleId` did not merely fail to assign. On update
+ * the backend clears every `biz_*` role it finds and then adds back whatever
+ * arrived in `roleIds`, so a field it does not recognise meant each save
+ * silently stripped the person's role — including a save that only changed
+ * their phone number.
+ *
+ * Omitted entirely when nothing is chosen. That is not a no-op: the backend
+ * still clears the existing roles, which is exactly what picking "No role"
+ * should do. There is no way to say "leave the roles as they are", so every
+ * save has to send the full intended set.
+ */
 export function toStaffRequest<T extends { roleId: string }>(input: T) {
     const { roleId, ...rest } = input;
-    return roleId ? { ...rest, roleId } : rest;
+    return roleId ? { ...rest, roleIds: [roleId] } : rest;
 }
 
 export function staffFullName(staff: Staff) {

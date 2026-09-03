@@ -17,14 +17,15 @@ import {
     PanelHeader,
     fieldClassName,
 } from "@/components/user-management/ui";
+import { BusinessPermissionPicker } from "@/components/user-management/BusinessPermissionPicker";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
-    BUSINESS_PERMISSION_GROUPS,
     PERMISSION_GROUPS,
-    describePermission,
+    permissionLabel,
 } from "@/lib/api/permission-catalog";
 import {
     businessRoleSchema,
+    staffRoleId,
     type BusinessRole,
 } from "@/lib/api/user-management";
 import {
@@ -103,8 +104,13 @@ export default function RolesTab() {
         if (!term) return roles;
         return roles.filter((role: BusinessRole) => {
             const nameMatch = (role.name || role.id)?.toLowerCase().includes(term);
-            const permMatch = role.permissions?.some((p: string) =>
-                p.toLowerCase().includes(term),
+            // Both the label and the raw code: "payment" should find
+            // `order:pay` through "Take payment", and someone who knows the
+            // code should still be able to type it.
+            const permMatch = role.permissions?.some(
+                (p: string) =>
+                    p.toLowerCase().includes(term) ||
+                    permissionLabel(p).toLowerCase().includes(term),
             );
             return nameMatch || permMatch;
         });
@@ -114,8 +120,9 @@ export default function RolesTab() {
     const assignedCounts = useMemo(() => {
         const counts = new Map<string, number>();
         for (const member of staffQuery.data || []) {
-            if (member.roleId) {
-                counts.set(member.roleId, (counts.get(member.roleId) || 0) + 1);
+            const roleId = staffRoleId(member);
+            if (roleId) {
+                counts.set(roleId, (counts.get(roleId) || 0) + 1);
             }
         }
         return counts;
@@ -239,7 +246,7 @@ export default function RolesTab() {
                                 ? "Create a role"
                                 : `Edit ${editor.role.name || "role"}`
                         }
-                        description="Pick the permissions this role grants. Platform admin permissions are managed separately."
+                        description="A role is a job in this shop, and the things that job is allowed to do."
                         action={
                             <Button
                                 type="button"
@@ -275,61 +282,18 @@ export default function RolesTab() {
                             </FormField>
                         </div>
 
-                        <div className="flex flex-col gap-4">
-                            <p className="text-[13px] font-semibold text-[#16181c] dark:text-[#f8fafc]">
-                                Permissions
-                                <span className="ml-2 font-normal text-[#8a8f89] dark:text-[#94a3b8]">
-                                    {selected.size} selected
-                                </span>
+                        <BusinessPermissionPicker
+                            selected={selected}
+                            onToggle={toggle}
+                            onToggleGroup={toggleGroup}
+                        />
+
+                        {selected.size === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                Nothing ticked. Anyone with this role can sign
+                                in, and will find every screen closed to them.
                             </p>
-
-                            <div className="grid gap-4 lg:grid-cols-2">
-                                {BUSINESS_PERMISSION_GROUPS.map((group) => {
-                                    const values = group.permissions.map(
-                                        (permission) => permission.value,
-                                    );
-                                    const allOn = values.every((value) => selected.has(value));
-
-                                    return (
-                                        <fieldset
-                                            key={group.id}
-                                            className="rounded-2xl border border-[#e2e2de] dark:border-[#2a3042] bg-[#fafbfa] dark:bg-[#151821] p-4 shadow-xs dark:shadow-[0_2px_8px_rgba(0,0,0,0.2)]"
-                                        >
-                                            <legend className="flex items-center gap-3 px-2 text-[14px] font-bold text-[#16181c] dark:text-[#f8fafc]">
-                                                {group.label}
-                                            </legend>
-
-                                            <Button
-                                                type="button"
-                                                size="xs"
-                                                variant={allOn ? "outline" : "default"}
-                                                onClick={() => toggleGroup(values, allOn)}
-                                                className="mb-3.5 rounded-lg text-[12px] font-medium transition-all"
-                                            >
-                                                {allOn ? "Clear all" : "Select all"}
-                                            </Button>
-
-                                            <div className="flex flex-wrap gap-x-5 gap-y-2.5">
-                                                {group.permissions.map((permission) => (
-                                                    <label
-                                                        key={permission.value}
-                                                        className="flex items-center gap-2 text-[14px] font-medium text-[#424841] dark:text-[#cbd5e1] hover:text-[#16181c] dark:hover:text-[#f8fafc] cursor-pointer select-none transition-colors"
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selected.has(permission.value)}
-                                                            onChange={() => toggle(permission.value)}
-                                                            className="size-4 rounded border-[#c9cbc6] dark:border-[#3b4358] dark:bg-[#1e2330] accent-success cursor-pointer"
-                                                        />
-                                                        {permission.label}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </fieldset>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        )}
 
                         <div className="sticky -bottom-8 z-30 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 lg:-mx-7 lg:-mb-7 mt-4 rounded-b-[24px] border-t border-border bg-card px-4 py-3.5 sm:px-6 sm:py-4 lg:px-7">
                             <div className="flex w-full flex-row items-center justify-end gap-2.5 sm:w-auto sm:ml-auto sm:gap-3">

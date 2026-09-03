@@ -251,7 +251,7 @@ async function waitForCharts(selectors: string[], timeoutMs = 4000): Promise<voi
 }
 
 export function OverviewDashboard() {
-    const { format } = useMoney();
+    const { format, baseCode } = useMoney();
     const [granularity, setGranularity] = useState<ReportGranularity>("DAY");
 
     const [recentOrderFilter, setRecentOrderFilter] = useState("");
@@ -342,7 +342,7 @@ export function OverviewDashboard() {
             size: EXPORT_PAGE_SIZE,
         }).unwrap();
 
-        const headers = ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"];
+        const headers = ["Order ID", "Customer", "Product", "Category", `Amount${baseCode ? ` (${baseCode})` : ""}`, "Status"];
         const rows = all.content.map((o) => [
             o.reference,
             o.customerName,
@@ -382,7 +382,7 @@ export function OverviewDashboard() {
             size: EXPORT_PAGE_SIZE,
         }).unwrap();
 
-        const headers = ["Product", "Category", "Total Sales ($)", "Units Sold"];
+        const headers = ["Product", "Category", `Total Sales${baseCode ? ` (${baseCode})` : ""}`, "Units Sold"];
         const rows = all.content.map((p) => [p.name, p.category, p.sales, p.sold]);
 
         const csvContent = [
@@ -570,7 +570,7 @@ export function OverviewDashboard() {
                                 ],
                             }),
                             docKpiTable([
-                                { label: "Total Revenue", value: `$${kpiData.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+                                { label: "Total Revenue", value: format(kpiData.revenue) },
                                 { label: "Total Items", value: kpiData.totalItem.toLocaleString("en-US") },
                                 { label: "Total Categories", value: kpiData.totalCategory.toLocaleString("en-US") },
                                 { label: "Total Inventory", value: kpiData.inventory.toLocaleString("en-US") },
@@ -579,41 +579,41 @@ export function OverviewDashboard() {
                             docSectionHeading("Percentage of Channel"),
                             ...(pieChartImg ? [chartImageParagraph(pieChartImg, 460) as Paragraph] : []),
                             docDataTable(
-                                ["Channel", "Revenue ($)", "Revenue Share (%)"],
-                                channelPercentageData.map((c) => [c.name, `$${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, `${c.value}%`]),
+                                ["Channel", "Revenue", "Revenue Share (%)"],
+                                channelPercentageData.map((c) => [c.name, format(c.revenue), `${c.value}%`]),
                             ),
 
                             docSectionHeading("Cumulative Profit"),
                             ...(profitChartImg ? [chartImageParagraph(profitChartImg, 460) as Paragraph] : []),
                             docDataTable(
-                                ["Period", "Period Profit ($)", "Cumulative Profit ($)"],
-                                cumulativeProfitData.map((p) => [p.label, `$${p.profit.toFixed(2)}`, `$${p.cumulative.toFixed(2)}`]),
+                                ["Period", "Period Profit", "Cumulative Profit"],
+                                cumulativeProfitData.map((p) => [p.label, format(p.profit), format(p.cumulative)]),
                             ),
 
                             docSectionHeading("Total Amount of Item Type"),
                             ...(barChartImg ? [chartImageParagraph(barChartImg, 460) as Paragraph] : []),
                             docDataTable(
-                                ["Item Name", "Quantity Sold", "Total Amount ($)"],
-                                itemVectorData.map((iv) => [iv.name, iv.itemCount, `$${iv.totalAmount.toFixed(2)}`]),
+                                ["Item Name", "Quantity Sold", "Total Amount"],
+                                itemVectorData.map((iv) => [iv.name, iv.itemCount, format(iv.totalAmount)]),
                             ),
 
                             docSectionHeading("Stock Inventory"),
                             ...(stockChartImg ? [chartImageParagraph(stockChartImg, 460) as Paragraph] : []),
                             docDataTable(
-                                ["Item Name", "Quantity On Hand", "Total Value ($)"],
-                                stockInventoryData.map((st) => [st.name, st.quantityOnHand, `$${st.totalAmount.toFixed(2)}`]),
+                                ["Item Name", "Quantity On Hand", "Total Value"],
+                                stockInventoryData.map((st) => [st.name, st.quantityOnHand, format(st.totalAmount)]),
                             ),
 
                             docSectionHeading("Recent Orders"),
                             docDataTable(
-                                ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"],
-                                recentOrders.map((o) => [o.reference, o.customerName, o.product, o.category, `$${o.amount.toFixed(2)}`, o.status]),
+                                ["Order ID", "Customer", "Product", "Category", "Amount", "Status"],
+                                recentOrders.map((o) => [o.reference, o.customerName, o.product, o.category, format(o.amount), o.status]),
                             ),
 
                             docSectionHeading("Best Selling Products"),
                             docDataTable(
-                                ["Product Name", "Category", "Total Sales ($)", "Units Sold"],
-                                bestSellingProducts.map((bp) => [bp.name, bp.category, `$${bp.sales.toFixed(2)}`, bp.sold]),
+                                ["Product Name", "Category", "Total Sales", "Units Sold"],
+                                bestSellingProducts.map((bp) => [bp.name, bp.category, format(bp.sales), bp.sold]),
                             ),
                         ],
                     },
@@ -701,7 +701,7 @@ export function OverviewDashboard() {
                     <td colspan="2" class="kpi-card kpi-title">TOTAL ORDERS</td>
                   </tr>
                   <tr>
-                    <td colspan="2" class="kpi-card kpi-val">$${kpiData.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                    <td colspan="2" class="kpi-card kpi-val">${format(kpiData.revenue)}</td>
                     <td></td>
                     <td colspan="2" class="kpi-card kpi-val">${kpiData.inventory.toLocaleString("en-US")}</td>
                     <td></td>
@@ -717,19 +717,19 @@ export function OverviewDashboard() {
                       <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
                         <tr>
                           <td class="header-cell">Sales by Channel / Customer</td>
-                          <td class="header-num">Sum of Total Sales ($)</td>
+                          <td class="header-num">Sum of Total Sales</td>
                           <td class="header-num">% of Share</td>
                         </tr>
                         ${channelPercentageData.map(c => `
                           <tr>
                             <td class="data-cell">${c.name}</td>
-                            <td class="data-num">$${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                            <td class="data-num">${format(c.revenue)}</td>
                             <td class="data-num">${((c.revenue / totalChannelRev) * 100).toFixed(2)}%</td>
                           </tr>
                         `).join("")}
                         <tr>
                           <td class="total-cell">Grand Total</td>
-                          <td class="total-num">$${totalChannelRev.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                          <td class="total-num">${format(totalChannelRev)}</td>
                           <td class="total-num">100.00%</td>
                         </tr>
                       </table>
@@ -740,7 +740,7 @@ export function OverviewDashboard() {
                       <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
                         <tr>
                           <td class="header-cell">Sale by Category / Item</td>
-                          <td class="header-num">Sum of Total Sales ($)</td>
+                          <td class="header-num">Sum of Total Sales</td>
                           <td class="header-num">% of Share</td>
                         </tr>
                         ${itemVectorData.map(iv => {
@@ -749,14 +749,14 @@ export function OverviewDashboard() {
                           return `
                             <tr>
                               <td class="data-cell">${iv.name}</td>
-                              <td class="data-num">$${iv.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                              <td class="data-num">${format(iv.totalAmount)}</td>
                               <td class="data-num">${pct.toFixed(2)}%</td>
                             </tr>
                           `;
                         }).join("")}
                         <tr>
                           <td class="total-cell">Grand Total</td>
-                          <td class="total-num">$${itemVectorData.reduce((acc, i) => acc + i.totalAmount, 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                          <td class="total-num">${format(itemVectorData.reduce((acc, i) => acc + i.totalAmount, 0))}</td>
                           <td class="total-num">100.00%</td>
                         </tr>
                       </table>
@@ -800,7 +800,7 @@ export function OverviewDashboard() {
                           <td class="header-cell">Customer</td>
                           <td class="header-cell">Product</td>
                           <td class="header-cell">Category</td>
-                          <td class="header-num">Amount ($)</td>
+                          <td class="header-num">Amount</td>
                           <td class="header-cell">Status</td>
                         </tr>
                         ${recentOrders.map((o) => `
@@ -809,7 +809,7 @@ export function OverviewDashboard() {
                             <td class="data-cell">${o.customerName}</td>
                             <td class="data-cell">${o.product}</td>
                             <td class="data-cell">${o.category}</td>
-                            <td class="data-num">$${o.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                            <td class="data-num">${format(o.amount)}</td>
                             <td class="data-cell">${o.status}</td>
                           </tr>
                         `).join("")}
@@ -822,14 +822,14 @@ export function OverviewDashboard() {
                         <tr>
                           <td class="header-cell">Product Name</td>
                           <td class="header-cell">Category</td>
-                          <td class="header-num">Sales ($)</td>
+                          <td class="header-num">Sales</td>
                           <td class="header-num">Sold</td>
                         </tr>
                         ${bestSellingProducts.map((p) => `
                           <tr>
                             <td class="data-cell">${p.name}</td>
                             <td class="data-cell">${p.category}</td>
-                            <td class="data-num">$${p.sales.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                            <td class="data-num">${format(p.sales)}</td>
                             <td class="data-num">${p.sold.toLocaleString("en-US")}</td>
                           </tr>
                         `).join("")}
