@@ -40,7 +40,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
   const subtotal = displayData?.subtotal ?? 0;
   const discount = displayData?.discountAmount ?? 0;
   const discountLabel = displayData?.discountLabel ?? null;
-  const currency = displayData?.currency ?? "USD";
+  const currency = displayData?.currency ?? null;
   const tax = displayData?.tax ?? 0;
   const taxRate = displayData?.taxRate ?? 0;
   const isTaxInclusive = displayData?.taxInclusionType === "INCLUSIVE";

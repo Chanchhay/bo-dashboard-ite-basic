@@ -194,7 +194,7 @@ export function ReceiptsList({
     .filter((order) => order.paymentMethod === "DIGITAL")
     .reduce((sum, order) => sum + order.total, 0);
   const currency =
-    receipts[0]?.currency || businessQuery.data?.baseCurrency || "USD";
+    receipts[0]?.currency || businessQuery.data?.baseCurrency || null;
   // The till's own currency when it recorded one; older sessions have none.
   const cashCurrency =
     registerCurrency || businessQuery.data?.baseCurrency || currency;

@@ -83,7 +83,14 @@ export type LocalCart = {
     autoDiscountLabel: string | null;
     taxRate: number | null;
     taxInclusionType: TaxInclusionType | null;
-    currency: string;
+    /**
+     * The currency this cart is priced in, once the server has said so. Null
+     * until then — meaning "whatever the business prices in today", which is
+     * what the formatter falls back to. Never guessed at a code here: a till
+     * that assumed one would label base-currency amounts with somebody else's
+     * symbol, and then convert them a second time for the secondary line.
+     */
+    currency: string | null;
     note: string | null;
     lines: LocalCartLine[];
     updatedAt: string;
@@ -102,7 +109,7 @@ export function emptyCart(overrides: Partial<LocalCart> = {}): LocalCart {
         autoDiscountLabel: null,
         taxRate: null,
         taxInclusionType: null,
-        currency: "USD",
+        currency: null,
         note: null,
         lines: [],
         updatedAt: new Date().toISOString(),
@@ -378,7 +385,7 @@ export async function loadCartFrom(order: PosOrder) {
             discountLabel: order.discountLabel ?? null,
             taxRate: order.taxRate ?? null,
             taxInclusionType: order.taxInclusionType ?? null,
-            currency: order.currency ?? "USD",
+            currency: order.currency ?? null,
             note: order.note ?? null,
             lines: order.items.map((line) => ({
                 id: newLineId(),

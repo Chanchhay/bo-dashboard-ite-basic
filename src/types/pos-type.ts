@@ -87,7 +87,7 @@ export type Order = {
   tax_amount?: number | null;
   tax_inclusion_type?: "INCLUSIVE" | "EXCLUSIVE" | null;
   total: string;
-  currency: string;
+  currency: string | null;
   note: string | null;
   comment: string | null;
   created_at: string;
