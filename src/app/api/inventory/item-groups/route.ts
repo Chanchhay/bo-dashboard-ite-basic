@@ -1,5 +1,5 @@
 import { unwrapList } from "@/lib/api/pagination";
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import {
   getInventoryBusinessId,
   inventoryValidationError,
@@ -26,7 +26,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const result = itemGroupSchema.safeParse(await request.json());
+    const result = itemGroupSchema.safeParse(await readJsonBody(request));
 
     if (!result.success) {
       return inventoryValidationError(result.error);

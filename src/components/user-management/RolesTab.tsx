@@ -264,6 +264,7 @@ export default function RolesTab() {
                                 <input
                                     id="name"
                                     name="name"
+                                    maxLength={150}
                                     placeholder="Store Manager, Cashier, etc."
                                     defaultValue={
                                         editor.mode === "edit" ? editor.role.name : undefined

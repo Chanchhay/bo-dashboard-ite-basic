@@ -161,6 +161,7 @@ export function AddOnSetDialog({
                         <Input
                             id="set-name"
                             value={draft.name}
+                            maxLength={150}
                             onChange={(event) => {
                                 setDraft((current) => ({
                                     ...current,

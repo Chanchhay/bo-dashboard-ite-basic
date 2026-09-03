@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import type { ItemChannel, ToggleItemChannelInput } from "@/lib/api/sales-channels";
 
 type RouteContext = {
@@ -14,7 +14,7 @@ const toggleSchema = z.object({
 export async function PATCH(request: Request, context: RouteContext) {
     try {
         const { id } = await context.params;
-        const parseResult = toggleSchema.safeParse(await request.json());
+        const parseResult = toggleSchema.safeParse(await readJsonBody(request));
 
         if (!parseResult.success) {
             return Response.json(

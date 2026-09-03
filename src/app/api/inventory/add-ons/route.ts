@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import {
   getInventoryBusinessId,
   inventoryValidationError,
@@ -21,7 +21,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const result = addOnSchema.safeParse(await request.json());
+    const result = addOnSchema.safeParse(await readJsonBody(request));
 
     if (!result.success) {
       return inventoryValidationError(result.error);

@@ -679,6 +679,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                 id="category-name"
                                 name="name"
                                 defaultValue={editing?.name}
+                                maxLength={150}
                                 placeholder={
                                     mode === "CATEGORY"
                                         ? "Beverages"
@@ -734,6 +735,7 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                 id="category-note"
                                 name="note"
                                 defaultValue={editing?.note}
+                                maxLength={255}
                                 rows={3}
                                 placeholder="Used for hot and cold drinks."
                                 className={inventoryTextareaClassName}

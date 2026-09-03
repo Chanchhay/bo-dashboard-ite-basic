@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     businessProfileSchema,
@@ -23,7 +24,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
     try {
-        const result = businessProfileSchema.safeParse(await request.json());
+        const result = businessProfileSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

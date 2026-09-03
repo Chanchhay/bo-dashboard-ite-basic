@@ -495,6 +495,7 @@ export function OptionPresetsTab() {
                                 <Input
                                     id="preset-name"
                                     value={draft.name}
+                                    maxLength={150}
                                     onChange={(event) =>
                                         updateDraft({
                                             name: event.target.value,
@@ -589,6 +590,7 @@ export function OptionPresetsTab() {
                                         <div className="flex items-center gap-2">
                                             <Input
                                                 value={row.value}
+                                                maxLength={150}
                                                 onChange={(event) =>
                                                     updateValue(index, {
                                                         value: event.target
