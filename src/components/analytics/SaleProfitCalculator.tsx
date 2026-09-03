@@ -1,22 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Calculator,
     Target,
     DollarSign,
     ShoppingBag,
-    TrendingUp,
     Percent,
     Coins,
     Receipt,
     CheckCircle2,
-    ChevronDown,
     Search,
     Sparkles,
-    Info,
     Download,
-    FileSpreadsheet,
+    Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,14 +28,15 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useMoney } from "@/hooks/useMoney";
-import type { InventoryItem, StockSummary } from "@/lib/api/inventory";
+import type {
+    SaleProfitCalculatorItem,
+    SaleProfitCalculatorMode,
+    SaleProfitCalculatorRequest,
+} from "@/lib/api/sales-report";
 import { cn } from "@/lib/utils";
-import {
-    useGetCurrentStockQuery,
-    useGetInventoryItemOptionsQuery,
-} from "@/services/inventoryApi";
+import { useCalculateSaleProfitQuery } from "@/services/salesReportApi";
 
-type CalculatorMode = "PER_ITEM" | "BUSINESS_TARGET";
+type CalculatorMode = SaleProfitCalculatorMode;
 
 const modeOptions: {
     value: CalculatorMode;
@@ -60,68 +58,12 @@ const modeOptions: {
     },
 ];
 
-type ItemRow = {
-    id: string;
-    name: string;
-    cost: number;
-    qty: number;
-    marginPercent: number;
-};
-
-/** An item row with its predicted price and profit worked out. */
-type PricedRow = ItemRow & {
-    price: number | null;
-    revenue: number;
-    profit: number;
-};
-
 /** Margin starts here for every item — a neutral guess, not a real number. */
 const DEFAULT_MARGIN_PERCENT = 40;
-
-function rowsFromInventory(
-    items: InventoryItem[],
-    stock: StockSummary[],
-): ItemRow[] {
-    const byItem = new Map<string, { qty: number; costWeighted: number }>();
-    for (const entry of stock) {
-        if (!entry.itemId) continue;
-        const qty = entry.quantityOnHand ?? 0;
-        const cost = entry.unitCost ?? 0;
-        const existing = byItem.get(entry.itemId) ?? { qty: 0, costWeighted: 0 };
-        byItem.set(entry.itemId, {
-            qty: existing.qty + qty,
-            costWeighted: existing.costWeighted + cost * qty,
-        });
-    }
-
-    return items.map((item) => {
-        const stockInfo = item.id ? byItem.get(item.id) : undefined;
-        const qty = Math.round(stockInfo?.qty ?? 0);
-        const cost =
-            stockInfo && stockInfo.qty > 0
-                ? Math.round((stockInfo.costWeighted / stockInfo.qty) * 100) / 100
-                : 0;
-
-        return {
-            id: item.id,
-            name: item.name || "Unnamed item",
-            cost,
-            qty,
-            marginPercent: DEFAULT_MARGIN_PERCENT,
-        };
-    });
-}
-
-function priceForMargin(cost: number, marginPercent: number): number | null {
-    const fraction = marginPercent / 100;
-    if (fraction >= 1) return null;
-    return cost / (1 - fraction);
-}
-
-function marginForPrice(cost: number, price: number): number | null {
-    if (price <= 0) return null;
-    return ((price - cost) / price) * 100;
-}
+const DEFAULT_TARGET_MARGIN_PERCENT = 50;
+const DEFAULT_OPERATING_EXPENSE = 1200;
+/** Long enough that a typed digit isn't cut off by its own request. */
+const RECOMPUTE_DEBOUNCE_MS = 350;
 
 function downloadCsvFile(filename: string, rows: (string | number | null | undefined)[][]) {
     const csvContent = rows
@@ -148,7 +90,7 @@ function downloadCsvFile(filename: string, rows: (string | number | null | undef
 }
 
 function exportMarginPerItemCsv(
-    rows: PricedRow[],
+    rows: SaleProfitCalculatorItem[],
     kpis: {
         revenue: number;
         cost: number;
@@ -199,13 +141,7 @@ function exportMarginPerItemCsv(
 }
 
 function exportBusinessTargetCsv(
-    rows: Array<
-        ItemRow & {
-            price: number | null;
-            newPrice: number | null;
-            newMargin: number | null;
-        }
-    >,
+    rows: SaleProfitCalculatorItem[],
     kpis: {
         targetMarginPercent: number;
         revenue: number;
@@ -252,7 +188,7 @@ function exportBusinessTargetCsv(
             row.qty,
             row.price === null ? "—" : row.price.toFixed(2),
             row.newPrice === null ? "—" : row.newPrice.toFixed(2),
-            row.newMargin === null ? "—" : `${row.newMargin.toFixed(1)}%`,
+            row.newMarginPercent === null ? "—" : `${row.newMarginPercent.toFixed(1)}%`,
             targetRev.toFixed(2),
             row.newPrice === null ? "—" : targetProfit.toFixed(2),
         ]);
@@ -261,249 +197,102 @@ function exportBusinessTargetCsv(
     downloadCsvFile(`sale-profit-business-target-${dateStr}.csv`, dataRows);
 }
 
-function exportCombinedCsv(
-    marginRows: PricedRow[],
-    targetRows: Array<
-        ItemRow & {
-            price: number | null;
-            newPrice: number | null;
-            newMargin: number | null;
-        }
-    >,
-    targetMarginPercent: number,
-    operatingExpense: number,
-    marginKpis: {
-        revenue: number;
-        cost: number;
-        grossProfit: number;
-        grossMargin: number;
-        netProfit: number;
-        netMarginPercent: number;
-    },
-    targetKpis: {
-        revenue: number;
-        cost: number;
-        grossProfit: number;
-        grossMargin: number;
-        netProfit: number;
-        netMarginPercent: number;
-    },
-) {
-    const dateStr = new Date().toISOString().split("T")[0];
-    const dataRows: (string | number | null | undefined)[][] = [
-        ["=== SALE PROFIT CALCULATOR - COMPLETE ANALYSIS REPORT ==="],
-        ["Generated Date", new Date().toLocaleString()],
-        ["Operating Expense ($)", operatingExpense.toFixed(2)],
-        ["Target Gross Margin Goal (%)", `${targetMarginPercent.toFixed(1)}%`],
-        [],
-        ["--- SUMMARY KPI COMPARISON ---"],
-        ["Metric", "Margin Per Item Mode", `Business Target Mode (${targetMarginPercent}%)`],
-        ["Revenue ($)", marginKpis.revenue.toFixed(2), targetKpis.revenue.toFixed(2)],
-        ["Cost of Goods ($)", marginKpis.cost.toFixed(2), targetKpis.cost.toFixed(2)],
-        ["Gross Profit ($)", marginKpis.grossProfit.toFixed(2), targetKpis.grossProfit.toFixed(2)],
-        ["Gross Margin (%)", `${marginKpis.grossMargin.toFixed(1)}%`, `${targetKpis.grossMargin.toFixed(1)}%`],
-        ["Estimated Net Profit ($)", marginKpis.netProfit.toFixed(2), targetKpis.netProfit.toFixed(2)],
-        ["Estimated Net Margin (%)", `${marginKpis.netMarginPercent.toFixed(1)}%`, `${targetKpis.netMarginPercent.toFixed(1)}%`],
-        [],
-        ["--- ITEM-BY-ITEM COMPARATIVE PREDICTIONS ---"],
-        [
-            "Item Name",
-            "Unit Cost ($)",
-            "Quantity",
-            "Margin Per Item (%)",
-            "Margin Per Item Price ($)",
-            "Margin Per Item Profit ($)",
-            "Business Target Price ($)",
-            "Business Target Margin (%)",
-            "Business Target Profit ($)",
-        ],
-    ];
-
-    for (let i = 0; i < marginRows.length; i++) {
-        const mRow = marginRows[i];
-        const tRow = targetRows[i] ?? mRow;
-        const targetProfit = tRow.newPrice === null ? 0 : (tRow.newPrice - tRow.cost) * tRow.qty;
-
-        dataRows.push([
-            mRow.name,
-            mRow.cost.toFixed(2),
-            mRow.qty,
-            `${mRow.marginPercent.toFixed(1)}%`,
-            mRow.price === null ? "—" : mRow.price.toFixed(2),
-            mRow.price === null ? "—" : mRow.profit.toFixed(2),
-            tRow.newPrice === null ? "—" : tRow.newPrice.toFixed(2),
-            tRow.newMargin === null ? "—" : `${tRow.newMargin.toFixed(1)}%`,
-            tRow.newPrice === null ? "—" : targetProfit.toFixed(2),
-        ]);
-    }
-
-    downloadCsvFile(`sale-profit-full-analysis-${dateStr}.csv`, dataRows);
-}
-
 export function SaleProfitCalculator() {
     const { format } = useMoney();
     const [mode, setMode] = useState<CalculatorMode>("PER_ITEM");
-    const [rows, setRows] = useState<ItemRow[]>([]);
-    const [operatingExpense, setOperatingExpense] = useState(1200);
-    const [targetMarginPercent, setTargetMarginPercent] = useState(50);
+    const [operatingExpense, setOperatingExpense] = useState(DEFAULT_OPERATING_EXPENSE);
+    const [targetMarginPercent, setTargetMarginPercent] = useState(DEFAULT_TARGET_MARGIN_PERCENT);
+    const [defaultMarginPercent, setDefaultMarginPercent] = useState(DEFAULT_MARGIN_PERCENT);
+    const [itemMargins, setItemMargins] = useState<Record<string, number>>({});
+    const [bulkMarginPercent, setBulkMarginPercent] = useState(DEFAULT_MARGIN_PERCENT);
 
-    const itemsQuery = useGetInventoryItemOptionsQuery();
-    const stockQuery = useGetCurrentStockQuery();
-    const inventoryLoading = itemsQuery.isLoading || stockQuery.isLoading;
-    const inventoryItems = itemsQuery.data ?? [];
-    const inventoryStock = stockQuery.data ?? [];
+    // Cost, quantity, price and profit are all worked out server-side against
+    // a fresh read of inventory — this only decides which margins to ask for.
+    const request: SaleProfitCalculatorRequest = useMemo(
+        () => ({
+            mode,
+            defaultMarginPercent,
+            itemMargins: Object.entries(itemMargins).map(([itemId, marginPercent]) => ({
+                itemId,
+                marginPercent,
+            })),
+            targetMarginPercent,
+            operatingExpense,
+        }),
+        [mode, defaultMarginPercent, itemMargins, targetMarginPercent, operatingExpense],
+    );
 
-    const [seededFromInventory, setSeededFromInventory] = useState(false);
-
-    if (!seededFromInventory && !inventoryLoading) {
-        setSeededFromInventory(true);
-        setRows(rowsFromInventory(inventoryItems, inventoryStock));
-    }
-
-    function updateMargin(id: string, marginPercent: number) {
-        setRows((prev) =>
-            prev.map((row) => (row.id === id ? { ...row, marginPercent } : row)),
+    // Debounced so a fast typist doesn't fire a request per keystroke — the
+    // margin inputs below stay controlled by local state either way, so
+    // nothing the user sees resets while a request is in flight.
+    const [debouncedRequest, setDebouncedRequest] = useState(request);
+    useEffect(() => {
+        const timer = window.setTimeout(
+            () => setDebouncedRequest(request),
+            RECOMPUTE_DEBOUNCE_MS,
         );
+        return () => window.clearTimeout(timer);
+    }, [request]);
+
+    const calcQuery = useCalculateSaleProfitQuery(debouncedRequest);
+    const items = useMemo(() => calcQuery.data?.items ?? [], [calcQuery.data]);
+    const recomputing = calcQuery.isFetching && !calcQuery.isLoading;
+
+    function draftMarginFor(itemId: string) {
+        return itemMargins[itemId] ?? defaultMarginPercent;
     }
 
-    const [bulkMarginPercent, setBulkMarginPercent] = useState(40);
+    function updateMargin(itemId: string, marginPercent: number) {
+        setItemMargins((prev) => ({ ...prev, [itemId]: marginPercent }));
+    }
+
     function applyMarginToAll() {
-        setRows((prev) =>
-            prev.map((row) => ({ ...row, marginPercent: bulkMarginPercent })),
-        );
+        setDefaultMarginPercent(bulkMarginPercent);
+        setItemMargins({});
     }
 
-    const currentRows = useMemo(
-        () =>
-            rows.map((row) => {
-                const price =
-                    row.cost > 0
-                        ? priceForMargin(row.cost, row.marginPercent)
-                        : null;
-                return {
-                    ...row,
-                    price,
-                    revenue: (price ?? row.cost) * row.qty,
-                    profit: price === null ? 0 : (price - row.cost) * row.qty,
-                };
-            }),
-        [rows],
-    );
+    const revenue = calcQuery.data?.revenue ?? 0;
+    const cost = calcQuery.data?.cost ?? 0;
+    const grossProfit = calcQuery.data?.grossProfit ?? 0;
+    const grossMargin = calcQuery.data?.grossMarginPercent ?? 0;
+    const netProfit = calcQuery.data?.netProfit ?? 0;
+    const netMarginPercent = calcQuery.data?.netMarginPercent ?? 0;
 
-    const cost = useMemo(
-        () => rows.reduce((sum, row) => sum + row.cost * row.qty, 0),
-        [rows],
-    );
-    const currentRevenue = useMemo(
-        () => currentRows.reduce((sum, row) => sum + row.revenue, 0),
-        [currentRows],
-    );
-    const currentGrossProfit = currentRevenue - cost;
-    const currentGrossMargin =
-        currentRevenue > 0 ? (currentGrossProfit / currentRevenue) * 100 : 0;
-
-    const targetFraction = targetMarginPercent / 100;
-    const requiredRevenue =
-        targetFraction >= 1 ? null : cost / (1 - targetFraction);
-    const gap = requiredRevenue === null ? null : requiredRevenue - currentRevenue;
-    const multiplier =
-        requiredRevenue === null || currentRevenue <= 0
-            ? null
-            : requiredRevenue / currentRevenue;
-    const targetGrossProfit =
-        requiredRevenue === null ? null : requiredRevenue - cost;
-
-    const atTarget = gap !== null && Math.abs(gap) < 0.005;
-
-    const targetRows = useMemo(
-        () =>
-            currentRows.map((row) => {
-                const newPrice =
-                    multiplier === null || row.price === null
-                        ? null
-                        : row.price * multiplier;
-                const newMargin =
-                    newPrice === null ? null : marginForPrice(row.cost, newPrice);
-                return { ...row, newPrice, newMargin };
-            }),
-        [currentRows, multiplier],
-    );
-
-    const revenue = mode === "PER_ITEM" ? currentRevenue : requiredRevenue ?? currentRevenue;
-    const grossProfit =
-        mode === "PER_ITEM" ? currentGrossProfit : targetGrossProfit ?? currentGrossProfit;
-    const grossMargin = mode === "PER_ITEM" ? currentGrossMargin : targetMarginPercent;
-    const netProfit = grossProfit - operatingExpense;
-    const netMarginPercent = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const atTarget =
+        calcQuery.data?.mode === "BUSINESS_TARGET" &&
+        items.length > 0 &&
+        items.every(
+            (row) =>
+                row.price === null ||
+                row.newPrice === null ||
+                Math.abs(row.newPrice - row.price) < 0.01,
+        );
 
     const handleExportPerItem = () => {
-        exportMarginPerItemCsv(currentRows, {
-            revenue: currentRevenue,
+        if (!calcQuery.data) return;
+        exportMarginPerItemCsv(items, {
+            revenue,
             cost,
-            grossProfit: currentGrossProfit,
-            grossMargin: currentGrossMargin,
-            operatingExpense,
-            netProfit: currentGrossProfit - operatingExpense,
-            netMarginPercent:
-                currentRevenue > 0
-                    ? ((currentGrossProfit - operatingExpense) / currentRevenue) * 100
-                    : 0,
+            grossProfit,
+            grossMargin,
+            operatingExpense: calcQuery.data.operatingExpense,
+            netProfit,
+            netMarginPercent,
         });
     };
 
     const handleExportTarget = () => {
-        const tRev = requiredRevenue ?? currentRevenue;
-        const tProfit = targetGrossProfit ?? currentGrossProfit;
-        const tNetProfit = tProfit - operatingExpense;
-        exportBusinessTargetCsv(targetRows, {
+        if (!calcQuery.data) return;
+        exportBusinessTargetCsv(items, {
             targetMarginPercent,
-            revenue: tRev,
+            revenue,
             cost,
-            grossProfit: tProfit,
-            grossMargin: targetMarginPercent,
-            operatingExpense,
-            netProfit: tNetProfit,
-            netMarginPercent: tRev > 0 ? (tNetProfit / tRev) * 100 : 0,
+            grossProfit,
+            grossMargin,
+            operatingExpense: calcQuery.data.operatingExpense,
+            netProfit,
+            netMarginPercent,
         });
-    };
-
-    const handleExportCombined = () => {
-        const tRev = requiredRevenue ?? currentRevenue;
-        const tProfit = targetGrossProfit ?? currentGrossProfit;
-        const tNetProfit = tProfit - operatingExpense;
-        exportCombinedCsv(
-            currentRows,
-            targetRows,
-            targetMarginPercent,
-            operatingExpense,
-            {
-                revenue: currentRevenue,
-                cost,
-                grossProfit: currentGrossProfit,
-                grossMargin: currentGrossMargin,
-                netProfit: currentGrossProfit - operatingExpense,
-                netMarginPercent:
-                    currentRevenue > 0
-                        ? ((currentGrossProfit - operatingExpense) / currentRevenue) * 100
-                        : 0,
-            },
-            {
-                revenue: tRev,
-                cost,
-                grossProfit: tProfit,
-                grossMargin: targetMarginPercent,
-                netProfit: tNetProfit,
-                netMarginPercent: tRev > 0 ? (tNetProfit / tRev) * 100 : 0,
-            },
-        );
-    };
-
-    const handleExportCurrentMode = () => {
-        if (mode === "PER_ITEM") {
-            handleExportPerItem();
-        } else {
-            handleExportTarget();
-        }
     };
 
     return (
@@ -541,7 +330,7 @@ export function SaleProfitCalculator() {
                 })}
             </div>
 
-            {inventoryLoading && !seededFromInventory ? (
+            {calcQuery.isLoading ? (
                 <div className="rounded-2xl border border-border/80 bg-card p-12 text-center shadow-xs">
                     <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                         <Sparkles className="size-6 animate-pulse" />
@@ -552,6 +341,21 @@ export function SaleProfitCalculator() {
                     <p className="mt-1 text-sm text-muted-foreground">
                         Calculating unit costs & stock counts to seed your profit model.
                     </p>
+                </div>
+            ) : calcQuery.isError ? (
+                <div className="rounded-2xl border border-border/80 bg-card p-12 text-center shadow-xs">
+                    <p className="text-sm font-bold text-danger">
+                        Failed to calculate sale profit.
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => calcQuery.refetch()}
+                        className="mt-3 rounded-xl"
+                    >
+                        Try again
+                    </Button>
                 </div>
             ) : (
                 <>
@@ -607,7 +411,10 @@ export function SaleProfitCalculator() {
                     ) : null}
 
                     {/* KPI Metric Cards Grid */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {recomputing ? (
+                            <Loader2 className="absolute -top-3 right-0 size-4 animate-spin text-muted-foreground" />
+                        ) : null}
                         {/* 1. Revenue KPI */}
                         <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:shadow-md">
                             <div className="flex items-start justify-between">
@@ -679,28 +486,20 @@ export function SaleProfitCalculator() {
 
                     {/* Table View */}
                     {mode === "PER_ITEM" ? (
-                        <>
-                            <PerItemTable
-                                rows={currentRows}
-                                format={format}
-                                onUpdateMargin={updateMargin}
-                                hasItems={inventoryItems.length > 0}
-                                bulkMarginPercent={bulkMarginPercent}
-                                onBulkMarginChange={setBulkMarginPercent}
-                                onApplyMarginToAll={applyMarginToAll}
-                                onExport={handleExportPerItem}
-                            />
-                            <p className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-                                <Info className="size-3.5 shrink-0" />
-                                Margin is the share of the selling price you
-                                keep — a 50% margin on a {format(10)} cost
-                                gives {format(20)}, not {format(15)} (that
-                                would be 50% markup instead).
-                            </p>
-                        </>
+                        <PerItemTable
+                            rows={items}
+                            format={format}
+                            getDraftMargin={draftMarginFor}
+                            onUpdateMargin={updateMargin}
+                            hasItems={items.length > 0}
+                            bulkMarginPercent={bulkMarginPercent}
+                            onBulkMarginChange={setBulkMarginPercent}
+                            onApplyMarginToAll={applyMarginToAll}
+                            onExport={handleExportPerItem}
+                        />
                     ) : (
                         <TargetTable
-                            rows={targetRows}
+                            rows={items}
                             format={format}
                             atTarget={atTarget}
                             onExport={handleExportTarget}
@@ -767,8 +566,6 @@ export function SaleProfitCalculator() {
                             </div>
                         </div>
                     </Card>
-
-                    {mode === "BUSINESS_TARGET" ? <MixExplainer /> : null}
                 </>
             )}
         </div>
@@ -778,6 +575,7 @@ export function SaleProfitCalculator() {
 function PerItemTable({
     rows,
     format,
+    getDraftMargin,
     onUpdateMargin,
     hasItems,
     bulkMarginPercent,
@@ -785,9 +583,10 @@ function PerItemTable({
     onApplyMarginToAll,
     onExport,
 }: {
-    rows: PricedRow[];
+    rows: SaleProfitCalculatorItem[];
     format: (value: number) => string;
-    onUpdateMargin: (id: string, marginPercent: number) => void;
+    getDraftMargin: (itemId: string) => number;
+    onUpdateMargin: (itemId: string, marginPercent: number) => void;
     hasItems: boolean;
     bulkMarginPercent: number;
     onBulkMarginChange: (marginPercent: number) => void;
@@ -930,7 +729,7 @@ function PerItemTable({
 
                             return (
                                 <TableRow
-                                    key={row.id}
+                                    key={row.itemId}
                                     className={cn(!hasCost && "bg-muted/10")}
                                 >
                                     <TableCell className="font-semibold text-foreground">
@@ -952,13 +751,13 @@ function PerItemTable({
                                                     min={0}
                                                     max={99.9}
                                                     step="1"
-                                                    value={row.marginPercent}
+                                                    value={getDraftMargin(row.itemId)}
                                                     onFocus={(e) => e.target.select()}
                                                     onChange={(e) => {
                                                         const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
                                                         const num = Number(cleaned);
                                                         onUpdateMargin(
-                                                            row.id,
+                                                            row.itemId,
                                                             Number.isFinite(num) ? Math.min(99.9, Math.max(0, num)) : 0,
                                                         );
                                                     }}
@@ -1007,13 +806,7 @@ function TargetTable({
     atTarget,
     onExport,
 }: {
-    rows: Array<
-        ItemRow & {
-            price: number | null;
-            newPrice: number | null;
-            newMargin: number | null;
-        }
-    >;
+    rows: SaleProfitCalculatorItem[];
     format: (value: number) => string;
     atTarget: boolean;
     onExport?: () => void;
@@ -1058,7 +851,7 @@ function TargetTable({
 
                     <TableBody>
                         {rows.map((row) => (
-                            <TableRow key={row.id}>
+                            <TableRow key={row.itemId}>
                                 <TableCell className="font-bold text-foreground">
                                     <span className="truncate font-bold">
                                         {row.name}
@@ -1081,9 +874,9 @@ function TargetTable({
                                         : format(row.newPrice)}
                                 </TableCell>
                                 <TableCell className="text-right text-sm font-extrabold text-success tabular-nums">
-                                    {row.newMargin === null
+                                    {row.newMarginPercent === null
                                         ? "—"
-                                        : `${row.newMargin.toFixed(1)}%`}
+                                        : `${row.newMarginPercent.toFixed(1)}%`}
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -1091,56 +884,5 @@ function TargetTable({
                 </Table>
             </div>
         </Card>
-    );
-}
-
-function MixExplainer() {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <div className="flex flex-col items-center gap-2 pt-1">
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOpen((value) => !value)}
-                aria-expanded={open}
-                className="gap-2 rounded-full font-bold text-xs"
-            >
-                <Info className="size-4" />
-                Explain the mix strategy for my shop
-                <ChevronDown
-                    className={cn(
-                        "size-4 transition-transform",
-                        open && "rotate-180",
-                    )}
-                />
-            </Button>
-
-            {open ? (
-                <div className="w-full space-y-2 rounded-2xl border border-border/80 bg-muted/30 p-4 text-sm text-muted-foreground sm:p-5">
-                    <p>
-                        The uniform price factor above raises every item by
-                        the same percentage — the fastest way to hit a
-                        target, but rarely the cheapest for your customers.
-                    </p>
-                    <p>
-                        Since the business margin is revenue-weighted, your
-                        highest-volume items carry the most influence on it.
-                        Shifting volume toward your best-margin item, or
-                        trimming cost on your biggest seller, can close some
-                        of the gap with no price increase at all — worth
-                        testing before raising every price.
-                    </p>
-                    <p>
-                        And remember: gross margin isn&apos;t net profit. The
-                        gross profit above still has to cover rent, salaries
-                        and utilities before what&apos;s left is really
-                        yours — that&apos;s what the operating expense line
-                        is for.
-                    </p>
-                </div>
-            ) : null}
-        </div>
     );
 }
