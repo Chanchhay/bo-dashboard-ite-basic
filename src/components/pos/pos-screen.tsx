@@ -839,15 +839,24 @@ export function PosScreen({
       const formattedTotal = format(totalVal, sale.currency ?? order.currency);
       const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || order.items?.length || 0;
 
-      // 1. Dispatch Payment Received Notification
+      // 1. Dispatch Payment Received Notification — worded for what actually
+      // happened. Pay Later collects nothing at this point (the backend
+      // settles it at zero received, see OrderServiceImpl.payOrder), so a
+      // "Payment Successful" push here would tell whoever reads it money
+      // arrived when the shelf just went out on trust instead.
+      const isPayLater = sale.paymentMethod === "PAY_LATER";
       createNotification({
         senderId: subject,
         senderName: session?.user?.name || "POS Cashier",
         receiverIds: [subject],
         type: "PAYMENT",
-        title: `Payment Successful (#${orderRef})`,
-        content: `Payment received for sale of ${itemCount} item(s) total ${formattedTotal}.`,
-        deepLink: "/sales/orders",
+        title: isPayLater
+          ? `Pay Later Order Placed (#${orderRef})`
+          : `Payment Successful (#${orderRef})`,
+        content: isPayLater
+          ? `${itemCount} item(s) sold on Pay Later, ${formattedTotal} still owed.`
+          : `Payment received for sale of ${itemCount} item(s) total ${formattedTotal}.`,
+        deepLink: isPayLater ? "/sales/pay-later" : "/sales/orders",
       }).catch(() => {});
 
       // 2. Check sold items for ACTUAL low stock warnings

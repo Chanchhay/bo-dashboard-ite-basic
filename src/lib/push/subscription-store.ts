@@ -1,172 +1,147 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import path from "node:path";
-
+import { backendRequest } from "@/lib/api/backend";
 import type { StoredPushSubscription } from "./types";
 
 /**
  * Where push registrations live.
  *
- * This app has no database of its own — every other piece of business data
- * is owned by the external API this dashboard proxies to. A push
- * registration is different: it is nothing the backend needs to know about
- * to do its job, only something *this* process needs in order to answer
- * "who do I wake up". A JSON file kept in memory and mirrored to disk is
- * enough for that, on the single long-running server this app is deployed
- * as (see AGENTS.md/CLAUDE.md's deployment notes) — it survives a restart,
- * which the in-memory-only version this replaced did not.
- *
- * This does **not** survive a serverless/multi-instance deployment: each
- * instance would keep its own file and disagree about who is subscribed.
- * If this app is ever moved onto one, swap this module's body for a call to
- * a real table or a shared cache — every caller goes through the four
- * functions exported below, so that is the entire surface to change.
+ * This used to be a JSON file mirrored to disk on this process's own
+ * filesystem — workable on a single long-running server, but silently empty
+ * on a serverless deployment (Vercel included): each invocation can land on
+ * a different instance, each with its own disk, so a subscription written by
+ * one request was invisible to the next. The backend already has a real
+ * database and is already the other end of this conversation — it is the
+ * one that calls `/api/push/send` in the first place — so subscriptions are
+ * rows there now, reached over `/api/v1/push-subscriptions` (a signed-in
+ * user registering their own device) and `/api/v1/internal/push-subscriptions`
+ * (this server asking who is subscribed, with no user session in the loop —
+ * gated on `PUSH_INTERNAL_SECRET` instead, the same secret the backend sends
+ * the other direction to reach `/api/push/send`).
  */
-const DATA_DIR = path.join(process.cwd(), "data");
-const FILE_PATH = path.join(DATA_DIR, "push-subscriptions.json");
 
-/** userId -> endpoint -> subscription. Endpoint is the natural per-device key. */
-type Store = Map<string, Map<string, StoredPushSubscription>>;
+function internalPushHeaders(): HeadersInit {
+    const secret = process.env.PUSH_INTERNAL_SECRET;
 
-let cache: Store | null = null;
-let loading: Promise<Store> | null = null;
-
-/** Serializes writes so two saves in quick succession can't interleave onto disk. */
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-function toStore(records: StoredPushSubscription[]): Store {
-  const store: Store = new Map();
-
-  for (const record of records) {
-    let byEndpoint = store.get(record.userId);
-
-    if (!byEndpoint) {
-      byEndpoint = new Map();
-      store.set(record.userId, byEndpoint);
+    if (!secret) {
+        throw new Error("PUSH_INTERNAL_SECRET is not configured on this server.");
     }
 
-    byEndpoint.set(record.endpoint, record);
-  }
-
-  return store;
+    return {
+        "Content-Type": "application/json",
+        "X-Push-Secret": secret,
+    };
 }
 
-function toRecords(store: Store): StoredPushSubscription[] {
-  const records: StoredPushSubscription[] = [];
+function getApiBaseUrl() {
+    const baseUrl = process.env.API_BASE_URL?.trim().replace(/\/+$/, "");
 
-  for (const byEndpoint of store.values()) {
-    records.push(...byEndpoint.values());
-  }
-
-  return records;
-}
-
-async function load(): Promise<Store> {
-  loading ??= (async () => {
-    try {
-      const raw = await readFile(FILE_PATH, "utf8");
-      const parsed = JSON.parse(raw) as StoredPushSubscription[];
-
-      return toStore(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      // First run, or a file that hasn't been created yet — an empty store,
-      // not a failure.
-      return new Map();
+    if (!baseUrl) {
+        throw new Error("API_BASE_URL is not configured on this server.");
     }
-  })();
 
-  cache = await loading;
-
-  return cache;
+    return baseUrl;
 }
 
-async function withStore(): Promise<Store> {
-  if (cache) return cache;
+type BackendSubscription = {
+    userId: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    expirationTime: number | null;
+};
 
-  return load();
+function toStored(record: BackendSubscription): StoredPushSubscription {
+    return {
+        userId: record.userId,
+        endpoint: record.endpoint,
+        keys: { p256dh: record.p256dh, auth: record.auth },
+        expirationTime: record.expirationTime,
+    };
 }
 
 /**
- * Write-through: the file is the backup, the map already in memory is what
- * every read answers from, so a save never sits on the critical path of a
- * push actually going out.
+ * Registers the caller's own device.
+ *
+ * Goes through `backendRequest`, which resolves the signed-in user's
+ * Keycloak token from the current request — the backend derives whose
+ * subscription this is from that token rather than trusting a userId this
+ * call might otherwise be asked to pass, so a signed-in user can only ever
+ * register their own.
  */
-function persist(store: Store): void {
-  const snapshot = toRecords(store);
-
-  writeQueue = writeQueue.then(async () => {
-    await mkdir(DATA_DIR, { recursive: true });
-
-    const tmpPath = `${FILE_PATH}.${process.pid}.tmp`;
-
-    await writeFile(tmpPath, JSON.stringify(snapshot), "utf8");
-    await rename(tmpPath, FILE_PATH);
-  });
-}
-
-export async function addSubscription(
-  subscription: Omit<StoredPushSubscription, "createdAt">,
-): Promise<void> {
-  const store = await withStore();
-  let byEndpoint = store.get(subscription.userId);
-
-  if (!byEndpoint) {
-    byEndpoint = new Map();
-    store.set(subscription.userId, byEndpoint);
-  }
-
-  byEndpoint.set(subscription.endpoint, {
-    ...subscription,
-    createdAt: new Date().toISOString(),
-  });
-
-  persist(store);
+export async function addSubscription(subscription: {
+    userId: string;
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+    expirationTime?: number | null;
+}): Promise<void> {
+    await backendRequest("/api/v1/push-subscriptions", {
+        method: "POST",
+        body: JSON.stringify({
+            endpoint: subscription.endpoint,
+            keys: subscription.keys,
+            expirationTime: subscription.expirationTime ?? null,
+        }),
+    });
 }
 
 export async function removeSubscription(
-  userId: string,
-  endpoint: string,
+    _userId: string,
+    endpoint: string,
 ): Promise<void> {
-  const store = await withStore();
-  const byEndpoint = store.get(userId);
-
-  if (!byEndpoint?.delete(endpoint)) return;
-
-  if (byEndpoint.size === 0) store.delete(userId);
-
-  persist(store);
+    await backendRequest("/api/v1/push-subscriptions", {
+        method: "DELETE",
+        body: JSON.stringify({ endpoint }),
+    });
 }
 
-/** Drops a dead registration wherever it is — used to prune a 404/410 from the push service. */
+/**
+ * Drops a dead registration wherever it is — used to prune a 404/410 from
+ * the push service. Called from `send-push.ts`, which runs both from a
+ * signed-in Server Action and from the secret-authenticated
+ * `/api/push/send` webhook with no session at all, so this always goes
+ * through the internal, secret-gated door rather than the per-user one.
+ */
 export async function removeByEndpoint(endpoint: string): Promise<void> {
-  const store = await withStore();
-  let changed = false;
+    const response = await fetch(
+        `${getApiBaseUrl()}/api/v1/internal/push-subscriptions/by-endpoint?endpoint=${encodeURIComponent(endpoint)}`,
+        { method: "DELETE", headers: internalPushHeaders(), cache: "no-store" },
+    );
 
-  for (const [userId, byEndpoint] of store) {
-    if (byEndpoint.delete(endpoint)) {
-      changed = true;
-      if (byEndpoint.size === 0) store.delete(userId);
+    if (!response.ok && response.status !== 404) {
+        throw new Error(`Failed to prune push subscription (${response.status}).`);
     }
-  }
-
-  if (changed) persist(store);
 }
 
+/**
+ * Looks up subscriptions for a set of recipients — the one lookup with no
+ * signed-in user to scope it to (the caller is asking on someone else's
+ * behalf, or is the backend's own webhook), so it goes through the same
+ * secret-gated internal endpoint as `removeByEndpoint`.
+ */
 export async function getSubscriptionsForUsers(
-  userIds: string[],
+    userIds: string[],
 ): Promise<StoredPushSubscription[]> {
-  const store = await withStore();
-  const result: StoredPushSubscription[] = [];
+    if (userIds.length === 0) return [];
 
-  for (const userId of new Set(userIds)) {
-    const byEndpoint = store.get(userId);
-    if (byEndpoint) result.push(...byEndpoint.values());
-  }
+    const response = await fetch(
+        `${getApiBaseUrl()}/api/v1/internal/push-subscriptions/lookup`,
+        {
+            method: "POST",
+            headers: internalPushHeaders(),
+            body: JSON.stringify([...new Set(userIds)]),
+            cache: "no-store",
+        },
+    );
 
-  return result;
+    if (!response.ok) {
+        throw new Error(`Failed to look up push subscriptions (${response.status}).`);
+    }
+
+    const records = (await response.json()) as BackendSubscription[];
+    return records.map(toStored);
 }
 
 export async function getSubscriptionsForUser(
-  userId: string,
+    userId: string,
 ): Promise<StoredPushSubscription[]> {
-  return getSubscriptionsForUsers([userId]);
+    return getSubscriptionsForUsers([userId]);
 }
