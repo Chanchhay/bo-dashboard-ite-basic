@@ -22,6 +22,9 @@ import { AmountReceived } from "@/components/pos/amount-received";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth/auth-client";
+import { useSessionSubject } from "@/lib/auth/session-context";
+import { useNotifyWithPush } from "@/hooks/useNotifyWithPush";
 import {
     getApiErrorMessage,
     InventoryEmpty,
@@ -114,6 +117,9 @@ export function PayLaterList() {
     const salesQuery = useGetPayLaterSalesQuery();
     const [collectPayment, { isLoading: isCollecting }] =
         useCollectPayLaterPaymentMutation();
+    const { data: session } = authClient.useSession();
+    const subject = useSessionSubject();
+    const notify = useNotifyWithPush();
 
     const [collecting, setCollecting] = useState<PayLaterSale | null>(null);
     const [paidReceiptOrderId, setPaidReceiptOrderId] = useState<string | null>(null);
@@ -224,6 +230,19 @@ export function PayLaterList() {
                 title: "Payment collected",
                 description: `${collecting.invoiceNumber ?? "This sale"} is now settled.`,
             });
+
+            if (subject) {
+                notify({
+                    senderId: subject,
+                    senderName: session?.user?.name || "POS Cashier",
+                    receiverIds: [subject],
+                    type: "PAYMENT",
+                    title: `Pay Later Collected (#${collecting.invoiceNumber ?? "sale"})`,
+                    content: `Received ${format(receivedAmount, collecting.currency)} for a Pay Later sale that was outstanding.`,
+                    deepLink: "/sales/pay-later",
+                }).catch(() => {});
+            }
+
             setCollecting(null);
             // Confirms to the cashier, in the same document the customer
             // gets, that this is no longer owed — not just a toast that
