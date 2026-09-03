@@ -9,6 +9,8 @@ import type {
     PeriodProfitReport,
     PredictionWindow,
     ReportGranularity,
+    SaleProfitCalculatorRequest,
+    SaleProfitCalculatorResponse,
     SalesPredictionsResponse,
     SalesProfit,
 } from "@/lib/api/sales-report";
@@ -114,6 +116,23 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
+        /**
+         * "What if I priced the catalog at this margin" — a POST because the
+         * margins are arbitrary caller input, but otherwise read-only: cost
+         * and quantity always come from a fresh read of inventory, so the
+         * result can't drift from what the last call already showed.
+         */
+        calculateSaleProfit: builder.query<
+            SaleProfitCalculatorResponse,
+            SaleProfitCalculatorRequest
+        >({
+            query: (body) => ({
+                url: "/sales/profit/calculator",
+                method: "POST",
+                body,
+            }),
+        }),
+
         /** Every sale rung up as "Pay later" that hasn't been collected yet. */
         getPayLaterSales: builder.query<PayLaterSale[], void>({
             query: () => "/sales/pay-later",
@@ -143,4 +162,5 @@ export const {
     useGetItemProfitQuery,
     useGetDailyRevenueByChannelQuery,
     useGetSalesPredictionsQuery,
+    useCalculateSaleProfitQuery,
 } = salesReportApi;
