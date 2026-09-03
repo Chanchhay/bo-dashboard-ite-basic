@@ -41,7 +41,7 @@ import {
 } from "@/services/posOrderApi";
 import { useCartActions, useCurrentCart } from "@/lib/pos/use-cart";
 import { setCartTax } from "@/lib/pos/local-cart";
-import { flushCart } from "@/lib/pos/cart-sync";
+import { flushCart, getLastCartPushError, onCartPushFailed } from "@/lib/pos/cart-sync";
 import { NewOrder } from "./new-order";
 import { Payment } from "./payment";
 import { CustomerSelectModal } from "../customer-select-modal";
@@ -133,72 +133,28 @@ function isRuleConditionMet(orderVal: PosOrder | null, rule: AppliedDiscountRule
   return true;
 }
 
-function findMatchingPosDiscount(
-  item: PosOrderItem,
-  activePosDiscounts: DiscountResponse[]
-): DiscountResponse | null {
-  // 1. Check specific item targets first
-  const itemMatch = activePosDiscounts.find((d) => {
-    if (d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM") {
-      return d.targets?.some((t) => t.targetType === "ITEM" && t.targetId === item.itemId);
-    }
-    return false;
-  });
-  if (itemMatch) return itemMatch;
-
-  // 2. Check specific category targets second
-  const categoryMatch = activePosDiscounts.find((d) => {
-    if (d.scope === "SPECIFIC_CATEGORIES" || d.scope === "CATEGORY") {
-      return d.targets?.some((t) => t.targetType === "ITEM_GROUP");
-    }
-    return false;
-  });
-  if (categoryMatch) return categoryMatch;
-
-  // 3. Check storewide (ALL_ITEMS) discounts third
-  const storewideMatch = activePosDiscounts.find((d) => d.scope === "ALL_ITEMS" || !d.scope);
-  return storewideMatch || null;
-}
-
-function discountResponseToRule(d: DiscountResponse): AppliedDiscountRule {
-  return {
-    type: d.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED",
-    value: d.value,
-    maxDiscountAmount: d.maxDiscountAmount,
-    discountId: d.id,
-    label: d.name,
-    scope: d.scope,
-    targetItemIds: d.targets
-      ?.filter((t) => t.targetType === "ITEM")
-      .map((t) => t.targetId),
-    targetItemGroupIds: d.targets
-      ?.filter((t) => t.targetType === "ITEM_GROUP")
-      .map((t) => t.targetId),
-    minOrderAmount: d.minOrderAmount,
-    minQuantity: d.minQuantity,
-    buyQuantity: d.buyQuantity,
-    getQuantity: d.getQuantity,
-  };
-}
-
 function computeItemDiscount(
   item: PosOrderItem,
   orderVal: PosOrder | null,
   rule: AppliedDiscountRule | null,
-  activePosDiscounts: DiscountResponse[] = []
+  _activePosDiscounts: DiscountResponse[] = []
 ): { discountAmount: number; label?: string } {
-  let effectiveRule = rule;
+  const effectiveRule = rule;
 
-  if (!effectiveRule && activePosDiscounts.length > 0) {
-    const match = findMatchingPosDiscount(item, activePosDiscounts);
-    if (match) {
-      effectiveRule = discountResponseToRule(match);
-    }
-  }
-
+  // With no rule the cashier actually chose, guessing one for this one item
+  // from the active discount list used to mean matching whichever discount
+  // came first for THIS item alone — never checking whether another item in
+  // the same cart had already used up the very units a storewide bundle
+  // needed, or whether the backend's own per-item and order-level discounts
+  // (gated so only one of the two ever fires — see `syncOrderDiscount`)
+  // agreed with a guess made one line at a time. Two items each getting
+  // matched independently was how a storewide Buy X Get Y ended up giving
+  // Hamberger its own "free" unit on top of Matcha latte's, something the
+  // backend's real total never charged for. `item.discountAmount` (and
+  // `item.freeQuantity` for the free-unit badge) are never a guess — the
+  // backend already decided correctly and this device learned the real
+  // numbers back from it — so they are trusted outright instead.
   if (!effectiveRule || !orderVal) {
-    // No live rule selection to preview — show whatever the server last
-    // persisted, including the real discount name it recorded per line.
     return { discountAmount: item.discountAmount ?? 0, label: item.discountLabel ?? undefined };
   }
 
@@ -446,6 +402,15 @@ const ItemRow = memo(function ItemRow({
             {discountInfo.label}
           </span>
         ) : null}
+        {/* How many of this line's units the backend's Buy X Get Y engine
+            granted on its own — the whole point of the offer is invisible
+            to the cashier without this, since the total quantity alone
+            reads as an ordinary sale. */}
+        {item.freeQuantity ? (
+          <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            {item.freeQuantity} FREE
+          </span>
+        ) : null}
 
       </td>
 
@@ -570,6 +535,11 @@ export function OrderTable({
   const [payOrder, { isLoading: isPaying }] = usePayOrderMutation();
   const [setCustomerOnServer] = useSetOrderCustomerMutation();
   const [setDiscountOnServer] = useSetOrderDiscountMutation();
+  // Covers the stretch `isPaying` (payOrder's own loading flag) does not:
+  // the discount-sync wait and flushCart()'s round trip, both of which
+  // happen before payOrder is ever called.
+  const isSubmittingPaymentRef = useRef(false);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   /*
    * The customer and the discount land on the cart first, and the server is
@@ -640,6 +610,7 @@ export function OrderTable({
     onDiscountModalOpenChange?.(open);
   };
 
+
   const lineQuantityRef = useRef<Map<string, number>>(new Map());
 
   // Holds the in-flight discount PATCH so a payment attempt can await the
@@ -649,35 +620,66 @@ export function OrderTable({
   useEffect(() => {
     if (order?.items) {
       order.items.forEach((i) => {
-        lineQuantityRef.current.set(i.id, i.quantity);
+        lineQuantityRef.current.set(i.id, i.quantity - (i.freeQuantity ?? 0));
       });
     }
   }, [order?.items]);
+
+  // A background push (not the payment-time one, which already surfaces its
+  // own failure) is otherwise silent — the cashier taps, the screen updates
+  // optimistically, and a refused bundle (stock too short to cover it) would
+  // never be seen until checkout. This is what tells them right away.
+  useEffect(() => {
+    return onCartPushFailed((message) => {
+      toast({
+        tone: "error",
+        title: "Could not save that change",
+        description: message,
+      });
+    });
+  }, [toast]);
+
+  /** How many free units each line carried as of the last render — so a bundle completing can be told apart from one already sitting there on load. */
+  const freeQuantityRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (!order?.items) return;
+
+    for (const item of order.items) {
+      const previous = freeQuantityRef.current.get(item.id);
+      const current = item.freeQuantity ?? 0;
+
+      if (previous !== undefined && current > previous) {
+        const gained = current - previous;
+        toast({
+          tone: "success",
+          title: "Promotion applied",
+          description: `${item.itemName}: ${gained} free unit${gained > 1 ? "s" : ""} added automatically.`,
+        });
+      }
+
+      freeQuantityRef.current.set(item.id, current);
+    }
+
+    // A line that left the cart entirely has nothing left to compare next
+    // time it's used for a different item.
+    const stillPresent = new Set(order.items.map((item) => item.id));
+    for (const id of freeQuantityRef.current.keys()) {
+      if (!stillPresent.has(id)) freeQuantityRef.current.delete(id);
+    }
+  }, [order?.items, toast]);
 
   /** Runs one line change, reporting rather than silently swallowing failure. */
   // No connection: the cart is this till's own, and so are its line ids.
   const isOffline = typeof window !== "undefined" && !navigator.onLine;
 
-  /**
-   * Every quantity change and removal passes through here.
-   *
-   * There is nothing left to guard: the line's id belongs to this device, the
-   * write lands before the function returns, and telling the server is
-   * somebody else's problem. What used to be here — an in-flight check, a
-   * failure toast, a rule about which errors meant offline — was all the cost
-   * of a cart that lived somewhere else.
-   */
+ 
   async function runLineChange(change: () => Promise<unknown>) {
     playTick();
     await change();
   }
 
-  /**
-   * Whether one more of this line would sell stock the shop does not have.
-   *
-   * A pack is its whole factor: one more case of twelve needs twelve on the
-   * shelf, not one.
-   */
+
   const atStockLimit = useCallback(
     (item: PosOrderItem) => {
       if (!stockFor || item.trackInventory === false) return false;
@@ -706,25 +708,39 @@ export function OrderTable({
         return;
       }
 
-      const current = lineQuantityRef.current.get(item.id) ?? item.quantity;
-      const nextQty = current + 1;
-      lineQuantityRef.current.set(item.id, nextQty);
+      const currentFree = item.freeQuantity ?? 0;
+      const currentPaid = lineQuantityRef.current.get(item.id) ?? (item.quantity - currentFree);
+      const nextPaid = currentPaid + 1;
+      lineQuantityRef.current.set(item.id, nextPaid);
 
-      void runLineChange(() => setQuantity(item.id, nextQty));
+      // The freebie count is only ever learned back from the server (see
+      // local-cart.ts's applyServerCart), so the optimistic total keeps
+      // whatever it last confirmed rather than guessing whether this tap
+      // just completed a fresh bundle — the push settles that shortly.
+      void runLineChange(() => setQuantity(item.id, nextPaid + currentFree));
     },
     [atStockLimit, setQuantity, toast],
   );
 
   const handleDecrease = useCallback(
     (item: PosOrderItem) => {
-      const current = lineQuantityRef.current.get(item.id) ?? item.quantity;
-      const nextQty = Math.max(0, current - 1);
-      lineQuantityRef.current.set(item.id, nextQty);
+      const currentFree = item.freeQuantity ?? 0;
+      const currentPaid = lineQuantityRef.current.get(item.id) ?? (item.quantity - currentFree);
+      const nextPaid = Math.max(0, currentPaid - 1);
+      lineQuantityRef.current.set(item.id, nextPaid);
 
-      // Zero removes the line; the store makes that the same call.
-      void runLineChange(() => setQuantity(item.id, nextQty));
+      // Zero paid units removes the line outright — a leftover free unit
+      // with nothing paid backing it is not a sellable state, so it goes
+      // with it rather than being sent through as a lone quantity.
+      if (nextPaid <= 0) {
+        lineQuantityRef.current.delete(item.id);
+        void runLineChange(() => removeItem(item.id));
+        return;
+      }
+
+      void runLineChange(() => setQuantity(item.id, nextPaid + currentFree));
     },
-    [setQuantity],
+    [removeItem, setQuantity],
   );
 
   const handleRemove = useCallback(
@@ -754,11 +770,32 @@ export function OrderTable({
       return null;
     });
 
+  // Same window the backend checks at `PATCH /orders/{id}/discount`
+  // (`OrderServiceImpl.validateDiscountForOrder`) — see pos-screen.tsx's
+  // identical filter for why the schedule and day-of-week matter here too.
   const activePosDiscounts = useMemo(() => {
+    const now = new Date();
+    const today = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][
+      now.getDay()
+    ];
+
     return discounts.filter((d) => {
       if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
-      if (d.applicableChannels && d.applicableChannels.length > 0) {
-        return d.applicableChannels.includes("POS");
+      if (
+        d.applicableChannels &&
+        d.applicableChannels.length > 0 &&
+        !d.applicableChannels.includes("POS")
+      ) {
+        return false;
+      }
+      if (d.startsAt && now < new Date(d.startsAt)) return false;
+      if (d.endsAt && now > new Date(d.endsAt)) return false;
+      if (
+        d.selectedDays &&
+        d.selectedDays.length > 0 &&
+        !d.selectedDays.includes(today)
+      ) {
+        return false;
       }
       return true;
     });
@@ -816,59 +853,66 @@ export function OrderTable({
       );
     }
 
-    // Automatically sum discounts from all items matching active BO POS rules
-    if (activePosDiscounts.length > 0 && orderVal.items && orderVal.items.length > 0) {
-      const totalAuto = orderVal.items.reduce((sum, item) => {
-        const itemDisc = computeItemDiscount(item, orderVal, null, activePosDiscounts);
-        return sum + itemDisc.discountAmount;
-      }, 0);
-      return Math.min(orderVal.subtotal || totalAuto, Math.max(0, parseFloat(totalAuto.toFixed(2))));
-    }
-
+    // With no rule chosen, there is nothing to preview here — every caller
+    // falls back to the order's own `discountAmount`, already correct and
+    // already learned back from the backend's own `pickBest` selection.
+    // Guessing one item at a time (as this used to, matching whichever
+    // discount `findMatchingPosDiscount` happened to find for each item
+    // independently) could match a storewide bundle against one item
+    // without knowing another item in the same cart had already used up
+    // the units it needed, giving a second item its own "free" unit the
+    // backend's real total never charged for.
     return 0;
   };
 
-  const boPosDefaultRule = useMemo<AppliedDiscountRule | null>(() => {
-    const storewideRule = activePosDiscounts.find(
-      (d) => d.scope === "ALL_ITEMS" || !d.scope
-    );
-    if (storewideRule) {
-      return discountResponseToRule(storewideRule);
-    }
-    return null;
-  }, [activePosDiscounts]);
-
-  /**
-   * What the order's persisted discount should be right now, and whether it
-   * actually needs a PATCH to get there — shared by the auto-sync effect
-   * below (fire-and-forget, for a snappy live preview) and by
-   * `handleValidatePayment` (awaited, so a payment can never be checked
-   * against a stale pre-discount `order.total`: the backend validates
-   * `receivedAmount` against whatever is already persisted, not anything a
-   * payment request itself sends).
-   */
   const resolveDiscountSync = (orderVal: PosOrder, rule: AppliedDiscountRule | null) => {
+    // The backend already re-derives the order's own discount from the cart
+    // on every line change — any catalog rule included, storewide or
+    // item-scoped, breaking ties between several active discounts by scope
+    // specificity and value (`pickBest` in DiscountApplicationServiceImpl)
+    // — with no selection from here needed at all. A coupon code the
+    // cashier actually typed, or a membership tied to the customer just
+    // attached, is the one thing the backend has no way to guess on its
+    // own, so that is the only case this still pushes.
+    //
+    // Trying to also push a *catalog* pick used to mean recomputing that
+    // discount's amount here first — client-side, from whichever rule
+    // `findMatchingPosDiscount`/a cached "store default" happened to match,
+    // not necessarily the one the backend's own `pickBest` would land on —
+    // and PATCHing the result over whatever the backend had just correctly
+    // computed on its own. Every disagreement (a stale cached rule matching
+    // a smaller cart than it was picked against, two active discounts
+    // resolved differently, ordinary rounding) either fed a self-sustaining
+    // loop of PATCH /api/orders/current/discount requests, or quietly
+    // overwrote a correct figure with a wrong one that then stuck until the
+    // next mutation. Restricting this to real coupons, memberships, and a
+    // custom amount someone typed by hand (recognisable by carrying no
+    // `discountId` — it is not a reference to any catalog discount at all)
+    // is what stops both.
+    if (!rule || !(rule.isCoupon || rule.discountCode || rule.isMembership || !rule.discountId)) {
+      return {
+        needsSync: false,
+        payload: {
+          discountAmount: orderVal.discountAmount ?? 0,
+          discountId: null,
+          discountCode: null,
+          discountIds: null,
+        },
+      };
+    }
+
     const targetAmount = computeTargetDiscountAmount(orderVal, rule);
-    // No single rule picked, but more than one catalog discount is
-    // simultaneously active: each may auto-match a different line, so all
-    // of them are sent for the backend to attribute per item rather than
-    // collapsing to a single (or no) id.
-    const autoDiscountIds = !rule && activePosDiscounts.length > 0
-      ? activePosDiscounts.map((d) => d.id)
-      : [];
-    const primaryDiscountId = rule?.discountId || (autoDiscountIds.length === 1 ? autoDiscountIds[0] : null);
-    const discountIds = autoDiscountIds.length > 1 ? autoDiscountIds : null;
-    const needsIdSync = Boolean(rule?.discountId && orderVal.discountId !== rule.discountId);
-    const needsCodeSync = Boolean(rule?.discountCode && orderVal.discountCode !== rule.discountCode);
+    const needsIdSync = Boolean(rule.discountId && orderVal.discountId !== rule.discountId);
+    const needsCodeSync = Boolean(rule.discountCode && orderVal.discountCode !== rule.discountCode);
     const needsAmountSync = Math.abs((orderVal.discountAmount ?? 0) - targetAmount) > 0.001;
 
     return {
       needsSync: needsAmountSync || needsIdSync || needsCodeSync,
       payload: {
         discountAmount: targetAmount,
-        discountId: primaryDiscountId,
-        discountCode: rule?.discountCode || null,
-        discountIds,
+        discountId: rule.discountId ?? null,
+        discountCode: rule.discountCode || null,
+        discountIds: null,
       },
     };
   };
@@ -879,6 +923,31 @@ export function OrderTable({
     let rule: AppliedDiscountRule | null = null;
     let explicitlyDisabled = false;
 
+    // Only something this device actually decided is worth loading back as
+    // `rule`: a coupon, a membership, or a custom amount someone typed by
+    // hand (recognisable by having no `discountId` — a custom rule is not a
+    // reference to any catalog discount at all). A catalog discount an
+    // item-scoped or storewide promo) is none of those — it is the
+    // backend's own `pickBest` choice, recomputed fresh from the cart on
+    // every line change — and recomputing it again here from a rule cached
+    // at whatever cart size it was picked against was the root of a whole
+    // run of bugs: a stale rule matching a smaller cart than it was cached
+    // for, disagreeing with the server enough to loop PATCH
+    // /api/orders/current/discount, or once, simply producing a number the
+    // cart's own contents could not justify. `item.freeQuantity`,
+    // `item.discountLabel` and `order.discountAmount` already carry
+    // everything a catalog discount needs to show or charge correctly —
+    // nothing here has to re-decide any of it.
+    const isExplicitRule = (candidate: unknown): candidate is AppliedDiscountRule =>
+      Boolean(
+        candidate &&
+          typeof candidate === "object" &&
+          ((candidate as AppliedDiscountRule).isCoupon ||
+            (candidate as AppliedDiscountRule).discountCode ||
+            isMembershipDiscount(candidate as AppliedDiscountRule) ||
+            !(candidate as AppliedDiscountRule).discountId),
+      );
+
     if (order?.id) {
       const cartKey = `pos_cart_discount_${order.id}`;
       const cartRaw = localStorage.getItem(cartKey);
@@ -886,7 +955,12 @@ export function OrderTable({
         explicitlyDisabled = true;
       } else if (cartRaw) {
         try {
-          rule = JSON.parse(cartRaw);
+          const parsed = JSON.parse(cartRaw);
+          if (isExplicitRule(parsed)) {
+            rule = parsed;
+          } else {
+            localStorage.removeItem(cartKey);
+          }
         } catch {}
       }
     }
@@ -896,16 +970,12 @@ export function OrderTable({
       if (storeDefaultRaw) {
         try {
           const parsed = JSON.parse(storeDefaultRaw);
-          if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed)) {
-            localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
-          } else {
+          if (isExplicitRule(parsed)) {
             rule = parsed;
+          } else {
+            localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
           }
         } catch {}
-      }
-
-      if (!rule && boPosDefaultRule) {
-        rule = boPosDefaultRule;
       }
 
       if (rule && order?.id) {
@@ -943,8 +1013,6 @@ export function OrderTable({
     order?.discountCode,
     order?.items,
     setOrderDiscount,
-    boPosDefaultRule,
-    activePosDiscounts,
   ]);
 
   const [attachedCustomerId, setAttachedCustomerId] = useState<string | null>(() => {
@@ -1153,7 +1221,17 @@ export function OrderTable({
     taxAmount: taxAmount,
     isTaxActive,
     isTaxInclusive,
-    total: order?.total ?? Math.max(0, subtotalNum - discountNum),
+    // Worked out from the same `subtotalNum`/`discountNum` the two rows
+    // above already show, not read separately off `order.total` — that
+    // figure comes from the cart's own, differently-timed reckoning of the
+    // discount (learned back from whichever push last landed) and could
+    // disagree with what this render just decided the discount actually is,
+    // showing a Total that does not match Subtotal minus Discount right
+    // above it. Tax is the one figure still read straight from the order:
+    // it is computed server-side and inclusive tax is already folded into
+    // `subtotalNum`, so exclusive tax is the only case with anything left
+    // to add on top.
+    total: isTaxActive && !isTaxInclusive ? afterDiscount + taxAmount : afterDiscount,
   };
   const totalSecondary = secondaryFor(summary.total, order);
 
@@ -1203,6 +1281,18 @@ export function OrderTable({
     receivedAmount?: number,
   ) => {
     if (!order) return;
+
+    // The "Validate" button's own disabled state only ever watched
+    // `isPaying`, which is `usePayOrderMutation`'s loading flag — true only
+    // once `payOrder` itself is in flight. Everything before that (waiting
+    // on the discount sync, then `flushCart()`'s own round trip) is a
+    // second, earlier stretch the button stayed clickable through, so a
+    // cashier tapping it again while it looked stuck fired this whole
+    // function a second time — a second flush, a second `payOrder`, the
+    // till doing the actual work twice for one tap that just felt slow.
+    if (isSubmittingPaymentRef.current) return;
+    isSubmittingPaymentRef.current = true;
+    setIsSubmittingPayment(true);
 
     const sold = order;
 
@@ -1343,10 +1433,12 @@ export function OrderTable({
         const pushed = await flushCart();
 
         if (!pushed) {
+          const reason = getLastCartPushError();
           toast({
             tone: "error",
-            title: "Could not reach the server",
+            title: reason ? "Could not apply the discount" : "Could not reach the server",
             description:
+              reason ??
               "The sale was not taken. Check the connection, or take it offline in cash.",
           });
           return;
@@ -1379,13 +1471,18 @@ export function OrderTable({
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
       }
 
-      // Revert discount to previous normal store default discount (or clear if none)
+      // Carries a coupon, a membership, or a hand-typed custom amount over
+      // to the next order — never a catalog discount, which is not
+      // something this device decided in the first place (see the
+      // `isExplicitRule` guard in the effect above) and is recomputed by
+      // the backend on its own for whatever the next order turns out to
+      // hold, not whatever this one just sold.
       const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
       let defaultRule: AppliedDiscountRule | null = null;
       if (storeDefaultRaw) {
         try {
           const parsed = JSON.parse(storeDefaultRaw);
-          if (!parsed?.isCoupon && !parsed?.discountCode && !isMembershipDiscount(parsed)) {
+          if (parsed?.isCoupon || parsed?.discountCode || isMembershipDiscount(parsed) || !parsed?.discountId) {
             defaultRule = parsed;
           } else {
             localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
@@ -1435,6 +1532,9 @@ export function OrderTable({
         title: "Payment failed",
         description: getApiErrorMessage(cause, "Please try again."),
       });
+    } finally {
+      isSubmittingPaymentRef.current = false;
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -1713,7 +1813,12 @@ export function OrderTable({
               if (storeDefaultRaw) {
                 try {
                   const parsed = JSON.parse(storeDefaultRaw);
-                  if (!parsed?.isCoupon && !parsed?.discountCode) {
+                  if (
+                    parsed?.isCoupon ||
+                    parsed?.discountCode ||
+                    isMembershipDiscount(parsed) ||
+                    !parsed?.discountId
+                  ) {
                     defaultRule = parsed;
                   }
                 } catch {}
@@ -1760,7 +1865,7 @@ export function OrderTable({
             setPaymentOpen(false);
             onPaymentSuccess?.(orderWithDiscounts, finalSale);
           }}
-          isProcessing={isPaying}
+          isProcessing={isPaying || isSubmittingPayment}
         />
       )}
     </div>

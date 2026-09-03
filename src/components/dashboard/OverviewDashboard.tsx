@@ -5,6 +5,22 @@ import dynamic from "next/dynamic";
 import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import {
+    AlignmentType,
+    BorderStyle,
+    Document,
+    HeadingLevel,
+    ImageRun,
+    Packer,
+    Paragraph,
+    ShadingType,
+    Table,
+    TableCell,
+    TableRow,
+    TextRun,
+    VerticalAlign,
+    WidthType,
+} from "docx";
+import {
     FileSpreadsheet,
     FileText,
     FileType,
@@ -110,6 +126,106 @@ function chartImgTag(chart: CapturedChart | null, filename: string, displayWidth
     if (!chart) return "";
     const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
     return `<img src="${filename}" width="${displayWidth}" height="${displayHeight}" style="border:1px solid #d9d9d9; border-radius: 8px; ${style}" />`;
+}
+
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+    const base64 = dataUrl.split(",")[1] ?? "";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+const DOC_BORDER_LIGHT = { style: BorderStyle.SINGLE, size: 2, color: "E0E0E0" } as const;
+const DOC_BORDER_HEADER = { style: BorderStyle.SINGLE, size: 4, color: "B4C6E7" } as const;
+
+// Renders a captured chart as a docx image paragraph, sized from its real
+// capture aspect ratio so it doesn't come out stretched.
+function chartImageParagraph(chart: CapturedChart | null, displayWidth: number): Paragraph | null {
+    if (!chart) return null;
+    const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
+    return new Paragraph({
+        spacing: { after: 200 },
+        children: [
+            new ImageRun({
+                type: "png",
+                data: dataUrlToUint8Array(chart.dataUrl),
+                transformation: { width: displayWidth, height: displayHeight },
+            }),
+        ],
+    });
+}
+
+function docSectionHeading(title: string): Paragraph {
+    return new Paragraph({
+        spacing: { before: 300, after: 150 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "D9E1F2", space: 4 } },
+        children: [new TextRun({ text: title, bold: true, size: 24, color: "1F4E79" })],
+    });
+}
+
+function docDataTable(headers: string[], rows: (string | number)[][]): Table {
+    const cellBorders = { top: DOC_BORDER_LIGHT, bottom: DOC_BORDER_LIGHT, left: DOC_BORDER_LIGHT, right: DOC_BORDER_LIGHT };
+    return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+            new TableRow({
+                tableHeader: true,
+                children: headers.map(
+                    (h) =>
+                        new TableCell({
+                            shading: { fill: "D9E1F2", type: ShadingType.CLEAR, color: "auto" },
+                            borders: cellBorders,
+                            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                            children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, size: 20 })] })],
+                        }),
+                ),
+            }),
+            ...rows.map(
+                (row) =>
+                    new TableRow({
+                        children: row.map(
+                            (cell) =>
+                                new TableCell({
+                                    borders: cellBorders,
+                                    margins: { top: 60, bottom: 60, left: 120, right: 120 },
+                                    children: [new Paragraph({ children: [new TextRun({ text: String(cell), size: 18 })] })],
+                                }),
+                        ),
+                    }),
+            ),
+        ],
+    });
+}
+
+function docKpiTable(cells: { label: string; value: string }[]): Table {
+    return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+            new TableRow({
+                children: cells.map(
+                    (c) =>
+                        new TableCell({
+                            shading: { fill: "F2F4F8", type: ShadingType.CLEAR, color: "auto" },
+                            borders: { top: DOC_BORDER_HEADER, bottom: DOC_BORDER_HEADER, left: DOC_BORDER_HEADER, right: DOC_BORDER_HEADER },
+                            verticalAlign: VerticalAlign.CENTER,
+                            margins: { top: 150, bottom: 150, left: 100, right: 100 },
+                            children: [
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: c.label, bold: true, size: 16, color: "64748B" })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    spacing: { before: 60 },
+                                    children: [new TextRun({ text: c.value, bold: true, size: 28, color: "0F172A" })],
+                                }),
+                            ],
+                        }),
+                ),
+            }),
+        ],
+    });
 }
 
 /**
@@ -428,136 +544,87 @@ export function OverviewDashboard() {
             const dateStr = new Date().toISOString().split("T")[0];
             const generatedOn = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-            const section = (title: string, bodyHtml: string) => `
-              <h2 style="font-size: 15px; font-weight: 700; color: #1f4e79; border-bottom: 1px solid #d9e1f2; padding-bottom: 6px; margin: 26px 0 12px 0;">${title}</h2>
-              ${bodyHtml}
-            `;
+            // A genuine OOXML .docx (built with the `docx` library) instead of the old
+            // MHTML-labeled-as-.doc trick \u2014 Word opened that via a proprietary importer,
+            // but Google Docs, LibreOffice, and everything else couldn't. This is a real
+            // zip-packaged Word document, so it opens correctly everywhere.
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: {},
+                        children: [
+                            new Paragraph({
+                                heading: HeadingLevel.TITLE,
+                                children: [new TextRun({ text: "BUSINESS DASHBOARD OVERVIEW", bold: true, size: 36, color: "0F172A" })],
+                            }),
+                            new Paragraph({
+                                spacing: { after: 300 },
+                                border: { bottom: { style: BorderStyle.SINGLE, size: 16, color: "00932A", space: 8 } },
+                                children: [
+                                    new TextRun({
+                                        text: `Executive Analytics Report \u2022 Generated on ${generatedOn}`,
+                                        italics: true,
+                                        size: 18,
+                                        color: "64748B",
+                                    }),
+                                ],
+                            }),
+                            docKpiTable([
+                                { label: "Total Revenue", value: `$${kpiData.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+                                { label: "Total Items", value: kpiData.totalItem.toLocaleString("en-US") },
+                                { label: "Total Categories", value: kpiData.totalCategory.toLocaleString("en-US") },
+                                { label: "Total Inventory", value: kpiData.inventory.toLocaleString("en-US") },
+                            ]),
 
-            const dataTable = (headers: string[], rows: (string | number)[][]) => `
-              <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
-                <tr>${headers.map((h) => `<td class="header-cell">${h}</td>`).join("")}</tr>
-                ${rows.map((row) => `<tr>${row.map((cell) => `<td class="data-cell">${cell}</td>`).join("")}</tr>`).join("")}
-              </table>
-            `;
+                            docSectionHeading("Percentage of Channel"),
+                            ...(pieChartImg ? [chartImageParagraph(pieChartImg, 460) as Paragraph] : []),
+                            docDataTable(
+                                ["Channel", "Revenue ($)", "Revenue Share (%)"],
+                                channelPercentageData.map((c) => [c.name, `$${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, `${c.value}%`]),
+                            ),
 
-            const docHtml = `
-              <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-              <head>
-                <meta charset="utf-8">
-                <style>
-                  body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; font-size: 12px; color: #1f2937; margin: 30px; }
-                  .header-cell { background-color: #d9e1f2; color: #000000; font-weight: bold; border: 1px solid #b4c6e7; padding: 6px 10px; font-size: 12px; text-align: left; }
-                  .data-cell { border: 1px solid #e0e0e0; font-size: 11px; padding: 5px 10px; }
-                  .kpi-cell { border: 1px solid #b4c6e7; background-color: #f2f4f8; text-align: center; padding: 10px; }
-                  .kpi-label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-                  .kpi-val { font-size: 18px; font-weight: bold; color: #0f172a; margin-top: 4px; }
-                </style>
-              </head>
-              <body>
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #00932a; padding-bottom: 12px; margin-bottom: 20px;">
-                  <div>
-                    <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0;">BUSINESS DASHBOARD OVERVIEW</h1>
-                    <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0;">Executive Analytics Report &bull; Generated on ${generatedOn}</p>
-                  </div>
-                  <span style="background-color: #00932a; color: #ffffff; font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 9999px;">EXECUTIVE REPORT</span>
-                </div>
+                            docSectionHeading("Cumulative Profit"),
+                            ...(profitChartImg ? [chartImageParagraph(profitChartImg, 460) as Paragraph] : []),
+                            docDataTable(
+                                ["Period", "Period Profit ($)", "Cumulative Profit ($)"],
+                                cumulativeProfitData.map((p) => [p.label, `$${p.profit.toFixed(2)}`, `$${p.cumulative.toFixed(2)}`]),
+                            ),
 
-                <table cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%;">
-                  <tr>
-                    <td class="kpi-cell"><div class="kpi-label">Total Revenue</div><div class="kpi-val">$${kpiData.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div></td>
-                    <td class="kpi-cell"><div class="kpi-label">Total Items</div><div class="kpi-val">${kpiData.totalItem.toLocaleString("en-US")}</div></td>
-                    <td class="kpi-cell"><div class="kpi-label">Total Categories</div><div class="kpi-val">${kpiData.totalCategory.toLocaleString("en-US")}</div></td>
-                    <td class="kpi-cell"><div class="kpi-label">Total Inventory</div><div class="kpi-val">${kpiData.inventory.toLocaleString("en-US")}</div></td>
-                  </tr>
-                </table>
+                            docSectionHeading("Total Amount of Item Type"),
+                            ...(barChartImg ? [chartImageParagraph(barChartImg, 460) as Paragraph] : []),
+                            docDataTable(
+                                ["Item Name", "Quantity Sold", "Total Amount ($)"],
+                                itemVectorData.map((iv) => [iv.name, iv.itemCount, `$${iv.totalAmount.toFixed(2)}`]),
+                            ),
 
-                ${section("Percentage of Channel", `
-                  ${chartImgTag(pieChartImg, "pieChart.png", 300, "margin-bottom: 12px;")}
-                  ${dataTable(
-                      ["Channel", "Revenue ($)", "Revenue Share (%)"],
-                      channelPercentageData.map((c) => [c.name, `$${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, `${c.value}%`]),
-                  )}
-                `)}
+                            docSectionHeading("Stock Inventory"),
+                            ...(stockChartImg ? [chartImageParagraph(stockChartImg, 460) as Paragraph] : []),
+                            docDataTable(
+                                ["Item Name", "Quantity On Hand", "Total Value ($)"],
+                                stockInventoryData.map((st) => [st.name, st.quantityOnHand, `$${st.totalAmount.toFixed(2)}`]),
+                            ),
 
-                ${section("Cumulative Profit", `
-                  ${chartImgTag(profitChartImg, "profitChart.png", 460, "margin-bottom: 12px;")}
-                  ${dataTable(
-                      ["Period", "Period Profit ($)", "Cumulative Profit ($)"],
-                      cumulativeProfitData.map((p) => [p.label, `$${p.profit.toFixed(2)}`, `$${p.cumulative.toFixed(2)}`]),
-                  )}
-                `)}
+                            docSectionHeading("Recent Orders"),
+                            docDataTable(
+                                ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"],
+                                recentOrders.map((o) => [o.reference, o.customerName, o.product, o.category, `$${o.amount.toFixed(2)}`, o.status]),
+                            ),
 
-                ${section("Total Amount of Item Type", `
-                  ${chartImgTag(barChartImg, "barChart.png", 460, "margin-bottom: 12px;")}
-                  ${dataTable(
-                      ["Item Name", "Quantity Sold", "Total Amount ($)"],
-                      itemVectorData.map((iv) => [iv.name, iv.itemCount, `$${iv.totalAmount.toFixed(2)}`]),
-                  )}
-                `)}
+                            docSectionHeading("Best Selling Products"),
+                            docDataTable(
+                                ["Product Name", "Category", "Total Sales ($)", "Units Sold"],
+                                bestSellingProducts.map((bp) => [bp.name, bp.category, `$${bp.sales.toFixed(2)}`, bp.sold]),
+                            ),
+                        ],
+                    },
+                ],
+            });
 
-                ${section("Stock Inventory", `
-                  ${chartImgTag(stockChartImg, "stockChart.png", 300, "margin-bottom: 12px;")}
-                  ${dataTable(
-                      ["Item Name", "Quantity On Hand", "Total Value ($)"],
-                      stockInventoryData.map((st) => [st.name, st.quantityOnHand, `$${st.totalAmount.toFixed(2)}`]),
-                  )}
-                `)}
-
-                ${section("Recent Orders", dataTable(
-                    ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"],
-                    recentOrders.map((o) => [o.reference, o.customerName, o.product, o.category, `$${o.amount.toFixed(2)}`, o.status]),
-                ))}
-
-                ${section("Best Selling Products", dataTable(
-                    ["Product Name", "Category", "Total Sales ($)", "Units Sold"],
-                    bestSellingProducts.map((bp) => [bp.name, bp.category, `$${bp.sales.toFixed(2)}`, bp.sold]),
-                ))}
-              </body>
-              </html>
-            `;
-
-            // Word's HTML importer can't resolve `data:` image URIs \u2014 package the report as
-            // an MHTML (multipart/related) archive instead, same as the Excel export, with
-            // each chart image as its own MIME part.
-            const boundary = "----=DocsReportBoundary";
-            const mhtmlParts: string[] = [
-                "MIME-Version: 1.0",
-                `Content-Type: multipart/related; boundary="${boundary}"`,
-                "",
-                `--${boundary}`,
-                'Content-Type: text/html; charset="utf-8"',
-                "Content-Location: report.html",
-                "",
-                docHtml,
-                "",
-            ];
-
-            const addImagePart = (chart: CapturedChart | string, filename: string) => {
-                const dataUrl = typeof chart === "string" ? chart : chart.dataUrl;
-                const base64 = dataUrl.split(",")[1] ?? "";
-                mhtmlParts.push(
-                    `--${boundary}`,
-                    "Content-Type: image/png",
-                    "Content-Transfer-Encoding: base64",
-                    `Content-Location: ${filename}`,
-                    "",
-                    base64,
-                    "",
-                );
-            };
-
-            if (pieChartImg) addImagePart(pieChartImg, "pieChart.png");
-            if (profitChartImg) addImagePart(profitChartImg, "profitChart.png");
-            if (barChartImg) addImagePart(barChartImg, "barChart.png");
-            if (stockChartImg) addImagePart(stockChartImg, "stockChart.png");
-
-            mhtmlParts.push(`--${boundary}--`);
-
-            const blob = new Blob([mhtmlParts.join("\r\n")], { type: "application/msword;charset=utf-8;" });
+            const blob = await Packer.toBlob(doc);
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `dashboard-report-${dateStr}.doc`;
+            link.download = `dashboard-report-${dateStr}.docx`;
             link.click();
             URL.revokeObjectURL(url);
         } catch (err) {
@@ -882,7 +949,7 @@ export function OverviewDashboard() {
                         ) : (
                             <FileType className="size-4 text-blue-600 dark:text-blue-400" />
                         )}
-                        <span>{isExportingDocs ? "Generating Docs..." : "Export Docs"}</span>
+                        <span>{isExportingDocs ? "Generating Docs..." : "Export Docs (.docx)"}</span>
                     </Button>
                 </div>
             </div>

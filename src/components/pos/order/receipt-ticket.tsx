@@ -410,6 +410,15 @@ export function ReceiptTicket({
                       .join(" · ")}
                   </p>
                 ) : null}
+                {/* The promotion that turned into extra units on this line —
+                    worth naming on the receipt itself, not just implied by
+                    the discount below, so it reads as a gift rather than a
+                    markdown. */}
+                {item.freeQuantity ? (
+                  <p className="text-[11px] font-bold leading-[1.45] text-[#006b26]">
+                    {item.freeQuantity} FREE
+                  </p>
+                ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
                   {itemDisc > 0 && (
