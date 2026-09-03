@@ -51,7 +51,7 @@ export function CumulativeProfitCard({
     const { format } = useMoney();
 
     return (
-        <Card className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-8">
+        <Card data-tour="dashboard-cumulative-profit" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-8">
             <CardHeader className="p-0 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-4 mb-4">
                 <div>
                     <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
