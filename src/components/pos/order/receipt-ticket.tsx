@@ -415,7 +415,7 @@ export function ReceiptTicket({
                     the discount below, so it reads as a gift rather than a
                     markdown. */}
                 {item.freeQuantity ? (
-                  <p className="text-[11px] font-bold leading-[1.45] text-[#006b26]">
+                  <p className="text-[11px] font-bold leading-[1.45] text-primary">
                     {item.freeQuantity} FREE
                   </p>
                 ) : null}
