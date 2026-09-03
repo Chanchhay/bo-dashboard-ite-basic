@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { driver, type Driver, type DriveStep } from "driver.js";
-import "driver.js/dist/driver.css";
+import type { Driver, DriveStep } from "driver.js";
 
 import "@/components/onboarding/tour-theme.css";
-import { routeTourConfig } from "./tourConfig";
+import type { routeTourConfig as RouteTourConfig } from "./tourConfig";
 import { TourContext } from "./TourContext";
 
 /**
@@ -99,18 +98,37 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     } catch { }
   }, []);
 
+  /*
+   * The step definitions are a large module and nothing on a page needs them
+   * until a tour is offered, so they are fetched once on the client rather
+   * than bundled into the root layout — which put them on the login screen
+   * and the till alike. Until they arrive there are no steps, which reads as
+   * "no tour here yet" and settles a moment later.
+   */
+  const [tourConfig, setTourConfig] = useState<typeof RouteTourConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void import("./tourConfig").then((mod) => {
+      if (!cancelled) setTourConfig(mod.routeTourConfig);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Exact match, else the LONGEST matching prefix — `find` returned whichever
   // key happened to come first, so /inventory/import/42 inherited /inventory.
   const activeSteps = useMemo(() => {
-    if (!pathname) return [];
-    if (routeTourConfig[pathname]) return routeTourConfig[pathname];
+    if (!pathname || !tourConfig) return [];
+    if (tourConfig[pathname]) return tourConfig[pathname];
 
-    const matchingKey = Object.keys(routeTourConfig)
+    const matchingKey = Object.keys(tourConfig)
       .filter((key) => key !== "/" && pathname.startsWith(key))
       .sort((a, b) => b.length - a.length)[0];
 
-    return matchingKey ? routeTourConfig[matchingKey] : [];
-  }, [pathname]);
+    return matchingKey ? tourConfig[matchingKey] : [];
+  }, [pathname, tourConfig]);
 
   /**
    * A page can inherit a parent's steps and resolve none of them, which left
@@ -166,7 +184,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, saveTourProgressToBackend, markAsOldUser]);
 
-  const startTour = useCallback(() => {
+  const startTour = useCallback(async () => {
     // Filter steps to elements actually present in current DOM
     const availableSteps = activeSteps.filter((step) => {
       if (typeof step.element === "string") {
@@ -189,6 +207,14 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     const nextRoute = NEXT_TOUR_ROUTE_MAP[pathname];
 
     let cleanupKeydown: (() => void) | null = null;
+
+    // The tour engine and its stylesheet are 200KB that only a cashier who
+    // asks for help ever needs, so they are fetched at the moment of asking
+    // rather than shipped with every page.
+    const [{ driver }] = await Promise.all([
+      import("driver.js"),
+      import("driver.js/dist/driver.css"),
+    ]);
 
     const inst = driver({
       showProgress: true,
