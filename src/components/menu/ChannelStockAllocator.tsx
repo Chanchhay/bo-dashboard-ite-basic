@@ -45,7 +45,7 @@ export function ChannelStockAllocator({
         <div className="space-y-3 rounded-xl bg-muted/30 p-3.5">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <p className="text-sm font-bold text-foreground">
+                    <p className="text-sm font-medium text-foreground">
                         Split stock across channels
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -88,14 +88,14 @@ export function ChannelStockAllocator({
                                     ),
                                 )
                             }
-                            className="cursor-pointer rounded-lg bg-background px-2.5 py-1 text-xs font-bold text-primary hover:underline"
+                            className="cursor-pointer rounded-lg bg-background px-2.5 py-1 text-xs font-normal text-primary hover:underline"
                         >
                             Split evenly
                         </button>
                         <button
                             type="button"
                             onClick={draft.clearAll}
-                            className="cursor-pointer rounded-lg bg-background px-2.5 py-1 text-xs font-bold text-muted-foreground hover:underline"
+                            className="cursor-pointer rounded-lg bg-background px-2.5 py-1 text-xs font-normal text-muted-foreground hover:underline"
                         >
                             Clear
                         </button>
@@ -109,19 +109,19 @@ export function ChannelStockAllocator({
                                 className="grid items-end gap-2"
                                 style={{ gridTemplateColumns: columns }}
                             >
-                                <span className="text-xs font-bold text-muted-foreground">
+                                <span className="text-xs font-medium text-muted-foreground">
                                     {draft.targets.length > 1 ? "Option" : "Item"}
                                 </span>
                                 {selling.map((channel) => (
                                     <span
                                         key={channel.id}
                                         title={channel.name}
-                                        className="truncate text-center text-xs font-bold text-foreground"
+                                        className="truncate text-center text-xs font-medium text-foreground"
                                     >
                                         {channel.name}
                                     </span>
                                 ))}
-                                <span className="text-right text-xs font-bold text-muted-foreground">
+                                <span className="text-right text-xs font-medium text-muted-foreground">
                                     On hand
                                 </span>
                             </div>
@@ -145,7 +145,7 @@ export function ChannelStockAllocator({
                                                     target.variantId,
                                                 )
                                             }
-                                            className="cursor-pointer truncate text-left text-sm font-semibold text-foreground hover:text-primary hover:underline"
+                                            className="cursor-pointer truncate text-left text-sm font-normal text-foreground hover:text-primary hover:underline"
                                         >
                                             {target.name}
                                         </button>
@@ -175,7 +175,7 @@ export function ChannelStockAllocator({
                                         {/* The shelf and what is still to give
                                             out, on the row it belongs to. */}
                                         <span
-                                            className={`text-right text-xs font-bold whitespace-nowrap ${
+                                            className={`text-right text-xs font-medium whitespace-nowrap ${
                                                 over
                                                     ? "text-destructive"
                                                     : "text-muted-foreground"
@@ -197,7 +197,7 @@ export function ChannelStockAllocator({
             )}
 
             {split && draft.overAllocated(checkedChannelIds) && (
-                <p className="flex items-center gap-1.5 text-xs font-bold text-destructive">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
                     <AlertTriangle className="size-3.5" />
                     You have given out more than is on hand.
                 </p>
