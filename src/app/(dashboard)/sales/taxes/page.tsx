@@ -296,14 +296,14 @@ function TaxesEditor({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner & Header */}
-      <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" />
+      {/* Top Banner & Header (sticky on desktop only) */}
+      <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             Store Tax Settings
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
             Configure your store tax rule — applied the same way on POS, storefront, Telegram, and Messenger orders.
           </p>
         </div>
@@ -492,7 +492,11 @@ function TaxesEditor({
 
           {/* Save Button Action Bar */}
           <div data-tour="tax-save-btn" className="flex justify-end pt-2">
-            <Button type="submit" disabled={!isDirty || isSubmitting} className="min-w-[160px] gap-2">
+            <Button
+              type="submit"
+              disabled={!isDirty || isSubmitting}
+              className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm gap-2"
+            >
               {isSubmitting ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

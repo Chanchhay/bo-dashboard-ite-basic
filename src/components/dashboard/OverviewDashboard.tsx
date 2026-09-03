@@ -1,59 +1,33 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-    DollarSign,
-    ShoppingBag,
-    Receipt,
-    TrendingUp,
-    PieChart as PieIcon,
-    BarChart2,
-    Layers,
-    FolderTree,
-    ArrowUpRight,
-    RefreshCw,
-    Download,
-    Search,
-    ArrowUpDown,
-    MoreHorizontal,
-    ChevronLeft,
-    ChevronRight,
-    FileText,
-    FileSpreadsheet,
-    FileType,
-    Loader2,
-} from "lucide-react";
+import dynamic from "next/dynamic";
 import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import {
-    ResponsiveContainer,
-    AreaChart,
-    Area,
-    LineChart,
-    Line,
-    PieChart,
-    Pie,
-    Cell,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-} from "recharts";
-
+    FileSpreadsheet,
+    FileText,
+    FileType,
+    Loader2,
+    DollarSign,
+    ShoppingBag,
+    Layers,
+    FolderTree,
+    Download,
+    Search,
+    ArrowUpDown,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
 import { useMoney } from "@/hooks/useMoney";
 import {
-    useGetDailyRevenueByChannelQuery,
-    useGetSalesProfitQuery,
-    useGetPeriodProfitQuery,
-    useGetItemProfitQuery,
-} from "@/services/salesReportApi";
-import { useGetReceiptsQuery } from "@/services/posOrderApi";
-import { useGetCustomersQuery } from "@/services/customerApi";
-import { toLocalDateTime, periodLabel, type OrderChannelCode, type ReportGranularity } from "@/lib/api/sales-report";
-import type { InventoryItem, StockSummary } from "@/lib/api/inventory";
+    useGetBestSellingQuery,
+    useGetDashboardOverviewQuery,
+    useGetRecentOrdersQuery,
+    useLazyGetBestSellingQuery,
+    useLazyGetRecentOrdersQuery,
+} from "@/services/dashboardApi";
+import type { ReportGranularity } from "@/lib/api/sales-report";
 import {
     Card,
     CardContent,
@@ -64,18 +38,34 @@ import {
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-    type ChartConfig,
-} from "@/components/ui/chart";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { ChartCardSkeleton } from "@/components/dashboard/charts/ChartCardSkeleton";
 
-interface OverviewDashboardProps {
-    items?: InventoryItem[];
-    stock?: StockSummary[];
-}
+/*
+ * The three charting cards are fetched only once the dashboard is on screen.
+ *
+ * Recharts is by far the heaviest thing this page pulls in, and none of it is
+ * needed to paint the figures above the charts or the tables below them. Held
+ * back like this, the numbers land first and the charts fill in behind them —
+ * rather than everything waiting on the chart library to parse.
+ *
+ * `ssr: false` because these render nothing meaningful on the server anyway:
+ * they size themselves against a real viewport.
+ */
+const ChannelDonutCard = dynamic(
+    () => import("@/components/dashboard/charts/ChannelDonutCard").then((mod) => mod.ChannelDonutCard),
+    { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-4" /> },
+);
+
+const CumulativeProfitCard = dynamic(
+    () => import("@/components/dashboard/charts/CumulativeProfitCard").then((mod) => mod.CumulativeProfitCard),
+    { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-8" /> },
+);
+
+const ItemTypeBarCard = dynamic(
+    () => import("@/components/dashboard/charts/ItemTypeBarCard").then((mod) => mod.ItemTypeBarCard),
+    { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-7" /> },
+);
 
 // Color Palette for Channels matching system theme tokens
 const CHANNEL_COLORS: Record<string, string> = {
@@ -84,17 +74,13 @@ const CHANNEL_COLORS: Record<string, string> = {
     TELEGRAM: "#d14341",  // Red (swapped with POS)
     MESSENGER: "#2a78d6", // Blue (swapped with Web)
 };
-
-const stockChartConfig = {
-    totalAmount: {
-        label: "Total Revenue",
-        color: "var(--primary)",
-    },
-    itemCount: {
-        label: "Item Count",
-        color: "#feb90d",
-    },
-} satisfies ChartConfig;
+/** The four cards an export photographs, in the order a report shows them. */
+const CHART_SELECTORS = [
+    "[data-tour='dashboard-channel-cards']",
+    "[data-tour='dashboard-cumulative-profit']",
+    "[data-tour='dashboard-item-vector']",
+    "[data-tour='dashboard-stock-on-hand']",
+];
 
 type CapturedChart = { dataUrl: string; width: number; height: number };
 
@@ -126,158 +112,31 @@ function chartImgTag(chart: CapturedChart | null, filename: string, displayWidth
     return `<img src="${filename}" width="${displayWidth}" height="${displayHeight}" style="border:1px solid #d9d9d9; border-radius: 8px; ${style}" />`;
 }
 
-export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardProps) {
+/**
+ * Gives the chart cards a moment to actually be charts before they are
+ * photographed.
+ *
+ * They are loaded on demand — recharts is the heaviest thing this page pulls
+ * in and it is not needed to read the figures — so a card can still be a
+ * skeleton when an export starts. Capturing then would put a grey placeholder
+ * in the report where a chart belongs. This waits for the drawn SVG to appear
+ * and gives up after a moment rather than blocking the export forever: a
+ * missing chart is a report without a picture, which beats no report at all.
+ */
+async function waitForCharts(selectors: string[], timeoutMs = 4000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+
+    const painted = () =>
+        selectors.every((selector) => document.querySelector(selector + " svg") !== null);
+
+    while (!painted() && Date.now() < deadline) {
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 50)));
+    }
+}
+
+export function OverviewDashboard() {
     const { format } = useMoney();
-    const [now] = useState(() => new Date());
     const [granularity, setGranularity] = useState<ReportGranularity>("DAY");
-
-    const fromDate = useMemo(() => {
-        const d = new Date(now);
-        d.setDate(d.getDate() - 30);
-        return toLocalDateTime(d);
-    }, [now]);
-
-    const toDate = useMemo(() => toLocalDateTime(now), [now]);
-
-    // Live backend queries
-    const salesProfitQuery = useGetSalesProfitQuery({});
-    const periodProfitQuery = useGetPeriodProfitQuery({ granularity });
-    const itemProfitQuery = useGetItemProfitQuery({});
-    const receiptsQuery = useGetReceiptsQuery({ size: 50 });
-    const customersQuery = useGetCustomersQuery();
-
-    // Aggregate Top 4 KPI Values directly from backend API response & props
-    const kpiData = useMemo(() => {
-        const total = salesProfitQuery.data?.total;
-
-        // Total items count — the business's real catalog size
-        const totalItemsCount = items.length;
-
-        // Total categories count — distinct item groups actually in use
-        const categoriesSet = new Set(items.map((i) => i.itemGroup?.name).filter(Boolean));
-        const totalCategoriesCount = categoriesSet.size;
-
-        // Total inventory quantity currently on hand
-        const inventoryCount = stock.reduce((acc, s) => acc + (s.quantityOnHand || 0), 0);
-
-        return {
-            revenue: total?.revenue ?? 0,
-            totalItem: totalItemsCount,
-            totalCategory: totalCategoriesCount,
-            inventory: inventoryCount,
-        };
-    }, [salesProfitQuery.data, items, stock]);
-
-    // 1. Cumulative Profit: Running-Sum Accumulator Algorithm with Monotone Spline
-    const cumulativeProfitData = useMemo(() => {
-        const periods = periodProfitQuery.data?.periods;
-        if (!periods || periods.length === 0) return [];
-
-        // The API answers newest-first; a running total only means something
-        // walking forward through time, and the chart has to draw left-to-right
-        // the same way or it reads backwards.
-        const chronological = [...periods].sort((a, b) => {
-            if (!a.periodStart) return -1;
-            if (!b.periodStart) return 1;
-            return a.periodStart.localeCompare(b.periodStart);
-        });
-
-        let runningSum = 0;
-        return chronological.map((p) => {
-            runningSum += p.profit;
-            let dateStr = p.periodStart ? periodLabel(p.periodStart, granularity) : "Date";
-            dateStr = dateStr.replace(/^Week of /i, "").replace(/ \d{4}$/, "");
-            return {
-                date: dateStr,
-                fullDate: p.periodStart ? periodLabel(p.periodStart, granularity) : "Date",
-                profit: p.profit,
-                cumulative: runningSum,
-            };
-        });
-    }, [periodProfitQuery.data, granularity]);
-
-    // 2. Percentage of Channel: Proportional Relative-Frequency Distribution Algorithm
-    const channelPercentageData = useMemo(() => {
-        const channels = salesProfitQuery.data?.channels;
-        if (!channels || channels.length === 0) return [];
-
-        const totalRevenue = channels.reduce((acc, c) => acc + (c.revenue || 0), 0);
-        if (totalRevenue === 0) return [];
-
-        return channels.map((c) => {
-            const channelName = (c.channel || "OTHER").toUpperCase();
-            const revenue = c.revenue || 0;
-            const relativeFreq = revenue / totalRevenue;
-            const pct = Math.round(relativeFreq * 100);
-            return {
-                name: channelName,
-                value: pct > 0 ? pct : 1,
-                revenue,
-                color: CHANNEL_COLORS[channelName] || "#64748b",
-            };
-        });
-    }, [salesProfitQuery.data]);
-
-    // 3. Total Amount of Item Type: 2 Metrics (Sum of item_count & Sum of total_amount)
-    const itemVectorData = useMemo(() => {
-        const itemsList = itemProfitQuery.data?.items;
-        if (!itemsList || itemsList.length === 0) return [];
-
-        return itemsList
-            .filter((item) => item.itemId !== null)
-            .slice()
-            .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
-            .slice(0, 6)
-            .map((item) => {
-                const rawName = item.itemName || item.variantName || "Item";
-                return {
-                    name: rawName.length > 12 ? rawName.slice(0, 12) + "..." : rawName,
-                    itemCount: item.quantitySold || 0,
-                    totalAmount: Math.round(item.revenue || 0),
-                };
-            });
-    }, [itemProfitQuery.data]);
-
-    // 4. Stock Inventory: Top-K Sorting Algorithm O(N log N)
-    const stockInventoryData = useMemo(() => {
-        if (items.length === 0 || stock.length === 0) return [];
-
-        const qtyMap = stock.reduce((map, entry) => {
-            if (entry.itemId) {
-                map.set(entry.itemId, (map.get(entry.itemId) || 0) + (entry.quantityOnHand || 0));
-            }
-            return map;
-        }, new Map<string, number>());
-
-        return items
-            .map((i) => {
-                const itemName = i.name || "Unnamed Item";
-                const itemPrice = i.price ?? 0;
-                const qty = qtyMap.get(i.id) || 0;
-                return {
-                    name: itemName,
-                    totalAmount: Math.round(qty * itemPrice),
-                    itemCount: qty,
-                };
-            })
-            .filter((i) => i.itemCount > 0)
-            .sort((a, b) => b.itemCount - a.itemCount) // Top-K Sorting Algorithm O(N log N)
-            .slice(0, 5); // Top K items
-    }, [items, stock]);
-
-    const { maxStockRevenue, maxStockCount } = useMemo(() => {
-        let maxRev = 0;
-        let maxCnt = 0;
-        for (const item of stockInventoryData) {
-            if (item.totalAmount > maxRev) maxRev = item.totalAmount;
-            if (item.itemCount > maxCnt) maxCnt = item.itemCount;
-        }
-        return { maxStockRevenue: maxRev || 1, maxStockCount: maxCnt || 1 };
-    }, [stockInventoryData]);
-
-    const monthYearLabel = useMemo(() => {
-        return now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    }, [now]);
 
     const [recentOrderFilter, setRecentOrderFilter] = useState("");
     const [bestSellingFilter, setBestSellingFilter] = useState("");
@@ -285,150 +144,97 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
     const [bestSellingPage, setBestSellingPage] = useState(1);
 
     const ITEMS_PER_PAGE = 5;
+    /** One page big enough to hold a CSV export of everything matching. */
+    const EXPORT_PAGE_SIZE = 1000;
 
-    // Map customers by ID for real profile names & avatars
-    const customerMap = useMemo(() => {
-        const map = new Map<string, { name: string; avatarUrl?: string; initials: string }>();
-        if (customersQuery.data) {
-            for (const c of customersQuery.data) {
-                const rawName = c.globalCustomer?.fullName || (c as any).fullName || (c as any).name;
-                const fullName = rawName && rawName.toLowerCase() !== "customer"
-                    ? rawName
-                    : c.globalCustomer?.email
-                        ? c.globalCustomer.email.split("@")[0]
-                        : "";
-                if (fullName) {
-                    const initials = fullName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CU";
-                    map.set(c.id, { name: fullName, avatarUrl: (c as any).avatarUrl || (c as any).photoUrl, initials });
-                }
-            }
-        }
-        return map;
-    }, [customersQuery.data]);
+    /*
+     * Three reads, and nothing derived from them here.
+     *
+     * This screen used to fetch four reports plus the entire catalogue — up
+     * to ten thousand items — and then total, rank, accumulate and join them
+     * in the browser on every render. Most of that arithmetic needed the whole
+     * set to be right: a running total, a share of revenue, a ranking, a bar
+     * scaled to the largest row. The server has the whole set; a page does not.
+     */
+    const overviewQuery = useGetDashboardOverviewQuery({ granularity });
+    const overview = overviewQuery.data;
 
-    // Recent Orders Data (Real backend API order receipts)
-    const recentOrders = useMemo(() => {
-        const apiOrders = receiptsQuery.data?.content;
+    // Searching and paging are the server's too, so a search reaches rows
+    // this page does not hold.
+    const recentOrdersQuery = useGetRecentOrdersQuery({
+        search: recentOrderFilter.trim() || undefined,
+        page: recentOrderPage - 1,
+        size: ITEMS_PER_PAGE,
+    });
 
-        let list: Array<{
-            id: string;
-            customer: string;
-            avatar: string;
-            avatarUrl?: string;
-            product: string;
-            category: string;
-            amount: number;
-            status: string;
-        }> = [];
+    const bestSellingQuery = useGetBestSellingQuery({
+        search: bestSellingFilter.trim() || undefined,
+        page: bestSellingPage - 1,
+        size: ITEMS_PER_PAGE,
+    });
 
-        if (apiOrders && apiOrders.length > 0) {
-            list = apiOrders.map((o) => {
-                const custInfo = o.customerId ? customerMap.get(o.customerId) : null;
-                const customerName = custInfo?.name || "Walk-in Customer";
-                const avatarInitials = custInfo?.initials || "WC";
+    const kpiData = {
+        revenue: overview?.kpis.revenue ?? 0,
+        totalItem: overview?.kpis.totalItems ?? 0,
+        totalCategory: overview?.kpis.totalCategories ?? 0,
+        inventory: overview?.kpis.inventoryOnHand ?? 0,
+    };
 
-                const firstItemName =
-                    o.items && o.items.length > 0
-                        ? o.items.length > 1
-                            ? `${o.items[0].itemName} +${o.items.length - 1} more`
-                            : o.items[0].itemName
-                        : "—";
+    // The only thing still worked out here is which colour a channel is drawn
+    // in, which belongs to the theme rather than to the data.
+    const channelPercentageData = useMemo(
+        () =>
+            (overview?.channels ?? []).map((channel) => ({
+                name: channel.channel,
+                value: channel.percentage,
+                revenue: channel.revenue,
+                color: CHANNEL_COLORS[channel.channel] || "#64748b",
+            })),
+        [overview?.channels],
+    );
 
-                let formattedStatus = "Processing";
-                if (o.status === "PAID") formattedStatus = "Paid";
-                else if (o.status === "CONFIRMED") formattedStatus = "Success";
-                else if (o.status === "FAILED" || o.status === "CANCELLED") formattedStatus = "Failed";
-                else if (o.status === "PENDING") formattedStatus = "Processing";
+    const cumulativeProfitData = overview?.profitTrend.points ?? [];
+    const itemVectorData = overview?.topItems ?? [];
+    const stockInventoryData = overview?.stockLevels ?? [];
 
-                const displayId = o.invoiceNumber ? (o.invoiceNumber.startsWith("#") ? o.invoiceNumber : `#${o.invoiceNumber}`) : `#${o.id.slice(-4)}`;
+    const monthYearLabel = useMemo(
+        () => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        [],
+    );
 
-                const firstItemCategory =
-                    o.items && o.items.length > 0
-                        ? (o.items[0] as any).itemGroup?.name || (items.find((i) => i.name === o.items[0].itemName)?.itemGroup?.name) || "General"
-                        : "General";
+    const paginatedRecentOrders = recentOrdersQuery.data?.content ?? [];
+    const recentOrderTotalPages = recentOrdersQuery.data?.totalPages ?? 0;
+    const recentOrderTotal = recentOrdersQuery.data?.totalElements ?? 0;
 
-                return {
-                    id: displayId,
-                    customer: customerName,
-                    avatar: avatarInitials,
-                    avatarUrl: custInfo?.avatarUrl,
-                    product: firstItemName,
-                    category: firstItemCategory,
-                    amount: o.total || 0,
-                    status: formattedStatus,
-                };
-            });
-        }
+    const [fetchAllRecentOrders] = useLazyGetRecentOrdersQuery();
+    const [fetchAllBestSelling] = useLazyGetBestSellingQuery();
 
-        if (!recentOrderFilter.trim()) return list;
-        const query = recentOrderFilter.toLowerCase();
-        return list.filter(
-            (o) =>
-                o.customer.toLowerCase().includes(query) ||
-                o.product.toLowerCase().includes(query) ||
-                o.id.toLowerCase().includes(query) ||
-                o.status.toLowerCase().includes(query)
-        );
-    }, [receiptsQuery.data, customerMap, recentOrderFilter]);
+    const paginatedBestSellingProducts = bestSellingQuery.data?.content ?? [];
+    const bestSellingTotalPages = bestSellingQuery.data?.totalPages ?? 0;
+    const bestSellingTotal = bestSellingQuery.data?.totalElements ?? 0;
 
-    const paginatedRecentOrders = useMemo(() => {
-        const start = (recentOrderPage - 1) * ITEMS_PER_PAGE;
-        return recentOrders.slice(start, start + ITEMS_PER_PAGE);
-    }, [recentOrders, recentOrderPage]);
 
-    // Best Selling Products Data — real catalog items ranked by real sales revenue
-    const bestSellingProducts = useMemo(() => {
-        const profitByItemId = new Map<string, { revenue: number; quantitySold: number }>();
-        for (const p of itemProfitQuery.data?.items ?? []) {
-            if (!p.itemId) continue;
-            const existing = profitByItemId.get(p.itemId);
-            profitByItemId.set(p.itemId, {
-                revenue: (existing?.revenue ?? 0) + (p.revenue || 0),
-                quantitySold: (existing?.quantitySold ?? 0) + (p.quantitySold || 0),
-            });
-        }
+    /*
+     * Export takes every row the current search matches, not the five on
+     * screen. The table itself reads a page at a time, so the rest is fetched
+     * here, on the click — the one moment anybody wants it.
+     */
+    const handleExportRecentOrders = async () => {
+        const all = await fetchAllRecentOrders({
+            search: recentOrderFilter.trim() || undefined,
+            page: 0,
+            size: EXPORT_PAGE_SIZE,
+        }).unwrap();
 
-        let result: Array<{ id: string; name: string; category: string; sales: number; sold: number; image?: string }>;
-
-        if (items.length > 0) {
-            result = items.map((item) => {
-                const sold = item.id ? profitByItemId.get(item.id) : undefined;
-                return {
-                    id: item.id,
-                    name: item.name || "Product",
-                    category: item.itemGroup?.name || (item as any).category || "General",
-                    sales: sold?.revenue ?? 0,
-                    sold: sold?.quantitySold ?? 0,
-                    image: item.images?.[0]?.url || item.colors?.[0]?.imageUrl || item.variants?.[0]?.imageUrl || undefined,
-                };
-            });
-        } else {
-            result = (itemProfitQuery.data?.items ?? [])
-                .filter((item) => item.itemId !== null)
-                .map((item) => ({
-                    id: item.itemId as string,
-                    name: item.itemName || item.variantName || "Product",
-                    category: "General",
-                    sales: item.revenue || 0,
-                    sold: item.quantitySold || 0,
-                }));
-        }
-
-        result = result.slice().sort((a, b) => b.sales - a.sales);
-
-        if (!bestSellingFilter.trim()) return result;
-        const query = bestSellingFilter.toLowerCase();
-        return result.filter((p) => p.name.toLowerCase().includes(query));
-    }, [items, itemProfitQuery.data, bestSellingFilter]);
-
-    const paginatedBestSellingProducts = useMemo(() => {
-        const start = (bestSellingPage - 1) * ITEMS_PER_PAGE;
-        return bestSellingProducts.slice(start, start + ITEMS_PER_PAGE);
-    }, [bestSellingProducts, bestSellingPage]);
-
-    const handleExportRecentOrders = () => {
         const headers = ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"];
-        const rows = recentOrders.map((o) => [o.id, o.customer, o.product, o.category, o.amount, o.status]);
+        const rows = all.content.map((o) => [
+            o.reference,
+            o.customerName,
+            o.product,
+            o.category,
+            o.amount,
+            o.status,
+        ]);
 
         const csvContent = [
             headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(","),
@@ -453,9 +259,15 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
         URL.revokeObjectURL(url);
     };
 
-    const handleExportBestSelling = () => {
+    const handleExportBestSelling = async () => {
+        const all = await fetchAllBestSelling({
+            search: bestSellingFilter.trim() || undefined,
+            page: 0,
+            size: EXPORT_PAGE_SIZE,
+        }).unwrap();
+
         const headers = ["Product", "Category", "Total Sales ($)", "Units Sold"];
-        const rows = bestSellingProducts.map((p) => [p.name, p.category, p.sales, p.sold]);
+        const rows = all.content.map((p) => [p.name, p.category, p.sales, p.sold]);
 
         const csvContent = [
             headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(","),
@@ -483,6 +295,9 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
     const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const handleExportPDF = async () => {
+        // The PDF photographs the whole page, charts included.
+        await waitForCharts(CHART_SELECTORS);
+
         const dashboardEl = document.getElementById("dashboard-container");
         if (!dashboardEl) return;
 
@@ -580,8 +395,30 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
 
     const handleExportDocs = async () => {
         try {
+            // The tables read a page at a time, so a report fetches the whole
+            // set the same way the CSV buttons do — on the click, once.
+            const [allOrders, allProducts] = await Promise.all([
+                fetchAllRecentOrders({
+                    search: recentOrderFilter.trim() || undefined,
+                    page: 0,
+                    size: EXPORT_PAGE_SIZE,
+                }).unwrap(),
+                fetchAllBestSelling({
+                    search: bestSellingFilter.trim() || undefined,
+                    page: 0,
+                    size: EXPORT_PAGE_SIZE,
+                }).unwrap(),
+            ]);
+            const recentOrders = allOrders.content;
+            const bestSellingProducts = allProducts.content;
+
             setIsExportingDocs(true);
             await new Promise((r) => setTimeout(r, 100));
+
+            // Charts are fetched on demand, so a card can still be a skeleton
+            // when an export starts. Give them a moment to become charts
+            // before photographing them.
+            await waitForCharts(CHART_SELECTORS);
 
             const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
             const profitChartImg = await captureChartImage("[data-tour='dashboard-cumulative-profit']");
@@ -646,7 +483,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                   ${chartImgTag(profitChartImg, "profitChart.png", 460, "margin-bottom: 12px;")}
                   ${dataTable(
                       ["Period", "Period Profit ($)", "Cumulative Profit ($)"],
-                      cumulativeProfitData.map((p) => [p.fullDate, `$${p.profit.toFixed(2)}`, `$${p.cumulative.toFixed(2)}`]),
+                      cumulativeProfitData.map((p) => [p.label, `$${p.profit.toFixed(2)}`, `$${p.cumulative.toFixed(2)}`]),
                   )}
                 `)}
 
@@ -662,13 +499,13 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                   ${chartImgTag(stockChartImg, "stockChart.png", 300, "margin-bottom: 12px;")}
                   ${dataTable(
                       ["Item Name", "Quantity On Hand", "Total Value ($)"],
-                      stockInventoryData.map((st) => [st.name, st.itemCount, `$${st.totalAmount.toFixed(2)}`]),
+                      stockInventoryData.map((st) => [st.name, st.quantityOnHand, `$${st.totalAmount.toFixed(2)}`]),
                   )}
                 `)}
 
                 ${section("Recent Orders", dataTable(
                     ["Order ID", "Customer", "Product", "Category", "Amount ($)", "Status"],
-                    recentOrders.map((o) => [o.id, o.customer, o.product, o.category, `$${o.amount.toFixed(2)}`, o.status]),
+                    recentOrders.map((o) => [o.reference, o.customerName, o.product, o.category, `$${o.amount.toFixed(2)}`, o.status]),
                 ))}
 
                 ${section("Best Selling Products", dataTable(
@@ -734,8 +571,30 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
 
     const handleExportExcel = async () => {
         try {
+            // The tables read a page at a time, so a report fetches the whole
+            // set the same way the CSV buttons do — on the click, once.
+            const [allOrders, allProducts] = await Promise.all([
+                fetchAllRecentOrders({
+                    search: recentOrderFilter.trim() || undefined,
+                    page: 0,
+                    size: EXPORT_PAGE_SIZE,
+                }).unwrap(),
+                fetchAllBestSelling({
+                    search: bestSellingFilter.trim() || undefined,
+                    page: 0,
+                    size: EXPORT_PAGE_SIZE,
+                }).unwrap(),
+            ]);
+            const recentOrders = allOrders.content;
+            const bestSellingProducts = allProducts.content;
+
             setIsExportingExcel(true);
             await new Promise((r) => setTimeout(r, 100));
+
+            // Charts are fetched on demand, so a card can still be a skeleton
+            // when an export starts. Give them a moment to become charts
+            // before photographing them.
+            await waitForCharts(CHART_SELECTORS);
 
             const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
             const profitChartImg = await captureChartImage("[data-tour='dashboard-cumulative-profit']");
@@ -743,7 +602,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             const stockChartImg = await captureChartImage("[data-tour='dashboard-stock-on-hand']");
 
             const totalChannelRev = channelPercentageData.reduce((acc, c) => acc + c.revenue, 0) || 1;
-            const totalOrdersCount = (receiptsQuery.data as any)?.totalElements ?? recentOrders.length;
+            const totalOrdersCount = recentOrderTotal;
             const dateStr = new Date().toISOString().split("T")[0];
 
             const excelHtml = `
@@ -879,8 +738,8 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                         </tr>
                         ${recentOrders.map((o) => `
                           <tr>
-                            <td class="data-cell">${o.id}</td>
-                            <td class="data-cell">${o.customer}</td>
+                            <td class="data-cell">${o.reference}</td>
+                            <td class="data-cell">${o.customerName}</td>
                             <td class="data-cell">${o.product}</td>
                             <td class="data-cell">${o.category}</td>
                             <td class="data-num">$${o.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
@@ -966,8 +825,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             setIsExportingExcel(false);
         }
     };
-
-    const isDashboardLoading = salesProfitQuery.isLoading && periodProfitQuery.isLoading && itemProfitQuery.isLoading;
+    const isDashboardLoading = overviewQuery.isLoading;
 
     if (isDashboardLoading) {
         return <DashboardSkeleton />;
@@ -1028,7 +886,6 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     </Button>
                 </div>
             </div>
-
             {/* KPI Metric Cards Row (Top 3) */}
             <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* 1. TOTAL REVENUE */}
@@ -1087,290 +944,18 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                 {/* 1. TOP-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
-                <Card data-tour="dashboard-channel-cards" className="flex flex-col justify-between rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-4">
-                    <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-2">
-                        <div>
-                            <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
-                                <PieIcon className="size-6 text-[var(--primary)]" />
-                                Percentage of Channel
-                            </CardTitle>
-                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">Distribution of revenue share by channel</CardDescription>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="p-0">
-                        {/* Donut Chart Container */}
-                        <div className="relative flex items-center justify-center h-64 sm:h-72 w-full my-2">
-                            {channelPercentageData.length === 0 ? (
-                                <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
-                                    No channel revenue yet.
-                                </div>
-                            ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={channelPercentageData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={82}
-                                        paddingAngle={0}
-                                        dataKey="value"
-                                        stroke="none"
-                                        label={({ value }) => `${value}%`}
-                                        labelLine={{ stroke: "#64748b", strokeWidth: 1.5, opacity: 0.7 }}
-                                    >
-                                        {channelPercentageData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: "var(--popover, #ffffff)",
-                                            borderColor: "var(--border, #e2e8f0)",
-                                            borderRadius: "12px",
-                                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                                            fontSize: "13px",
-                                            fontWeight: "600",
-                                            padding: "10px 14px",
-                                        }}
-                                        formatter={(value: any, name: any, entry: any) => {
-                                            const rev = entry?.payload?.revenue;
-                                            const priceStr = rev !== undefined ? format(rev) : "";
-                                            return [
-                                                priceStr || `${value}%`,
-                                                name,
-                                            ];
-                                        }}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            )}
-                        </div>
-
-                        {/* Bottom Legend Dots for POS, MESSENGER, TELEGRAM, WEB */}
-                        <div className="flex flex-wrap items-center justify-center gap-x-5.5 gap-y-2 pt-2.5 border-t border-border/40 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                            {channelPercentageData.map((c) => (
-                                <span key={c.name} className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                                    {c.name}
-                                </span>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                <ChannelDonutCard data={channelPercentageData} />
 
                 {/* 2. TOP-RIGHT: `profit` (Cumulative Profit — USD by Date) */}
-                <Card data-tour="dashboard-cumulative-profit" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-8">
-                    <CardHeader className="p-0 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-4 mb-4">
-                        <div>
-                            <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
-                                <TrendingUp className="size-6 text-[var(--primary)]" />
-                                Cumulative Profit
-                            </CardTitle>
-                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">USD by Date</CardDescription>
-                        </div>
-
-                        {/* Time Range Granularity Selector */}
-                        <div className="flex items-center gap-1 bg-[var(--primary)]/10 p-1 rounded-xl border border-[var(--primary)]/20 text-xs font-bold">
-                            {(["DAY", "WEEK", "MONTH", "YEAR"] as const).map((g) => {
-                                const labels: Record<typeof g, string> = {
-                                    DAY: "Daily",
-                                    WEEK: "Weekly",
-                                    MONTH: "Monthly",
-                                    YEAR: "Yearly",
-                                };
-                                const isActive = granularity === g;
-                                return (
-                                    <button
-                                        type="button"
-                                        key={g}
-                                        onClick={() => setGranularity(g)}
-                                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer text-xs font-semibold ${isActive
-                                                ? "bg-[var(--primary)] text-white shadow-xs"
-                                                : "text-[var(--primary)] hover:bg-[var(--primary)]/15"
-                                            }`}
-                                    >
-                                        {labels[g]}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {periodProfitQuery.isError ? (
-                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
-                                Couldn&apos;t load profit data — try refreshing.
-                            </div>
-                        ) : cumulativeProfitData.length === 0 ? (
-                            <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
-                                No profit data for this period yet.
-                            </div>
-                        ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart
-                                accessibilityLayer
-                                data={cumulativeProfitData}
-                                margin={{ top: 15, right: 10, bottom: 0, left: 0 }}
-                            >
-                                <defs>
-                                    <linearGradient id="chart16-fill" x1="0" y1="0" x2="0" y2="1">
-                                        <stop
-                                            offset="5%"
-                                            stopColor="var(--primary)"
-                                            stopOpacity={0.35}
-                                        />
-                                        <stop
-                                            offset="95%"
-                                            stopColor="var(--primary)"
-                                            stopOpacity={0}
-                                        />
-                                    </linearGradient>
-                                    <filter
-                                        id="chart16-dot-glow"
-                                        x="-50%"
-                                        y="-50%"
-                                        width="200%"
-                                        height="200%"
-                                    >
-                                        <feGaussianBlur stdDeviation="3" result="blur" />
-                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                    </filter>
-                                    <filter
-                                        id="chart16-line-glow"
-                                        x="-10%"
-                                        y="-20%"
-                                        width="120%"
-                                        height="140%"
-                                    >
-                                        <feGaussianBlur stdDeviation="8" result="blur" />
-                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                    </filter>
-                                </defs>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.25} />
-                                <XAxis
-                                    dataKey="date"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={10}
-                                    tickFormatter={(val) => {
-                                        if (typeof val === "string") {
-                                            return val.replace(/^Week of /i, "").replace(/ \d{4}$/, "");
-                                        }
-                                        return val;
-                                    }}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-muted-foreground font-semibold"
-                                />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-muted-foreground font-semibold"
-                                    domain={["auto", "auto"]}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "var(--popover, #ffffff)",
-                                        borderColor: "var(--border, #e2e8f0)",
-                                        borderRadius: "12px",
-                                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                                        fontSize: "13px",
-                                        fontWeight: "600",
-                                    }}
-                                    formatter={(value: any) => [format(Number(value || 0)), "Cumulative Profit"]}
-                                />
-                                <Area
-                                    dataKey="cumulative"
-                                    type="natural"
-                                    fill="url(#chart16-fill)"
-                                    stroke="var(--primary)"
-                                    strokeWidth={2.5}
-                                    filter="url(#chart16-line-glow)"
-                                    dot={{
-                                        r: 4.5,
-                                        fill: "var(--primary)",
-                                        strokeWidth: 2,
-                                        stroke: "var(--background, #ffffff)",
-                                        filter: "url(#chart16-dot-glow)",
-                                    }}
-                                    activeDot={{ r: 6.5, strokeWidth: 2.5, stroke: "var(--background, #ffffff)" }}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                        )}
-                    </CardContent>
-                </Card>
+                <CumulativeProfitCard
+                    data={cumulativeProfitData}
+                    granularity={granularity}
+                    onGranularityChange={setGranularity}
+                    isError={overviewQuery.isError}
+                />
 
                 {/* 3. BOTTOM-LEFT: `trending_items` (Total Amount of Item Type — Vertical Bar Chart) */}
-                <Card data-tour="dashboard-item-vector" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-7">
-                    <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
-                        <div>
-                            <CardTitle className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2.5">
-                                <BarChart2 className="size-6 text-[var(--primary)]" />
-                                Total Amount of Item Type
-                            </CardTitle>
-                            <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">Metrics breakdown per item type</CardDescription>
-                        </div>
-                        <Badge variant="success-light" radius="full" className="px-3.5 py-1 text-xs font-semibold text-[var(--primary)] border border-[var(--primary)]/20">
-                            Item Comparison
-                        </Badge>
-                    </CardHeader>
-
-                    <CardContent className="p-0 h-72 sm:h-82 w-full pt-2">
-                        {itemProfitQuery.isError ? (
-                            <div className="flex h-full items-center justify-center text-sm font-medium text-danger">
-                                Couldn&apos;t load item sales — try refreshing.
-                            </div>
-                        ) : itemVectorData.length === 0 ? (
-                            <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
-                                No sales recorded yet for this business.
-                            </div>
-                        ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                accessibilityLayer
-                                data={itemVectorData}
-                                margin={{ top: 12, right: 20, left: 0, bottom: 22 }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                                <XAxis
-                                    dataKey="name"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={10}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-muted-foreground font-semibold"
-                                />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tick={{ fontSize: 12, fontWeight: 650, fill: "currentColor" }}
-                                    className="text-muted-foreground font-semibold"
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "var(--popover, #ffffff)",
-                                        borderColor: "var(--border, #e2e8f0)",
-                                        borderRadius: "12px",
-                                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                                        fontSize: "13px",
-                                        fontWeight: "600",
-                                    }}
-                                    formatter={(value: any, name: any) => [
-                                        name === "Total Revenue" ? format(Number(value || 0)) : `${Number(value || 0).toLocaleString("en-US")} pcs`,
-                                        name,
-                                    ]}
-                                />
-                                <Legend wrapperStyle={{ fontSize: "12px", fontWeight: "650" }} />
-                                <Bar dataKey="totalAmount" name="Total Revenue" fill="var(--primary)" radius={5} />
-                                <Bar dataKey="itemCount" name="Item Count" fill="#feb90d" radius={5} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                        )}
-                    </CardContent>
-                </Card>
+                <ItemTypeBarCard data={itemVectorData} isError={overviewQuery.isError} />
 
                 {/* 4. BOTTOM-RIGHT: `stock_inventory` (Stock Inventory — Horizontal Bar Chart) */}
                 <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-5">
@@ -1396,8 +981,9 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                             <div className="flex flex-col justify-between h-full pt-1 pb-1">
                                 <div className="space-y-2">
                                     {stockInventoryData.map((item) => {
-                                        const revPct = Math.min(100, Math.max(3, (item.totalAmount / maxStockRevenue) * 100));
-                                        const countPct = Math.min(100, Math.max(3, (item.itemCount / maxStockCount) * 100));
+                                        // Floored at 3% so a real but tiny row is still a visible bar.
+                                        const revPct = Math.min(100, Math.max(3, item.revenuePercent));
+                                        const countPct = Math.min(100, Math.max(3, item.countPercent));
                                         return (
                                             <div key={item.name} className="relative group flex flex-col gap-1.5 p-1.5 px-2.5 rounded-xl transition-all duration-200 hover:bg-muted/40 cursor-pointer">
                                                 {/* Hover Tooltip (Picture 2 format) */}
@@ -1415,7 +1001,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                                             <span className="size-2.5 rounded-xs bg-[#feb90d] shrink-0" />
                                                             Item Count
                                                         </div>
-                                                        <span className="font-bold text-foreground">{item.itemCount.toLocaleString()} pcs</span>
+                                                        <span className="font-bold text-foreground">{item.quantityOnHand.toLocaleString()} pcs</span>
                                                     </div>
                                                 </div>
 
@@ -1472,7 +1058,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 Recent Orders
                             </CardTitle>
                             <Button variant="outline" size="sm" onClick={handleExportRecentOrders} className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold cursor-pointer">
-                                <Download className="size-3.5" />
+                                <Download className="size-3.5 text-primary" />
                                 Export
                             </Button>
                         </CardHeader>
@@ -1532,25 +1118,25 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                             };
 
                                             return (
-                                                <tr key={order.id} className="h-12 hover:bg-muted/30 transition-colors">
-                                                    <td className="py-2 px-2.5 font-mono font-bold text-[var(--primary)] text-xs whitespace-nowrap">{order.id}</td>
+                                                <tr key={order.reference} className="h-12 hover:bg-muted/30 transition-colors">
+                                                    <td className="py-2 px-2.5 font-mono font-bold text-[var(--primary)] text-xs whitespace-nowrap">{order.reference}</td>
                                                     <td className="py-2 px-2.5">
                                                         <div className="flex items-center gap-2">
                                                             <div className="size-7 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 text-foreground flex items-center justify-center text-[10px] font-black shrink-0 border border-border/50 shadow-2xs">
-                                                                {order.avatarUrl ? (
+                                                                {order.customerAvatarUrl ? (
                                                                     <img
-                                                                        src={order.avatarUrl}
-                                                                        alt={order.customer}
+                                                                        src={order.customerAvatarUrl}
+                                                                        alt={order.customerName}
                                                                         className="size-full object-cover"
                                                                         onError={(e) => {
-                                                                            (e.target as HTMLElement).style.display = "none";
+                                                                            (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
                                                                         }}
                                                                     />
                                                                 ) : (
-                                                                    order.avatar
+                                                                    order.customerInitials
                                                                 )}
                                                             </div>
-                                                            <span className="font-bold text-foreground text-xs sm:text-sm truncate max-w-[100px] sm:max-w-[130px] inline-block">{order.customer}</span>
+                                                            <span className="font-bold text-foreground text-xs sm:text-sm truncate max-w-[100px] sm:max-w-[130px] inline-block">{order.customerName}</span>
                                                         </div>
                                                     </td>
                                                     <td className="py-2 px-2.5 text-muted-foreground font-medium text-xs sm:text-sm truncate max-w-[100px] sm:max-w-[130px]">{order.product}</td>
@@ -1572,8 +1158,8 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     {/* Pagination Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 text-xs text-muted-foreground font-medium">
                         <span>
-                            Showing {recentOrders.length > 0 ? (recentOrderPage - 1) * ITEMS_PER_PAGE + 1 : 0}-
-                            {Math.min(recentOrderPage * ITEMS_PER_PAGE, recentOrders.length)} of {recentOrders.length}
+                            Showing {recentOrderTotal > 0 ? (recentOrderPage - 1) * ITEMS_PER_PAGE + 1 : 0}-
+                            {Math.min(recentOrderPage * ITEMS_PER_PAGE, recentOrderTotal)} of {recentOrderTotal}
                         </span>
                         <div className="flex items-center gap-1.5">
                             <Button
@@ -1586,13 +1172,13 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 <ChevronLeft className="size-3.5" />
                             </Button>
                             <span className="px-1.5 text-xs font-bold text-foreground">
-                                {recentOrderPage} / {Math.max(1, Math.ceil(recentOrders.length / ITEMS_PER_PAGE))}
+                                {recentOrderPage} / {Math.max(1, recentOrderTotalPages)}
                             </span>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setRecentOrderPage((p) => Math.min(Math.ceil(recentOrders.length / ITEMS_PER_PAGE), p + 1))}
-                                disabled={recentOrderPage >= Math.ceil(recentOrders.length / ITEMS_PER_PAGE)}
+                                onClick={() => setRecentOrderPage((p) => Math.min(Math.max(1, recentOrderTotalPages), p + 1))}
+                                disabled={recentOrderPage >= recentOrderTotalPages}
                                 className="h-7 w-7 p-0 rounded-lg border-border/60 cursor-pointer"
                             >
                                 <ChevronRight className="size-3.5" />
@@ -1609,7 +1195,7 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 Best Selling Products
                             </CardTitle>
                             <Button variant="outline" size="sm" onClick={handleExportBestSelling} className="h-8 gap-1.5 rounded-lg border-border/80 text-xs font-semibold cursor-pointer">
-                                <Download className="size-3.5" />
+                                <Download className="size-3.5 text-primary" />
                                 Export
                             </Button>
                         </CardHeader>
@@ -1660,13 +1246,13 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                                 <td className="py-2 px-2.5">
                                                     <div className="flex items-center gap-2.5">
                                                         <div className="size-7 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-bold shrink-0 border border-border/50 shadow-2xs">
-                                                            {prod.image ? (
+                                                            {prod.imageUrl ? (
                                                                 <img
-                                                                    src={prod.image}
+                                                                    src={prod.imageUrl}
                                                                     alt={prod.name}
                                                                     className="size-full object-cover"
                                                                     onError={(e) => {
-                                                                        (e.target as HTMLElement).style.display = "none";
+                                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
                                                                     }}
                                                                 />
                                                             ) : (
@@ -1691,8 +1277,8 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                     {/* Pagination Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 text-xs text-muted-foreground font-medium">
                         <span>
-                            Showing {bestSellingProducts.length > 0 ? (bestSellingPage - 1) * ITEMS_PER_PAGE + 1 : 0}-
-                            {Math.min(bestSellingPage * ITEMS_PER_PAGE, bestSellingProducts.length)} of {bestSellingProducts.length}
+                            Showing {bestSellingTotal > 0 ? (bestSellingPage - 1) * ITEMS_PER_PAGE + 1 : 0}-
+                            {Math.min(bestSellingPage * ITEMS_PER_PAGE, bestSellingTotal)} of {bestSellingTotal}
                         </span>
                         <div className="flex items-center gap-1.5">
                             <Button
@@ -1705,13 +1291,13 @@ export function OverviewDashboard({ items = [], stock = [] }: OverviewDashboardP
                                 <ChevronLeft className="size-3.5" />
                             </Button>
                             <span className="px-1.5 text-xs font-bold text-foreground">
-                                {bestSellingPage} / {Math.max(1, Math.ceil(bestSellingProducts.length / ITEMS_PER_PAGE))}
+                                {bestSellingPage} / {Math.max(1, bestSellingTotalPages)}
                             </span>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setBestSellingPage((p) => Math.min(Math.ceil(bestSellingProducts.length / ITEMS_PER_PAGE), p + 1))}
-                                disabled={bestSellingPage >= Math.ceil(bestSellingProducts.length / ITEMS_PER_PAGE)}
+                                onClick={() => setBestSellingPage((p) => Math.min(Math.max(1, bestSellingTotalPages), p + 1))}
+                                disabled={bestSellingPage >= bestSellingTotalPages}
                                 className="h-7 w-7 p-0 rounded-lg border-border/60 cursor-pointer"
                             >
                                 <ChevronRight className="size-3.5" />

@@ -15,6 +15,7 @@ import {
     ArrowLeft,
     ChevronLeft,
     ChevronRight,
+    Crop,
     Dices,
     Download,
     Eye,
@@ -79,6 +80,7 @@ import {
 } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
 import { ImageDropzone, useObjectUrls } from "@/components/ui/image-picker";
+import { ImageCropperDialog } from "@/components/ui/image-cropper-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -138,6 +140,8 @@ type PickedImage = {
     id: string;
     file: File;
     previewUrl: string;
+    originalFile?: File;
+    originalUrl?: string;
 };
 
 type FieldProps = {
@@ -192,6 +196,7 @@ function ImageTile({
     onRemove,
     onMoveBack,
     onMoveForward,
+    onCrop,
 }: {
     url: string;
     label: string;
@@ -199,16 +204,38 @@ function ImageTile({
     onRemove: () => void;
     onMoveBack?: () => void;
     onMoveForward?: () => void;
+    onCrop?: () => void;
 }) {
     return (
         <li className="group relative overflow-hidden rounded-xl border border-border bg-muted">
             <span className="block aspect-square">
-                <img src={url} alt="" className="size-full object-cover" />
+                <img
+                    src={url}
+                    alt=""
+                    className="size-full object-cover"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                    }}
+                />
             </span>
             <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-[11px] text-white">
                 {label}
             </span>
             <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                {onCrop ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={busy}
+                        aria-label={`Crop ${label}`}
+                        title="Crop image"
+                        onClick={onCrop}
+                        className="size-8 bg-white/90 dark:bg-card/90 backdrop-blur-xs text-foreground hover:border-primary hover:bg-primary hover:text-white"
+                    >
+                        <Crop className="size-3.5" />
+                    </Button>
+                ) : null}
                 {onMoveBack ? (
                     <Button
                         type="button"
@@ -969,7 +996,7 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             async function processBlocks(bList: BlockDraft[]): Promise<any[]> {
                 return Promise.all(
                     bList.map(async (b) => {
-                        let updated: any = { ...b };
+                        const updated: any = { ...b };
                         if (b.file) {
                             updated.storedFile = await fileToStoredImageData(b.file);
                         }
@@ -1144,15 +1171,78 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         ...pickedImages.map((image) => image.previewUrl),
     ].filter(Boolean);
 
+    const [cropDialogOpen, setCropDialogOpen] = useState(false);
+    const [cropTarget, setCropTarget] = useState<{
+        id?: string;
+        url: string;
+        fileName: string;
+        mimeType?: string;
+    } | null>(null);
+
+    function handleCropComplete(croppedFile: File, croppedUrl: string) {
+        if (!cropTarget) return;
+
+        if (cropTarget.id) {
+            setPickedImages((current) =>
+                current.map((item) => {
+                    if (item.id === cropTarget.id) {
+                        if (item.previewUrl !== item.originalUrl) {
+                            releaseObjectUrl(item.previewUrl);
+                        }
+                        return {
+                            ...item,
+                            file: croppedFile,
+                            previewUrl: croppedUrl,
+                            originalFile: item.originalFile || item.file,
+                            originalUrl: item.originalUrl || item.previewUrl,
+                        };
+                    }
+                    return item;
+                }),
+            );
+        } else {
+            setPickedImages((current) => [
+                ...current,
+                {
+                    id: createRowId(),
+                    file: croppedFile,
+                    previewUrl: croppedUrl,
+                },
+            ]);
+        }
+
+        toast({
+            tone: "success",
+            title: "Image cropped",
+            description: "The cropped image has been applied to this item.",
+        });
+    }
+
     function handleImagesPicked(picked: File[]) {
-        setPickedImages((current) => [
-            ...current,
-            ...picked.map((file) => ({
+        const newItems = picked.map((file) => {
+            const objectUrl = createObjectUrl(file);
+            return {
                 id: createRowId(),
                 file,
-                previewUrl: createObjectUrl(file),
-            })),
-        ]);
+                previewUrl: objectUrl,
+                originalFile: file,
+                originalUrl: objectUrl,
+            };
+        });
+
+        setPickedImages((current) => [...current, ...newItems]);
+
+        // When user uploads an image, auto-open the cropper for instant adjustment on the original image
+        if (newItems.length === 1) {
+            const first = newItems[0];
+            setCropTarget({
+                id: first.id,
+                url: first.originalUrl || first.previewUrl,
+                fileName: first.originalFile?.name || first.file.name,
+                mimeType: first.originalFile?.type || first.file.type,
+            });
+            setCropDialogOpen(true);
+        }
     }
 
     async function handleGenerateBarcode() {
@@ -1919,10 +2009,11 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             noValidate
             className="-mb-8 flex flex-col"
         >
-            <div className="sticky top-0 z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 py-4 bg-shell/95 backdrop-blur-md border-b border-border/40 transition-shadow">
+            <div className="static lg:sticky lg:top-0 lg:z-30 -mx-5 px-5 lg:-mx-8 lg:px-8 py-4 bg-shell/95 lg:backdrop-blur-md border-b border-border/40 transition-shadow">
                 <InventoryPageHeader
-                    title={isEditing ? "Edit item" : "Create item"}
+                    title={isEditing ? "Edit Master Item" : "Create Master Item"}
                     description="Define the item before it can be sold or tracked."
+                    className="flex-col sm:flex-row sm:items-start"
                     action={
                         <div className="flex gap-2">
                             <Button
@@ -2397,6 +2488,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                     }
                                                     alt=""
                                                     className="size-5 shrink-0 rounded-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                    }}
                                                 />
                                             ) : null}
                                         </button>
@@ -2440,6 +2534,9 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                     }
                                                     alt=""
                                                     className="size-10 shrink-0 rounded-lg border border-border object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                                    }}
                                                 />
                                             ) : (
                                                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
@@ -2623,6 +2720,17 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                             deleteImageState.isLoading ||
                                             reorderImagesState.isLoading
                                         }
+                                        onCrop={
+                                            image.url
+                                                ? () => {
+                                                      setCropTarget({
+                                                          url: image.url || "",
+                                                          fileName: `image-${index + 1}.jpg`,
+                                                      });
+                                                      setCropDialogOpen(true);
+                                                  }
+                                                : undefined
+                                        }
                                         onRemove={() =>
                                             image.id
                                                 ? removeStoredImage(image.id)
@@ -2652,6 +2760,15 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                                                 : "Not saved yet"
                                         }
                                         busy={isSaving}
+                                        onCrop={() => {
+                                            setCropTarget({
+                                                id: image.id,
+                                                url: image.originalUrl || image.previewUrl,
+                                                fileName: image.originalFile?.name || image.file.name,
+                                                mimeType: image.originalFile?.type || image.file.type,
+                                            });
+                                            setCropDialogOpen(true);
+                                        }}
                                         onRemove={() =>
                                             removePickedImage(image.id)
                                         }
@@ -2978,6 +3095,15 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     if (!open) setPreviewItem(null);
                 }}
                 item={previewItem}
+            />
+
+            <ImageCropperDialog
+                open={cropDialogOpen}
+                onOpenChange={setCropDialogOpen}
+                imageSrc={cropTarget?.url ?? null}
+                fileName={cropTarget?.fileName}
+                mimeType={cropTarget?.mimeType}
+                onCropComplete={handleCropComplete}
             />
 
             <Dialog open={backDialogOpen} onOpenChange={setBackDialogOpen}>

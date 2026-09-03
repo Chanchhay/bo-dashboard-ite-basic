@@ -109,14 +109,26 @@ export function RegisterSessionsHistory() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dateRange, setDateRange] = useState<DateRange>("All time");
 
-  // Selected session for Summary Details modal
+ 
   const [selectedSession, setSelectedSession] = useState<RegisterSession | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  // Date range dropdown state
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 
-  // Column visibility state
+  const toggleCardExpanded = (id: number) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+ 
   const [columnsDropdownOpen, setColumnsDropdownOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Record<SessionColumnKey, boolean>>({
     sessionId: true,
@@ -285,86 +297,88 @@ export function RegisterSessionsHistory() {
   }
 
   return (
-    <div className="flex flex-col gap-6 text-foreground pb-8">
-      {/* Sticky Header Section: Title & Metric Cards */}
-      <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+    <div className="flex flex-col gap-4 sm:gap-6 text-foreground pb-8">
+  
+      <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-1 sm:pt-2 pb-2 sm:pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3 sm:gap-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-white tracking-tight">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground dark:text-white tracking-tight">
               Register Sessions
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground dark:text-slate-400 mt-0.5 sm:mt-1">
               Track live and past till opens, closes, starting floats, cash sales, and shift discrepancies.
             </p>
           </div>
-          <TourButton />
+          <div className="shrink-0 pt-0.5">
+            <TourButton />
+          </div>
         </div>
 
         {/* Metric Cards */}
-        <div data-tour="sessions-header-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+        <div data-tour="sessions-header-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <div className="rounded-xl sm:rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28] flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider truncate">
                 Active Sessions
               </span>
-              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
-                <Clock className="h-4 sm:h-5 w-4 sm:w-5" />
+              <div className="flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
+                <Clock className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+            <div className="mt-2 sm:mt-3 flex flex-wrap items-baseline gap-1.5 sm:gap-2">
+              <span className="text-base sm:text-2xl font-bold text-foreground dark:text-white">
                 {metrics.activeCount}
               </span>
-              <span className="text-xs font-semibold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
+              <span className="text-[10px] sm:text-xs font-semibold text-primary bg-primary/10 dark:border dark:border-primary/25 px-1.5 py-0.5 rounded-md">
                 Live Tills
               </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+          <div className="rounded-xl sm:rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28] flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider truncate">
                 Opening Cash
               </span>
-              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-blue-400 dark:border dark:border-blue-800/50">
-                <Building2 className="h-4 sm:h-5 w-4 sm:w-5" />
+              <div className="flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-blue-400 dark:border dark:border-blue-800/50">
+                <Building2 className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+            <div className="mt-2 sm:mt-3">
+              <span className="text-sm sm:text-2xl font-bold text-foreground dark:text-white truncate block">
                 {format(metrics.totalOpening)}
               </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
+          <div className="rounded-xl sm:rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28] flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider truncate">
                 Total Cash Sales
               </span>
-              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
-                <DollarSign className="h-4 sm:h-5 w-4 sm:w-5" />
+              <div className="flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:border dark:border-primary/25">
+                <DollarSign className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+            <div className="mt-2 sm:mt-3">
+              <span className="text-sm sm:text-2xl font-bold text-foreground dark:text-white truncate block">
                 {format(metrics.totalCashSales)}
               </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">
-                Total Cash Discrepancy
+          <div className="rounded-xl sm:rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28] flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider truncate">
+                Discrepancy
               </span>
-              <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 dark:border dark:border-amber-800/50">
-                <AlertTriangle className="h-4 sm:h-5 w-4 sm:w-5" />
+              <div className="flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 dark:border dark:border-amber-800/50">
+                <AlertTriangle className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-xl sm:text-2xl font-bold text-foreground dark:text-white">
+            <div className="mt-2 sm:mt-3">
+              <span className="text-sm sm:text-2xl font-bold text-foreground dark:text-white truncate block">
                 {format(metrics.totalDiscrepancies)}
               </span>
             </div>
@@ -381,15 +395,15 @@ export function RegisterSessionsHistory() {
         )}
       >
         {/* Filters and Search Toolbar */}
-        <div data-tour="sessions-search-bar" className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-b border-border bg-card p-4 sm:p-5 shrink-0">
-        <div className="relative flex-1">
+        <div data-tour="sessions-search-bar" className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 border-b border-border bg-card p-3 sm:p-5 shrink-0">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => applyQuery(e.target.value)}
-            placeholder="Search "
-            className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2.5 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary"
+            placeholder="Search cashier, register..."
+            className="w-full h-9 sm:h-10 rounded-xl border border-border bg-card pl-10 pr-4 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary"
           />
           {query && (
             <button
@@ -401,15 +415,15 @@ export function RegisterSessionsHistory() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
           {/* Status Tabs */}
-          <div className="inline-flex rounded-xl bg-muted dark:bg-[#0d121c] p-1 border border-border/60 dark:border-slate-800/60">
+          <div className="inline-flex h-9 sm:h-10 shrink-0 items-center rounded-xl bg-muted dark:bg-[#0d121c] p-1 border border-border/60 dark:border-slate-800/60">
             {STATUS_OPTIONS.map((st) => (
               <button
                 key={st}
                 type="button"
                 onClick={() => applyStatus(st)}
-                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all focus:outline-none ${
+                className={`h-full flex items-center rounded-lg px-2.5 sm:px-3 text-xs font-medium transition-all focus:outline-none ${
                   statusFilter === st
                     ? "bg-white text-slate-900 shadow-sm font-semibold dark:bg-[#1d2739] dark:text-white dark:border dark:border-slate-700"
                     : "text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-200"
@@ -421,17 +435,18 @@ export function RegisterSessionsHistory() {
           </div>
 
           {/* Date Filter Dropdown */}
-          <div className="relative inline-block text-left">
+          <div className="relative inline-block text-left shrink-0">
             <button
               type="button"
               onClick={() => setDateDropdownOpen((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 sm:px-3.5 py-2 text-xs font-medium text-foreground dark:text-slate-200 shadow-xs transition-all hover:bg-accent dark:hover:bg-[#182132] active:scale-95"
+              className="inline-flex h-9 sm:h-10 items-center gap-1.5 sm:gap-2 rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-2.5 sm:px-3.5 text-xs font-medium text-foreground dark:text-slate-200 shadow-xs transition-all hover:bg-accent dark:hover:bg-[#182132] active:scale-95"
             >
-              <Calendar className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground dark:text-slate-400" />
               <span>{dateRange}</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 text-muted-foreground dark:text-slate-400 transition-transform ${dateDropdownOpen ? "rotate-180" : ""
-                  }`}
+                className={`h-3.5 w-3.5 text-muted-foreground dark:text-slate-400 transition-transform ${
+                  dateDropdownOpen ? "rotate-180" : ""
+                }`}
               />
             </button>
 
@@ -441,7 +456,7 @@ export function RegisterSessionsHistory() {
                   className="fixed inset-0 z-20"
                   onClick={() => setDateDropdownOpen(false)}
                 />
-                <div className="absolute left-0 mt-2 z-30 w-40 rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 p-1.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-foreground dark:text-slate-100">
+                <div className="absolute right-0 sm:left-0 mt-2 z-30 w-40 rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 p-1.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-foreground dark:text-slate-100">
                   {DATE_RANGES.map((d) => {
                     const isActive = dateRange === d;
                     return (
@@ -467,12 +482,12 @@ export function RegisterSessionsHistory() {
             )}
           </div>
 
-          {/* Column Picker Dropdown */}
-          <div data-tour="sessions-column-picker" className="relative inline-block text-left">
+          {/* Column Picker Dropdown (Desktop/Tablet) */}
+          <div data-tour="sessions-column-picker" className="hidden md:inline-block relative text-left">
             <button
               type="button"
               onClick={() => setColumnsDropdownOpen((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 sm:px-3.5 py-2 text-xs font-medium text-foreground dark:text-slate-200 shadow-xs transition-all hover:bg-accent dark:hover:bg-[#182132] active:scale-95"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card dark:bg-[#0d121c] dark:border-slate-800 px-3 sm:px-3.5 text-xs font-medium text-foreground dark:text-slate-200 shadow-xs transition-all hover:bg-accent dark:hover:bg-[#182132] active:scale-95"
             >
               <Columns className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
               <span>Columns</span>
@@ -529,7 +544,191 @@ export function RegisterSessionsHistory() {
         </div>
       </div>
 
-        <div className="overflow-auto max-h-[calc(100dvh-370px)] sm:max-h-[calc(100dvh-390px)] min-w-full">
+        {/* Mobile Card List (< md) */}
+        <div className="flex flex-col gap-3 md:hidden p-3 sm:p-4">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-24 mx-auto" />
+              </div>
+            ))
+          ) : filteredSessions.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground dark:text-slate-400">
+              No register sessions found matching your filters.
+            </div>
+          ) : (
+            filteredSessions.map((session) => {
+              const isExpanded = expandedCards.has(session.id);
+              const diff = session.differenceAmount;
+              const isShortage = diff !== null && diff < 0;
+              const isSurplus = diff !== null && diff > 0;
+
+              return (
+                <div
+                  key={session.id}
+                  onClick={() => handleOpenDetails(session)}
+                  className="rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800/80 shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
+                >
+                  {/* Card Top Header */}
+                  <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-foreground dark:text-white">
+                        {session.registerName || `Register #${session.registerId || 1}`}
+                      </span>
+                      <span className="font-mono text-xs font-semibold text-muted-foreground dark:text-slate-400 bg-muted dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                        #{session.id}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {session.status === "OPEN" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 dark:border dark:border-emerald-800/50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
+                          OPEN
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-950/80 dark:border dark:border-red-900/50 px-2.5 py-0.5 text-[11px] font-semibold text-red-700 dark:text-red-400">
+                          CLOSED
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDetails(session);
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        title="View Details"
+                        aria-label="View Details"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Primary Key-Value Rows */}
+                  <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                      <span className="text-muted-foreground dark:text-slate-400">Cashier</span>
+                      <span className="font-semibold text-foreground dark:text-slate-100 flex items-center gap-1">
+                        <User className="h-3 w-3 text-muted-foreground" />
+                        {session.cashierName || "Cashier"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                      <span className="text-muted-foreground dark:text-slate-400">Orders</span>
+                      <span className="font-semibold text-foreground dark:text-slate-100 inline-flex items-center gap-1">
+                        <Receipt className="h-3 w-3 text-muted-foreground" />
+                        {session.orderCount ?? 0}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                      <span className="text-muted-foreground dark:text-slate-400">Opening Cash</span>
+                      <span className="font-semibold text-foreground dark:text-slate-200">
+                        {format(session.openingBalance, session.currency ?? undefined)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                      <span className="text-muted-foreground dark:text-slate-400">Cash Sales</span>
+                      <span className="font-bold text-foreground dark:text-slate-100">
+                        {format(session.totalCashSales, session.currency ?? undefined)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                      <span className="text-muted-foreground dark:text-slate-400">Difference</span>
+                      <div>
+                        {session.status === "OPEN" ? (
+                          <span className="text-xs text-muted-foreground dark:text-slate-500">—</span>
+                        ) : isShortage ? (
+                          <span className="inline-flex items-center gap-0.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/80 dark:border dark:border-red-900/50 px-2 py-0.5 rounded-md">
+                            <ArrowDownRight className="h-3.5 w-3.5" />
+                            {format(diff, session.currency ?? undefined)}
+                          </span>
+                        ) : isSurplus ? (
+                          <span className="inline-flex items-center gap-0.5 text-xs font-bold text-primary bg-primary/10 dark:border dark:border-primary/25 px-2 py-0.5 rounded-md">
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                            +{format(diff, session.currency ?? undefined)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-xs font-medium text-muted-foreground dark:text-slate-400 bg-muted dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                            0.00
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Collapsible / Expandable Extra Fields */}
+                    {isExpanded && (
+                      <>
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15 dark:bg-slate-900/40">
+                          <span className="text-muted-foreground dark:text-slate-400">Expected Total</span>
+                          <span className="font-semibold text-primary">
+                            {format(session.expectedAmount, session.currency ?? undefined)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15 dark:bg-slate-900/40">
+                          <span className="text-muted-foreground dark:text-slate-400">Counted Cash</span>
+                          <span className="font-semibold text-foreground dark:text-slate-200">
+                            {session.actualAmount !== null
+                              ? format(session.actualAmount, session.currency ?? undefined)
+                              : "—"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15 dark:bg-slate-900/40">
+                          <span className="text-muted-foreground dark:text-slate-400">Opened At</span>
+                          <span className="text-muted-foreground dark:text-slate-300">
+                            {formatDate(session.openedAt)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15 dark:bg-slate-900/40">
+                          <span className="text-muted-foreground dark:text-slate-400">Closed At</span>
+                          <span className="text-muted-foreground dark:text-slate-300">
+                            {session.status === "OPEN" ? (
+                              <span className="italic text-primary font-medium">In Progress</span>
+                            ) : (
+                              formatDate(session.closedAt)
+                            )}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* View More / View Less Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCardExpanded(session.id);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors border-t border-border/60 dark:border-slate-800/60"
+                  >
+                    <span>{isExpanded ? "View Less" : "View More"}</span>
+                    <ChevronDown
+                      className={cn("h-3.5 w-3.5 transition-transform duration-200", isExpanded && "rotate-180")}
+                    />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Table (>= md) */}
+        <div className="hidden md:block overflow-auto max-h-[calc(100dvh-370px)] sm:max-h-[calc(100dvh-390px)] min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="sticky top-0 z-10 bg-card border-b border-border shadow-xs">
               <TableRow className="border-b border-border dark:border-slate-800">
@@ -621,7 +820,8 @@ export function RegisterSessionsHistory() {
                   return (
                     <TableRow
                       key={session.id}
-                      className="border-b border-border/60 dark:border-slate-800/60 hover:bg-muted/40 dark:hover:bg-[#1a2333] transition-colors"
+                      onClick={() => handleOpenDetails(session)}
+                      className="border-b border-border/60 dark:border-slate-800/60 hover:bg-muted/40 dark:hover:bg-[#1a2333] transition-colors cursor-pointer"
                     >
                       {visibleColumns.sessionId && (
                         <TableCell className="font-mono text-xs font-semibold text-foreground dark:text-slate-300">
@@ -728,7 +928,10 @@ export function RegisterSessionsHistory() {
                         <TableCell className="text-right">
                           <button
                             type="button"
-                            onClick={() => handleOpenDetails(session)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDetails(session);
+                            }}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 hover:underline"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -756,7 +959,7 @@ export function RegisterSessionsHistory() {
                 setPageSize(next);
                 setPage(0);
               }}
-              sizeOptions={[1, 2, 5, 10, 20, 50]}
+              sizeOptions={[10, 20, 25, 50, 100]}
               isLoading={isLoading || isRefreshing}
               itemLabel="session"
             />
@@ -766,8 +969,14 @@ export function RegisterSessionsHistory() {
 
       {/* Session Details / Summary Modal */}
       {selectedSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100">
+        <div
+          onClick={() => setSelectedSession(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100 cursor-default"
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <div className="flex items-center gap-2.5">

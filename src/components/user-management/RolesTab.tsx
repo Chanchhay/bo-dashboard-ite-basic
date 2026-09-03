@@ -254,6 +254,7 @@ export default function RolesTab() {
                     />
 
                     <form
+                        key={editor.mode === "edit" ? editor.role.id : "create"}
                         onSubmit={handleSubmit}
                         noValidate
                         className="mt-6 flex flex-col gap-6"
@@ -329,24 +330,28 @@ export default function RolesTab() {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-                            <Button
-                                type="button"
-                                onClick={closeEditor}
-                                variant="outline"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={saving}
-                            >
-                                {saving
-                                    ? "Saving…"
-                                    : editor.mode === "create"
-                                        ? "Create role"
-                                        : "Save changes"}
-                            </Button>
+                        <div className="sticky -bottom-8 z-30 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 lg:-mx-7 lg:-mb-7 mt-4 rounded-b-[24px] border-t border-border bg-card px-4 py-3.5 sm:px-6 sm:py-4 lg:px-7">
+                            <div className="flex w-full flex-row items-center justify-end gap-2.5 sm:w-auto sm:ml-auto sm:gap-3">
+                                <Button
+                                    type="button"
+                                    onClick={closeEditor}
+                                    variant="outline"
+                                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
+                                >
+                                    {saving
+                                        ? "Saving…"
+                                        : editor.mode === "create"
+                                            ? "Create role"
+                                            : "Save changes"}
+                                </Button>
+                            </div>
                         </div>
                     </form>
                 </Panel>
@@ -575,7 +580,7 @@ export default function RolesTab() {
                             setRolesPageSize(next);
                             setRolesPage(0);
                         }}
-                        sizeOptions={[1, 2, 5, 10, 20, 50]}
+                        sizeOptions={[10, 20, 25, 50, 100]}
                         isLoading={rolesQuery.isFetching}
                         itemLabel="role"
                     />

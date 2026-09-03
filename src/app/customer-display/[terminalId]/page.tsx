@@ -101,6 +101,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             unitPrice: 0,
           })),
           quantity: i.quantity,
+          freeQuantity: i.freeQuantity ?? 0,
           unitPrice: i.unitPrice,
           discountAmount: i.discountAmount,
           lineTotal: i.lineTotal,
@@ -273,6 +274,9 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     src={storeLogo}
                     alt={storeName}
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                    }}
                   />
                 ) : (
                   <Store className="h-12 w-12 text-amber-400" />
@@ -303,7 +307,11 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 alt={storeName}
                 width={36}
                 height={36}
+                unoptimized
                 className="h-9 w-9 rounded-lg object-cover bg-white p-0.5 shadow-sm"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                }}
               />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">
@@ -422,6 +430,14 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                               .join(", ")}
                           </span>
                         ) : null}
+                        {/* The promotion that quietly turned into extra units
+                            on this line — invisible otherwise, since the
+                            quantity column alone reads as an ordinary sale. */}
+                        {item.freeQuantity ? (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                            🎁 {item.freeQuantity} FREE
+                          </span>
+                        ) : null}
                       </td>
                       <td className="py-3.5 px-3 text-center font-bold text-primary">
                         {item.quantity}
@@ -468,12 +484,16 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     {format(subtotal, currency)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>បញ្ចុះតម្លៃ (%) (Discount):</span>
-                  <span className="font-bold text-emerald-500">
-                    -{format(discount, currency)}
-                  </span>
-                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between">
+                    <span>
+                      បញ្ចុះតម្លៃ{discountLabel ? ` (${discountLabel})` : ""} (Discount):
+                    </span>
+                    <span className="font-bold text-emerald-500">
+                      -{format(discount, currency)}
+                    </span>
+                  </div>
+                )}
                 {tax > 0 && !isTaxInclusive && (
                   <div className="flex justify-between">
                     <span>

@@ -293,13 +293,13 @@ export function ImagePicker({
                 </div>
             ) : null}
 
-            <div className="min-h-4" aria-live="polite">
-                {error ? (
+            {error ? (
+                <div className="min-h-4" aria-live="polite">
                     <p className="text-xs text-danger" role="alert">
                         {error}
                     </p>
-                ) : null}
-            </div>
+                </div>
+            ) : null}
         </div>
     );
 }

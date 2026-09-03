@@ -260,6 +260,9 @@ function OptionForm({
                                 src={preview}
                                 alt=""
                                 className="size-full object-cover"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                }}
                             />
                         ) : (
                             <ImagePlus className="size-5" aria-hidden="true" />

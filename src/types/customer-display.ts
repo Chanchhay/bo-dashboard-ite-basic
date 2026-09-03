@@ -21,6 +21,8 @@ export interface CustomerDisplayItem {
   unitFactor?: number | null;
   addOns?: { name: string }[];
   quantity: number;
+  /** How many of `quantity` a Buy X Get Y offer gave away — 0 for an ordinary line. */
+  freeQuantity?: number;
   unitPrice: number;
   discountAmount: number;
   lineTotal: number;

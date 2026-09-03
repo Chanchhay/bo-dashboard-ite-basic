@@ -448,9 +448,7 @@ export function StockAdjustmentForm() {
         const unitCost =
             typedUnitCost === "" ? existingUnitCost : Number(typedUnitCost);
 
-        const sendsUnitCost = preservesQuantity
-            ? typedUnitCost !== ""
-            : calculatedChange > 0;
+        const sendsUnitCost = typedUnitCost !== "";
 
         const result = stockEntrySchema.safeParse({
             ...(target?.kind === "ADDON"
@@ -725,7 +723,7 @@ export function StockAdjustmentForm() {
                                     id="quantity"
                                     name="quantity"
                                     type="number"
-                                    step="1"
+                                    step="any"
                                     max={maxStockQuantity}
                                     {...(isManual
                                         ? { min: -maxStockQuantity }
@@ -733,7 +731,7 @@ export function StockAdjustmentForm() {
                                     disabled={isManual && !overrideQuantity}
                                     value={quantityInput}
                                     onKeyDown={(e) => {
-                                        if (e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
+                                        if (e.key === "e" || e.key === "E") {
                                             e.preventDefault();
                                         }
                                         if (!isManual && e.key === "-") {

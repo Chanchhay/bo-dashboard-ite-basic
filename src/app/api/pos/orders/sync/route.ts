@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { addSyncedOrder } from "@/lib/synced-orders-store";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { backendRequest } from "@/lib/api/backend";
 import { ordersPath } from "@/lib/api/pos-order-backend";
@@ -24,10 +23,10 @@ export async function POST(request: Request) {
       );
     }
 
-    let businessId = "1";
-    try {
-      businessId = await getCurrentBusinessId();
-    } catch {}
+    // No fallback business. Posting a shift's takings to whichever business
+    // happens to be "1" is worse than refusing: the till keeps its queue and
+    // retries, and nothing lands in a stranger's ledger.
+    const businessId = await getCurrentBusinessId();
 
     // Format and normalize offline order payload for Spring Boot Backend API
     const formattedOrders = ordersToSync.map((o: any) => ({
@@ -37,6 +36,14 @@ export async function POST(request: Request) {
       subtotal: typeof o.subtotal === "number" ? o.subtotal : parseFloat(o.subtotal || "0"),
       total: typeof o.total === "number" ? o.total : parseFloat(o.total || "0"),
       discountAmount: typeof o.discountAmount === "number" ? o.discountAmount : parseFloat(o.discount_amount || o.discountAmount || "0"),
+      // The total already includes tax; without the breakdown the recorded
+      // sale cannot show a VAT line and its parts do not add up to it.
+      taxRate: o.taxRate ?? o.tax_rate ?? null,
+      tax_rate: o.taxRate ?? o.tax_rate ?? null,
+      taxAmount: o.taxAmount ?? o.tax_amount ?? null,
+      tax_amount: o.taxAmount ?? o.tax_amount ?? null,
+      taxInclusionType: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
+      tax_inclusion_type: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
       createdAt: o.createdAt || o.created_at || new Date().toISOString(),
       items: (o.items || []).map((i: any) => ({
         productId: i.productId || i.product_id,
@@ -47,6 +54,14 @@ export async function POST(request: Request) {
         item_name: i.productName || i.product_name || i.itemName || i.item_name || "Item",
         variantId: i.variantId || i.variant_id || null,
         variantName: i.variantName || i.variant_name || null,
+        // A pack is not one of anything: without the unit the backend takes a
+        // single base unit off the shelf for a case of twelve.
+        unitId: i.unitId || i.unit_id || null,
+        unit_id: i.unitId || i.unit_id || null,
+        unitFactor: i.unitFactor || i.unit_factor || null,
+        // The extras are stock too, and they were being dropped here.
+        addOnIds: i.addOnIds || i.add_on_ids || [],
+        add_on_ids: i.addOnIds || i.add_on_ids || [],
         quantity: i.quantity || 1,
         unitPrice: typeof i.unitPrice === "number" ? i.unitPrice : parseFloat(i.unit_price || i.unitPrice || "0"),
         discountAmount: typeof i.discountAmount === "number" ? i.discountAmount : parseFloat(i.discount_amount || i.discountAmount || "0"),
@@ -56,25 +71,49 @@ export async function POST(request: Request) {
 
     let backendResult: any = null;
     // Forward sync payload to Spring Boot Backend API (/api/v1/businesses/{businessId}/orders/sync)
+    //
+    // A failure here is reported as one. The till deletes an order from its
+    // own queue on the strength of this response, so answering "synced" when
+    // the backend refused destroys the only record of a sale that was taken
+    // in cash. Left queued, it is retried until it lands.
     try {
       backendResult = await backendRequest(ordersPath(businessId, "/sync"), {
         method: "POST",
         body: JSON.stringify({ orders: formattedOrders }),
       });
     } catch (err) {
-      console.warn("[POS Sync API] Spring Boot backend endpoint note:", err);
+      console.error("[POS Sync API] Backend refused the offline orders:", err);
+
+      return NextResponse.json(
+        {
+          error: "The server did not accept these offline sales.",
+          detail: err instanceof Error ? err.message : undefined,
+          queued: formattedOrders.length,
+        },
+        { status: 502 }
+      );
     }
 
+    // No list back means the backend took the lot; a list means it took those.
     const syncedUuids: string[] =
       Array.isArray(backendResult?.syncedUuids) && backendResult.syncedUuids.length > 0
         ? backendResult.syncedUuids
         : formattedOrders.map((o: any) => o.uuid).filter(Boolean);
 
+    /*
+     * The backend holds these now, so nothing is kept here.
+     *
+     * A copy used to be stashed in this server's memory and merged into the
+     * orders list, from a time when the sync could not be relied on. Since a
+     * refusal is reported as one, this code is only ever reached after the
+     * backend accepted the sale — so the copy could only ever be a second row
+     * for the same sale, priced at zero because it read the line fields under
+     * names this route does not use.
+     */
     for (const order of formattedOrders) {
-      if (order?.uuid) {
-        addSyncedOrder(order);
+      if (order?.uuid && syncedUuids.includes(order.uuid)) {
         console.log(
-          `[POS Sync API] Successfully synced offline order ${order.uuid} (total: ${order.total})`
+          `[POS Sync API] Synced offline order ${order.uuid} (total: ${order.total})`
         );
       }
     }

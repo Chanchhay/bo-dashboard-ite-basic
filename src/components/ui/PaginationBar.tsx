@@ -69,6 +69,18 @@ export type PaginationBarProps = {
   itemLabel?: string;
   itemLabelPlural?: string;
   className?: string;
+
+  /**
+   * How many rows the pages before this one held, and how many this one is
+   * showing, where that is not simply `page * size`.
+   *
+   * A list that pins rows to its first page — unsynced sales waiting to reach
+   * the server — has a first page longer than the rest, and the running count
+   * has to say so rather than working it out from arithmetic that no longer
+   * holds. Left out, the bar counts the usual way.
+   */
+  rowsBefore?: number;
+  rowsOnPage?: number;
 };
 
 export function PaginationBar({
@@ -83,12 +95,18 @@ export function PaginationBar({
   itemLabel = "row",
   itemLabelPlural,
   className,
+  rowsBefore,
+  rowsOnPage,
 }: PaginationBarProps) {
   const safeTotalPages = Math.max(totalPages, 1);
   const currentPage = Math.min(Math.max(page, 0), safeTotalPages - 1);
 
-  const firstRow = totalElements === 0 ? 0 : currentPage * size + 1;
-  const lastRow = Math.min((currentPage + 1) * size, totalElements);
+  const before = rowsBefore ?? currentPage * size;
+  const firstRow = totalElements === 0 ? 0 : before + 1;
+  const lastRow =
+    rowsOnPage === undefined
+      ? Math.min((currentPage + 1) * size, totalElements)
+      : before + rowsOnPage;
 
   const plural = itemLabelPlural ?? `${itemLabel}s`;
   const noun = totalElements === 1 ? itemLabel : plural;
@@ -104,14 +122,14 @@ export function PaginationBar({
   return (
     <div
       className={cn(
-        "flex w-full flex-col gap-3 border-t border-border bg-card px-4 py-3 sm:px-6",
+        "flex w-full flex-col gap-3 border-t border-border bg-card px-3.5 py-3 sm:px-6",
         "sm:flex-row sm:items-center sm:justify-between transition-all duration-200",
         className,
       )}
     >
-      {/* Left: rows per page + range readout */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="flex items-center gap-2">
+      {/* Left / Top: rows per page + range readout */}
+      <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start gap-2.5 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
             Rows per page
           </span>
@@ -121,8 +139,9 @@ export function PaginationBar({
               onSizeChange(Number(value));
               onPageChange(0);
             }}
-            disabled={isLoading} >
-            <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[4.25rem] rounded-lg border border-border bg-background px-3 text-xs sm:text-sm font-semibold text-foreground shadow-none hover:bg-muted/50 transition-colors cursor-pointer gap-2">
+            disabled={isLoading}
+          >
+            <SelectTrigger className="h-8 sm:h-9 w-auto min-w-[3.75rem] sm:min-w-[4.25rem] rounded-lg border border-border bg-background px-2 sm:px-3 text-xs sm:text-sm font-semibold text-foreground shadow-none hover:bg-muted/50 transition-colors cursor-pointer gap-1.5 sm:gap-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="start" className="min-w-[4.5rem]">
@@ -151,8 +170,8 @@ export function PaginationBar({
         </span>
       </div>
 
-
-      <div className="flex items-center gap-1 self-end sm:self-auto">
+      {/* Right / Bottom: page navigation */}
+      <div className="flex items-center justify-center w-full sm:w-auto gap-0.5 sm:gap-1 self-center sm:self-auto overflow-x-auto py-0.5">
         <Button
           type="button"
           variant="ghost"
@@ -162,7 +181,7 @@ export function PaginationBar({
           disabled={!canGoBack}
           onClick={() => onPageChange(0)}
         >
-          <ChevronsLeft className="h-4 w-4" />
+          <ChevronsLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
         <Button
           type="button"
@@ -173,10 +192,10 @@ export function PaginationBar({
           disabled={!canGoBack}
           onClick={() => onPageChange(currentPage - 1)}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
 
-        <div className="flex items-center gap-1 px-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 px-0.5 sm:px-1">
           {pageItems.map((item, index) =>
             item === null ? (
               <span
@@ -215,7 +234,7 @@ export function PaginationBar({
           disabled={!canGoForward}
           onClick={() => onPageChange(currentPage + 1)}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
         <Button
           type="button"
@@ -226,7 +245,7 @@ export function PaginationBar({
           disabled={!canGoForward}
           onClick={() => onPageChange(safeTotalPages - 1)}
         >
-          <ChevronsRight className="h-4 w-4" />
+          <ChevronsRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
       </div>
     </div>

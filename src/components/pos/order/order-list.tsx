@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
+import { loadCartFrom } from "@/lib/pos/local-cart";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { useMoney } from "@/hooks/useMoney";
@@ -56,7 +57,10 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
 
   async function handleEdit(orderId: string) {
     try {
-      await loadOrderForEdit(orderId).unwrap();
+      // Onto the till, not just into a cache: the cart is a row on this
+      // device now, and a parked order that is not put there would open empty.
+      const order = await loadOrderForEdit(orderId).unwrap();
+      await loadCartFrom(order);
       onEdit?.(orderId);
     } catch (cause) {
       toast({

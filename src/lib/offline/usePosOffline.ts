@@ -1,12 +1,42 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { offlineDb, type OfflineOrder } from "./db";
+import { offlineDb } from "./db";
 import type { ChannelItem } from "@/lib/api/sales-channels";
+import { itemThumbnail } from "@/lib/api/inventory";
+import { cacheImages } from "@/lib/offline/image-cache";
 import { useDispatch } from "react-redux";
-import { baseApi } from "@/lib/baseApi";
 import { db } from "@/lib/db";
 import { syncOfflineOrders as syncOfflineDbOrders } from "@/lib/sync";
+import { pushCart, resetCartPushBackoff } from "@/lib/pos/cart-sync";
+
+/** How often a queued sale tries again while the till thinks it is connected. */
+const RESYNC_INTERVAL_MS = 30_000;
+
+/** Longest wait between attempts once the server keeps refusing. */
+const MAX_RESYNC_BACKOFF_MS = 15 * 60_000;
+
+/*
+ * One till, one sync.
+ *
+ * This hook is mounted four times over on the terminal — the item grid, the
+ * screen, the navbar and the app-wide banner — and every copy has its own
+ * timer. Left to themselves they each run the whole thing, so a queue the
+ * server keeps refusing becomes a steady drum of requests for as long as the
+ * page is open, doubled again by StrictMode in development.
+ *
+ * Module scope because that is the scope the truth lives at: there is one
+ * queue on this device, not one per component.
+ */
+let syncInFlight: Promise<boolean> | null = null;
+let nextSyncAllowedAt = 0;
+let syncBackoffMs = RESYNC_INTERVAL_MS;
+
+/** A real reconnection earns a fresh attempt rather than serving out a backoff. */
+function resetSyncBackoff() {
+    nextSyncAllowedAt = 0;
+    syncBackoffMs = RESYNC_INTERVAL_MS;
+}
 
 export function usePosOffline() {
   const dispatch = useDispatch();
@@ -18,7 +48,15 @@ export function usePosOffline() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const handleOnline = () => setIsOnline(true);
+      const handleOnline = () => {
+        resetSyncBackoff();
+        // A cart built during the outage has been waiting to be told to the
+        // server. It is safe on the device, but the sooner it lands the sooner
+        // payment can go through the normal path.
+        resetCartPushBackoff();
+        void pushCart({ force: true });
+        setIsOnline(true);
+      };
       const handleOffline = () => setIsOnline(false);
 
       window.addEventListener("online", handleOnline);
@@ -33,13 +71,8 @@ export function usePosOffline() {
 
   const refreshPendingCount = useCallback(async () => {
     try {
-      const count1 = await offlineDb.offlineOrders
-        .where("sync_status")
-        .equals("PENDING")
-        .count();
-      const dbOrders = await db.offline_orders.toArray();
-      const count2 = dbOrders.filter((o) => !o.is_synced).length;
-      setPendingSyncCount(count1 + count2);
+      const orders = await db.offline_orders.toArray();
+      setPendingSyncCount(orders.filter((order) => !order.is_synced).length);
     } catch (err) {
       console.error("Failed to count pending offline orders:", err);
     }
@@ -61,6 +94,12 @@ export function usePosOffline() {
       await offlineDb.channelItems.clear();
       await offlineDb.channelItems.bulkPut(items);
       console.log(`[Offline POS] Cached ${items.length} catalog items.`);
+
+      // The pictures follow the catalogue, in the background: a cashier picks
+      // by sight, and a grid of items that have all fallen back to the brand
+      // mark is forty identical tiles. Not awaited — the catalogue is usable
+      // the moment it lands, and the pictures arrive behind it.
+      void cacheImages(items.map((entry) => itemThumbnail(entry.item)));
     } catch (err) {
       console.error("[Offline POS] Failed to cache catalog items:", err);
     }
@@ -109,126 +148,75 @@ export function usePosOffline() {
     }
   }, []);
 
-  const saveOfflineOrder = useCallback(
-    async (orderData: Omit<OfflineOrder, "sync_status">) => {
-      try {
-        await offlineDb.offlineOrders.add({
-          ...orderData,
-          sync_status: "PENDING",
-        });
-        await refreshPendingCount();
-        console.log("[Offline POS] Offline order saved successfully.");
-      } catch (err) {
-        console.error("[Offline POS] Failed to save offline order:", err);
-      }
-    },
-    [refreshPendingCount]
-  );
-
-  const syncOfflineOrders = useCallback(async () => {
+  const runSync = useCallback(async () => {
     try {
-      // 1. Sync orders stored in db.offline_orders (PosDatabase)
-      await syncOfflineDbOrders("1", dispatch);
-
-      // 2. Sync orders stored in offlineDb.offlineOrders (PosOfflineDatabase)
-      const pendingOrders = await offlineDb.offlineOrders
-        .where("sync_status")
-        .equals("PENDING")
-        .toArray();
-
-      if (pendingOrders.length === 0) {
-        await refreshPendingCount();
-        return;
-      }
-
       setIsSyncing(true);
 
-      const formattedOrders = pendingOrders.map((order) => ({
-        uuid: order.uuid,
-        status: order.status || "PAID",
-        paymentMethod: order.payment_method,
-        payment_method: order.payment_method,
-        subtotal: order.subtotal,
-        total: order.total,
-        discountAmount: order.discount_amount,
-        discount_amount: order.discount_amount,
-        createdAt: order.created_at,
-        created_at: order.created_at,
-        items: (order.items || []).map((i: any) => ({
-          productId: i.product_id || i.productId,
-          product_id: i.product_id || i.productId,
-          productName: i.product_name || i.productName || i.itemName || i.item_name || "Item",
-          product_name: i.product_name || i.productName || i.itemName || i.item_name || "Item",
-          itemName: i.product_name || i.productName || i.itemName || i.item_name || "Item",
-          item_name: i.product_name || i.productName || i.itemName || i.item_name || "Item",
-          quantity: i.quantity || 1,
-          unitPrice: i.unit_price || i.unitPrice || 0,
-          unit_price: i.unit_price || i.unitPrice || 0,
-          subtotal: i.subtotal || 0,
-          discountAmount: i.discount_amount || i.discountAmount || 0,
-          discount_amount: i.discount_amount || i.discountAmount || 0,
-        })),
-      }));
+      const dbOk = await syncOfflineDbOrders(dispatch);
 
-      const response = await fetch("/api/pos/orders/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orders: formattedOrders }),
-      });
+      await refreshPendingCount();
 
-      if (response.ok) {
-        const data = await response.json();
-        const syncedUuids: string[] = Array.isArray(data?.syncedUuids)
-          ? data.syncedUuids
-          : [];
-
-        // Step 3: Delete synced orders from local storage IndexedDB
-        if (syncedUuids.length > 0) {
-          await offlineDb.offlineOrders
-            .where("uuid")
-            .anyOf(syncedUuids)
-            .delete();
-        } else {
-          const syncedLocalIds = pendingOrders
-            .map((o) => o.localId)
-            .filter((id): id is number => id !== undefined);
-
-          if (syncedLocalIds.length > 0) {
-            await offlineDb.offlineOrders
-              .where("localId")
-              .anyOf(syncedLocalIds)
-              .delete();
-          }
-        }
-
-        await refreshPendingCount();
-
-        // Step 1: Invalidate RTK Query cache to refetch orders list and sales summary statistics
-        dispatch(
-          baseApi.util.invalidateTags([
-            "PosOrderHistory",
-            "PosOrder",
-            "PosOpenOrders",
-            "SalesProfit",
-            "SalesDailyRevenue",
-            "PayLaterSales",
-            "InventoryStock",
-          ])
-        );
-        console.log(`[Offline POS] Synced ${pendingOrders.length} offline orders.`);
-      }
+      return dbOk;
     } catch (err) {
       console.error("[Offline POS] Error during offline orders sync:", err);
+      return false;
     } finally {
       setIsSyncing(false);
     }
   }, [dispatch, refreshPendingCount]);
+
+  /**
+   * Attempts a sync, unless one is already running or the last one failed
+   * recently enough that trying again would only be noise.
+   */
+  const syncOfflineOrders = useCallback(async () => {
+    if (syncInFlight) return syncInFlight;
+    if (Date.now() < nextSyncAllowedAt) return false;
+
+    syncInFlight = runSync();
+
+    try {
+      const ok = await syncInFlight;
+
+      if (ok) {
+        resetSyncBackoff();
+      } else {
+        // Doubling, because a server that has refused twice will most likely
+        // refuse the third time too, and the queue loses nothing by waiting.
+        nextSyncAllowedAt = Date.now() + syncBackoffMs;
+        syncBackoffMs = Math.min(syncBackoffMs * 2, MAX_RESYNC_BACKOFF_MS);
+      }
+
+      return ok;
+    } finally {
+      syncInFlight = null;
+    }
+  }, [runSync]);
 
   useEffect(() => {
     if (isOnline) {
       void syncOfflineOrders();
     }
   }, [isOnline, syncOfflineOrders]);
+
+  /**
+   * Keeps trying while anything is still queued.
+   *
+   * The `online` event is the fast path, not the only one: it does not fire
+   * when the connection was never lost as far as the browser is concerned —
+   * a backend that was down, a portal that was in the way, a request blocked
+   * by the developer tools — and without a retry those sales sit in the queue
+   * until someone reloads the till. An attempt that fails changes nothing.
+   */
+  useEffect(() => {
+    if (pendingSyncCount === 0) return;
+
+    const id = setInterval(() => {
+      void syncOfflineOrders();
+    }, RESYNC_INTERVAL_MS);
+
+    return () => clearInterval(id);
+  }, [pendingSyncCount, syncOfflineOrders]);
 
   return {
     isOnline,
@@ -238,7 +226,6 @@ export function usePosOffline() {
     getCachedCatalog,
     cacheStockList,
     getCachedStockList,
-    saveOfflineOrder,
     syncOfflineOrders,
     refreshPendingCount,
   };

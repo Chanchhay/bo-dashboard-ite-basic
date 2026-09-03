@@ -44,29 +44,20 @@ async function loadOrders(businessId: string, filters: OrderFilter[]) {
     return { orders: orders.filter(isRealOrder), truncated };
 }
 
-import { getSyncedOrders } from "@/lib/synced-orders-store";
 
 /** Range-wide totals for Sale Management's stat cards. */
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
         const businessId = await getCurrentBusinessId();
-        let orders: PosOrder[] = [];
-        let truncated = false;
 
-        try {
-            const loaded = await loadOrders(
-                businessId,
-                orderFiltersFromQuery(url),
-            );
-            orders = loaded.orders;
-            truncated = loaded.truncated;
-        } catch {
-            // Fallback if backend server endpoint fails or is un-configured
-        }
-
-        const synced = getSyncedOrders(url);
-        const allOrders = [...synced, ...orders];
+        // Reported rather than hidden, for the same reason as the list these
+        // totals sit above: zero revenue and a failed request look identical
+        // on a stat card, and only one of them is worth acting on.
+        const { orders: allOrders, truncated } = await loadOrders(
+            businessId,
+            orderFiltersFromQuery(url),
+        );
 
         // Revenue counts paid orders only — a pending or cancelled total is
         // money nobody has taken.

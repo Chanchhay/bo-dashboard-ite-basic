@@ -185,7 +185,17 @@ export function ReceiptTicket({
   // `sale` is only ever passed right after a live payment; every other
   // viewer (Sales history, a reopened receipt) has to fall back to the
   // order's own record of how it was paid.
-  const isPayLater = (sale?.paymentMethod ?? order.paymentMethod) === "PAY_LATER";
+  const paymentMethod = sale?.paymentMethod ?? order.paymentMethod;
+  const isPayLater = paymentMethod === "PAY_LATER";
+
+  const paymentMethodLabel =
+    paymentMethod === "CASH"
+      ? "Cash"
+      : paymentMethod === "DIGITAL"
+        ? "KHQR"
+        : paymentMethod === "PAY_LATER"
+          ? "Pay later"
+          : "—";
 
   // Tax was computed once, server-side, when the order was created (or last
   // repriced) — reading it straight off the record matches every other
@@ -268,6 +278,9 @@ export function ReceiptTicket({
               src={business.logo}
               alt={`${businessName} logo`}
               className="size-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+              }}
             />
           ) : businessInitials(businessName) ? (
             businessInitials(businessName)
@@ -397,6 +410,15 @@ export function ReceiptTicket({
                       .join(" · ")}
                   </p>
                 ) : null}
+                {/* The promotion that turned into extra units on this line —
+                    worth naming on the receipt itself, not just implied by
+                    the discount below, so it reads as a gift rather than a
+                    markdown. */}
+                {item.freeQuantity ? (
+                  <p className="text-[11px] font-bold leading-[1.45] text-[#006b26]">
+                    🎁 {item.freeQuantity} FREE
+                  </p>
+                ) : null}
                 <p className="font-mono text-[11px] leading-[1.45] text-[#6d7a77]">
                   {formatMoney(item.unitPrice, currency)} ea
                   {itemDisc > 0 && (
@@ -423,7 +445,7 @@ export function ReceiptTicket({
                     <span className="text-[11px] font-normal text-[#d14341] line-through">
                       {formatMoney(grossAmount, currency)}
                     </span>
-                    <span className="font-bold text-[#006b26]">
+                    <span className="font-bold text-primary">
                       {formatMoney(netAmount, currency)}
                     </span>
                   </div>
@@ -448,7 +470,7 @@ export function ReceiptTicket({
             <dt className="flex items-center gap-1">
               Discount / បញ្ចុះតម្លៃ
               {discountLabel && (
-                <span className="font-semibold text-xs text-[#006b26]">
+                <span className="font-semibold text-xs text-primary">
                   ({discountLabel})
                 </span>
               )}
@@ -469,7 +491,7 @@ export function ReceiptTicket({
         )}
 
         {effectiveShowTax && !isTaxInclusive && taxAmount > 0 && (
-          <div className="flex justify-between gap-4 font-medium text-[#006b26]">
+          <div className="flex justify-between gap-4 font-medium text-primary">
             <dt className="flex items-center gap-1">
               +
               {effectiveTaxName}
@@ -482,12 +504,12 @@ export function ReceiptTicket({
         )}
       </dl>
 
-      <dl className="mt-2.5 rounded-[5px] border border-[#cfe7ca] bg-[#f4fbed] px-3 py-2.5 text-[#006b26]">
+      <dl className="mt-2.5 rounded-xl border border-primary/25 bg-primary/10 px-3 py-2.5 text-primary dark:border-primary/40 dark:bg-primary/20">
         <div className="flex items-center justify-between gap-4">
-          <dt className="text-sm font-bold uppercase">
+          <dt className="text-sm font-bold uppercase text-primary">
             Total / សរុប
           </dt>
-          <dd className="font-mono text-xl font-bold leading-none">
+          <dd className="font-mono text-xl font-bold leading-none text-primary">
             {formatMoney(total, currency)}
           </dd>
         </div>
@@ -526,14 +548,9 @@ export function ReceiptTicket({
         ) : (
           <>
             <div className="flex justify-between gap-4">
-              <dt>
-                Paid
-                {(sale?.paymentMethod ?? order.paymentMethod) === "CASH"
-                  ? " · Cash"
-                  : (sale?.paymentMethod ?? order.paymentMethod) === "DIGITAL"
-                    ? " · Digital"
-                    : ""}
-              </dt>
+              {/* Named as the customer paid it. "Digital" is the field's own
+                  word for it; KHQR is what they scanned. */}
+              <dt>Paid · {paymentMethodLabel}</dt>
               <dd className="font-mono text-[#0e140e]">
                 {formatMoney(
                   sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
@@ -541,7 +558,9 @@ export function ReceiptTicket({
                 )}
               </dd>
             </div>
-            {sale?.paymentMethod === "CASH" && (
+            {/* Only where there is a sale record to read it from: an order
+                on its own does not remember what was handed over. */}
+            {paymentMethod === "CASH" && sale && (
               <div className="flex justify-between gap-4">
                 <dt>Change / អាប់</dt>
                 <dd className="font-mono text-[#0e140e]">

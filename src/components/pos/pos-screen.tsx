@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PackageOpen, Search, ShoppingCart, X } from "lucide-react";
 
 import type { Item } from "@/types/pos-type";
-import type { PosOrder, Sale } from "@/lib/api/pos-order";
+import { baseUnitsOf, type PosOrder, type Sale } from "@/lib/api/pos-order";
 import type { ChannelItem } from "@/lib/api/sales-channels";
 import { itemThumbnail } from "@/lib/api/inventory";
 
@@ -17,13 +17,14 @@ import { ReceiptDetailView } from "@/components/pos/order/receipt-detail-view";
 import { ReceiptsList } from "@/components/pos/order/receipt-list";
 import { OrdersList } from "@/components/pos/order/order-list";
 import PosButton, { type PosTab } from "@/components/pos/pos-button";
+import type { PosCategoryOption } from "@/components/pos/navbar-pos/navbar";
 import { OrderTable } from "@/components/pos/order/order-table";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { linesOf } from "@/components/sales/pricing/channel-lines";
 import { authClient } from "@/lib/auth/auth-client";
 import { useSessionSubject } from "@/lib/auth/session-context";
-import { useCreateNotificationMutation } from "@/services/notificationApi";
+import { useNotifyWithPush } from "@/hooks/useNotifyWithPush";
 import { useCustomerDisplaySync } from "@/hooks/useCustomerDisplaySync";
 import {
   useBarcodeKeyboard,
@@ -34,7 +35,12 @@ import {
   matchScan,
   variantOf,
 } from "@/lib/pos/barcode-match";
-import { playScanAccepted, playScanRejected } from "@/lib/pos/scan-sound";
+import {
+  playPaid,
+  playScanAccepted,
+  playScanRejected,
+  playTick,
+} from "@/lib/pos/sounds";
 import { useGetDiscountsQuery } from "@/services/discountApi";
 import {
   useGetCurrentStockQuery,
@@ -42,12 +48,35 @@ import {
 } from "@/services/inventoryApi";
 import { useGetChannelStockAvailabilityQuery } from "@/services/salesChannelApi";
 import { channelAvailabilityMap } from "@/lib/api/channel-stock";
-import {
-  useAddOrderItemMutation,
-  useGetCurrentOrderQuery,
-} from "@/services/posOrderApi";
+import { useCartActions, useCurrentCart } from "@/lib/pos/use-cart";
+import { toPosOrder } from "@/lib/pos/local-cart";
 
 const TABS_WITH_CART: PosTab[] = ["Point of Sale", "Order"];
+
+/**
+ * How few is few enough to say so, when the item itself does not say.
+ *
+ * An item carries its own `lowStockDefault` once someone has set one. Until
+ * then the till still has to draw the line somewhere, and drawing it at five
+ * is close enough to a shift's worth of a fast-moving item to be worth a
+ * cashier's attention without labelling half the grid.
+ */
+const DEFAULT_LOW_STOCK = 5;
+
+/**
+ * Whether there is a shelf behind this item at all.
+ *
+ * A service or a download has none, so no count says anything about whether
+ * it can be sold, and an item the shop has switched off inventory for is one
+ * it has asked not to be counted.
+ */
+function countsStock(entry: ChannelItem) {
+  if (entry.item.trackInventory === false) return false;
+
+  const itemType = entry.item.itemType;
+
+  return itemType !== "SERVICE" && itemType !== "DIGITAL";
+}
 
 /**
  * Whether ringing this up is a question rather than an answer.
@@ -87,6 +116,9 @@ export interface PosScreenProps {
   onClearFilters: () => void;
   /** Lets a scan that landed in the search box wipe itself back out. */
   onSearchQueryChange?: (value: string) => void;
+  /** For the small-screen filter row; the navbar owns the wide-screen one. */
+  categories?: PosCategoryOption[];
+  onCategoryChange?: (categoryId: string) => void;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
   registerCurrency?: string;
@@ -99,6 +131,8 @@ export function PosScreen({
   selectedCategoryId,
   onClearFilters,
   onSearchQueryChange,
+  categories = [],
+  onCategoryChange,
   currentRegisterUser,
   registerCashSales,
   registerCurrency,
@@ -112,13 +146,30 @@ export function PosScreen({
   const [activeDiscountLabel, setActiveDiscountLabel] = useState<string | null>(null);
 
   useEffect(() => {
+    // What the poll last saw. The rule is written by other components in this
+    // same tab, where no `storage` event fires, so the till still has to look
+    // — but it re-renders only when the stored text has actually changed.
+    // Setting state on every tick re-rendered this whole screen, item grid
+    // and all, once a second for the length of a shift.
+    let lastSeen: string | null | undefined;
+
     const updateDiscountLabel = () => {
+      let raw: string | null = null;
       try {
-        const raw = localStorage.getItem("pos_store_default_discount");
+        raw = localStorage.getItem("pos_store_default_discount");
+      } catch {
+        raw = null;
+      }
+
+      if (raw === lastSeen) return;
+      lastSeen = raw;
+
+      try {
         if (raw) {
           const rule = JSON.parse(raw);
           if (rule?.isCoupon || rule?.discountCode) {
             localStorage.removeItem("pos_store_default_discount");
+            lastSeen = null;
             setActiveDiscountLabel(null);
           } else {
             setActiveDiscountLabel(rule.label || "Active");
@@ -143,12 +194,17 @@ export function PosScreen({
   const { isOnline, cacheStockList, getCachedStockList } = usePosOffline();
   const { data: remoteStockList = [] } = useGetCurrentStockQuery();
   const [cachedStockList, setCachedStockList] = useState<any[]>([]);
+  /** Bumped when a sale has changed the cached balances under us. */
+  const [stockCacheVersion, setStockCacheVersion] = useState(0);
 
   useEffect(() => {
-    if (remoteStockList && remoteStockList.length > 0) {
+    // Only while connected. Offline, Redux is still holding the figures from
+    // before the connection dropped, and writing those back over the cache
+    // would undo every deduction the outage's own sales have made to it.
+    if (isOnline && remoteStockList && remoteStockList.length > 0) {
       void cacheStockList(remoteStockList);
     }
-  }, [remoteStockList, cacheStockList]);
+  }, [isOnline, remoteStockList, cacheStockList]);
 
   useEffect(() => {
     let isMounted = true;
@@ -162,9 +218,26 @@ export function PosScreen({
     return () => {
       isMounted = false;
     };
-  }, [isOnline, remoteStockList.length, getCachedStockList]);
+  }, [isOnline, remoteStockList.length, getCachedStockList, stockCacheVersion]);
 
-  const currentStockList = remoteStockList.length > 0 ? remoteStockList : cachedStockList;
+  /**
+   * The balances the ceiling is measured against.
+   *
+   * Offline the cached list wins even though Redux still has an answer: the
+   * cache is the one each offline sale is deducted from, so it knows about the
+   * hundred sold during the outage and the stale server figures do not.
+   */
+  const currentStockList =
+    !isOnline && cachedStockList.length > 0
+      ? cachedStockList
+      : remoteStockList.length > 0
+        ? remoteStockList
+        : cachedStockList;
+
+  // The same cart row the panel renders, so the mobile bar can never disagree
+  // with the panel behind it — and read before the grid, which counts stock
+  // down by what this cart already holds.
+  const { order: currentOrder } = useCurrentCart();
 
   const stockByItemId = useMemo(() => {
     const map = new Map<string, number>();
@@ -209,7 +282,7 @@ export function PosScreen({
    * till may sell: the counter cannot sell past its share, and nobody can sell
    * what is not on the shelf.
    */
-  const stockFor = useCallback(
+  const shelfStockFor = useCallback(
     (itemId: string, variantId?: string) => {
       const key = variantId ? `${itemId}:${variantId}` : itemId;
       const onHand = stockByItemId.get(key);
@@ -241,6 +314,53 @@ export function PosScreen({
   );
 
   /**
+   * What the cart has already spoken for, keyed the way stock is.
+   *
+   * A line sold in a pack takes its whole factor off the shelf rather than one
+   * unit, so a case of twelve is twelve.
+   */
+  const claimedByCart = useMemo(() => {
+    const claimed = new Map<string, number>();
+
+    currentOrder?.items.forEach((line) => {
+      const taken = baseUnitsOf(line);
+
+      claimed.set(line.itemId, (claimed.get(line.itemId) ?? 0) + taken);
+
+      // An option comes off its own shelf as well as the item's total.
+      if (line.variantId) {
+        const key = `${line.itemId}:${line.variantId}`;
+        claimed.set(key, (claimed.get(key) ?? 0) + taken);
+      }
+    });
+
+    return claimed;
+  }, [currentOrder]);
+
+  /**
+   * How many more the till may ring up: what is on the shelf, less what the
+   * cart already holds.
+   *
+   * A cart is stock that has not been taken off the shelf yet. Counting from
+   * the shelf alone lets a cashier ring up five of the three that exist and
+   * find out only when payment is refused, in front of the customer. Every
+   * reader of this — the grid, the option picker, the scanner — asks the same
+   * question, so they all answer the same way.
+   */
+  const stockFor = useCallback(
+    (itemId: string, variantId?: string) => {
+      const onShelf = shelfStockFor(itemId, variantId);
+
+      if (onShelf === undefined) return undefined;
+
+      const key = variantId ? `${itemId}:${variantId}` : itemId;
+
+      return Math.max(0, onShelf - (claimedByCart.get(key) ?? 0));
+    },
+    [claimedByCart, shelfStockFor],
+  );
+
+  /**
    * Whether there is nothing left to sell.
    *
    * Never stocked in counts as out, not as unknown: an item the shop has not
@@ -255,11 +375,7 @@ export function PosScreen({
    */
   const outOfStock = useCallback(
     (entry: ChannelItem) => {
-      if (entry.item.trackInventory === false) return false;
-
-      const itemType = entry.item.itemType;
-
-      if (itemType === "SERVICE" || itemType === "DIGITAL") return false;
+      if (!countsStock(entry)) return false;
 
       const stockVal = stockFor(entry.item.id);
       if (stockVal === undefined) return false;
@@ -271,11 +387,37 @@ export function PosScreen({
 
   const { data: discounts = [] } = useGetDiscountsQuery();
 
+  /**
+   * Same window the backend checks when the discount is actually applied
+   * (`OrderServiceImpl.validateDiscountForOrder`) — schedule and day-of-week
+   * included, not just the status toggle. Without those two, a discount
+   * outside its own date range or restricted to days that aren't today still
+   * showed here as pickable, and the backend correctly refused it at
+   * checkout with a 409 the cashier had no way to see coming.
+   */
   const activePosDiscounts = useMemo(() => {
+    const now = new Date();
+    const today = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][
+      now.getDay()
+    ];
+
     return discounts.filter((d) => {
       if (d.status !== "ACTIVE" || d.requiresCoupon) return false;
-      if (d.applicableChannels && d.applicableChannels.length > 0) {
-        return d.applicableChannels.includes("POS");
+      if (
+        d.applicableChannels &&
+        d.applicableChannels.length > 0 &&
+        !d.applicableChannels.includes("POS")
+      ) {
+        return false;
+      }
+      if (d.startsAt && now < new Date(d.startsAt)) return false;
+      if (d.endsAt && now > new Date(d.endsAt)) return false;
+      if (
+        d.selectedDays &&
+        d.selectedDays.length > 0 &&
+        !d.selectedDays.includes(today)
+      ) {
+        return false;
       }
       return true;
     });
@@ -350,6 +492,12 @@ export function PosScreen({
           }
         }
 
+        const stockLeft = countsStock(entry)
+          ? stockFor(entry.item.id)
+          : undefined;
+        const lowStockThreshold =
+          entry.item.lowStockDefault ?? DEFAULT_LOW_STOCK;
+
         return {
           id: entry.item.id,
           business_owner_id: "",
@@ -368,14 +516,33 @@ export function PosScreen({
               : outOfStock(entry)
                 ? "Out of stock"
                 : undefined,
+          // Zero is left to the "Out of stock" ribbon, which says the same
+          // thing in the words a cashier needs.
+          lowStockLeft:
+            stockLeft !== undefined &&
+            stockLeft > 0 &&
+            stockLeft <= lowStockThreshold
+              ? // Trimmed, not rounded: a shelf holding 4.5 says 4.5, but a
+                // subtraction that lands on 41.99999 does not say so.
+                Number(stockLeft.toFixed(2))
+              : undefined,
+          stockUnit: entry.item.unit?.symbol ?? entry.item.unit?.name,
         };
       });
-  }, [channelItems, searchQuery, selectedCategoryId, outOfStock, activePosDiscounts, format]);
+  }, [
+    channelItems,
+    searchQuery,
+    selectedCategoryId,
+    outOfStock,
+    stockFor,
+    activePosDiscounts,
+    format,
+  ]);
 
   const filtersAreActive =
     searchQuery.trim().length > 0 || selectedCategoryId !== "ALL";
 
-  const [addOrderItem] = useAddOrderItemMutation();
+  const { addItem: addCartLine } = useCartActions();
   const { toast } = useToast();
 
   /** The full item behind each card: options, packs and the base unit. */
@@ -391,37 +558,35 @@ export function PosScreen({
     async (input: {
       itemId: string;
       variantId?: string;
+      variantName?: string;
       unitId?: string;
-      addOnIds?: string[];
+      unitName?: string;
+      unitFactor?: number;
+      addOns?: { addOnId: string; name: string; unitPrice: number }[];
       itemName: string;
       unitPrice: number;
     }) => {
-      // The order it comes back as, so a caller can say what the line now
-      // holds — a scanner ringing the same code four times has to report four.
-      try {
-        return await addOrderItem({
-          itemId: input.itemId,
-          ...(input.variantId ? { variantId: input.variantId } : {}),
-          ...(input.unitId ? { unitId: input.unitId } : {}),
-          ...(input.addOnIds?.length ? { addOnIds: input.addOnIds } : {}),
-          quantity: 1,
-          itemName: input.itemName,
-          unitPrice: input.unitPrice,
-        }).unwrap();
-      } catch (error) {
-        if (typeof window !== "undefined" && !navigator.onLine) {
-          // Offline mode: Item added to local optimistic cart state successfully
-          return undefined;
-        }
-        toast({
-          tone: "error",
-          title: "Could not add that item",
-          description: getApiErrorMessage(error, "Please try again."),
-        });
-        return undefined;
-      }
+      // The cart it comes back as, so a caller can say what the line now holds
+      // — a scanner ringing the same code four times has to report four. It is
+      // the saved cart, not a guess at one: the write has already happened.
+      const cart = await addCartLine({
+        itemId: input.itemId,
+        variantId: input.variantId ?? null,
+        variantName: input.variantName ?? null,
+        unitId: input.unitId ?? null,
+        unitName: input.unitName ?? null,
+        unitFactor: input.unitFactor ?? null,
+        addOns: input.addOns ?? [],
+        itemName: input.itemName,
+        unitPrice: input.unitPrice,
+        quantity: 1,
+        trackInventory:
+          channelItemsById.get(input.itemId)?.item.trackInventory ?? null,
+      });
+
+      return toPosOrder(cart);
     },
-    [addOrderItem, toast],
+    [addCartLine, channelItemsById],
   );
 
   const addItem = useCallback(
@@ -651,10 +816,6 @@ export function PosScreen({
     isPaused: scanningPaused,
   });
 
-  // The same cached order the cart panel renders, so the mobile bar can never
-  // disagree with the panel behind it.
-  const { data: currentOrder } = useGetCurrentOrderQuery();
-
   useCustomerDisplaySync({
     businessId: paidReceipt?.order.businessId || currentOrder?.businessId,
     terminalId: "term_default",
@@ -668,13 +829,21 @@ export function PosScreen({
   const cartTotal = currentOrder?.total ?? 0;
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
-  const [createNotification] = useCreateNotificationMutation();
+  const createNotification = useNotifyWithPush();
   const { data: session } = authClient.useSession();
   /* The backend matches receiverId against the Keycloak subject, not against
      Better Auth's local user.id. */
   const subject = useSessionSubject();
 
   const handlePaymentSuccess = (order: PosOrder, sale: Sale) => {
+    playPaid();
+
+    // The offline checkout has just taken these items off the cached balances.
+    // Read them back, or the next cart of the outage is counted against stock
+    // this one has already sold.
+    if (!isOnline) {
+      setStockCacheVersion((version) => version + 1);
+    }
     setPaidReceipt({ order, sale });
     setActiveTab("Point of Sale");
     setMobileCartOpen(false);
@@ -769,7 +938,11 @@ export function PosScreen({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-clip bg-[#f5f5f5] min-[1025px]:flex-row">
-      <div className="flex min-h-0 flex-1 flex-col overflow-clip">
+      {/* `min-w-0`: a flex item defaults to `min-width: auto`, so this column
+          refuses to go below the grid's min-content width and pushes the cart
+          off the right edge — where the row's `overflow-clip` cuts it off
+          rather than scrolling to it. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-clip">
         <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-20 [-ms-overflow-style:none] min-[1025px]:pb-0 [&::-webkit-scrollbar]:hidden">
           {activeTab === "Point of Sale" &&
             (paidReceipt ? (
@@ -780,6 +953,42 @@ export function PosScreen({
               />
             ) : (
               <div data-tour="pos-search-grid" className="px-3 pt-4 sm:px-6 sm:pt-6 min-[1025px]:px-[25px] min-[1025px]:pt-8">
+                {/* The navbar's category dropdown lives in a block that only
+                    renders at 1025px, leaving every smaller screen with no way
+                    to filter at all. Chips rather than a select: they are a
+                    single tap on a counter tablet, and they show what is on
+                    offer without opening anything. */}
+                {categories.length > 0 && (
+                  <div className="sticky top-0 z-20 -mx-3 mb-4 bg-[#f5f5f5]/95 px-3 pb-2 backdrop-blur-sm sm:-mx-6 sm:px-6 min-[1025px]:hidden">
+                    <div
+                      className="scrollbar-none flex gap-2 overflow-x-auto"
+                      role="group"
+                      aria-label="Filter by category"
+                    >
+                      {[{ id: "ALL", name: "All" }, ...categories].map(
+                        (category) => {
+                          const isActive = selectedCategoryId === category.id;
+
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => onCategoryChange?.(category.id)}
+                              className={`h-9 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                isActive
+                                  ? "border-primary bg-primary text-white"
+                                  : "border-gray-200 bg-white text-gray-600 active:bg-gray-50"
+                              }`}
+                            >
+                              {category.name}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+                )}
                 {isLoading ? (
                   <div className="text-sm text-gray-400">
                     Loading items…
@@ -823,7 +1032,11 @@ export function PosScreen({
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 min-[900px]:grid-cols-5 min-[1025px]:grid-cols-5 min-[1025px]:gap-x-[13px]">
+                  /* Column counts drop at 1025px rather than climbing: that is
+                     where the cart takes its 500px off the side, so the grid
+                     gets less room than it had at 1024px, not more. They climb
+                     again as the window grows past what the cart needs. */
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 min-[900px]:grid-cols-5 min-[1025px]:grid-cols-3 min-[1025px]:gap-x-[13px] min-[1280px]:grid-cols-4 min-[1600px]:grid-cols-5">
                     {items.map((item) => (
                       <PosCard
                         key={item.id}
@@ -870,6 +1083,7 @@ export function PosScreen({
         <PosButton
           active={activeTab}
           onChange={(tab) => {
+            playTick();
             setActiveTab(tab);
             setOpenReceiptId(null);
           }}
@@ -893,6 +1107,7 @@ export function PosScreen({
       {showCart && (
         <div className="scrollbar-hide hidden w-[43.4vw] max-w-[625px] min-w-[500px] shrink-0 overflow-y-auto border-l border-[#d9d9d9] bg-white/90 min-[1025px]:flex min-[1025px]:flex-col">
           <OrderTable
+            stockFor={stockFor}
             onPaymentSuccess={handlePaymentSuccess}
             onOrderCreated={handleOrderCreated}
             isEditingOrder={editingOrderId !== null}
@@ -934,6 +1149,7 @@ export function PosScreen({
           </div>
           <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
             <OrderTable
+              stockFor={stockFor}
               onPaymentSuccess={handlePaymentSuccess}
               onOrderCreated={handleOrderCreated}
               isEditingOrder={editingOrderId !== null}
@@ -963,8 +1179,13 @@ export function PosScreen({
           await sendItem({
             itemId: chosen.item.id,
             ...(choice.variantId ? { variantId: choice.variantId } : {}),
+            ...(choice.variantName ? { variantName: choice.variantName } : {}),
             ...(choice.unitId ? { unitId: choice.unitId } : {}),
-            ...(choice.addOnIds?.length ? { addOnIds: choice.addOnIds } : {}),
+            ...(choice.unitName ? { unitName: choice.unitName } : {}),
+            ...(choice.unitFactor != null
+              ? { unitFactor: choice.unitFactor }
+              : {}),
+            ...(choice.addOns?.length ? { addOns: choice.addOns } : {}),
             itemName: choice.label,
             unitPrice: choice.unitPrice,
           });

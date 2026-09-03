@@ -1,20 +1,19 @@
 import { useState } from "react";
 import {
+    ArrowDownToLine,
+    ArrowUpFromLine,
     ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    Circle,
     SlidersHorizontal,
 } from "lucide-react";
 
 import { InventoryEmpty } from "@/components/inventory/InventoryUi";
 import { Button } from "@/components/ui/button";
-import { SelectField } from "@/components/ui/select-field";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { stockStateLabels, type StockState } from "@/lib/api/inventory";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
 
-const pageSizes = [10, 25, 50, 100];
+const pageSizes = [10, 20, 25, 50, 100];
 
 const stateClassName: Record<StockState, string> = {
     OUT: "bg-danger/10 text-danger",
@@ -135,7 +134,7 @@ function StockItemAddOnsTreeRow({
                                     onClick={() => onStockIn(addOn.id)}
                                     aria-label={`Stock in ${addOn.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowDownToLine className="size-3.5" />
                                     In
                                 </Button>
                             ) : null}
@@ -153,7 +152,7 @@ function StockItemAddOnsTreeRow({
                                     onClick={() => onStockOut(addOn.id)}
                                     aria-label={`Stock out ${addOn.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowUpFromLine className="size-3.5" />
                                     Out
                                 </Button>
                             ) : null}
@@ -235,7 +234,7 @@ function StockItemOptionsRow({
                                     onClick={() => onStockIn(row.id, option.id)}
                                     aria-label={`Stock in ${row.name} ${option.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowDownToLine className="size-3.5" />
                                     In
                                 </Button>
                             ) : null}
@@ -253,7 +252,7 @@ function StockItemOptionsRow({
                                     onClick={() => onStockOut(row.id, option.id)}
                                     aria-label={`Stock out ${row.name} ${option.name}`}
                                 >
-                                    <Circle className="size-2 fill-current text-primary" />
+                                    <ArrowUpFromLine className="size-3.5" />
                                     Out
                                 </Button>
                             ) : null}
@@ -319,7 +318,7 @@ export function StockLevelTable({
     const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
         new Set(),
     );
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
 
     /**
@@ -336,7 +335,7 @@ export function StockLevelTable({
 
     if (listedRows !== rowsSignature) {
         setListedRows(rowsSignature);
-        setPage(1);
+        setPage(0);
     }
 
     const toggleRowAddOns = (id: string) => {
@@ -388,8 +387,8 @@ export function StockLevelTable({
         ? sections
         : rows.map((row) => ({ group: undefined, rows: [row] }));
     const pageCount = Math.max(1, Math.ceil(pageUnits.length / pageSize));
-    const currentPage = Math.min(page, pageCount);
-    const firstIndex = (currentPage - 1) * pageSize;
+    const currentPage = Math.min(Math.max(0, page), pageCount - 1);
+    const firstIndex = currentPage * pageSize;
     const visibleUnits = pageUnits.slice(firstIndex, firstIndex + pageSize);
     const allCollapsed =
         isGrouped &&
@@ -438,8 +437,205 @@ export function StockLevelTable({
                     </Button>
                 </div>
             ) : null}
+            {/* Mobile Cards View (< md) */}
+            <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                {visibleUnits.map((section) => {
+                    const group = section.group;
+                    const collapsed = group
+                        ? collapsedGroupIds.has(group.id)
+                        : false;
 
-            <div data-tour="stock-table-container" className="overflow-x-auto">
+                    return (
+                        <div key={`mob-group-${group?.id ?? "ungrouped"}`} className="space-y-3">
+                            {group && (
+                                <button
+                                    type="button"
+                                    onClick={() => toggleGroup(group.id)}
+                                    className="flex w-full items-center justify-between px-2 py-1 text-left cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <ChevronDown
+                                            className={cn(
+                                                "size-4 text-muted-foreground transition-transform duration-200",
+                                                collapsed ? "-rotate-90" : "rotate-0"
+                                            )}
+                                        />
+                                        <span className="text-xs font-bold text-foreground uppercase tracking-wide">
+                                            {group.label}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">({section.rows.length})</span>
+                                    </div>
+                                    {group.hint && (
+                                        <span className="text-[11px] text-muted-foreground">{group.hint}</span>
+                                    )}
+                                </button>
+                            )}
+
+                            {!collapsed && (
+                                <div className="space-y-3">
+                                    {section.rows.map((row) => {
+                                        const rowKey = `${section.group?.id ?? ""}:${row.id}`;
+                                        const expandable = Boolean(
+                                            row.options?.length || row.addOns?.length,
+                                        );
+                                        const isExpanded =
+                                            expandable && expandedRowIds.has(rowKey);
+
+                                        return (
+                                            <div
+                                                key={`mob-row-${rowKey}`}
+                                                className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
+                                            >
+                                                {/* Card Header */}
+                                                <div className="flex items-start justify-between gap-2.5 p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                        <span className="font-bold text-sm text-foreground dark:text-white break-words">
+                                                            {row.name}
+                                                        </span>
+                                                        {row.subtitle && (
+                                                            <p className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                                                                {row.subtitle}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <span
+                                                        className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${stateClassName[row.state]}`}
+                                                    >
+                                                        {stockStateLabels[row.state]}
+                                                    </span>
+                                                </div>
+
+                                                {/* Card Key-Value Rows */}
+                                                <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                        <span className="text-muted-foreground dark:text-slate-400">On Hand</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="font-bold text-foreground dark:text-white">
+                                                                {formatAmount(row.onHand)} {row.unitLabel}
+                                                            </span>
+                                                            {row.pendingChange !== 0 && (
+                                                                <span
+                                                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                                                        row.pendingChange > 0
+                                                                            ? "bg-success/10 text-success"
+                                                                            : "bg-warning/15 text-warning"
+                                                                    }`}
+                                                                >
+                                                                    {row.pendingChange > 0 ? "+" : ""}
+                                                                    {formatAmount(row.pendingChange)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                        <span className="text-muted-foreground dark:text-slate-400">Warn Below</span>
+                                                        <span className="text-foreground dark:text-slate-200">
+                                                            {formatAmount(row.threshold)} {row.unitLabel}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                        <span className="text-muted-foreground dark:text-slate-400">{valueColumnLabel}</span>
+                                                        <span className="font-medium text-foreground dark:text-slate-200">
+                                                            {row.valueAtCost === undefined ? "No cost yet" : formatValue(row.valueAtCost)}
+                                                        </span>
+                                                    </div>
+
+                                                    {expandable && (
+                                                        <div className="px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleRowAddOns(rowKey)}
+                                                                className="w-full flex items-center justify-between text-xs font-semibold text-primary hover:underline cursor-pointer"
+                                                            >
+                                                                <span>Options & Add-ons</span>
+                                                                <ChevronDown
+                                                                    className={cn(
+                                                                        "size-4 transition-transform duration-200",
+                                                                        isExpanded ? "rotate-180" : "rotate-0"
+                                                                    )}
+                                                                />
+                                                            </button>
+
+                                                            {isExpanded && (
+                                                                <div className="mt-3 pt-3 border-t border-border/60">
+                                                                    {row.options?.length ? (
+                                                                        <StockItemOptionsRow
+                                                                            row={row}
+                                                                            onStockIn={onStockIn}
+                                                                            onStockOut={onStockOut}
+                                                                        />
+                                                                    ) : null}
+                                                                    {row.addOns?.length ? (
+                                                                        <StockItemAddOnsTreeRow
+                                                                            row={row}
+                                                                            onStockIn={onStockIn}
+                                                                            onStockOut={onStockOut}
+                                                                        />
+                                                                    ) : null}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Card Action Row */}
+                                                {hasActions && (
+                                                    <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30 border-t border-border/70 dark:border-slate-800/80">
+                                                        {onStockIn && !row.options?.length && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 px-2.5 text-xs gap-1.5 rounded-full"
+                                                                onClick={() => onStockIn(row.id)}
+                                                                aria-label={`Stock in ${row.name}`}
+                                                            >
+                                                                <ArrowDownToLine className="size-3" />
+                                                                In
+                                                            </Button>
+                                                        )}
+                                                        {onStockOut && !row.options?.length && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 px-2.5 text-xs gap-1.5 rounded-full"
+                                                                disabled={row.onHand <= 0}
+                                                                onClick={() => onStockOut(row.id)}
+                                                                aria-label={`Stock out ${row.name}`}
+                                                            >
+                                                                <ArrowUpFromLine className="size-3" />
+                                                                Out
+                                                            </Button>
+                                                        )}
+                                                        {onViewBatches && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground rounded-full"
+                                                                onClick={() => onViewBatches(row.id)}
+                                                            >
+                                                                Batches
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div data-tour="stock-table-container" className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-md text-xs font-semibold tracking-wide text-muted-foreground uppercase border-b border-border">
                     <tr>
@@ -626,7 +822,7 @@ export function StockLevelTable({
                                                         onClick={() => onStockIn(row.id)}
                                                         aria-label={`Stock in ${row.name}`}
                                                     >
-                                                        <Circle className="size-2 fill-current text-primary" />
+                                                        <ArrowDownToLine className="size-3.5" />
                                                         In
                                                     </Button>
                                                 ) : null}
@@ -645,7 +841,7 @@ export function StockLevelTable({
                                                         onClick={() => onStockOut(row.id)}
                                                         aria-label={`Stock out ${row.name}`}
                                                     >
-                                                        <Circle className="size-2 fill-current text-primary" />
+                                                        <ArrowUpFromLine className="size-3.5" />
                                                         Out
                                                     </Button>
                                                 ) : null}
@@ -669,99 +865,58 @@ export function StockLevelTable({
 
                             if (!isExpanded) return [mainRow];
 
-                            const treeRow = (
-                                <tr key={`${rowKey}-addons-tree`} className="bg-muted/20">
-                                    <td colSpan={columnCount} className="px-5 py-4 border-b border-border">
-                                        <>
-                                            {row.options?.length ? (
-                                                <StockItemOptionsRow
-                                                    row={row}
-                                                    onStockIn={onStockInOption}
-                                                    onStockOut={onStockOutOption}
-                                                />
-                                            ) : null}
-                                            {row.addOns?.length ? (
-                                                <StockItemAddOnsTreeRow
-                                                    row={row}
-                                                    onStockIn={onStockInAddOn}
-                                                    onStockOut={onStockOutAddOn}
-                                                />
-                                            ) : null}
-                                        </>
+                            const addOnsTreeRow = (
+                                <tr
+                                    key={`${rowKey}-addons-tree`}
+                                    className="bg-muted/20"
+                                >
+                                    <td
+                                        colSpan={columnCount}
+                                        className="border-b border-border px-5 py-4"
+                                    >
+                                        {row.options?.length ? (
+                                            <StockItemOptionsRow
+                                                row={row}
+                                                onStockIn={onStockIn}
+                                                onStockOut={onStockOut}
+                                            />
+                                        ) : null}
+                                        {row.addOns?.length ? (
+                                            <StockItemAddOnsTreeRow
+                                                row={row}
+                                                onStockIn={onStockIn}
+                                                onStockOut={onStockOut}
+                                            />
+                                        ) : null}
                                     </td>
                                 </tr>
                             );
 
-                            return [mainRow, treeRow];
+                            return [mainRow, addOnsTreeRow];
                         });
 
-                        return heading
-                            ? [heading, ...sectionRows]
-                            : sectionRows;
+                        return heading ? [heading, ...sectionRows] : sectionRows;
                     })}
                 </tbody>
             </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="first-letter:uppercase">
-                        {pageUnitNoun} per page
-                    </span>
-                    <SelectField
-                        id={`stock-page-size-${pageUnitNoun}`}
-                        name={`stock-page-size-${pageUnitNoun}`}
-                        value={String(pageSize)}
-                        onValueChange={(value) => {
-                            setPageSize(Number(value));
-                            setPage(1);
-                        }}
-                        options={pageSizes.map((size) => ({
-                            value: String(size),
-                            label: String(size),
-                        }))}
-                        className="h-9 w-20 rounded-xl"
-                    />
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <p className="text-sm text-muted-foreground">
-                        {firstIndex + 1}–{firstIndex + visibleUnits.length} of{" "}
-                        {pageUnits.length} {pageUnitNoun}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            aria-label="Previous page"
-                            disabled={currentPage <= 1}
-                            onClick={() =>
-                                setPage((current) => Math.max(1, current - 1))
-                            }
-                        >
-                            <ChevronLeft />
-                        </Button>
-                        <span className="text-sm font-medium text-foreground">
-                            Page {currentPage} of {pageCount}
-                        </span>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            aria-label="Next page"
-                            disabled={currentPage >= pageCount}
-                            onClick={() =>
-                                setPage((current) =>
-                                    Math.min(pageCount, current + 1),
-                                )
-                            }
-                        >
-                            <ChevronRight />
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            {pageUnits.length > 0 && (
+                <PaginationBar
+                    page={currentPage}
+                    size={pageSize}
+                    totalElements={pageUnits.length}
+                    totalPages={pageCount}
+                    onPageChange={setPage}
+                    onSizeChange={(size) => {
+                        setPageSize(size);
+                        setPage(0);
+                    }}
+                    sizeOptions={pageSizes}
+                    itemLabel={pageUnitNoun.replace(/s$/, "")}
+                    itemLabelPlural={pageUnitNoun}
+                />
+            )}
         </div>
     );
 }

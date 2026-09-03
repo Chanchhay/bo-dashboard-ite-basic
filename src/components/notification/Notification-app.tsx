@@ -255,8 +255,8 @@ export default function NotificationsApp() {
 
     return (
         <div className="flex flex-col gap-6 pb-8">
-            {/* Sticky Top: Header & Stat Cards */}
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4">
+            {/* Header & Stat Cards (sticky on desktop only) */}
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-4">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>

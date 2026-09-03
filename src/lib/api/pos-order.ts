@@ -17,6 +17,8 @@ export type PosOrderItem = {
     selections?: { attributeName: string; value: string; label: string }[];
     itemName: string;
     quantity: number;
+    /** How many of `quantity` a Buy X Get Y offer gave away — 0 for an ordinary line. */
+    freeQuantity?: number;
     unitPrice: number;
     discountAmount: number;
     /** Name of the discount that produced discountAmount for this line, if any. */
@@ -24,6 +26,21 @@ export type PosOrderItem = {
     lineTotal: number;
     trackInventory?: boolean | null;
 };
+
+/**
+ * What a line actually takes off the shelf, in the units stock is counted in.
+ *
+ * A pack is its whole factor: five bags of 10.5 are 52.5 apples, not five of
+ * anything. The cart's ceiling and the deduction made when a sale is settled
+ * have to agree on this figure — when they disagreed, the till refused the
+ * sixth bag and then handed the same stock back the moment the sale was paid.
+ */
+export function baseUnitsOf(line: {
+    quantity: number;
+    unitFactor?: number | null;
+}) {
+    return line.quantity * (line.unitFactor ?? 1);
+}
 
 export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
 
@@ -101,7 +118,7 @@ export type OrderPageQuery = OrderHistoryQuery & {
 };
 
 
-export const ORDER_PAGE_SIZES = [10, 25, 50] as const;
+export const ORDER_PAGE_SIZES = [10, 20, 25, 50, 100] as const;
 
 
 export const DEFAULT_PAGE_SIZE: (typeof ORDER_PAGE_SIZES)[number] = 25;

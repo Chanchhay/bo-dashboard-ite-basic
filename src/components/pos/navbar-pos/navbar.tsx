@@ -15,8 +15,10 @@ import {
   LayoutDashboard,
   Monitor,
   ShoppingBag,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
@@ -25,6 +27,7 @@ import { TourButton } from "@/components/onboarding/TourButton";
 import UserMenu from "@/components/layout/UserMenu";
 import { NotificationMenu } from "@/components/notification/Notification";
 import { usePosOffline } from "@/lib/offline/usePosOffline";
+import { isMuted, setMuted, subscribeMuted } from "@/lib/pos/sounds";
 import {
   Select,
   SelectContent,
@@ -87,12 +90,30 @@ export function Navbar({
           isOnline={isOnline}
         />
 
+        {/*
+          * The way out is shut while the connection is.
+          *
+          * The terminal is the only screen kept on the device; the dashboard
+          * behind this is fetched, so leaving mid-outage lands the cashier on
+          * a page that cannot load and no obvious way back to the till they
+          * were serving from. The cart survives — it is a row in IndexedDB —
+          * but the till is what they need, not a reload.
+          */}
         <button
           type="button"
+          disabled={!isOnline}
           onClick={() => router.push(SALES_HOME)}
-          title="Back to sales dashboard"
-          aria-label="Back to sales dashboard"
-          className="flex h-7 sm:h-9 w-auto shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          title={
+            isOnline
+              ? "Back to sales dashboard"
+              : "No connection — the dashboard cannot load. Stay on the till."
+          }
+          aria-label={
+            isOnline
+              ? "Back to sales dashboard"
+              : "Back to sales dashboard, unavailable while offline"
+          }
+          className="flex h-7 sm:h-9 w-auto shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
         >
           <BrandLogo variant="wordmark" alt="" preload className="h-6 sm:h-7 lg:h-8 w-auto shrink-0" />
         </button>
@@ -138,6 +159,8 @@ export function Navbar({
           <span className="hidden sm:inline">Cash Register Open</span>
           <span className="sr-only sm:hidden">Close register</span>
         </button>
+
+        <SoundToggle />
 
         <div className="hidden items-center gap-1.5 text-xs lg:text-sm text-gray-700 dark:text-gray-200 font-medium xl:flex">
           <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
@@ -288,14 +311,20 @@ function MobileMenu({
             <div className="flex flex-col gap-2 px-4 pb-4 pt-1">
               <button
                 type="button"
+                disabled={!isOnline}
                 onClick={() => {
                   setIsOpen(false);
                   router.push(SALES_HOME);
                 }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                title={
+                  isOnline
+                    ? undefined
+                    : "No connection — the dashboard cannot load."
+                }
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
-                Back to dashboard
+                {isOnline ? "Back to dashboard" : "Dashboard needs a connection"}
               </button>
               <button
                 type="button"
@@ -452,7 +481,10 @@ function MobileSearchTrigger({
   }, [isOpen]);
 
   return (
-    <div className="flex items-center min-[901px]:hidden">
+    /* Through 1024px: the inline search in the centre block only appears at
+       1025px, so anything narrower — iPad landscape included — has no other
+       way to search. */
+    <div className="flex items-center min-[1025px]:hidden">
       <button
         type="button"
         onClick={() => setIsOpen(true)}
@@ -491,6 +523,42 @@ function MobileSearchTrigger({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Silences the till.
+ *
+ * Read through `useSyncExternalStore` rather than mirrored into state, so the
+ * button and the sound module cannot disagree about whether sound is on. The
+ * server snapshot is always "audible": the stored preference lives in
+ * `localStorage`, which the server cannot see, and claiming muted before
+ * hydration would flash the wrong icon.
+ */
+function SoundToggle() {
+  const muted = useSyncExternalStore(
+    subscribeMuted,
+    isMuted,
+    () => false,
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={() => setMuted(!muted)}
+      title={muted ? "Turn sound on" : "Turn sound off"}
+      aria-pressed={muted}
+      className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
+    >
+      {muted ? (
+        <VolumeX className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        <Volume2 className="h-4 w-4" aria-hidden="true" />
+      )}
+      <span className="sr-only">
+        {muted ? "Sound is off" : "Sound is on"}
+      </span>
+    </button>
   );
 }
 

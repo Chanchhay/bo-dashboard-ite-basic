@@ -1,144 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell, BellOff, LoaderCircle, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
-import { getNotificationPermission } from "@/components/pwa/pwa-diagnostics";
-import {
-  subscribeUser,
-  unsubscribeUser,
-  sendNotification,
-} from "@/app/actions";
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat(
-    (4 - (base64String.length % 4)) % 4
-  );
-
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; i++) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-
-  return outputArray;
-}
+import { sendTestNotification } from "@/app/actions";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 export function PushNotificationManager() {
   const { toast } = useToast();
-
-  const [isSupported, setIsSupported] = useState(false);
-  const [subscription, setSubscription] = useState<PushSubscription | null>(
-    null,
-  );
-  const [permission, setPermission] = useState<
-    NotificationPermission | "unsupported"
-  >("unsupported");
+  const { isSupported, subscription, permission, isBusy, subscribe, unsubscribe } =
+    usePushSubscription();
   const [message, setMessage] = useState("");
-  const [isBusy, setIsBusy] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
-  useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      return;
-    }
+  async function handleSubscribe() {
+    const result = await subscribe();
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsSupported(true);
-    setPermission(getNotificationPermission());
-
-    navigator.serviceWorker.ready
-      .then((registration) => registration.pushManager.getSubscription())
-      .then(setSubscription)
-      .catch(() => setSubscription(null));
-  }, []);
-
-  async function subscribeToPush() {
-    if (permission === "denied") {
-      toast({
-        tone: "error",
-        title: "Notifications are blocked",
-        description:
-          "Re-enable them from your browser's site settings, then reload this page.",
-      });
-      return;
-    }
-
-    setIsBusy(true);
-
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const sub = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-        ),
-      });
-
-      const result = await subscribeUser(JSON.parse(JSON.stringify(sub)));
-
-      if (!result.success) {
-        await sub.unsubscribe().catch(() => {});
-        throw new Error(result.error ?? "Could not save the subscription.");
-      }
-
-      setSubscription(sub);
-      toast({ tone: "success", title: "Subscribed to push notifications" });
-    } catch (cause) {
+    if (!result.success) {
       toast({
         tone: "error",
         title: "Could not subscribe",
-        description: cause instanceof Error ? cause.message : "Please try again.",
+        description: result.error,
       });
-    } finally {
-      setPermission(getNotificationPermission());
-      setIsBusy(false);
+      return;
     }
+
+    toast({ tone: "success", title: "Subscribed to push notifications" });
   }
 
-  async function unsubscribeFromPush() {
-    if (!subscription) return;
+  async function handleUnsubscribe() {
+    const result = await unsubscribe();
 
-    setIsBusy(true);
-
-    try {
-      const result = await unsubscribeUser();
-
-      if (!result.success) {
-        throw new Error(result.error ?? "Could not clear the subscription.");
-      }
-
-      await subscription.unsubscribe();
-      setSubscription(null);
-
-      toast({ tone: "success", title: "Unsubscribed from push notifications" });
-    } catch (cause) {
+    if (!result.success) {
       toast({
         tone: "error",
         title: "Could not unsubscribe",
-        description: cause instanceof Error ? cause.message : "Please try again.",
+        description: result.error,
       });
-    } finally {
-      setIsBusy(false);
+      return;
     }
+
+    toast({ tone: "success", title: "Unsubscribed from push notifications" });
   }
 
-  async function sendTestNotification() {
+  async function handleSendTest() {
     if (!message.trim()) return;
 
-    setIsBusy(true);
+    setIsSendingTest(true);
 
     try {
-      const result = await sendNotification(message);
+      const result = await sendTestNotification(message);
 
       if (!result.success) {
         throw new Error(result.error ?? "Failed to send notification");
@@ -153,7 +68,7 @@ export function PushNotificationManager() {
         description: cause instanceof Error ? cause.message : "Please try again.",
       });
     } finally {
-      setIsBusy(false);
+      setIsSendingTest(false);
     }
   }
 
@@ -191,7 +106,7 @@ export function PushNotificationManager() {
             type="button"
             variant="outline"
             disabled={isBusy}
-            onClick={unsubscribeFromPush}
+            onClick={handleUnsubscribe}
           >
             <BellOff className="size-4" aria-hidden="true" />
             Disable Notifications
@@ -208,10 +123,10 @@ export function PushNotificationManager() {
               />
               <Button
                 type="button"
-                disabled={isBusy || !message.trim()}
-                onClick={sendTestNotification}
+                disabled={isSendingTest || !message.trim()}
+                onClick={handleSendTest}
               >
-                {isBusy ? (
+                {isSendingTest ? (
                   <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Send className="size-4" aria-hidden="true" />
@@ -240,7 +155,7 @@ export function PushNotificationManager() {
             You are not subscribed to push notifications.
           </p>
 
-          <Button type="button" disabled={isBusy} onClick={subscribeToPush}>
+          <Button type="button" disabled={isBusy} onClick={handleSubscribe}>
             {isBusy ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
             ) : (

@@ -214,20 +214,27 @@ export default function MembershipTypesPage() {
         <div className="space-y-6">
             {/* Header section */}
             <div data-tour="membership-tiers-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Member Types
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
-                    </p>
+                <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            Member Types
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                            Define customer membership types (e.g. VIP, Gold, Silver) and assign automatic discount pricing to them.
+                        </p>
+                    </div>
+                    <div className="sm:hidden shrink-0">
+                        <TourButton />
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <TourButton />
+                <div className="flex items-center gap-3 shrink-0">
+                    <div className="hidden sm:block">
+                        <TourButton />
+                    </div>
                     <Button
                         data-tour="add-member-type-btn"
                         onClick={openCreateDialog}
-                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm"
+                        className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-sm text-xs sm:text-sm h-9 sm:h-10 px-3.5 sm:px-4"
                     >
                         <Plus className="h-4 w-4" /> Add Member Type
                     </Button>
@@ -252,7 +259,7 @@ export default function MembershipTypesPage() {
                 />
             </div>
 
-            {/* Table */}
+            {/* Table / Card Container */}
             <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isTypesLoading ? (
                     <TableSkeleton rows={5} cols={5} />
@@ -263,54 +270,32 @@ export default function MembershipTypesPage() {
                         <p className="text-xs">Create membership types (e.g. VIP, Regular) and attach discount rules to reward loyal customers.</p>
                     </div>
                 ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/40">
-                                {isColVisible("typeName") && <TableHead>Member Type Name</TableHead>}
-                                {isColVisible("discount") && <TableHead>Assigned Discount</TableHead>}
-                                {isColVisible("remark") && <TableHead>Remark / Notes</TableHead>}
-                                {isColVisible("status") && <TableHead>Status</TableHead>}
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                    <>
+                        {/* Mobile Cards (< md) */}
+                        <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                             {filteredTypes.map((t) => (
-                                <TableRow key={t.id} className="hover:bg-muted/30 transition-colors">
-                                    {isColVisible("typeName") && (
-                                        <TableCell>
-                                            <div className="font-bold text-foreground text-base">
+                                <div
+                                    key={t.id}
+                                    onClick={() => openEditDialog(t)}
+                                    className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
+                                >
+                                    {/* Card Header */}
+                                    <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                        <div className="flex items-center gap-2">
+                                            <Award className="h-4 w-4 text-primary" />
+                                            <span className="font-bold text-sm text-foreground dark:text-white">
                                                 {t.typeName}
-                                            </div>
-                                        </TableCell>
-                                    )}
-                                    {isColVisible("discount") && (
-                                        <TableCell>
-                                            {t.discount ? (
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                                                    <Tag className="h-3 w-3" />
-                                                    {t.discount.name} (
-                                                    {t.discount.type === "PERCENTAGE"
-                                                        ? `${t.discount.value}%`
-                                                        : format(t.discount.value)}
-                                                    )
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground italic">No Discount Assigned</span>
-                                            )}
-                                        </TableCell>
-                                    )}
-                                    {isColVisible("remark") && (
-                                        <TableCell>
-                                            <span className="text-xs text-muted-foreground">
-                                                {t.remark || "—"}
                                             </span>
-                                        </TableCell>
-                                    )}
-                                    {isColVisible("status") && (
-                                        <TableCell>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5">
                                             <button
-                                                onClick={() => handleToggleStatus(t)}
-                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleStatus(t);
+                                                }}
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${
                                                     t.status === "ACTIVE"
                                                         ? "bg-primary/10 text-primary hover:bg-primary/20"
                                                         : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -318,30 +303,154 @@ export default function MembershipTypesPage() {
                                             >
                                                 {t.status === "ACTIVE" ? "Active" : "Inactive"}
                                             </button>
-                                        </TableCell>
-                                    )}
-                                    <TableCell className="text-right space-x-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => openEditDialog(t)}
-                                            className="h-8 w-8 p-0"
-                                        >
-                                            <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setDeletingType(t)}
-                                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditDialog(t);
+                                                }}
+                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                            >
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeletingType(t);
+                                                }}
+                                                className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Key-Value Rows */}
+                                    <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Discount</span>
+                                            <div>
+                                                {t.discount ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                                        <Tag className="h-3 w-3" />
+                                                        {t.discount.name} ({t.discount.type === "PERCENTAGE" ? `${t.discount.value}%` : format(t.discount.value)})
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground italic">None</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {t.remark && (
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Remark</span>
+                                                <span className="text-foreground dark:text-slate-200">{t.remark}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             ))}
-                        </TableBody>
-                    </Table>
+                        </div>
+
+                        {/* Desktop Table (>= md) */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/40">
+                                        {isColVisible("typeName") && <TableHead>Member Type Name</TableHead>}
+                                        {isColVisible("discount") && <TableHead>Assigned Discount</TableHead>}
+                                        {isColVisible("remark") && <TableHead>Remark / Notes</TableHead>}
+                                        {isColVisible("status") && <TableHead>Status</TableHead>}
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredTypes.map((t) => (
+                                        <TableRow
+                                            key={t.id}
+                                            onClick={() => openEditDialog(t)}
+                                            className="hover:bg-muted/30 transition-colors cursor-pointer"
+                                        >
+                                            {isColVisible("typeName") && (
+                                                <TableCell>
+                                                    <div className="font-bold text-foreground text-base">
+                                                        {t.typeName}
+                                                    </div>
+                                                </TableCell>
+                                            )}
+                                            {isColVisible("discount") && (
+                                                <TableCell>
+                                                    {t.discount ? (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                                                            <Tag className="h-3 w-3" />
+                                                            {t.discount.name} (
+                                                            {t.discount.type === "PERCENTAGE"
+                                                                ? `${t.discount.value}%`
+                                                                : format(t.discount.value)}
+                                                            )
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">No Discount Assigned</span>
+                                                    )}
+                                                </TableCell>
+                                            )}
+                                            {isColVisible("remark") && (
+                                                <TableCell>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {t.remark || "—"}
+                                                    </span>
+                                                </TableCell>
+                                            )}
+                                            {isColVisible("status") && (
+                                                <TableCell>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleToggleStatus(t);
+                                                        }}
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                                                            t.status === "ACTIVE"
+                                                                ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                        }`}
+                                                    >
+                                                        {t.status === "ACTIVE" ? "Active" : "Inactive"}
+                                                    </button>
+                                                </TableCell>
+                                            )}
+                                            <TableCell className="text-right space-x-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openEditDialog(t);
+                                                    }}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDeletingType(t);
+                                                    }}
+                                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
                 )}
             </div>
 

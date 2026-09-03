@@ -81,6 +81,9 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
             src={qrImageUrl}
             alt="Menu QR Code"
             className="h-52 w-52 rounded-xl bg-white p-2 shadow-sm object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+            }}
           />
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-3 text-center truncate max-w-full px-2">
             {targetUrl}
@@ -94,7 +97,7 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
               type="button"
               onClick={handleDownloadQR}
               disabled={downloading}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#00a651] px-4 py-3 text-sm font-bold text-white hover:bg-[#008f45] active:scale-98 transition-all disabled:opacity-50 shadow-md shadow-[#00a651]/20"
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 active:scale-98 transition-all disabled:opacity-50 shadow-md shadow-primary/20"
             >
               <Download className="h-4 w-4" />
               {downloading ? "Downloading..." : "Download QR Code (PNG)"}

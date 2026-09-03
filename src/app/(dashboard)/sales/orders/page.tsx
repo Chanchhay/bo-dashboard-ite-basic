@@ -10,12 +10,12 @@ import {
     Search,
     ExternalLink,
     Clock,
-    Package,
     PackageCheck,
     Phone,
     User,
     QrCode,
     X,
+    Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CardListSkeleton } from "@/components/ui/skeleton";
+import { ItemImage } from "@/components/item/item-image";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
 import { CancelOrderDialog } from "@/components/pos/order/cancel-order-dialog";
+import { DeleteOrderDialog } from "@/components/pos/order/delete-order-dialog";
 import { useToast } from "@/components/ui/toast";
 import MenuQRModal from "@/components/menu/menu-qr-modal";
 import { cn } from "@/lib/utils";
@@ -39,6 +41,7 @@ import { itemThumbnail } from "@/lib/api/inventory";
 import {
     useApprovePayLaterOrderMutation,
     useCancelOpenOrderMutation,
+    useDeleteOrderMutation,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
@@ -110,9 +113,12 @@ export default function SalesOrdersPage() {
     const { toast } = useToast();
     const [approvePayLaterOrder] = useApprovePayLaterOrderMutation();
     const [cancelOpenOrder] = useCancelOpenOrderMutation();
+    const [deleteOrderMutation] = useDeleteOrderMutation();
     const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
     const [orderToCancel, setOrderToCancel] = useState<PosOrder | null>(null);
+    const [orderToDelete, setOrderToDelete] = useState<PosOrder | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     async function handleApprovePayLaterOrder(order: PosOrder) {
         setConfirmingOrderId(order.id);
@@ -155,6 +161,30 @@ export default function SalesOrdersPage() {
         }
     }
 
+    async function handleDeleteOrder(order: PosOrder) {
+        setIsDeleting(true);
+        try {
+            await deleteOrderMutation(order.id).unwrap();
+            setOrderToDelete(null);
+            if (selectedOrderId === order.id) {
+                setSelectedOrderId(null);
+            }
+            toast({
+                tone: "success",
+                title: "Order deleted",
+                description: `${order.invoiceNumber ?? "This order"} has been deleted.`,
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Could not delete the order",
+                description: getApiErrorMessage(cause, "Please try again."),
+            });
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
     const [status, setStatus] =
         useState<(typeof STATUS_FILTERS)[number]>("ALL");
     const [channel, setChannel] =
@@ -186,6 +216,14 @@ export default function SalesOrdersPage() {
         for (const customer of customers) {
             const name = customer.globalCustomer?.fullName;
             if (name) map.set(customer.id, name);
+        }
+        return map;
+    }, [customers]);
+    const customerPhoneById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const customer of customers) {
+            const phone = customer.globalCustomer?.phoneNumber;
+            if (phone) map.set(customer.id, phone);
         }
         return map;
     }, [customers]);
@@ -222,12 +260,46 @@ export default function SalesOrdersPage() {
     // Cached on the filters alone, so turning a page never recounts the range.
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
+    /*
+     * Sales still waiting to reach the server.
+     *
+     * They live on this device, so the filters the server applied to its page
+     * have to be applied to them here — otherwise a Paid-only or Web-only view
+     * still lists them, and a date range excludes everything except them.
+     */
+    const offlineOrders = useMemo(
+        () =>
+            pendingOfflineOrders.filter((order: PosOrder) => {
+                if (status !== "ALL" && order.status !== status) return false;
+                if (channel !== "ALL" && order.channel !== channel) return false;
+
+                if (from && order.createdDate) {
+                    if (new Date(order.createdDate) < new Date(from)) return false;
+                }
+
+                return true;
+            }),
+        [pendingOfflineOrders, status, channel, from],
+    );
+
+    /*
+     * Pinned to the first page, not repeated on every one.
+     *
+     * They are not part of the server's paging, so prepending them to each
+     * page it returned put the same unsynced sale on page one, page two and
+     * page nine — and made every page one row too long.
+     */
     const orders = useMemo(() => {
         const serverOrders = data?.content ?? [];
-        const pendingIds = new Set(pendingOfflineOrders.map((o: PosOrder) => o.id));
-        const filteredServer = serverOrders.filter((o: PosOrder) => !pendingIds.has(o.id));
-        return [...pendingOfflineOrders, ...filteredServer];
-    }, [data, pendingOfflineOrders]);
+        const offlineIds = new Set(offlineOrders.map((o: PosOrder) => o.id));
+        const filteredServer = serverOrders.filter(
+            (o: PosOrder) => !offlineIds.has(o.id),
+        );
+
+        return page === 0
+            ? [...offlineOrders, ...filteredServer]
+            : filteredServer;
+    }, [data, offlineOrders, page]);
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
@@ -271,16 +343,19 @@ export default function SalesOrdersPage() {
         () =>
             search
                 ? orders.filter((order) =>
-                    matchesSearch(order, search, customerNameById),
+                    matchesSearch(order, search, customerNameById, customerPhoneById),
                 )
                 : orders,
-        [orders, search, customerNameById],
+        [orders, search, customerNameById, customerPhoneById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
-    const totalElements = metadata?.totalElements ?? rows.length;
-    const firstRow = totalElements === 0 ? 0 : page * pageSize + 1;
-    const lastRow = Math.min(page * pageSize + orders.length, totalElements);
+    // The unsynced ones are real sales, so they are counted. They ride on the
+    // first page, which is why the running span is handed to the bar rather
+    // than left to page × size.
+    const totalElements =
+        (metadata?.totalElements ?? rows.length) + offlineOrders.length;
+    const rowsBefore = page === 0 ? 0 : offlineOrders.length + page * pageSize;
 
     /** Any filter change starts the list from the first page again. */
     function applyFilter<T>(set: (next: T) => void) {
@@ -292,49 +367,58 @@ export default function SalesOrdersPage() {
 
     return (
         <div className="flex flex-col gap-5 pb-12 sm:pb-16">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
-                <div className="flex justify-end">
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 sm:pt-3 pb-3 sm:pb-3.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3.5 sm:gap-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                            Orders
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                            Track every order from POS, storefront, Telegram, and Messenger — review receipts, approve pay-later tabs, and cancel open orders.
+                        </p>
+                    </div>
                     <TourButton />
                 </div>
                 <div
                     data-tour="orders-digital-menu"
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-card rounded-2xl border border-border p-3.5 sm:p-4 shadow-2xs"
                 >
                     <div>
-                        <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
-                        <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
+                        <h2 className="text-base sm:text-lg font-bold text-foreground">Digital Menu</h2>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
                         {storefrontError && (
                             <p className="mt-1 text-xs font-medium text-danger">{storefrontError}</p>
                         )}
                     </div>
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                        <div className="flex items-center gap-2 mr-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
+                        <div className="flex items-center gap-2.5">
                             <Switch
                                 id="menu-toggle"
                                 checked={Boolean(storefrontStatus?.listed)}
                                 disabled={isEnabling || isDisabling}
                                 onCheckedChange={handleMenuToggle}
                             />
-                            <Label htmlFor="menu-toggle" className="text-sm font-medium">Show Items on Website</Label>
+                            <Label htmlFor="menu-toggle" className="text-xs sm:text-sm font-medium cursor-pointer whitespace-nowrap">Show Items on Website</Label>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 shrink-0">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setIsQrModalOpen(true)}
-                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-2xs"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl border-border bg-card px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-2xs h-8 sm:h-9"
                             >
-                                <QrCode className="h-4 w-4 text-primary" />
+                                <QrCode className="h-3.5 w-3.5 text-primary" />
                                 <span>QR Code</span>
                             </Button>
                             <Link
                                 href={subdomainUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors h-8 sm:h-9"
                             >
-                                <ExternalLink className="h-4 w-4" />
+                                <ExternalLink className="h-3.5 w-3.5" />
                                 Live Menu
                             </Link>
                         </div>
@@ -344,7 +428,7 @@ export default function SalesOrdersPage() {
                 <section
                     aria-label="Totals"
                     data-tour="orders-totals"
-                    className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+                    className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4"
                 >
                     <Stat
                         label="Orders"
@@ -361,6 +445,29 @@ export default function SalesOrdersPage() {
                     />
                 </section>
 
+                {/*
+                  * A dash on every card is honest but silent — it reads the
+                  * same whether the totals are still coming or never will.
+                  * The table below says when it could not load; these say so
+                  * too, rather than leaving the reader to guess which.
+                  */}
+                {summaryQuery.error ? (
+                    <p role="alert" className="-mt-2 text-[13px] text-danger">
+                        Totals could not be loaded.{" "}
+                        {getApiErrorMessage(
+                            summaryQuery.error,
+                            "Check the connection and try again.",
+                        )}{" "}
+                        <button
+                            type="button"
+                            onClick={() => void summaryQuery.refetch()}
+                            className="font-medium underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                            Try again
+                        </button>
+                    </p>
+                ) : null}
+
                 {summaryQuery.data?.truncated && (
                     <p className="-mt-2 text-[13px] text-muted-foreground">
                         Totals cover the most recent orders in this range only.
@@ -376,9 +483,9 @@ export default function SalesOrdersPage() {
             >
                 <div
                     data-tour="orders-filters"
-                    className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs"
+                    className="static lg:sticky lg:top-0 lg:z-10 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-2.5 border-b border-border p-3 sm:p-4 bg-card rounded-t-2xl shadow-xs"
                 >
-                    <label className="relative min-w-50 flex-1">
+                    <label className="relative w-full sm:flex-1 sm:min-w-55">
                         <span className="sr-only">Search orders</span>
                         <Search
                             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -388,29 +495,31 @@ export default function SalesOrdersPage() {
                             type="search"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search this page by invoice, order name or item"
-                            className="h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
+                            placeholder="Search this page by invoice, order name, phone or item"
+                            className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20"
                         />
                     </label>
 
-                    <FilterGroup
-                        label="Date range"
-                        options={DATE_FILTERS}
-                        value={range}
-                        onChange={applyFilter(setRange)}
-                    />
-                    <FilterGroup
-                        label="Status"
-                        options={STATUS_FILTERS}
-                        value={status}
-                        onChange={applyFilter(setStatus)}
-                    />
-                    <FilterGroup
-                        label="Channel"
-                        options={CHANNEL_FILTERS}
-                        value={channel}
-                        onChange={applyFilter(setChannel)}
-                    />
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+                        <FilterGroup
+                            label="Date range"
+                            options={DATE_FILTERS}
+                            value={range}
+                            onChange={applyFilter(setRange)}
+                        />
+                        <FilterGroup
+                            label="Status"
+                            options={STATUS_FILTERS}
+                            value={status}
+                            onChange={applyFilter(setStatus)}
+                        />
+                        <FilterGroup
+                            label="Channel"
+                            options={CHANNEL_FILTERS}
+                            value={channel}
+                            onChange={applyFilter(setChannel)}
+                        />
+                    </div>
                 </div>
 
                 {isLoading ? (
@@ -437,13 +546,33 @@ export default function SalesOrdersPage() {
                                         onClick={() => setSelectedOrderId(order.id)}
                                         itemThumbnailById={itemThumbnailById}
                                         customerNameById={customerNameById}
+                                        customerPhoneById={customerPhoneById}
                                         onApprovePayLater={() => void handleApprovePayLaterOrder(order)}
                                         onCancelOrder={() => setOrderToCancel(order)}
+                                        onDeleteOrder={() => setOrderToDelete(order)}
                                         isConfirming={confirmingOrderId === order.id}
                                         isCancelling={isCancelling && orderToCancel?.id === order.id}
+                                        isDeleting={isDeleting && orderToDelete?.id === order.id}
                                     />
                                 ))}
                             </div>
+                        )}
+
+                        {/*
+                          * Said plainly, because the count below cannot say it.
+                          *
+                          * The search runs over the orders already loaded, so
+                          * the total beside it is the range's total and not the
+                          * number of matches — a reader comparing "3" against
+                          * "of 252" would otherwise conclude the other 249 did
+                          * not match, rather than that they were never looked at.
+                          */}
+                        {search && (
+                            <p className="border-t border-border bg-card px-4 py-2 text-[13px] text-muted-foreground">
+                                Showing matches from this page only. Turn the
+                                page, or narrow the filters above, to search the
+                                rest.
+                            </p>
                         )}
 
                         <div className="border-t border-border bg-card rounded-b-2xl">
@@ -452,12 +581,14 @@ export default function SalesOrdersPage() {
                                 size={pageSize}
                                 totalElements={totalElements}
                                 totalPages={pageCount}
+                                rowsBefore={rowsBefore}
+                                rowsOnPage={rows.length}
                                 onPageChange={setPage}
                                 onSizeChange={(next) => {
                                     setPageSize(next);
                                     setPage(0);
                                 }}
-                                sizeOptions={[1, 2, 5, 10, 20, 25, 50, 100]}
+                                sizeOptions={[10, 20, 25, 50, 100]}
                                 isLoading={isFetching}
                                 itemLabel="order"
                             />
@@ -545,6 +676,18 @@ export default function SalesOrdersPage() {
                 }}
             />
 
+            <DeleteOrderDialog
+                open={Boolean(orderToDelete)}
+                orderName={orderToDelete?.invoiceNumber || orderToDelete?.note?.trim() || "This order"}
+                isDeleting={isDeleting}
+                onOpenChange={(open) => {
+                    if (!open) setOrderToDelete(null);
+                }}
+                onConfirm={() => {
+                    if (orderToDelete) void handleDeleteOrder(orderToDelete);
+                }}
+            />
+
             {/* Digital Menu QR Code Modal */}
             <MenuQRModal
                 isOpen={isQrModalOpen}
@@ -560,14 +703,27 @@ function matchesSearch(
     order: PosOrder,
     search: string,
     customerNameById?: Map<string, string>,
+    customerPhoneById?: Map<string, string>,
 ) {
     const customerName = order.customerId
         ? (customerNameById?.get(order.customerId) ?? "")
         : "";
+    const customerPhone =
+        (order.customerPhone ?? "") ||
+        (order.customerId ? (customerPhoneById?.get(order.customerId) ?? "") : "");
+
+    const cleanSearch = search.replace(/\D/g, "");
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const phoneMatches = Boolean(
+        (customerPhone && customerPhone.toLowerCase().includes(search)) ||
+        (cleanSearch.length >= 3 && cleanPhone.includes(cleanSearch))
+    );
+
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
         customerName.toLowerCase().includes(search) ||
+        phoneMatches ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -578,45 +734,39 @@ function matchesSearch(
 function ItemThumbnail({
     url,
     size = "size-7",
-    iconSize = "size-3.5",
 }: {
     url?: string;
     size?: string;
-    iconSize?: string;
 }) {
-    return (
-        <span
-            className={`grid ${size} shrink-0 place-items-center overflow-hidden rounded-md bg-muted text-muted-foreground`}
-        >
-            {url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={url} alt="" className="size-full object-cover" />
-            ) : (
-                <Package className={iconSize} aria-hidden="true" />
-            )}
-        </span>
-    );
+    // An item with no picture, and one whose hosted picture has gone, both get
+    // the house fallback — the same one the till shows on its grid.
+    return <ItemImage src={url} className={`${size} shrink-0 rounded-md`} />;
 }
-
 
 function OrderCard({
     order,
     onClick,
     itemThumbnailById,
     customerNameById,
+    customerPhoneById,
     onApprovePayLater,
     onCancelOrder,
+    onDeleteOrder,
     isConfirming,
     isCancelling,
+    isDeleting,
 }: {
     order: PosOrder;
     onClick: () => void;
     itemThumbnailById: Map<string, string | undefined>;
     customerNameById: Map<string, string>;
+    customerPhoneById?: Map<string, string>;
     onApprovePayLater: () => void;
     onCancelOrder: () => void;
+    onDeleteOrder: () => void;
     isConfirming: boolean;
     isCancelling?: boolean;
+    isDeleting?: boolean;
 }) {
     const { format } = useMoney();
 
@@ -644,71 +794,87 @@ function OrderCard({
         : null;
     const noteName = order.note?.trim() || null;
     const displayName = customerName || noteName;
+    const phone =
+        order.customerPhone ||
+        (order.customerId ? customerPhoneById?.get(order.customerId) : null);
 
     return (
         <div
             onClick={onClick}
-            className={`flex cursor-pointer flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 ${isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
+            className={`flex cursor-pointer flex-col gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-3 sm:p-4 transition-colors hover:border-primary/40 ${isAwaitingPayment ? "bg-warning/5 dark:bg-warning/10" : ""
                 }`}
         >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-bold text-primary">
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <p className="font-bold text-xs sm:text-sm text-primary">
                             {order.invoiceNumber ?? "—"}
                         </p>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[11px] sm:text-xs text-muted-foreground">
                             {formatOrderDate(order.createdDate)} · {CHANNEL_LABELS[order.channel]}
                         </span>
                     </div>
                     {displayName && (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-sm font-medium text-foreground">
-                            <User className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs sm:text-sm font-medium text-foreground">
+                            <User className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                             <span>{displayName}</span>
                             {customerName && noteName && customerName !== noteName && (
-                                <span className="text-xs text-muted-foreground font-normal">
+                                <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
                                     ({noteName})
                                 </span>
                             )}
                         </p>
                     )}
-                    {order.customerPhone && (
-                        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                    {phone && (
+                        <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] sm:text-xs text-muted-foreground">
                             <Phone className="size-3 shrink-0" aria-hidden="true" />
-                            <span>{order.customerPhone}</span>
+                            <span>{phone}</span>
                         </p>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 shrink-0">
                     {order.status === "CONFIRMED" ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] sm:text-xs font-semibold text-primary">
                             <PackageCheck className="size-3" aria-hidden="true" />
                             Confirmed
                         </span>
                     ) : isAwaitingPayment ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[12px] font-semibold text-warning">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] sm:text-xs font-semibold text-warning">
                             <Clock className="size-3" aria-hidden="true" />
                             Pending
                         </span>
                     ) : (
                         <span
-                            className={`inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium ${STATUS_STYLES[order.status]}`}
+                            className={`inline-flex rounded-md px-2 py-0.5 text-[11px] sm:text-xs font-medium ${STATUS_STYLES[order.status]}`}
                         >
                             {order.status}
                         </span>
                     )}
-                    <span className="text-lg font-bold tabular-nums text-foreground">
+                    <span className="text-sm sm:text-lg font-bold tabular-nums text-foreground">
                         {format(displayTotal, order.currency)}
                     </span>
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteOrder();
+                        }}
+                        disabled={isConfirming || isCancelling || isDeleting}
+                        title="Delete order"
+                        className="inline-flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 transition-colors active:scale-95 disabled:opacity-50 cursor-pointer ml-1"
+                    >
+                        <Trash2 className="size-3.5 sm:size-4" />
+                        <span className="sr-only">Delete order</span>
+                    </button>
                 </div>
             </div>
 
             <LineItemListPanel order={order} itemThumbnailById={itemThumbnailById} />
 
             {order.status === "PENDING" && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 rounded-xl border border-warning/30 bg-warning/5 p-2.5 sm:px-3 sm:py-2">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground">
                         {order.awaitingPayLaterApproval
                             ? "Customer chose to pay later — approving takes stock off the shelf now."
                             : "Order is awaiting payment or processing."}
@@ -721,7 +887,7 @@ function OrderCard({
                                 onCancelOrder();
                             }}
                             disabled={isConfirming || isCancelling}
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 transition-colors hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold text-red-600 dark:text-red-400 transition-colors hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
                         >
                             <X className="size-3.5" aria-hidden="true" />
                             {isCancelling ? "Cancelling…" : "Cancel order"}
@@ -736,7 +902,7 @@ function OrderCard({
                                     onApprovePayLater();
                                 }}
                                 disabled={isConfirming || isCancelling}
-                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
                             >
                                 <PackageCheck className="size-3.5" aria-hidden="true" />
                                 {isConfirming ? "Approving…" : "Approve order"}
@@ -760,17 +926,17 @@ function LineItemListPanel({
     const { format } = useMoney();
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div>
-                    <p className="text-sm font-bold uppercase tracking-wide text-foreground">
+        <div className="overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-3 sm:px-4 py-2 sm:py-2.5 gap-2">
+                <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-foreground">
                         Line Item List
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
                         Review products, quantity, and personalization details.
                     </p>
                 </div>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-foreground">
+                <span className="shrink-0 whitespace-nowrap inline-flex items-center rounded-full bg-muted px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-bold text-foreground">
                     {order.items.length} item{order.items.length === 1 ? "" : "s"}
                 </span>
             </div>
@@ -781,33 +947,43 @@ function LineItemListPanel({
                     return (
                         <div
                             key={item.id}
-                            className="flex items-center gap-3 px-4 py-3"
+                            className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3"
                         >
                             <ItemThumbnail
                                 url={itemThumbnailById.get(item.itemId)}
-                                size="size-10"
-                                iconSize="size-4"
+                                size="size-9 sm:size-10"
                             />
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-foreground">
+                                <p className="truncate text-xs sm:text-sm font-semibold text-foreground">
                                     {item.itemName}
                                 </p>
-                                <p className="truncate text-xs text-muted-foreground">
-                                    {subtitle || "—"}
-                                </p>
+                                <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                                    <span className="inline-flex sm:hidden font-semibold text-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">
+                                        x{item.quantity}
+                                    </span>
+                                    <span className="inline-flex sm:hidden tabular-nums">
+                                        {format(item.unitPrice, order.currency)}
+                                    </span>
+                                    {subtitle && (
+                                        <p className="truncate text-muted-foreground">
+                                            <span className="inline-flex sm:hidden text-muted-foreground/40 mr-1">·</span>
+                                            {subtitle}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                            <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
+                            <span className="hidden sm:inline-flex shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
                                 x{item.quantity}
                             </span>
-                            <span className="w-16 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                            <span className="hidden sm:inline-block w-16 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
                                 {format(item.unitPrice, order.currency)}
                             </span>
-                            <div className="w-20 shrink-0 text-right">
-                                <p className="text-sm font-bold tabular-nums text-foreground">
+                            <div className="shrink-0 text-right">
+                                <p className="text-xs sm:text-sm font-bold tabular-nums text-foreground">
                                     {format(item.lineTotal, order.currency)}
                                 </p>
                                 {item.discountAmount > 0 && (
-                                    <p className="text-xs tabular-nums text-red-500">
+                                    <p className="text-[10px] sm:text-xs tabular-nums text-red-500">
                                         -{format(item.discountAmount, order.currency)}
                                     </p>
                                 )}
@@ -878,7 +1054,7 @@ function FilterGroup<T extends string>({
         <div
             role="group"
             aria-label={label}
-            className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-none rounded-xl bg-muted p-1 border border-transparent dark:border-border shrink-0"
+            className="flex w-full sm:w-auto items-center gap-1 overflow-x-auto scrollbar-none flex-nowrap rounded-xl bg-muted p-1 border border-transparent dark:border-border shrink-0"
         >
             {options.map((option) => (
                 <button

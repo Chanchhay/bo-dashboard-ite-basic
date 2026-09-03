@@ -11,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ItemImage } from "@/components/item/item-image";
 import { useMoney } from "@/hooks/useMoney";
 import { itemThumbnail } from "@/lib/api/inventory";
 import type { ChannelItem } from "@/lib/api/sales-channels";
@@ -20,8 +21,20 @@ import { cn } from "@/lib/utils";
 export type ItemChoice = {
     variantId?: string;
     unitId?: string;
+    /**
+     * The names and the factor travel with the choice.
+     *
+     * The cart is written on the device and has to read back correctly with no
+     * server to ask, so the line has to carry what it is — "Bag · 10.5 per
+     * pack" — rather than an id it would have to resolve later.
+     */
+    variantName?: string;
+    unitName?: string;
+    unitFactor?: number;
     /** Extras ticked on this line. */
     addOnIds?: string[];
+    /** The same extras with what they are called and cost, for a cart that has to read back offline. */
+    addOns?: { addOnId: string; name: string; unitPrice: number }[];
     /** For the optimistic line, before the order comes back. */
     label: string;
     unitPrice: number;
@@ -89,6 +102,9 @@ function ChoiceRow({
                                     src={choice.imageUrl}
                                     alt=""
                                     className="mb-1 h-14 w-full rounded-lg object-cover"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                    }}
                                 />
                             ) : null}
                             <span className="text-sm font-semibold">
@@ -351,15 +367,11 @@ export function ItemChoiceModal({
 
                     <div className="rounded-xl border border-border bg-muted/30 p-4">
                         <div className="flex items-center justify-between gap-4">
-                            {lineImage ? (
-                                // Decorative — the line is named right beside it.
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={lineImage}
-                                    alt=""
-                                    className="size-12 shrink-0 rounded-lg object-cover"
-                                />
-                            ) : null}
+                            {/* Decorative — the line is named right beside it. */}
+                            <ItemImage
+                                src={lineImage}
+                                className="size-12 shrink-0 rounded-lg"
+                            />
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-foreground">
                                     {label}
@@ -416,10 +428,30 @@ export function ItemChoiceModal({
                                 ...(chosenOption?.id
                                     ? { variantId: chosenOption.id }
                                     : {}),
-                                ...(chosenPack?.unit?.id
-                                    ? { unitId: chosenPack.unit.id }
+                                ...(chosenOption?.name
+                                    ? { variantName: chosenOption.name }
                                     : {}),
-                                ...(addOnIds.length ? { addOnIds } : {}),
+                                ...(chosenPack?.unit?.id
+                                    ? {
+                                          unitId: chosenPack.unit.id,
+                                          ...(chosenPack.unit.name
+                                              ? { unitName: chosenPack.unit.name }
+                                              : {}),
+                                          ...(chosenPack.factor != null
+                                              ? { unitFactor: chosenPack.factor }
+                                              : {}),
+                                      }
+                                    : {}),
+                                ...(addOnIds.length
+                                    ? {
+                                          addOnIds,
+                                          addOns: extras.map((addOn) => ({
+                                              addOnId: addOn.id,
+                                              name: addOn.name ?? "Extra",
+                                              unitPrice: addOn.price ?? 0,
+                                          })),
+                                      }
+                                    : {}),
                                 label,
                                 unitPrice: price ?? 0,
                             })

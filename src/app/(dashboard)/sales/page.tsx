@@ -10,6 +10,7 @@ import {
     Search,
     ExternalLink,
     Columns3,
+    Trash2,
 } from "lucide-react";
 
 import {
@@ -28,6 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { PaginationBar } from "@/components/ui/PaginationBar";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { DeleteOrderDialog } from "@/components/pos/order/delete-order-dialog";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 import {
@@ -47,6 +50,7 @@ import {
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
     useGetReceiptQuery,
+    useDeleteOrderMutation,
 } from "@/services/posOrderApi";
 import {
     useGetBusinessProfileQuery,
@@ -89,7 +93,8 @@ export type SalesColumnKey =
     | "taxRate"
     | "taxAmount"
     | "total"
-    | "status";
+    | "status"
+    | "actions";
 
 export type SalesColumnConfig = {
     key: SalesColumnKey;
@@ -109,6 +114,7 @@ const SALES_COLUMNS: SalesColumnConfig[] = [
     { key: "taxAmount", label: "Tax Amount", defaultVisible: true },
     { key: "total", label: "Total", defaultVisible: true },
     { key: "status", label: "Status", defaultVisible: true },
+    { key: "actions", label: "Actions", defaultVisible: true },
 ];
 
 const STATUS_STYLES: Record<PosOrder["status"], string> = {
@@ -151,6 +157,7 @@ function asPosOrder(order: any): PosOrder {
         businessId: order.businessId || order.business_owner_id || "",
         invoiceNumber: order.invoiceNumber || order.invoice_number || null,
         customerId: order.customerId || order.customer_id || null,
+        customerPhone: order.customerPhone || order.customer_phone || null,
         channel: order.channel || "POS",
         status: order.status || "PENDING",
         subtotal,
@@ -194,6 +201,31 @@ export default function SalesOrdersPage() {
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const { toast } = useToast();
+    const [deleteOrderMutation, { isLoading: isDeletingOrder }] = useDeleteOrderMutation();
+    const [orderToDelete, setOrderToDelete] = useState<PosOrder | null>(null);
+
+    const handleDeleteOrder = async () => {
+        if (!orderToDelete) return;
+        try {
+            await deleteOrderMutation(orderToDelete.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Order deleted",
+                description: `Order ${orderToDelete.invoiceNumber ?? ""} has been deleted.`,
+            });
+            setOrderToDelete(null);
+            if (selectedOrderId === orderToDelete.id) {
+                setSelectedOrderId(null);
+            }
+        } catch (err) {
+            toast({
+                tone: "error",
+                title: "Failed to delete order",
+                description: getApiErrorMessage(err, "An error occurred while deleting the order."),
+            });
+        }
+    };
 
     const [visibleColumns, setVisibleColumns] = useState<Record<SalesColumnKey, boolean>>(() => {
         if (typeof window !== "undefined") {
@@ -301,6 +333,14 @@ export default function SalesOrdersPage() {
         }
         return map;
     }, [customers]);
+    const customerPhoneById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const customer of customers) {
+            const phone = customer.globalCustomer?.phoneNumber;
+            if (phone) map.set(customer.id, phone);
+        }
+        return map;
+    }, [customers]);
 
     const matchingReceipt =
         isPaid && receiptQuery.data?.order?.id === selectedOrderId
@@ -329,10 +369,10 @@ export default function SalesOrdersPage() {
         () =>
             search
                 ? orders.filter((order) =>
-                    matchesSearch(order, search, customerNameById),
+                    matchesSearch(order, search, customerNameById, customerPhoneById),
                 )
                 : orders,
-        [orders, search, customerNameById],
+        [orders, search, customerNameById, customerPhoneById],
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
@@ -349,7 +389,7 @@ export default function SalesOrdersPage() {
 
     return (
         <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-12 sm:pb-16">
-            <div className="sticky top-0 z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
+            <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
                 <div className="flex items-center justify-between gap-4">
                     <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
                         Track sales orders, order receipts, channel breakdown, and digital menu configuration.
@@ -428,7 +468,7 @@ export default function SalesOrdersPage() {
             </div>
 
             <section className="relative rounded-2xl border border-border bg-card shadow-xs">
-                <div data-tour="sales-orders-filters" className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
+                <div data-tour="sales-orders-filters" className="static lg:sticky lg:top-0 lg:z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -478,47 +518,173 @@ export default function SalesOrdersPage() {
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
                     <div>
-                        {rows.length === 0 ? (
-                            <EmptyState searching={Boolean(search)} />
-                        ) : (
-                            <div
-                                data-tour="sales-orders-table"
-                                className={cn(
-                                    "overflow-x-auto transition-opacity duration-200 ease-in-out",
-                                    isFetching && "opacity-60 pointer-events-none",
-                                )}
-                                aria-busy={isFetching}
-                            >
-                                <Table>
-                                    <TableHeader className="sticky top-14 z-10 bg-card border-b border-border shadow-xs">
-                                        <TableRow>
-                                            {visibleColumns.invoice && <TableHead>Invoice</TableHead>}
-                                            {visibleColumns.date && <TableHead>Date</TableHead>}
-                                            {visibleColumns.channel && <TableHead>Channel</TableHead>}
-                                            {visibleColumns.note && <TableHead>Order</TableHead>}
-                                            {visibleColumns.items && <TableHead className="text-right">Items</TableHead>}
-                                            {visibleColumns.subtotal && <TableHead className="text-right">Subtotal</TableHead>}
-                                            {visibleColumns.discount && <TableHead className="text-right">Discount</TableHead>}
-                                            {visibleColumns.taxRate && <TableHead className="text-right">Tax Rate</TableHead>}
-                                            {visibleColumns.taxAmount && <TableHead className="text-right">Tax Amount</TableHead>}
-                                            {visibleColumns.total && <TableHead className="text-right">Total</TableHead>}
-                                            {visibleColumns.status && <TableHead>Status</TableHead>}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {rows.map((order) => (
-                                            <OrderRow
-                                                key={order.id}
-                                                order={order}
-                                                visibleColumns={visibleColumns}
-                                                customerNameById={customerNameById}
-                                                onClick={() => setSelectedOrderId(order.id)}
-                                            />
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
+                        {/* Mobile Cards (< md) */}
+                        <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                            {rows.map((order) => {
+                                const itemCount = order.items.reduce(
+                                    (sum, item) => sum + item.quantity,
+                                    0,
+                                );
+                                const afterDiscount = Math.max(0, order.subtotal - order.discountAmount);
+                                const taxAmt = order.taxAmount ?? 0;
+                                const isExclusive =
+                                    order.taxInclusionType === "EXCLUSIVE" ||
+                                    (!order.taxInclusionType &&
+                                        taxAmt > 0 &&
+                                        Math.abs(order.total - afterDiscount) < 0.01);
+                                const displayTotal = isExclusive
+                                    ? parseFloat((afterDiscount + taxAmt).toFixed(2))
+                                    : order.total;
+                                const customerName = order.customerId
+                                    ? customerNameById.get(order.customerId)
+                                    : null;
+                                const noteName = order.note?.trim() || null;
+
+                                return (
+                                    <div
+                                        key={order.id}
+                                        onClick={() => setSelectedOrderId(order.id)}
+                                        className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
+                                    >
+                                        {/* Card Header */}
+                                        <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-sm text-primary">
+                                                    {order.invoiceNumber ?? "—"}
+                                                </span>
+                                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                                    {CHANNEL_LABELS[order.channel] ?? order.channel}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                {order.status === "PAID" && order.paymentMethod === "PAY_LATER" ? (
+                                                    <span className="inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium bg-warning/15 text-warning">
+                                                        PENDING
+                                                    </span>
+                                                ) : (
+                                                    <span
+                                                        className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[order.status]}`}
+                                                    >
+                                                        {order.status}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedOrderId(order.id);
+                                                    }}
+                                                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                                    title="View Receipt"
+                                                >
+                                                    <Receipt className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Card Key-Value Rows */}
+                                        <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Date</span>
+                                                <span className="text-muted-foreground dark:text-slate-300">
+                                                    {formatOrderDate(order.createdDate)}
+                                                </span>
+                                            </div>
+
+                                            {(customerName || noteName) && (
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground dark:text-slate-400">Customer</span>
+                                                    <span className="font-medium text-foreground dark:text-slate-100">
+                                                        {customerName && noteName && customerName !== noteName
+                                                            ? `${customerName} (${noteName})`
+                                                            : customerName || noteName}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Items</span>
+                                                <span className="font-medium text-foreground dark:text-slate-100">
+                                                    {itemCount} {itemCount === 1 ? "item" : "items"}
+                                                </span>
+                                            </div>
+
+                                            {order.discountAmount > 0 && (
+                                                <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                    <span className="text-muted-foreground dark:text-slate-400">Discount</span>
+                                                    <span className="font-semibold text-red-500">
+                                                        -{format(order.discountAmount, order.currency)}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                                <span className="font-semibold text-foreground dark:text-slate-200">Total</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-foreground dark:text-white">
+                                                        {format(displayTotal, order.currency)}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOrderToDelete(order);
+                                                        }}
+                                                        title="Delete order"
+                                                        className="inline-flex size-7 items-center justify-center rounded-lg border-0 bg-transparent text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 transition-colors active:scale-95 cursor-pointer"
+                                                    >
+                                                        <Trash2 className="size-3.5" />
+                                                        <span className="sr-only">Delete order</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop Table (>= md) */}
+                        <div
+                            data-tour="sales-orders-table"
+                            className={cn(
+                                "hidden md:block overflow-x-auto transition-opacity duration-200 ease-in-out",
+                                isFetching && "opacity-60 pointer-events-none",
+                            )}
+                            aria-busy={isFetching}
+                        >
+                            <Table>
+                                <TableHeader className="sticky top-14 z-10 bg-card border-b border-border shadow-xs">
+                                    <TableRow>
+                                        {visibleColumns.invoice && <TableHead>Invoice</TableHead>}
+                                        {visibleColumns.date && <TableHead>Date</TableHead>}
+                                        {visibleColumns.channel && <TableHead>Channel</TableHead>}
+                                        {visibleColumns.note && <TableHead>Order</TableHead>}
+                                        {visibleColumns.items && <TableHead className="text-right">Items</TableHead>}
+                                        {visibleColumns.subtotal && <TableHead className="text-right">Subtotal</TableHead>}
+                                        {visibleColumns.discount && <TableHead className="text-right">Discount</TableHead>}
+                                        {visibleColumns.taxRate && <TableHead className="text-right">Tax Rate</TableHead>}
+                                        {visibleColumns.taxAmount && <TableHead className="text-right">Tax Amount</TableHead>}
+                                        {visibleColumns.total && <TableHead className="text-right">Total</TableHead>}
+                                        {visibleColumns.status && <TableHead>Status</TableHead>}
+                                        {visibleColumns.actions && <TableHead className="text-right">Actions</TableHead>}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {rows.map((order) => (
+                                        <OrderRow
+                                            key={order.id}
+                                            order={order}
+                                            visibleColumns={visibleColumns}
+                                            customerNameById={customerNameById}
+                                            onClick={() => setSelectedOrderId(order.id)}
+                                            onDelete={() => setOrderToDelete(order)}
+                                        />
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
 
                         <div className="border-t border-border bg-card rounded-b-2xl">
                             <PaginationBar
@@ -531,7 +697,7 @@ export default function SalesOrdersPage() {
                                     setPageSize(next);
                                     setPage(0);
                                 }}
-                                sizeOptions={[1, 2, 5, 10, 20, 25, 50, 100]}
+                                sizeOptions={[10, 20, 25, 50, 100]}
                                 isLoading={isFetching}
                                 itemLabel="order"
                             />
@@ -574,6 +740,18 @@ export default function SalesOrdersPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {orderToDelete && (
+                <DeleteOrderDialog
+                    open={Boolean(orderToDelete)}
+                    orderName={orderToDelete.invoiceNumber ?? "this order"}
+                    isDeleting={isDeletingOrder}
+                    onOpenChange={(open) => {
+                        if (!open) setOrderToDelete(null);
+                    }}
+                    onConfirm={handleDeleteOrder}
+                />
+            )}
         </div>
     );
 }
@@ -582,14 +760,27 @@ function matchesSearch(
     order: PosOrder,
     search: string,
     customerNameById?: Map<string, string>,
+    customerPhoneById?: Map<string, string>,
 ) {
     const customerName = order.customerId
         ? (customerNameById?.get(order.customerId) ?? "")
         : "";
+    const customerPhone =
+        (order.customerPhone ?? "") ||
+        (order.customerId ? (customerPhoneById?.get(order.customerId) ?? "") : "");
+
+    const cleanSearch = search.replace(/\D/g, "");
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const phoneMatches = Boolean(
+        (customerPhone && customerPhone.toLowerCase().includes(search)) ||
+        (cleanSearch.length >= 3 && cleanPhone.includes(cleanSearch))
+    );
+
     return (
         (order.invoiceNumber ?? "").toLowerCase().includes(search) ||
         (order.note ?? "").toLowerCase().includes(search) ||
         customerName.toLowerCase().includes(search) ||
+        phoneMatches ||
         order.items.some((item) =>
             item.itemName.toLowerCase().includes(search),
         )
@@ -601,11 +792,13 @@ function OrderRow({
     visibleColumns,
     customerNameById,
     onClick,
+    onDelete,
 }: {
     order: PosOrder;
     visibleColumns: Record<SalesColumnKey, boolean>;
     customerNameById: Map<string, string>;
     onClick: () => void;
+    onDelete: () => void;
 }) {
     const { format } = useMoney();
     const itemCount = order.items.reduce(
@@ -707,6 +900,22 @@ function OrderRow({
                             {order.status}
                         </span>
                     )}
+                </TableCell>
+            )}
+            {visibleColumns.actions && (
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                        title="Delete order"
+                        className="inline-flex size-8 items-center justify-center rounded-lg border-0 bg-transparent text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 transition-colors active:scale-95 cursor-pointer"
+                    >
+                        <Trash2 className="size-4" />
+                        <span className="sr-only">Delete order</span>
+                    </button>
                 </TableCell>
             )}
         </TableRow>

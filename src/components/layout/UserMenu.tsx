@@ -40,6 +40,8 @@ export default function UserMenu({
 
   useEffect(() => setMounted(true), []);
 
+  const [imageError, setImageError] = useState(false);
+
   const isDark = mounted && resolvedTheme === "dark";
 
   const profileName =
@@ -56,21 +58,22 @@ export default function UserMenu({
             <Menu>
                 <MenuTrigger
                     aria-label={`Account menu for ${profileName}`}
-                    className={`flex items-center justify-center rounded-full border border-[#e2e2de] dark:border-[#242937] bg-white dark:bg-[#1e2330] outline-none transition-colors hover:bg-[#f7f7f6] dark:hover:bg-[#252a38] focus-visible:ring-2 focus-visible:ring-primary data-popup-open:bg-[#f7f7f6] dark:data-popup-open:bg-[#252a38] ${
+                    className={`flex items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary ${
                         compact
-                            ? "size-10 p-1"
-                            : "size-10 p-1 sm:h-11 sm:w-auto sm:py-1.5 sm:pl-1.5 sm:pr-4 sm:gap-2.5"
+                            ? "size-10 hover:bg-black/5 dark:hover:bg-white/10"
+                            : "size-10 hover:bg-black/5 dark:hover:bg-white/10 sm:h-11 sm:w-auto sm:border sm:border-[#e2e2de] sm:dark:border-[#242937] sm:bg-white sm:dark:bg-[#1e2330] sm:py-1.5 sm:pl-1.5 sm:pr-4 sm:gap-2.5 sm:hover:bg-[#f7f7f6] sm:dark:hover:bg-[#252a38] sm:data-popup-open:bg-[#f7f7f6] sm:dark:data-popup-open:bg-[#252a38]"
                     }`}
                 >
                     <span
                         aria-hidden="true"
                         className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-[13px] font-medium text-white"
                     >
-                        {picture ? (
-                            
+                        {picture && !imageError ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                                 src={picture}
                                 alt=""
+                                onError={() => setImageError(true)}
                                 className="size-full object-cover"
                             />
                         ) : (

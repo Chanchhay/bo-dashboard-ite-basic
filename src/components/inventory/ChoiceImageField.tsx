@@ -1,9 +1,8 @@
-"use client";
-
 import { useState } from "react";
-import { ImageOff, ImagePlus, X } from "lucide-react";
+import { Crop, ImageOff, ImagePlus, X } from "lucide-react";
 
 import { ImagePicker, useObjectUrls } from "@/components/ui/image-picker";
+import { ImageCropperDialog } from "@/components/ui/image-cropper-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -42,14 +41,20 @@ export function ChoiceImageField({
     const [uploading, setUploading] = useState(false);
     const [assetKey, setAssetKey] = useState<string | undefined>();
     const [localPreviewUrl, setLocalPreviewUrl] = useState<string | undefined>();
+    const [originalFile, setOriginalFile] = useState<File | undefined>();
+    const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | undefined>();
+    const [cropDialogOpen, setCropDialogOpen] = useState(false);
 
     const updateUrl = onChangeUrl || onChange;
     const preview = previewUrl || localPreviewUrl || value;
+    const cropSourceUrl = originalPreviewUrl || preview;
 
     async function handlePick(pickedFile: File) {
+        setOriginalFile(pickedFile);
         if (onChangeFile) {
             release(localPreviewUrl);
             const objectUrl = create(pickedFile);
+            setOriginalPreviewUrl(objectUrl);
             setLocalPreviewUrl(objectUrl);
             onChangeFile(pickedFile, objectUrl);
             return;
@@ -59,6 +64,7 @@ export function ChoiceImageField({
         const replaced = assetKey;
         const nextPreview = create(pickedFile);
 
+        setOriginalPreviewUrl(nextPreview);
         setLocalPreviewUrl(nextPreview);
         setUploading(true);
 
@@ -89,6 +95,21 @@ export function ChoiceImageField({
         } finally {
             setUploading(false);
         }
+    }
+
+    function handleCropComplete(croppedFile: File, croppedUrl: string) {
+        if (onChangeFile) {
+            release(localPreviewUrl);
+            setLocalPreviewUrl(croppedUrl);
+            onChangeFile(croppedFile, croppedUrl);
+        } else {
+            void handlePick(croppedFile);
+        }
+        toast({
+            tone: "success",
+            title: "Image cropped",
+            description: `${label} image has been updated.`,
+        });
     }
 
     function handleRemove() {
@@ -137,7 +158,14 @@ export function ChoiceImageField({
                     />
                     {preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={preview} alt="" className="size-full object-cover" />
+                        <img
+                            src={preview}
+                            alt=""
+                            className="size-full object-cover"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                            }}
+                        />
                     ) : (
                         <ImagePlus className="size-4" />
                     )}
@@ -153,16 +181,36 @@ export function ChoiceImageField({
                 </span>
 
                 {preview && !uploading ? (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove ${label.toLowerCase()}`}
-                        onClick={handleRemove}
-                    >
-                        <X className="size-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Crop ${label.toLowerCase()}`}
+                            title="Crop image"
+                            onClick={() => setCropDialogOpen(true)}
+                        >
+                            <Crop className="size-3.5" />
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Remove ${label.toLowerCase()}`}
+                            onClick={handleRemove}
+                        >
+                            <X className="size-3.5" />
+                        </Button>
+                    </div>
                 ) : null}
+
+                <ImageCropperDialog
+                    open={cropDialogOpen}
+                    onOpenChange={setCropDialogOpen}
+                    imageSrc={cropSourceUrl || null}
+                    fileName={originalFile?.name || `${label.toLowerCase()}.jpg`}
+                    onCropComplete={handleCropComplete}
+                />
             </div>
         );
     }
@@ -190,25 +238,52 @@ export function ChoiceImageField({
                                 src={preview}
                                 alt=""
                                 className="size-full object-cover"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                }}
                             />
                         ) : (
-                            <ImageOff className="size-5 text-muted-foreground" />
+                            <img
+                                src="/brand/fluxibiz-mark.png"
+                                alt=""
+                                className="w-1/2 opacity-35"
+                            />
                         )}
                     </span>
                 }
             />
 
             {preview && !uploading ? (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove ${label.toLowerCase()}`}
-                    onClick={handleRemove}
-                >
-                    <X className="size-4" />
-                </Button>
+                <div className="flex flex-col gap-1">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Crop ${label.toLowerCase()}`}
+                        title="Crop image"
+                        onClick={() => setCropDialogOpen(true)}
+                    >
+                        <Crop className="size-4" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove ${label.toLowerCase()}`}
+                        onClick={handleRemove}
+                    >
+                        <X className="size-4" />
+                    </Button>
+                </div>
             ) : null}
+
+            <ImageCropperDialog
+                open={cropDialogOpen}
+                onOpenChange={setCropDialogOpen}
+                imageSrc={cropSourceUrl || null}
+                fileName={originalFile?.name || `${label.toLowerCase()}.jpg`}
+                onCropComplete={handleCropComplete}
+            />
         </div>
     );
 }

@@ -472,12 +472,12 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                                 id="quantity"
                                                 name="quantity"
                                                 type="number"
-                                                step="1"
-                                                min="1"
+                                                step="any"
+                                                min="0.001"
                                                 max={maxStockQuantity}
                                                 value={quantityInput}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
+                                                    if (e.key === "-" || e.key === "e" || e.key === "E") {
                                                         e.preventDefault();
                                                     }
                                                 }}

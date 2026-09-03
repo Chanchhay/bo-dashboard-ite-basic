@@ -37,7 +37,7 @@ const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
     timeStyle: "short",
 });
 
-const pageSizes = [10, 25, 50, 100];
+const pageSizes = [10, 20, 25, 50, 100];
 
 type MovementKind = "ALL" | "IN" | "OUT" | "ADJUST";
 
@@ -377,12 +377,9 @@ export function StockMovementsTab({
         [recordedRows],
     );
 
-    // Filtered rows based on selected movement kind, search text, and date range
-    const filteredRows = useMemo(() => {
+    // Filtered rows matching search text and date range (before kind filter)
+    const baseFilteredRows = useMemo(() => {
         return allRows.filter((row) => {
-            if (kindFilter !== "ALL" && row.kind !== kindFilter) {
-                return false;
-            }
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const haystack = [
@@ -416,17 +413,27 @@ export function StockMovementsTab({
             }
             return true;
         });
-    }, [allRows, kindFilter, searchQuery, startDate, endDate]);
+    }, [allRows, searchQuery, startDate, endDate]);
 
-    /** Counts drive the filter chips; they describe everything, unfiltered. */
+    // Final filtered rows based on selected movement kind
+    const filteredRows = useMemo(() => {
+        return baseFilteredRows.filter((row) => {
+            if (kindFilter !== "ALL" && row.kind !== kindFilter) {
+                return false;
+            }
+            return true;
+        });
+    }, [baseFilteredRows, kindFilter]);
+
+    /** Counts drive the filter chips; they describe movements matching active date and search filters. */
     const kindCounts = useMemo(
         () => ({
-            ALL: allRows.length,
-            IN: allRows.filter((row) => row.kind === "IN").length,
-            OUT: allRows.filter((row) => row.kind === "OUT").length,
-            ADJUST: allRows.filter((row) => row.kind === "ADJUST").length,
+            ALL: baseFilteredRows.length,
+            IN: baseFilteredRows.filter((row) => row.kind === "IN").length,
+            OUT: baseFilteredRows.filter((row) => row.kind === "OUT").length,
+            ADJUST: baseFilteredRows.filter((row) => row.kind === "ADJUST").length,
         }),
-        [allRows],
+        [baseFilteredRows],
     );
 
     const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
@@ -477,10 +484,10 @@ export function StockMovementsTab({
     return (
         <div className="flex flex-col">
             {/* Filter Toolbar */}
-            <div className="flex flex-col gap-4 p-4 sm:p-5 border-b border-border bg-card">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:gap-4 p-3.5 sm:p-5 border-b border-border bg-card">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3">
                     {/* Movement Filter Buttons */}
-                    <div data-tour="movements-filter-chips" className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border border-border bg-muted/30">
+                    <div data-tour="movements-filter-chips" className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl border border-border bg-muted/30 overflow-x-auto no-scrollbar w-full lg:w-auto">
                         {filterChips.map((chip) => (
                             <button
                                 key={chip.id}
@@ -491,24 +498,24 @@ export function StockMovementsTab({
                                     )
                                 }
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer",
+                                    "shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap",
                                     kindFilter === chip.id
                                         ? chip.active
                                         : "text-muted-foreground hover:text-foreground hover:bg-card/50",
                                 )}
                             >
                                 {chip.id === "ADJUST" ? (
-                                    <SlidersHorizontal className="size-4" />
+                                    <SlidersHorizontal className="size-3.5 sm:size-4" />
                                 ) : chip.dot ? (
                                     <span
                                         className={cn(
-                                            "size-2.5 rounded-full",
+                                            "size-2 sm:size-2.5 rounded-full",
                                             chip.dot,
                                         )}
                                     />
                                 ) : null}
                                 <span>{chip.label}</span>
-                                <span className="text-xs font-medium opacity-70">
+                                <span className="text-[11px] sm:text-xs font-medium opacity-70">
                                     {kindCounts[chip.id]}
                                 </span>
                             </button>
@@ -516,7 +523,7 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Search Bar */}
-                    <div data-tour="movements-search" className="relative min-w-72 sm:w-80 lg:w-96 flex-1 sm:flex-initial">
+                    <div data-tour="movements-search" className="relative w-full sm:w-80 lg:w-96 flex-1 sm:flex-initial">
                         <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                             type="text"
@@ -527,16 +534,16 @@ export function StockMovementsTab({
                                 )
                             }
                             placeholder="Search item, lot, reason, or person..."
-                            className="pl-10 h-10 text-sm rounded-xl border-border bg-background"
+                            className="pl-10 h-9 sm:h-10 text-xs sm:text-sm rounded-xl border-border bg-background w-full shadow-xs"
                         />
                     </div>
                 </div>
 
                 {/* Styled Date Filter Bar */}
-                <div data-tour="movements-date-filter" className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60 text-sm">
+                <div data-tour="movements-date-filter" className="flex flex-col gap-3 pt-3 border-t border-border/60 text-sm lg:flex-row lg:items-center lg:justify-between">
                     {/* Date Presets */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full lg:w-auto py-0.5">
+                        <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5 shrink-0 text-xs sm:text-sm">
                             <Calendar className="size-4 text-primary" />
                             <span>Date:</span>
                         </span>
@@ -551,7 +558,7 @@ export function StockMovementsTab({
                                 type="button"
                                 onClick={() => handlePresetChange(p.id)}
                                 className={cn(
-                                    "px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all cursor-pointer",
+                                    "shrink-0 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer whitespace-nowrap",
                                     datePreset === p.id && !startDate && !endDate
                                         ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                                         : datePreset === p.id
@@ -565,17 +572,15 @@ export function StockMovementsTab({
                     </div>
 
                     {/* Clean Custom Calendar Inputs */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">From:</span>
-                            <div className="w-44">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3 w-full lg:w-auto">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>
+                            <div className="flex-1 sm:w-40 md:w-44 min-w-0">
                                 <DatePicker
                                     value={startDate}
-                                    // Never later than the other end of the
-                                    // range, which would select nothing.
                                     max={endDate || undefined}
                                     placeholder="Any date"
-                                    className="h-9"
+                                    className="h-9 text-xs sm:text-sm"
                                     onValueChange={(value) =>
                                         applyFilter(() => {
                                             setStartDate(value);
@@ -586,14 +591,14 @@ export function StockMovementsTab({
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">To:</span>
-                            <div className="w-44">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                            <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">To:</span>
+                            <div className="flex-1 sm:w-40 md:w-44 min-w-0">
                                 <DatePicker
                                     value={endDate}
                                     min={startDate || undefined}
                                     placeholder="Any date"
-                                    className="h-9"
+                                    className="h-9 text-xs sm:text-sm"
                                     onValueChange={(value) =>
                                         applyFilter(() => {
                                             setEndDate(value);
@@ -614,7 +619,7 @@ export function StockMovementsTab({
                                         setDatePreset("ALL");
                                     })
                                 }
-                                className="text-sm font-medium text-muted-foreground hover:text-foreground underline ml-1 cursor-pointer"
+                                className="text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground underline ml-1 cursor-pointer"
                             >
                                 Clear
                             </button>
@@ -628,24 +633,137 @@ export function StockMovementsTab({
                     No movements match your selected filter.
                 </div>
             ) : (
-                <div className="overflow-auto max-h-[calc(100dvh-340px)] sm:max-h-[calc(100dvh-360px)]">
-                    <table className="w-full min-w-[980px] text-left text-sm">
-                        <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
-                            <tr>
-                                <th className="px-5 py-3 bg-card">Date</th>
-                                <th className="px-5 py-3 bg-card">Item</th>
-                                <th className="px-5 py-3 bg-card">Movement</th>
-                                <th className="px-5 py-3 text-right bg-card">Change</th>
-                                <th className="px-5 py-3 text-right bg-card">
-                                    Balance
-                                </th>
-                                <th className="px-5 py-3 bg-card">Recorded by</th>
-                                <th className="px-5 py-3 text-right bg-card">
-                                    <span className="sr-only">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
+                <>
+                    {/* Mobile Cards View (< md) */}
+                    <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                        {pageRows.map((row) => (
+                            <div
+                                key={row.id}
+                                onClick={() => setOpenedRow(row)}
+                                className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
+                            >
+                                {/* Card Header */}
+                                <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                    <div className="flex flex-col min-w-0 pr-2">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                                {row.name}
+                                            </span>
+                                            {row.isAddOn && (
+                                                <span className="rounded-full border border-border bg-muted px-1.5 py-0.2 text-[9px] font-semibold text-muted-foreground">
+                                                    Add-on
+                                                </span>
+                                            )}
+                                            {row.optionName && (
+                                                <span className="rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.2 text-[9px] font-semibold text-primary">
+                                                    {row.optionName}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {row.unitLabel && (
+                                            <span className="text-[11px] text-muted-foreground mt-0.5">
+                                                in {row.unitLabel}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <span
+                                            className={cn(
+                                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                                kindBadgeClassName[row.kind],
+                                            )}
+                                        >
+                                            {row.typeLabel || kindLabels[row.kind]}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Card Key-Value Rows */}
+                                <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Date & Time</span>
+                                        <span className="text-muted-foreground dark:text-slate-300">
+                                            {row.at ? `${dateFormat.format(new Date(row.at))} · ${timeFormat.format(new Date(row.at))}` : "—"}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Change</span>
+                                        <span
+                                            className={cn(
+                                                "inline-flex items-center gap-1 font-bold text-sm tabular-nums",
+                                                row.kind === "ADJUST"
+                                                    ? "text-warning"
+                                                    : row.change >= 0
+                                                      ? "text-success"
+                                                      : "text-danger",
+                                            )}
+                                        >
+                                            {row.kind === "ADJUST" ? (
+                                                <SlidersHorizontal className="size-3.5" />
+                                            ) : row.change >= 0 ? (
+                                                <ArrowDownToLine className="size-3.5" />
+                                            ) : (
+                                                <ArrowUpFromLine className="size-3.5" />
+                                            )}
+                                            {row.change > 0 ? "+" : ""}
+                                            {formatAmount(row.change)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Balance</span>
+                                        <div className="text-xs font-semibold tabular-nums text-foreground dark:text-slate-200">
+                                            {row.after === undefined ? (
+                                                <span className="text-muted-foreground">—</span>
+                                            ) : (
+                                                <>
+                                                    <span className="text-muted-foreground font-normal">{formatAmount(row.before ?? 0)}</span>
+                                                    <span className="px-1 text-muted-foreground">→</span>
+                                                    <span>{formatAmount(row.after)}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                        <span className="text-muted-foreground dark:text-slate-400">Recorded By</span>
+                                        <span className="font-medium text-foreground dark:text-slate-200">
+                                            {row.actor ? row.actor.name : "Not signed"}
+                                        </span>
+                                    </div>
+
+                                    {(row.linkedRecord || row.note) && (
+                                        <div className="px-3.5 py-2 text-[11px] text-muted-foreground bg-muted/5">
+                                            {row.linkedRecord && <p className="font-medium text-foreground/80">{row.linkedRecord}</p>}
+                                            {row.note && <p className="mt-0.5 italic">{row.note}</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desktop Table (>= md) */}
+                    <div className="hidden md:block overflow-auto max-h-[calc(100dvh-340px)] sm:max-h-[calc(100dvh-360px)]">
+                        <table className="w-full min-w-[980px] text-left text-sm">
+                            <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
+                                <tr>
+                                    <th className="px-5 py-3 bg-card">Date</th>
+                                    <th className="px-5 py-3 bg-card">Item</th>
+                                    <th className="px-5 py-3 bg-card">Movement</th>
+                                    <th className="px-5 py-3 text-right bg-card">Change</th>
+                                    <th className="px-5 py-3 text-right bg-card">
+                                        Balance
+                                    </th>
+                                    <th className="px-5 py-3 bg-card">Recorded by</th>
+                                    <th className="px-5 py-3 text-right bg-card">
+                                        <span className="sr-only">Actions</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
                             {pageRows.map((row) => (
                                 <tr
                                     key={row.id}
@@ -849,6 +967,7 @@ export function StockMovementsTab({
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
 
             {/* Pagination */}

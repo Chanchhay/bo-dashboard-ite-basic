@@ -1,6 +1,5 @@
 import { baseApi } from "@/lib/baseApi";
 import type {
-    AddOrderItemInput,
     Khqr,
     OrderHistoryQuery,
     OrderPageQuery,
@@ -14,7 +13,6 @@ import type {
     Sale,
     SetOrderCustomerInput,
     SetOrderDiscountInput,
-    UpdateOrderItemInput,
 } from "@/lib/api/pos-order";
 
 /**
@@ -38,56 +36,8 @@ function orderFilterParams(input: OrderHistoryQuery | void | null) {
     };
 }
 
-let inFlightCount = 0;
-
-/**
- * Mirrors the backend's TaxCalculator so an optimistic cart edit never shows
- * a tax-free total for the instant before the real response lands — the
- * order's own taxRate/taxInclusionType carry over unchanged by a line edit,
- * only the amount they apply to does.
- */
-function optimisticTotal(
-    subtotal: number,
-    discountAmount: number,
-    taxRate: number | null | undefined,
-    taxInclusionType: string | null | undefined,
-): { taxAmount: number; total: number } {
-    const round2 = (value: number) => Math.round(value * 100) / 100;
-    const net = Math.max(0, subtotal - discountAmount);
-    const rate = taxRate ?? 0;
-
-    if (!rate) {
-        return { taxAmount: 0, total: round2(net) };
-    }
-
-    if (taxInclusionType === "INCLUSIVE") {
-        const pretax = net / (1 + rate / 100);
-        return { taxAmount: round2(net - pretax), total: round2(net) };
-    }
-
-    const taxAmount = round2(net * (rate / 100));
-    return { taxAmount, total: round2(net + taxAmount) };
-}
-
-function handleFulfilled(dispatch: any, data: PosOrder | null) {
-    if (inFlightCount <= 0 && data) {
-        dispatch(
-            posOrderApi.util.updateQueryData(
-                "getCurrentOrder",
-                undefined,
-                () => data,
-            ),
-        );
-    }
-}
-
 export const posOrderApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
-        getCurrentOrder: builder.query<PosOrder | null, void>({
-            query: () => "/orders/current",
-            providesTags: ["PosOrder"],
-        }),
-
         getOpenOrders: builder.query<PosOrderPage, void>({
             query: () => "/orders/open",
             providesTags: (result) => [
@@ -168,11 +118,12 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         loadOrderForEdit: builder.mutation<PosOrder, string>({
+            // The caller puts the order it answers with onto the till; there
+            // is no cache here for it to be written into any more.
             query: (orderId) => ({
                 url: `/orders/${encodeURIComponent(orderId)}/edit`,
                 method: "POST",
             }),
-            onQueryStarted: writeBackOrder,
         }),
 
         cancelOpenOrder: builder.mutation<PosOrder, string>({
@@ -185,6 +136,23 @@ export const posOrderApi = baseApi.injectEndpoints({
                 "PosOrderHistory",
                 { type: "PosOpenOrders", id: orderId },
                 { type: "PosOpenOrders", id: "LIST" },
+                // A cancelled order puts its stock back on the shelf.
+                "InventoryStock",
+            ],
+        }),
+
+        /** Deletes an order completely. */
+        deleteOrder: builder.mutation<void, string>({
+            query: (orderId) => ({
+                url: `/orders/${encodeURIComponent(orderId)}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: (_result, _error, orderId) => [
+                "PosOrder",
+                "PosOrderHistory",
+                { type: "PosOpenOrders", id: orderId },
+                { type: "PosOpenOrders", id: "LIST" },
+                "InventoryStock",
             ],
         }),
 
@@ -199,6 +167,8 @@ export const posOrderApi = baseApi.injectEndpoints({
                 "PosOrderHistory",
                 { type: "PosOpenOrders", id: orderId },
                 { type: "PosOpenOrders", id: "LIST" },
+                // Confirming reserves the stock, so the shelf figure moves now.
+                "InventoryStock",
             ],
         }),
 
@@ -216,234 +186,6 @@ export const posOrderApi = baseApi.injectEndpoints({
             ],
         }),
 
-        addOrderItem: builder.mutation<PosOrder, AddOrderItemInput>({
-            query: ({ itemId, variantId, unitId, addOnIds, quantity }) => ({
-                url: "/orders/current/items",
-                method: "POST",
-                body: { itemId, variantId, unitId, addOnIds, quantity },
-            }),
-            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-                inFlightCount++;
-                const patchResult = dispatch(
-                    posOrderApi.util.updateQueryData(
-                        "getCurrentOrder",
-                        undefined,
-                        (draft) => {
-                            let currentDraft = draft;
-                            if (!currentDraft) {
-                                return {
-                                    id: `offline-${Date.now()}`,
-                                    businessId: "1",
-                                    customerId: typeof window !== "undefined" ? (localStorage.getItem("pos_active_customer_id") || null) : null,
-                                    invoiceNumber: null,
-                                    channel: "POS",
-                                    status: "PENDING",
-                                    currency: "USD",
-                                    displayCurrency: null,
-                                    displayExchangeRate: null,
-                                    note: null,
-                                    createdDate: null,
-                                    items: [
-                                        {
-                                            id: `temp-${Date.now()}-${Math.random()}`,
-                                            itemId: arg.itemId,
-                                            variantId: arg.variantId ?? null,
-                                            unitId: arg.unitId ?? null,
-                                            itemName: arg.itemName ?? "Item",
-                                            quantity: arg.quantity || 1,
-                                            unitPrice: arg.unitPrice ?? 0,
-                                            discountAmount: 0,
-                                            lineTotal: (arg.quantity || 1) * (arg.unitPrice ?? 0),
-                                        },
-                                    ],
-                                    subtotal: (arg.quantity || 1) * (arg.unitPrice ?? 0),
-                                    discountAmount: 0,
-                                    taxAmount: 0,
-                                    total: (arg.quantity || 1) * (arg.unitPrice ?? 0),
-                                } satisfies PosOrder;
-                            }
-                            const addQty = arg.quantity || 1;
-                            const existingIndex = currentDraft.items.findIndex(
-                                (item) =>
-                                    item.itemId === arg.itemId &&
-                                    (!arg.variantId ||
-                                        item.variantId === arg.variantId) &&
-                                    (item.unitId ?? undefined) ===
-                                    arg.unitId &&
-                                    (item.addOns || [])
-                                        .map((addOn) => addOn.addOnId)
-                                        .sort()
-                                        .join() ===
-                                    [...(arg.addOnIds || [])]
-                                        .sort()
-                                        .join(),
-                            );
-
-                            if (existingIndex !== -1) {
-                                const existing = currentDraft.items[existingIndex];
-                                existing.quantity += addQty;
-                                existing.lineTotal =
-                                    existing.quantity * existing.unitPrice -
-                                    existing.discountAmount;
-                            } else {
-                                const unitPrice = arg.unitPrice ?? 0;
-                                const lineTotal = addQty * unitPrice;
-                                currentDraft.items.push({
-                                    id: `temp-${Date.now()}-${Math.random()}`,
-                                    itemId: arg.itemId,
-                                    variantId: arg.variantId ?? null,
-                                    unitId: arg.unitId ?? null,
-                                    itemName: arg.itemName ?? "Item",
-                                    quantity: addQty,
-                                    unitPrice,
-                                    discountAmount: 0,
-                                    lineTotal,
-                                });
-                            }
-
-                            currentDraft.subtotal = currentDraft.items.reduce(
-                                (sum, i) => sum + i.lineTotal + i.discountAmount,
-                                0,
-                            );
-                            const { taxAmount, total } = optimisticTotal(
-                                currentDraft.subtotal,
-                                currentDraft.discountAmount,
-                                currentDraft.taxRate,
-                                currentDraft.taxInclusionType,
-                            );
-                            currentDraft.taxAmount = taxAmount;
-                            currentDraft.total = total;
-                        },
-                    ),
-                );
-
-                try {
-                    const { data } = await queryFulfilled;
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    handleFulfilled(dispatch, data);
-                } catch {
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
-                        patchResult.undo();
-                    }
-                }
-            },
-        }),
-
-        updateOrderItem: builder.mutation<
-            PosOrder,
-            { orderItemId: string } & UpdateOrderItemInput
-        >({
-            query: ({ orderItemId, quantity }) => ({
-                url: `/order-items/${orderItemId}`,
-                method: "PATCH",
-                body: { quantity },
-            }),
-            async onQueryStarted({ orderItemId, quantity }, { dispatch, queryFulfilled }) {
-                inFlightCount++;
-                const patchResult = dispatch(
-                    posOrderApi.util.updateQueryData(
-                        "getCurrentOrder",
-                        undefined,
-                        (draft) => {
-                            if (!draft) return;
-                            const item = draft.items.find((i) => i.id === orderItemId);
-                            if (item) {
-                                item.quantity = quantity;
-                                item.lineTotal =
-                                    item.quantity * item.unitPrice - item.discountAmount;
-                                draft.subtotal = draft.items.reduce(
-                                    (sum, i) => sum + i.lineTotal + i.discountAmount,
-                                    0,
-                                );
-                                const { taxAmount, total } = optimisticTotal(
-                                    draft.subtotal,
-                                    draft.discountAmount,
-                                    draft.taxRate,
-                                    draft.taxInclusionType,
-                                );
-                                draft.taxAmount = taxAmount;
-                                draft.total = total;
-                            }
-                        },
-                    ),
-                );
-
-                try {
-                    const { data } = await queryFulfilled;
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    handleFulfilled(dispatch, data);
-                } catch {
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
-                        patchResult.undo();
-                    }
-                }
-            },
-        }),
-
-        removeOrderItem: builder.mutation<PosOrder | null, string>({
-            query: (orderItemId) => ({
-                url: `/order-items/${orderItemId}`,
-                method: "DELETE",
-            }),
-            async onQueryStarted(orderItemId, { dispatch, queryFulfilled }) {
-                inFlightCount++;
-                const patchResult = dispatch(
-                    posOrderApi.util.updateQueryData(
-                        "getCurrentOrder",
-                        undefined,
-                        (draft) => {
-                            if (!draft) return;
-                            draft.items = draft.items.filter((i) => i.id !== orderItemId);
-                            draft.subtotal = draft.items.reduce(
-                                (sum, i) => sum + i.lineTotal + i.discountAmount,
-                                0,
-                            );
-                            const { taxAmount, total } = optimisticTotal(
-                                draft.subtotal,
-                                draft.discountAmount,
-                                draft.taxRate,
-                                draft.taxInclusionType,
-                            );
-                            draft.taxAmount = taxAmount;
-                            draft.total = total;
-                        },
-                    ),
-                );
-
-                try {
-                    const { data } = await queryFulfilled;
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    handleFulfilled(dispatch, data);
-                } catch {
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0 && (typeof window === "undefined" || navigator.onLine)) {
-                        patchResult.undo();
-                    }
-                }
-            },
-        }),
-
-        renameOrder: builder.mutation<PosOrder, { note: string }>({
-            query: (body) => ({
-                url: "/orders/current/rename",
-                method: "PATCH",
-                body,
-            }),
-            onQueryStarted: writeBackOrder,
-        }),
-
-        clearOrder: builder.mutation<null, void>({
-            query: () => ({ url: "/orders/current/clear", method: "POST" }),
-            invalidatesTags: [
-                "PosOrder",
-                "PosOrderHistory",
-                { type: "PosOpenOrders", id: "LIST" },
-            ],
-        }),
-
-        /** Whether KHQR can be offered at all. */
         getBakongStatus: builder.query<
             { configured: boolean; active: boolean },
             void
@@ -452,6 +194,8 @@ export const posOrderApi = baseApi.injectEndpoints({
         }),
 
         generateKhqr: builder.mutation<Khqr, void>({
+            // The cart is pushed before payment opens, so the order this
+            // prices against is already the finished one.
             query: () => ({ url: "/orders/current/khqr", method: "POST" }),
         }),
 
@@ -487,36 +231,20 @@ export const posOrderApi = baseApi.injectEndpoints({
             },
         }),
 
+        /*
+         * These two tell the server what the cart already says.
+         *
+         * The optimistic patches that used to live here — a guess written into
+         * a cache, undone if the request failed — have nothing left to guess
+         * at: the cart is written to the device first and the panel reads it
+         * from there.
+         */
         setOrderCustomer: builder.mutation<PosOrder, SetOrderCustomerInput>({
             query: (body) => ({
                 url: "/orders/current/customer",
                 method: "PATCH",
                 body,
             }),
-            async onQueryStarted(body, { dispatch, queryFulfilled }) {
-                inFlightCount++;
-                const patchResult = dispatch(
-                    posOrderApi.util.updateQueryData(
-                        "getCurrentOrder",
-                        undefined,
-                        (draft) => {
-                            if (!draft) return;
-                            draft.customerId = body.customerId ?? null;
-                        },
-                    ),
-                );
-
-                try {
-                    const { data } = await queryFulfilled;
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    handleFulfilled(dispatch, data);
-                } catch {
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0) {
-                        patchResult.undo();
-                    }
-                }
-            },
         }),
 
         setOrderDiscount: builder.mutation<PosOrder, SetOrderDiscountInput>({
@@ -525,42 +253,12 @@ export const posOrderApi = baseApi.injectEndpoints({
                 method: "PATCH",
                 body,
             }),
-            async onQueryStarted(body, { dispatch, queryFulfilled }) {
-                inFlightCount++;
-                const patchResult = dispatch(
-                    posOrderApi.util.updateQueryData(
-                        "getCurrentOrder",
-                        undefined,
-                        (draft) => {
-                            if (!draft) return;
-                            draft.discountAmount = body.discountAmount;
-                            const { taxAmount, total } = optimisticTotal(
-                                draft.subtotal,
-                                body.discountAmount,
-                                draft.taxRate,
-                                draft.taxInclusionType,
-                            );
-                            draft.taxAmount = taxAmount;
-                            draft.total = total;
-                        },
-                    ),
-                );
-
-                try {
-                    const { data } = await queryFulfilled;
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    handleFulfilled(dispatch, data);
-                } catch {
-                    inFlightCount = Math.max(0, inFlightCount - 1);
-                    if (inFlightCount === 0) {
-                        patchResult.undo();
-                    }
-                }
-            },
         }),
 
-        /** Settles the sale. The cart is gone afterwards, so the cache is dropped. */
+        /** Settles the sale. */
         payOrder: builder.mutation<Sale, PayOrderInput>({
+            // The till flushes its cart before calling this, so the order
+            // being settled is the one the cashier can see.
             query: (body) => ({
                 url: "/orders/current/pay",
                 method: "POST",
@@ -571,40 +269,17 @@ export const posOrderApi = baseApi.injectEndpoints({
                 "PosOrderHistory",
                 { type: "PosOpenOrders", id: "LIST" },
                 { type: "PosReceipts", id: "LIST" },
+                // The goods have left the shelf. Without this the grid keeps
+                // the count it loaded this morning, and the next cart is free
+                // to sell the same five all over again.
+                "InventoryStock",
             ],
         }),
     }),
 });
 
 /** Puts the order a mutation returned into the cache the cart reads from. */
-async function writeBackOrder(
-    _arg: unknown,
-    {
-        dispatch,
-        queryFulfilled,
-    }: {
-        dispatch: (action: unknown) => unknown;
-        queryFulfilled: Promise<{ data: PosOrder | null }>;
-    },
-) {
-    try {
-        const { data } = await queryFulfilled;
-
-        dispatch(
-            posOrderApi.util.updateQueryData(
-                "getCurrentOrder",
-                undefined,
-                () => data,
-            ),
-        );
-    } catch {
-        // The mutation already surfaced the failure; the cache keeps the last
-        // good order rather than being cleared out from under the cashier.
-    }
-}
-
 export const {
-    useGetCurrentOrderQuery,
     useGetOpenOrdersQuery,
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
@@ -613,13 +288,9 @@ export const {
     useParkOrderMutation,
     useLoadOrderForEditMutation,
     useCancelOpenOrderMutation,
+    useDeleteOrderMutation,
     useConfirmOrderMutation,
     useApprovePayLaterOrderMutation,
-    useAddOrderItemMutation,
-    useUpdateOrderItemMutation,
-    useRemoveOrderItemMutation,
-    useRenameOrderMutation,
-    useClearOrderMutation,
     useSetOrderCustomerMutation,
     useSetOrderDiscountMutation,
     usePayOrderMutation,

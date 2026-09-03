@@ -268,13 +268,13 @@ export function StockMovementDialog({
                             <Input
                                 id="movement-quantity"
                                 type="number"
-                                min="1"
+                                min="0.001"
                                 max={maxStockQuantity}
-                                step="1"
+                                step="any"
                                 autoFocus
                                 value={quantity}
                                 onKeyDown={(e) => {
-                                    if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "." || e.key === ",") {
+                                    if (e.key === "-" || e.key === "e" || e.key === "E") {
                                         e.preventDefault();
                                     }
                                 }}
@@ -503,11 +503,12 @@ export function StockMovementDialog({
                     ) : null}
                 </div>
 
-                <DialogFooter className="mt-6">
+                <DialogFooter className="mt-6 grid grid-cols-1 gap-2.5 min-[360px]:grid-cols-2 sm:flex sm:flex-row sm:justify-end sm:gap-3">
                     <Button
                         type="button"
                         variant="outline"
                         onClick={() => onOpenChange(false)}
+                        className="h-11 sm:h-10 w-full sm:w-auto text-xs sm:text-sm order-2 min-[360px]:order-1"
                     >
                         Cancel
                     </Button>
@@ -515,6 +516,7 @@ export function StockMovementDialog({
                         type="button"
                         onClick={handleRecord}
                         disabled={busy}
+                        className="h-11 sm:h-10 w-full sm:w-auto text-xs sm:text-sm order-1 min-[360px]:order-2"
                     >
                         {isIn ? "Record stock in" : "Record stock out"}
                     </Button>

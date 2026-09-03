@@ -175,9 +175,57 @@ export default function AuditsTab({
                 />
             ) : (
                 <>
+                    {/* Mobile Cards View (< md) */}
+                    <div className="flex flex-col gap-3 pt-3 md:hidden">
+                        {logs.map((log) => (
+                            <div
+                                key={log.id}
+                                className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
+                            >
+                                {/* Card Header */}
+                                <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                    <div className="flex flex-col min-w-0 pr-2">
+                                        <span className="font-bold text-sm text-foreground dark:text-white truncate">
+                                            {humanizeEnum(log.actionType)}
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground mt-0.5">
+                                            by {log.actorUsername || log.actorId || "System"}
+                                        </span>
+                                    </div>
+                                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                        {formatTimestamp(log.createdAt)}
+                                    </span>
+                                </div>
+
+                                {/* Card Key-Value Rows */}
+                                <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                                        <span className="text-muted-foreground dark:text-slate-400">Target</span>
+                                        <div className="text-right">
+                                            <p className="font-medium text-foreground dark:text-slate-200">{log.targetLabel || "—"}</p>
+                                            <p className="text-[11px] text-muted-foreground">{humanizeEnum(log.targetType)}</p>
+                                        </div>
+                                    </div>
+
+                                    {(log.previousState || log.newState) && (
+                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                            <span className="text-muted-foreground dark:text-slate-400">Change</span>
+                                            <div className="text-right font-medium">
+                                                <span className="text-muted-foreground">{log.previousState || "—"}</span>
+                                                <span className="px-1 text-muted-foreground">→</span>
+                                                <span className="text-foreground dark:text-slate-200">{log.newState || "—"}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desktop Table (>= md) */}
                     <div
                         className={cn(
-                            "mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
+                            "hidden md:block mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
                             auditQuery.isFetching && "opacity-60 pointer-events-none",
                         )}
                     >
@@ -254,7 +302,7 @@ export default function AuditsTab({
                             setPageSize(next);
                             setPage(0);
                         }}
-                        sizeOptions={[1, 2, 5, 10, 20, 50]}
+                        sizeOptions={[10, 20, 25, 50, 100]}
                         isLoading={auditQuery.isFetching}
                         itemLabel="entry"
                         itemLabelPlural="entries"

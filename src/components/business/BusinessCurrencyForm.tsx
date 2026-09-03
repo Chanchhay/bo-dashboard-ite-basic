@@ -7,6 +7,7 @@ import {
     ChevronDown,
     LoaderCircle,
     Plus,
+    Save,
     X,
 } from "lucide-react";
 
@@ -435,7 +436,7 @@ function CurrencyEditor({
             noValidate
             className="flex min-h-[795px] flex-col"
         >
-            <section className="rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section className="rounded-2xl bg-card border border-border p-4 sm:p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>General Configuration</SectionTitle>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -597,10 +598,10 @@ function CurrencyEditor({
                 </div>
             </section>
 
-            <section data-tour="currency-calculator" className="mt-4 rounded-2xl bg-card border border-border p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="currency-calculator" className="mt-4 rounded-2xl bg-card border border-border p-4 sm:p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <SectionTitle>Exchange Rate &amp; Calculator</SectionTitle>
 
-                <div className="mt-5 max-w-[630px] rounded-2xl border border-border bg-muted/30 p-4 sm:p-6">
+                <div className="mt-5 max-w-[630px] rounded-2xl border border-border bg-muted/30 p-3.5 sm:p-6">
                     {base && target ? (
                         <>
                             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
@@ -722,14 +723,13 @@ function CurrencyEditor({
                 onAddAndConfigureCurrency={handleAddAndConfigureCurrency}
             />
 
-            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border bg-shell px-5 py-3.5 sm:py-4 lg:-mx-8 lg:px-8">
+            <div className="sticky -bottom-8 z-30 -mx-5 mt-auto flex flex-wrap items-center justify-end gap-2.5 border-t border-border bg-shell px-5 py-3.5 sm:gap-3 sm:py-4 lg:-mx-8 lg:px-8">
                 <Button
                     type="button"
                     variant="outline"
                     onClick={resetForm}
                     disabled={updateState.isLoading}
-                    size="lg"
-                    className="min-w-[124px]"
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >
                     Cancel
                 </Button>
@@ -737,16 +737,18 @@ function CurrencyEditor({
                     type="submit"
                     data-tour="currency-save"
                     disabled={updateState.isLoading}
-                    size="lg"
-                    className="min-w-[124px]"
+                    className="h-10 flex-1 rounded-xl px-4 text-xs sm:h-11 sm:flex-initial sm:px-6 sm:text-sm"
                 >
                     {updateState.isLoading ? (
                         <>
-                            <LoaderCircle className="animate-spin" />
-                            Saving…
+                            <LoaderCircle className="size-4 shrink-0 animate-spin" />
+                            <span>Saving…</span>
                         </>
                     ) : (
-                        "Save"
+                        <>
+                            <Save className="size-4 shrink-0" />
+                            <span>Save</span>
+                        </>
                     )}
                 </Button>
             </div>
@@ -795,7 +797,7 @@ export default function BusinessCurrencyForm() {
             <CurrencyQueryError
                 message={getApiErrorMessage(
                     query.error,
-                    "The business currency API could not be reached.",
+                    "Your currencies could not be loaded. Check the connection and try again.",
                 )}
                 onRetry={() => void query.refetch()}
             />

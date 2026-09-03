@@ -31,7 +31,7 @@ export default async function PublicMenu({
           </h1>
           {process.env.NODE_ENV !== "production" && (
             <p className="mt-2 text-xs text-gray-400 break-all max-w-md">
-              slug="{slug}" · status={storeRes.status} · url={storeUrl}
+              slug=&quot;{slug}&quot; · status={storeRes.status} · url={storeUrl}
             </p>
           )}
         </div>

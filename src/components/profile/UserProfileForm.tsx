@@ -48,6 +48,7 @@ import {
     userProfileApi,
 } from "@/services/userProfileApi";
 import { useAppDispatch } from "@/store/hooks";
+import { NotificationSettingsCard } from "@/components/profile/NotificationSettingsCard";
 
 type FieldName = keyof UserProfileInput;
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -355,6 +356,9 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                                             src={picture.preview}
                                             alt={`${profileName} profile`}
                                             className="size-full object-cover"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
+                                            }}
                                         />
                                     ) : (
                                         getInitials(
@@ -444,6 +448,8 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                         />
                     </div>
                 </section>
+
+                <NotificationSettingsCard />
             </aside>
 
             <form
@@ -649,7 +655,7 @@ export default function UserProfileForm() {
             <ProfileQueryError
                 message={getApiErrorMessage(
                     profileQuery.error,
-                    "The user profile API could not be reached.",
+                    "Your profile could not be loaded. Check the connection and try again.",
                 )}
                 onRetry={() => void profileQuery.refetch()}
             />

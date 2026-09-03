@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { ImageOff } from "lucide-react";
 
+import { ItemImage } from "@/components/item/item-image";
 import { useMoney } from "@/hooks/useMoney";
 import type { Item } from "@/types/pos-type";
 
@@ -26,6 +26,15 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
   const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
   const displayPrice = formattedPrice || format(item.price);
+  // Only worth saying while the item can still be sold: a dimmed card already
+  // carries "Out of stock", and two stock messages at once say less than one.
+  const stockLeft = isDisabled ? undefined : item.lowStockLeft;
+  // Named, because the count is in the units stock is kept in and the item may
+  // well be sold in something larger.
+  const stockLabel =
+    stockLeft === undefined
+      ? undefined
+      : `${stockLeft}${item.stockUnit ? ` ${item.stockUnit}` : ""} left`;
 
   return (
     <button
@@ -34,7 +43,9 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
       aria-label={
         isDisabled && item.unavailableReason
           ? `${item.name}, ${displayPrice}, ${item.unavailableReason}`
-          : `${item.name}, ${displayPrice}`
+          : stockLeft !== undefined
+            ? `${item.name}, ${displayPrice}, only ${stockLabel}`
+            : `${item.name}, ${displayPrice}`
       }
       onClick={() => onSelect?.(item)}
       style={{ touchAction: "manipulation" }}
@@ -52,6 +63,14 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
           </span>
         )}
 
+        {/* Running out. Opposite corner from the discount badge so an item
+            that is both cheap and nearly gone says both. */}
+        {stockLeft !== undefined ? (
+          <span className="absolute top-2 left-2 z-10 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-background shadow-sm ring-1 ring-white/50">
+            {stockLabel}
+          </span>
+        ) : null}
+
         {/* Why it is dimmed. "Out of stock" needs a delivery and
             "Unavailable" needs a switch flipped in Inventory — a cashier
             cannot tell those apart from a faded card alone. */}
@@ -60,17 +79,12 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
             {item.unavailableReason}
           </span>
         ) : null}
-        {item.image_url ? (
-          /* Decorative — the button's aria-label already names the item. */
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.image_url}
-            alt=""
-            className="h-full w-full object-cover opacity-95 group-active:scale-105 transition-transform duration-75"
-          />
-        ) : (
-          <ImageOff className="h-8 w-8 text-gray-300" aria-hidden="true" />
-        )}
+        {/* Decorative — the button's aria-label already names the item. */}
+        <ItemImage
+          src={item.image_url}
+          className="h-full w-full"
+          imageClassName="opacity-95 group-active:scale-105 transition-transform duration-75"
+        />
       </span>
 
       <span className="flex w-full flex-col">
@@ -107,6 +121,8 @@ export const PosCard = memo(
     prev.item.discountedPrice === next.item.discountedPrice &&
     prev.item.is_available === next.item.is_available &&
     prev.item.unavailableReason === next.item.unavailableReason &&
+    prev.item.lowStockLeft === next.item.lowStockLeft &&
+    prev.item.stockUnit === next.item.stockUnit &&
     prev.formattedPrice === next.formattedPrice &&
     prev.onSelect === next.onSelect,
 );

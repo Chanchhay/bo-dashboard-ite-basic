@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
     AlertTriangle,
     Check,
-    ChevronLeft,
-    ChevronRight,
     Clock,
     Columns3,
     Globe,
@@ -22,11 +20,14 @@ import {
 
 import { AmountReceived } from "@/components/pos/amount-received";
 import { ReceiptTicket } from "@/components/pos/order/receipt-ticket";
+import { PaginationBar } from "@/components/ui/PaginationBar";
+import { cn } from "@/lib/utils";
 import {
     getApiErrorMessage,
     InventoryEmpty,
     InventoryError,
     InventoryLoading,
+    InventoryPageHeader,
 } from "@/components/inventory/InventoryUi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -63,8 +64,8 @@ const channelNames: Record<string, string> = {
     MESSENGER: "Messenger",
 };
 
-const PAGE_SIZES = [10, 25, 50] as const;
-const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 10;
+const PAGE_SIZES = [10, 20, 25, 50, 100];
+const DEFAULT_PAGE_SIZE = 10;
 
 /** A sale sitting unpaid longer than this is flagged "Overdue" instead of "Pending". */
 const OVERDUE_DAYS = 7;
@@ -137,9 +138,7 @@ export function PayLaterList() {
     const [channelFilter, setChannelFilter] = useState<ChannelFilter>("ALL");
     const [sortMode, setSortMode] = useState<SortMode>("oldest");
     const [page, setPage] = useState(0);
-    const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(
-        DEFAULT_PAGE_SIZE,
-    );
+    const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [columnsOpen, setColumnsOpen] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<
         Record<PayLaterColumnKey, boolean>
@@ -257,15 +256,16 @@ export function PayLaterList() {
 
     if (sales.length === 0) {
         return (
-            <InventoryEmpty
-                title="Nothing outstanding"
-                description="Sales rung up as Pay later will show up here until they're settled."
-            />
+            <div className="flex flex-col gap-4">
+                <InventoryEmpty
+                    title="Nothing outstanding"
+                    description="Sales rung up as Pay later will show up here until they're settled."
+                />
+            </div>
         );
     }
 
-    // Owed, not billed — a sale with a partial payment already collected
-    // must not count its already-paid slice toward what's still outstanding.
+   
     const owedTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount - sale.paidAmount), 0);
     const overdueCount = sales.filter((sale) => (daysSince(sale.soldAt) ?? 0) > OVERDUE_DAYS).length;
 
@@ -337,7 +337,7 @@ export function PayLaterList() {
                             setQuery(event.target.value);
                             setPage(0);
                         }}
-                        placeholder="Search by invoice or customer"
+                        placeholder="Search by invoice, customer or phone"
                         className="w-full rounded-xl border border-border bg-muted/40 py-2.5 pl-10 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
                     />
                     {query && (
@@ -355,45 +355,44 @@ export function PayLaterList() {
                     )}
                 </div>
 
-                <select
-                    value={channelFilter}
-                    onChange={(event) => {
-                        setChannelFilter(event.target.value as ChannelFilter);
-                        setPage(0);
-                    }}
-                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
-                >
-                    {CHANNEL_FILTERS.map((c) => (
-                        <option key={c} value={c}>
-                            {c === "ALL" ? "All channels" : channelNames[c] ?? c}
-                        </option>
-                    ))}
-                </select>
-
-                <select
-                    value={sortMode}
-                    onChange={(event) => setSortMode(event.target.value as SortMode)}
-                    className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
-                >
-                    {SORT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                        </option>
-                    ))}
-                </select>
-
-                <div className="relative inline-block shrink-0 text-left">
-                    <button
-                        type="button"
-                        onClick={() => setColumnsOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                <div className="flex items-center gap-2 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none w-full sm:w-auto">
+                    <select
+                        value={channelFilter}
+                        onChange={(event) => {
+                            setChannelFilter(event.target.value as ChannelFilter);
+                            setPage(0);
+                        }}
+                        className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary"
                     >
-                        <Columns3 className="size-4 text-muted-foreground" />
-                        Columns
-                        <span className="ml-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
-                            {activeColumnCount}/{PAY_LATER_COLUMNS.length}
-                        </span>
-                    </button>
+                        {CHANNEL_FILTERS.map((c) => (
+                            <option key={c} value={c}>
+                                {c === "ALL" ? "All channels" : channelNames[c] ?? c}
+                            </option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={sortMode}
+                        onChange={(event) => setSortMode(event.target.value as SortMode)}
+                        className="h-9 shrink-0 rounded-xl border border-border bg-card px-2.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary">
+                        {SORT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+
+                    <div className="relative inline-block shrink-0 text-left">
+                        <button
+                            type="button"
+                            onClick={() => setColumnsOpen((prev) => !prev)}
+                            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                            <Columns3 className="size-4 text-muted-foreground" />
+                            <span>Columns</span>
+                            <span className="ml-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                                {activeColumnCount}/{PAY_LATER_COLUMNS.length}
+                            </span>
+                        </button>
 
                     {columnsOpen && (
                         <>
@@ -408,8 +407,7 @@ export function PayLaterList() {
                                         <label
                                             key={col.key}
                                             onClick={() => toggleColumn(col.key)}
-                                            className="flex cursor-pointer select-none items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted"
-                                        >
+                                            className="flex cursor-pointer select-none items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted" >
                                             <span className="font-medium">{col.label}</span>
                                             <div
                                                 className={`flex size-4 items-center justify-center rounded border transition-colors ${checked
@@ -427,12 +425,119 @@ export function PayLaterList() {
                     )}
                 </div>
             </div>
+        </div>
 
             <section
                 data-tour="pay-later-list"
                 className="overflow-clip rounded-2xl border border-border bg-card shadow-xs"
             >
-                <div className="overflow-x-auto">
+                {/* Mobile Cards View (< md) */}
+                <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
+                    {pagedSales.length === 0 ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground">
+                            {query ? `No sales match "${query}".` : "No sales on this page."}
+                        </div>
+                    ) : (
+                        pagedSales.map((sale) => {
+                            const Icon = channelIcons[sale.channel] ?? ShoppingBag;
+                            const owed = sale.totalAmount - sale.paidAmount;
+                            const overdueBy = daysSince(sale.soldAt);
+                            const isOverdue = (overdueBy ?? 0) > OVERDUE_DAYS;
+
+                            return (
+                                <div
+                                    key={sale.id}
+                                    onClick={() => setCollecting(sale)}
+                                    className={cn(
+                                        "rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]",
+                                        isOverdue && "border-danger/30 bg-danger/[0.02]"
+                                    )}
+                                >
+                                    {/* Card Header */}
+                                    <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                                <Icon className="size-3.5" />
+                                            </span>
+                                            <span className="font-bold text-sm text-foreground dark:text-white">
+                                                {sale.invoiceNumber ?? "—"}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {isOverdue ? (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-danger/15 px-2.5 py-0.5 text-[11px] font-semibold text-danger">
+                                                    <AlertTriangle className="size-3" />
+                                                    Overdue · {overdueBy}d
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-semibold text-warning">
+                                                    Pending
+                                                </span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setCollecting(sale);
+                                                }}
+                                                className="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                                            >
+                                                Collect
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Key-Value Rows */}
+                                    <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Customer</span>
+                                            <div className="flex items-center gap-1.5 font-medium text-foreground dark:text-slate-100">
+                                                <span>
+                                                    {sale.customerName || sale.customerPhone || sale.customerEmail || "Walk-in"}
+                                                </span>
+                                                {sale.customerPhone && (
+                                                    <a
+                                                        href={`tel:${sale.customerPhone}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        aria-label="Call customer"
+                                                        className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                                                    >
+                                                        <Phone className="size-3 text-primary" />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Channel</span>
+                                            <span className="font-medium text-foreground dark:text-slate-200">
+                                                {channelNames[sale.channel] ?? sale.channel}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">Sold At</span>
+                                            <span className="text-muted-foreground dark:text-slate-300">
+                                                {sale.soldAt ? new Date(sale.soldAt).toLocaleString() : "—"}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                            <span className="font-semibold text-foreground dark:text-slate-200">Owed Amount</span>
+                                            <span className="text-sm font-bold text-danger">
+                                                {format(owed, sale.currency)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Desktop Table (>= md) */}
+                <div className="hidden md:block overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -480,7 +585,11 @@ export function PayLaterList() {
                                     return (
                                         <TableRow
                                             key={sale.id}
-                                            className={isOverdue ? "bg-danger/[0.03] hover:bg-danger/[0.06]" : undefined}
+                                            onClick={() => setCollecting(sale)}
+                                            className={cn(
+                                                "cursor-pointer hover:bg-muted/40 transition-colors",
+                                                isOverdue ? "bg-danger/[0.03] hover:bg-danger/[0.06]" : undefined
+                                            )}
                                         >
                                             {visibleColumns.sale && (
                                                 <TableCell className="py-3">
@@ -516,6 +625,7 @@ export function PayLaterList() {
                                                             {sale.customerPhone && (
                                                                 <a
                                                                     href={`tel:${sale.customerPhone}`}
+                                                                    onClick={(e) => e.stopPropagation()}
                                                                     aria-label={`Call ${sale.customerName || sale.customerPhone}`}
                                                                     className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                                                                 >
@@ -570,7 +680,10 @@ export function PayLaterList() {
                                                 <TableCell className="text-right">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setCollecting(sale)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setCollecting(sale);
+                                                        }}
                                                         className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
                                                     >
                                                         Collect
@@ -584,59 +697,24 @@ export function PayLaterList() {
                         </TableBody>
                     </Table>
                 </div>
+
+                {filteredSales.length > 0 && (
+                    <PaginationBar
+                        page={safePage}
+                        size={pageSize}
+                        totalElements={filteredSales.length}
+                        totalPages={pageCount}
+                        onPageChange={setPage}
+                        onSizeChange={(nextSize) => {
+                            setPageSize(nextSize);
+                            setPage(0);
+                        }}
+                        isLoading={salesQuery.isFetching}
+                        sizeOptions={PAGE_SIZES}
+                        itemLabel="sale"
+                    />
+                )}
             </section>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-xs">
-                <p className="text-[13px] text-muted-foreground">
-                    {filteredSales.length === 0
-                        ? "No sales"
-                        : `Showing ${safePage * pageSize + 1}–${Math.min(filteredSales.length, safePage * pageSize + pageSize)} of ${filteredSales.length}`}
-                </p>
-
-                <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                        Rows
-                        <select
-                            value={pageSize}
-                            onChange={(event) => {
-                                setPageSize(Number(event.target.value) as (typeof PAGE_SIZES)[number]);
-                                setPage(0);
-                            }}
-                            className="h-8 rounded-lg border border-border bg-card px-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        >
-                            {PAGE_SIZES.map((size) => (
-                                <option key={size} value={size}>
-                                    {size}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setPage((prev) => Math.max(0, prev - 1))}
-                            disabled={safePage === 0}
-                            aria-label="Previous page"
-                            className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                        >
-                            <ChevronLeft className="size-4" aria-hidden="true" />
-                        </button>
-                        <span className="min-w-24 text-center text-[13px] tabular-nums text-muted-foreground" aria-live="polite">
-                            Page {safePage + 1} of {pageCount}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setPage((prev) => Math.min(pageCount - 1, prev + 1))}
-                            disabled={safePage + 1 >= pageCount}
-                            aria-label="Next page"
-                            className="grid size-8 place-items-center rounded-lg border border-border text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40 disabled:hover:bg-transparent"
-                        >
-                            <ChevronRight className="size-4" aria-hidden="true" />
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <AmountReceived
                 open={collecting !== null}

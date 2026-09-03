@@ -74,7 +74,7 @@ export default function LiveExchangeRatesSection({
 
     const { data: liveData, isLoading, isFetching, error, refetch } =
         useGetLiveExchangeRatesQuery(selectedLiveBase, {
-            pollingInterval: 30000, 
+            pollingInterval: 3600000, 
         });
 
     const rates = liveData?.rates || {};
@@ -125,23 +125,23 @@ export default function LiveExchangeRatesSection({
     const unitRate = calcFrom === calcTo ? 1 : ((rates[calcTo] || 1) / (rates[calcFrom] || 1));
 
     return (
-        <section data-tour="currency-live-rates" className="mt-4 rounded-2xl border border-border bg-card p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+        <section data-tour="currency-live-rates" className="mt-4 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-[0_4px_10px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div className="flex items-start sm:items-center gap-3">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
                         <Globe className="size-4" />
                     </span>
                     <div>
-                        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                        <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
                             Dynamic World Exchange Rates
                         </h2>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                             Real-time exchange rates from global financial markets ({rateDate})
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
                     <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/20">
                         <span className="relative flex size-2">
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
@@ -165,7 +165,7 @@ export default function LiveExchangeRatesSection({
                 </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-border p-5 sm:p-6">
+            <div className="mt-6 rounded-2xl border border-border p-3.5 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                     <div>
                         <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -266,7 +266,7 @@ export default function LiveExchangeRatesSection({
 
             <div className="mt-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative flex-1 max-w-sm">
+                    <div className="relative flex-1 w-full sm:max-w-md">
                         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             placeholder="Search country or currency (e.g. KHR, EUR, THB)..."
@@ -276,14 +276,17 @@ export default function LiveExchangeRatesSection({
                         />
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">Base Currency:</span>
+                    <div className="flex items-center justify-between sm:justify-end gap-2.5">
+                        <span className="text-left sm:text-right text-xs sm:text-sm font-medium text-muted-foreground leading-tight shrink-0">
+                            <span className="sm:block">Base</span>
+                            <span className="sm:block"> Currency:</span>
+                        </span>
                         <SearchableCurrencySelect
                             id="live-base-select"
                             value={selectedLiveBase}
                             onValueChange={(val) => val && setSelectedLiveBase(val)}
                             availableCodes={COMMON_WORLD_CURRENCIES}
-                            className="min-w-[140px]"
+                            className="w-[140px] sm:w-[230px]"
                         />
                     </div>
                 </div>
@@ -326,18 +329,18 @@ export default function LiveExchangeRatesSection({
                                     return (
                                         <div
                                             key={code}
-                                            className="flex items-center justify-between p-3.5 transition-colors hover:bg-muted/40"
+                                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-3.5 transition-colors hover:bg-muted/40"
                                         >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <CurrencyFlag code={code} size="lg" className="shadow-xs" />
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-bold text-foreground">{code}</span>
+                                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                                <CurrencyFlag code={code} size="lg" className="shadow-xs shrink-0" />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                                        <span className="font-bold text-foreground text-sm sm:text-base">{code}</span>
                                                         <span className="text-xs text-muted-foreground font-mono">
                                                             ({symbol})
                                                         </span>
                                                         {isConfigured && (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success">
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-success shrink-0">
                                                                 <Check className="size-3" /> Configured
                                                             </span>
                                                         )}
@@ -348,8 +351,8 @@ export default function LiveExchangeRatesSection({
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-3 shrink-0">
-                                                <div className="text-right font-mono text-sm font-semibold text-foreground">
+                                            <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pl-11 sm:pl-0">
+                                                <div className="text-left sm:text-right font-mono text-xs sm:text-sm font-semibold text-foreground">
                                                     1 {selectedLiveBase} = {rate?.toLocaleString(undefined, { maximumFractionDigits: 6 })} {code}
                                                 </div>
                                             </div>
