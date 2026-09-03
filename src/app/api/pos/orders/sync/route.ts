@@ -28,45 +28,65 @@ export async function POST(request: Request) {
     // retries, and nothing lands in a stranger's ledger.
     const businessId = await getCurrentBusinessId();
 
-    // Format and normalize offline order payload for Spring Boot Backend API
+    /*
+     * Named exactly as the backend's OfflineOrderDto declares them.
+     *
+     * That DTO annotates its fields `@JsonProperty("unit_price")`,
+     * `@JsonProperty("variant_id")` and so on, and the service configures no
+     * snake_case naming strategy — so Jackson matches those strings and
+     * nothing else. A key sent as `unitPrice` is not renamed, it is ignored,
+     * and the field arrives null: a sale whose lines are all priced at zero
+     * while its total is right, which is exactly what the offline receipts
+     * were showing.
+     *
+     * Both casings are accepted coming in, because the queue has been written
+     * by more than one version of the till. Only the DTO's own names go out.
+     */
+    const num = (...values: unknown[]) => {
+        for (const value of values) {
+            if (typeof value === "number" && Number.isFinite(value)) return value;
+            if (typeof value === "string" && value.trim() !== "") {
+                const parsed = parseFloat(value);
+                if (Number.isFinite(parsed)) return parsed;
+            }
+        }
+        return 0;
+    };
+
     const formattedOrders = ordersToSync.map((o: any) => ({
-      uuid: o.uuid || o.order_number || o.id,
-      status: o.status || "PAID",
-      paymentMethod: o.paymentMethod || o.payment_method || "CASH",
-      subtotal: typeof o.subtotal === "number" ? o.subtotal : parseFloat(o.subtotal || "0"),
-      total: typeof o.total === "number" ? o.total : parseFloat(o.total || "0"),
-      discountAmount: typeof o.discountAmount === "number" ? o.discountAmount : parseFloat(o.discount_amount || o.discountAmount || "0"),
-      // The total already includes tax; without the breakdown the recorded
-      // sale cannot show a VAT line and its parts do not add up to it.
-      taxRate: o.taxRate ?? o.tax_rate ?? null,
-      tax_rate: o.taxRate ?? o.tax_rate ?? null,
-      taxAmount: o.taxAmount ?? o.tax_amount ?? null,
-      tax_amount: o.taxAmount ?? o.tax_amount ?? null,
-      taxInclusionType: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
-      tax_inclusion_type: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
-      createdAt: o.createdAt || o.created_at || new Date().toISOString(),
-      items: (o.items || []).map((i: any) => ({
-        productId: i.productId || i.product_id,
-        product_id: i.productId || i.product_id,
-        productName: i.productName || i.product_name || i.itemName || i.item_name || "Item",
-        product_name: i.productName || i.product_name || i.itemName || i.item_name || "Item",
-        itemName: i.productName || i.product_name || i.itemName || i.item_name || "Item",
-        item_name: i.productName || i.product_name || i.itemName || i.item_name || "Item",
-        variantId: i.variantId || i.variant_id || null,
-        variantName: i.variantName || i.variant_name || null,
-        // A pack is not one of anything: without the unit the backend takes a
-        // single base unit off the shelf for a case of twelve.
-        unitId: i.unitId || i.unit_id || null,
-        unit_id: i.unitId || i.unit_id || null,
-        unitFactor: i.unitFactor || i.unit_factor || null,
-        // The extras are stock too, and they were being dropped here.
-        addOnIds: i.addOnIds || i.add_on_ids || [],
-        add_on_ids: i.addOnIds || i.add_on_ids || [],
-        quantity: i.quantity || 1,
-        unitPrice: typeof i.unitPrice === "number" ? i.unitPrice : parseFloat(i.unit_price || i.unitPrice || "0"),
-        discountAmount: typeof i.discountAmount === "number" ? i.discountAmount : parseFloat(i.discount_amount || i.discountAmount || "0"),
-        subtotal: typeof i.subtotal === "number" ? i.subtotal : parseFloat(i.subtotal || "0"),
-      })),
+        uuid: o.uuid || o.order_number || o.id,
+        channel: o.channel || "POS",
+        status: o.status || "PAID",
+        subtotal: num(o.subtotal),
+        discount_amount: num(o.discountAmount, o.discount_amount),
+        // The total already includes tax; without the breakdown the recorded
+        // sale cannot show a VAT line and its parts do not add up to it.
+        tax_rate: o.taxRate ?? o.tax_rate ?? null,
+        tax_amount: o.taxAmount ?? o.tax_amount ?? null,
+        tax_inclusion_type: o.taxInclusionType ?? o.tax_inclusion_type ?? null,
+        total: num(o.total),
+        // What was handed over and what came back — only the till saw it, and
+        // a sale recorded without them claims the exact money was tendered.
+        paid_amount: o.paidAmount ?? o.paid_amount ?? null,
+        change_amount: o.changeAmount ?? o.change_amount ?? null,
+        payment_method: o.paymentMethod || o.payment_method || "CASH",
+        // When the sale was taken, not when the connection came back. An
+        // order dated at sync time lands in the wrong day's takings.
+        created_at: o.createdAt || o.created_at || new Date().toISOString(),
+        items: (o.items || []).map((i: any) => ({
+            product_id: i.productId || i.product_id,
+            // A sale of an option that arrives without one reconciles against
+            // the base item, so the option's own stock never moves.
+            variant_id: i.variantId || i.variant_id || null,
+            // A pack is not one of anything: without the unit the backend
+            // takes a single base unit off the shelf for a case of twelve.
+            unit_id: i.unitId || i.unit_id || null,
+            // The extras are stock too.
+            add_on_ids: i.addOnIds || i.add_on_ids || [],
+            quantity: i.quantity || 1,
+            unit_price: num(i.unitPrice, i.unit_price),
+            subtotal: num(i.subtotal),
+        })),
     }));
 
     let backendResult: any = null;

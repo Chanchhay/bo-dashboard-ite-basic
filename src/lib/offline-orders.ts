@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import type { PosOrder, PosOrderItem } from "@/lib/api/pos-order";
+import type { PosOrder, PosOrderItem, Sale } from "@/lib/api/pos-order";
 
 /**
  * A queued offline sale, in the shape everything else reads.
@@ -74,6 +74,56 @@ export function offlineOrderToPosOrder(offline: any): PosOrder {
     };
 }
 
+
+/**
+ * The sale record an offline order never got from the server.
+ *
+ * A receipt reads what was handed over and what came back from the sale, not
+ * from the order — an order on its own does not remember either. Offline
+ * there is no sale to read, so the slip fell back to showing the total as the
+ * amount paid and dropped the change line entirely: a customer who handed
+ * over $10 for a $7.67 order got a receipt claiming they paid $7.67 and
+ * received nothing back.
+ *
+ * The queue does remember both, having recorded them at the till, so this
+ * builds the record the receipt is looking for out of what was banked.
+ */
+export function offlineOrderToSale(offline: any): Sale {
+    const uuid = offline.uuid || `offline-${Date.now()}`;
+    const total = offline.total ?? 0;
+    const paidAmount = offline.paid_amount ?? total;
+
+    return {
+        id: `off-sale-${uuid}`,
+        orderId: uuid,
+        invoiceNumber: uuid,
+        cashierId: null,
+        customerId: offline.customer_id ?? null,
+        customerName: null,
+        customerPhone: null,
+        customerEmail: null,
+        channel: offline.channel || "POS",
+        subtotal: offline.subtotal ?? 0,
+        discountAmount: offline.discount_amount ?? 0,
+        discountLabel: offline.discount_label ?? null,
+        taxRate: offline.tax_rate ?? null,
+        taxAmount: offline.tax_amount ?? null,
+        taxInclusionType: offline.tax_inclusion_type ?? null,
+        totalAmount: total,
+        paidAmount,
+        // Recorded at the till, but derived where an older queued sale has no
+        // record of it — the two agree whenever both are present.
+        changeAmount: offline.change_amount ?? Math.max(0, paidAmount - total),
+        currency: offline.currency ?? "USD",
+        displayCurrency: null,
+        displayExchangeRate: null,
+        paymentMethod: offline.payment_method === "CASH" ? "CASH" : "DIGITAL",
+        itemCount: (offline.items || []).length,
+        note: null,
+        soldAt: offline.created_at ?? null,
+    };
+}
+
 export function usePendingOfflineOrders(): PosOrder[] {
     // One queue. There used to be a second table holding a lossier copy of the
     // same sales, read here alongside this one purely so neither was missed.
@@ -97,4 +147,34 @@ export function usePendingOfflineOrders(): PosOrder[] {
     });
 
     return Array.from(map.values());
+}
+
+/**
+ * The sale records for whatever is still queued, keyed by order id.
+ *
+ * Kept beside {@link usePendingOfflineOrders} rather than folded into it: a
+ * list of orders is what most screens want, and only the ones that print a
+ * receipt need the takings behind them.
+ */
+export function usePendingOfflineSales(): Map<string, Sale> {
+    const dbOrders = useLiveQuery(async () => {
+        try {
+            return await db.offline_orders.toArray();
+        } catch {
+            return [];
+        }
+    }, []) ?? [];
+
+    const sales = new Map<string, Sale>();
+
+    dbOrders.forEach((offline: any) => {
+        if (!offline) return;
+        if (offline.sync_status === "SYNCED" || offline.is_synced === true) return;
+        const sale = offlineOrderToSale(offline);
+        if (!sales.has(sale.orderId)) {
+            sales.set(sale.orderId, sale);
+        }
+    });
+
+    return sales;
 }
