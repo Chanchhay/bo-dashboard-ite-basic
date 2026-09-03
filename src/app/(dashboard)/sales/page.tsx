@@ -170,7 +170,7 @@ function asPosOrder(order: any): PosOrder {
         displayExchangeRate: order.displayExchangeRate || null,
         createdDate: order.createdDate || order.created_at || new Date().toISOString(),
         note: order.note || null,
-        currency: order.currency || "USD",
+        currency: order.currency || null,
         items: (order.items || []).map((i: any) => ({
             id: i.id || "",
             itemId: i.itemId || i.product_id || "",

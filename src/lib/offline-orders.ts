@@ -65,7 +65,7 @@ export function offlineOrderToPosOrder(offline: any): PosOrder {
         taxAmount: offline.tax_amount ?? null,
         taxInclusionType: offline.tax_inclusion_type ?? null,
         total,
-        currency: offline.currency || "USD",
+        currency: offline.currency || null,
         displayCurrency: null,
         displayExchangeRate: null,
         note: null,
@@ -114,7 +114,7 @@ export function offlineOrderToSale(offline: any): Sale {
         // Recorded at the till, but derived where an older queued sale has no
         // record of it — the two agree whenever both are present.
         changeAmount: offline.change_amount ?? Math.max(0, paidAmount - total),
-        currency: offline.currency ?? "USD",
+        currency: offline.currency ?? null,
         displayCurrency: null,
         displayExchangeRate: null,
         paymentMethod: offline.payment_method === "CASH" ? "CASH" : "DIGITAL",

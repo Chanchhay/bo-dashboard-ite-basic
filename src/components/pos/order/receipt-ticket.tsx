@@ -143,7 +143,10 @@ export function ReceiptTicket({
     receipt?.invoiceNumber || sale?.invoiceNumber || order.invoiceNumber || "—";
   const issuedAtValue = sale?.soldAt || receipt?.issuedAt || order.createdDate;
   const issuedAt = issuedAtValue ? new Date(issuedAtValue) : null;
-  const currencyCode = sale?.currency || order.currency;
+  // A record that names no currency of its own was priced in the base — the
+  // only reading that keeps a receipt's symbol matching the amounts on it.
+  const currencyCode =
+    sale?.currency || order.currency || currencies?.baseCurrency || null;
   // Prefer the business's own symbol and decimal places over the CLDR default.
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const storedRule = useMemo(() => {
