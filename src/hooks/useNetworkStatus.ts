@@ -59,8 +59,14 @@ export function useNetworkStatus() {
       checkStatus();
     }, 0);
 
-    // Check every 15 seconds
-    const interval = setInterval(checkStatus, 15000);
+    // Check every 15 seconds, but only while someone is actually looking.
+    // A background tab pinging the server four times a minute for hours told
+    // nobody anything — and the focus handler below re-checks the moment the
+    // tab is looked at again, which is the only point the answer matters.
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      checkStatus();
+    }, 15000);
 
     const handleOffline = () => setStatus("offline");
     const handleOnline = () => {
