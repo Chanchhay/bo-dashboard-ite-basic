@@ -23,7 +23,7 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
-      className={cn("flex flex-1 text-left", className)}
+      className={cn("flex flex-1 text-left min-w-0 truncate font-normal", className)}
       {...props}
     />
   );
@@ -43,7 +43,7 @@ function SelectTrigger({
       data-size={size}
       className={cn(
         controlClassName,
-        "flex cursor-pointer items-center justify-between gap-1.5 whitespace-nowrap data-placeholder:text-muted-foreground data-[size=default]:h-12 data-[size=sm]:h-10 data-[size=sm]:py-0 data-[size=sm]:px-3.5 data-[size=sm]:text-sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex cursor-pointer items-center justify-between gap-1.5 whitespace-nowrap font-normal data-placeholder:text-muted-foreground data-[size=default]:h-12 data-[size=sm]:h-10 data-[size=sm]:py-0 data-[size=sm]:px-3.5 data-[size=sm]:text-sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -93,7 +93,7 @@ function SelectContent({
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            "relative isolate z-50 max-h-[280px] w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "relative isolate z-50 max-h-[280px] min-w-(--anchor-width) w-max max-w-[calc(100vw-2rem)] sm:max-w-md origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}
@@ -125,16 +125,19 @@ function SelectItem({
   children,
   ...props
 }: SelectPrimitive.Item.Props) {
+  const itemTitle = typeof children === "string" ? children : undefined;
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
+      title={itemTitle}
       className={cn(
-        "relative flex w-full cursor-pointer items-center gap-2 rounded-lg py-2 sm:py-2.5 pr-7 sm:pr-8 pl-2.5 sm:pl-3 text-xs sm:text-sm font-normal outline-hidden select-none transition-colors duration-150 data-highlighted:bg-accent data-highlighted:text-accent-foreground data-selected:bg-primary/15 dark:data-selected:bg-primary/25 data-selected:font-semibold data-selected:text-primary dark:data-selected:text-primary-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex w-full cursor-pointer items-center gap-2 rounded-lg py-2 sm:py-2.5 pr-7 sm:pr-8 pl-2.5 sm:pl-3 text-xs sm:text-sm font-normal outline-hidden select-none transition-colors duration-150 data-highlighted:bg-accent data-highlighted:text-accent-foreground data-selected:bg-primary/15 dark:data-selected:bg-primary/25 data-selected:font-normal data-selected:text-primary dark:data-selected:text-primary-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className,
       )}
       {...props}
     >
-      <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
+      <SelectPrimitive.ItemText className="flex flex-1 min-w-0 shrink-0 gap-2 truncate whitespace-nowrap">
         {children}
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator

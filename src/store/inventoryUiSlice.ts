@@ -61,6 +61,11 @@ const inventoryUiSlice = createSlice({
             state.productStatus = action.payload;
             state.productPage = 0;
         },
+        setProductItemGroupId(state, action: PayloadAction<string>) {
+            state.productFilters.itemGroupId = action.payload;
+            state.productDraftFilters.itemGroupId = action.payload;
+            state.productPage = 0;
+        },
         setProductDraftFilter(
             state,
             action: PayloadAction<{
@@ -72,11 +77,18 @@ const inventoryUiSlice = createSlice({
             state.productDraftFilters[key] = value;
         },
         applyProductFilters(state) {
-            state.productFilters = { ...state.productDraftFilters };
+            const currentItemGroupId = state.productFilters.itemGroupId;
+            state.productFilters = {
+                ...state.productDraftFilters,
+                itemGroupId: currentItemGroupId,
+            };
             state.productPage = 0;
         },
         resetProductDraftFilters(state) {
-            state.productDraftFilters = { ...emptyProductAdvancedFilters };
+            state.productDraftFilters = {
+                ...emptyProductAdvancedFilters,
+                itemGroupId: state.productFilters.itemGroupId,
+            };
         },
         clearProductFilter(
             state,
@@ -121,6 +133,7 @@ export const {
     clearProductFilter,
     resetProductDraftFilters,
     setProductDraftFilter,
+    setProductItemGroupId,
     setProductPage,
     setProductPageSize,
     setProductSearch,
