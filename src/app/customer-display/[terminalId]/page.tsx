@@ -435,7 +435,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                             quantity column alone reads as an ordinary sale. */}
                         {item.freeQuantity ? (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                            🎁 {item.freeQuantity} FREE
+                            {item.freeQuantity} FREE
                           </span>
                         ) : null}
                       </td>

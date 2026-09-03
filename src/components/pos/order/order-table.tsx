@@ -408,7 +408,7 @@ const ItemRow = memo(function ItemRow({
             reads as an ordinary sale. */}
         {item.freeQuantity ? (
           <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            🎁 {item.freeQuantity} FREE
+            {item.freeQuantity} FREE
           </span>
         ) : null}
 
@@ -653,7 +653,7 @@ export function OrderTable({
         const gained = current - previous;
         toast({
           tone: "success",
-          title: "🎁 Promotion applied",
+          title: "Promotion applied",
           description: `${item.itemName}: ${gained} free unit${gained > 1 ? "s" : ""} added automatically.`,
         });
       }
