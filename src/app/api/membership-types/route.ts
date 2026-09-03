@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { unwrapList } from "@/lib/api/pagination";
 import type { MembershipTypeResponse } from "@/lib/api/membership-type";
@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const businessId = await getCurrentBusinessId();
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     const type = await backendRequest<MembershipTypeResponse>(
       `/api/v1/businesses/${businessId}/membership-types`,

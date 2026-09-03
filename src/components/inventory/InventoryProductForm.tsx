@@ -508,7 +508,6 @@ type ItemCreateDraft = {
     unitId?: string;
     description?: string;
     badge?: string;
-    price?: string;
     itemType?: string;
     trackInventory?: boolean;
     lowStockDefault?: string;
@@ -818,7 +817,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 if (draft.sku && elements.namedItem("sku")) (elements.namedItem("sku") as HTMLInputElement).value = draft.sku;
                 if (draft.description && elements.namedItem("description")) (elements.namedItem("description") as HTMLTextAreaElement).value = draft.description;
                 if (draft.badge && elements.namedItem("badge")) (elements.namedItem("badge") as HTMLInputElement).value = draft.badge;
-                if (draft.price && elements.namedItem("price")) (elements.namedItem("price") as HTMLInputElement).value = draft.price;
                 if (draft.itemGroupId && elements.namedItem("itemGroupId")) (elements.namedItem("itemGroupId") as HTMLInputElement).value = draft.itemGroupId;
                 if (draft.itemType && elements.namedItem("itemType")) (elements.namedItem("itemType") as HTMLInputElement).value = draft.itemType;
                 if (draft.status && elements.namedItem("status")) (elements.namedItem("status") as HTMLInputElement).value = draft.status;
@@ -915,7 +913,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         const sku = String(fd.get("sku") || "").trim();
         const description = String(fd.get("description") || "").trim();
         const badge = String(fd.get("badge") || "").trim();
-        const price = String(fd.get("price") || "").trim();
         const itemGroupId = String(fd.get("itemGroupId") || "").trim();
         const unitId = (uomDraft.baseUnitId || String(fd.get("unitId") || "")).trim();
         const barcode = barcodePreview.trim();
@@ -942,7 +939,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             sku ||
             description ||
             badge ||
-            price ||
             itemGroupId ||
             unitId ||
             barcode ||
@@ -1023,7 +1019,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 unitId: uomDraft.baseUnitId || String(fd.get("unitId") || ""),
                 description: String(fd.get("description") || ""),
                 badge: String(fd.get("badge") || ""),
-                price: String(fd.get("price") || ""),
                 itemType: String(fd.get("itemType") || ""),
                 trackInventory,
                 lowStockDefault: String(fd.get("lowStockDefault") || ""),
@@ -1067,7 +1062,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 unitId: uomDraft.baseUnitId || String(fd.get("unitId") || ""),
                 description: String(fd.get("description") || ""),
                 badge: String(fd.get("badge") || ""),
-                price: String(fd.get("price") || ""),
                 itemType: String(fd.get("itemType") || ""),
                 trackInventory,
                 lowStockDefault: String(fd.get("lowStockDefault") || ""),
@@ -2665,6 +2659,8 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                     options={namedOptions}
                     lowStockDefault={initialItem?.lowStockDefault ?? 0}
                     lowStockError={fieldErrors.lowStockDefault}
+                    unitError={fieldErrors.unitId}
+                    conversionsError={fieldErrors.uomConversions}
                     draft={uomDraft}
                     onDraftChange={(patch) =>
                         setUomDraft((current) => ({ ...current, ...patch }))

@@ -2,6 +2,7 @@ import {
     BackendApiError,
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import { z } from "zod";
 import {
@@ -43,7 +44,7 @@ export async function GET() {
 /** Saves the configuration. Creating and updating are the same call. */
 export async function PUT(request: Request) {
     try {
-        const result = bakongSettingsSchema.safeParse(await request.json());
+        const result = bakongSettingsSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

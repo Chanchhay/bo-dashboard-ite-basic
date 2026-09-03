@@ -22,6 +22,33 @@ type ApiErrorResponse = {
     errorDetail?: ApiErrorDetail[];
 };
 
+/**
+ * A request body that is not valid JSON. Distinct from every other failure
+ * these routes can hit: `backendRequest` also parses JSON — the backend's
+ * response, at the bottom of this file — so a bare `SyntaxError` cannot say
+ * which side sent the bad bytes. Naming this one at the point it is read
+ * keeps a malformed request from being reported as a backend fault.
+ */
+export class RequestBodyError extends Error {
+    constructor(message = "The request body is not valid JSON.") {
+        super(message);
+        this.name = "RequestBodyError";
+    }
+}
+
+/**
+ * Reads and parses a route's JSON body. Use instead of `request.json()` so a
+ * malformed body surfaces as a 400 naming the request, not a 500 blaming the
+ * backend.
+ */
+export async function readJsonBody(request: Request): Promise<unknown> {
+    try {
+        return await request.json();
+    } catch {
+        throw new RequestBodyError();
+    }
+}
+
 export class BackendApiError extends Error {
     constructor(
         message: string,
@@ -165,6 +192,10 @@ export async function backendRequest<T>(
 }
 
 export function backendErrorResponse(error: unknown) {
+    if (error instanceof RequestBodyError) {
+        return Response.json({ message: error.message }, { status: 400 });
+    }
+
     if (error instanceof BackendApiError) {
         if (error.sessionExpired) {
             return Response.json(

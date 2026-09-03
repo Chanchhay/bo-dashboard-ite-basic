@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
@@ -19,7 +20,7 @@ type UnitRouteContext = {
 /** Only a unit this business owns resolves; platform units answer 404. */
 export async function PUT(request: Request, context: UnitRouteContext) {
     try {
-        const result = unitSchema.safeParse(await request.json());
+        const result = unitSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

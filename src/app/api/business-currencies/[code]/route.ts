@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import type { Business } from "@/lib/api/business";
 import type { BusinessCurrency } from "@/lib/api/currency";
@@ -33,7 +34,7 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PUT(request: Request, context: RouteContext) {
     try {
         const { code } = await context.params;
-        const body = await request.json();
+        const body = await readJsonBody(request);
         const businessId = await getBusinessId();
         const updated = await backendRequest<BusinessCurrency>(
             `/api/v1/businesses/${encodeURIComponent(businessId)}/currencies/${encodeURIComponent(code)}`,

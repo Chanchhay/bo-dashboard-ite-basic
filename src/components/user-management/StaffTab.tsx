@@ -84,6 +84,7 @@ function PasswordInput({ invalid }: { invalid: boolean }) {
                 id="password"
                 name="password"
                 type={visible ? "text" : "password"}
+                maxLength={255}
                 autoComplete="new-password"
                 className={`${fieldClassName} pr-11`}
                 aria-invalid={invalid}
@@ -430,6 +431,7 @@ export default function StaffTab() {
                                         <input
                                             id="username"
                                             name="username"
+                                            maxLength={255}
                                             autoComplete="off"
                                             placeholder="john"
                                             className={fieldClassName}
@@ -445,6 +447,7 @@ export default function StaffTab() {
                                             id="email"
                                             name="email"
                                             type="email"
+                                            maxLength={255}
                                             autoComplete="off"
                                             placeholder="john@company.com"
                                             className={fieldClassName}
@@ -469,6 +472,7 @@ export default function StaffTab() {
                                 <input
                                     id="firstName"
                                     name="firstName"
+                                    maxLength={255}
                                     placeholder="Alex"
                                     defaultValue={
                                         editor.mode === "edit" ? editor.staff.firstName : undefined
@@ -485,6 +489,7 @@ export default function StaffTab() {
                                 <input
                                     id="lastName"
                                     name="lastName"
+                                    maxLength={255}
                                     placeholder="john"
                                     defaultValue={
                                         editor.mode === "edit" ? editor.staff.lastName : undefined
@@ -501,6 +506,7 @@ export default function StaffTab() {
                                 <input
                                     id="phoneNumber"
                                     name="phoneNumber"
+                                    maxLength={30}
                                     inputMode="tel"
                                     placeholder="012 345 678"
                                     defaultValue={

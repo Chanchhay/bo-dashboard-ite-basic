@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { CouponResponse } from "@/lib/api/discount";
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const businessId = await getCurrentBusinessId();
-        const body = await request.json();
+        const body = await readJsonBody(request);
 
         const coupon = await backendRequest<CouponResponse>(
             `/api/v1/businesses/${businessId}/coupons`,
