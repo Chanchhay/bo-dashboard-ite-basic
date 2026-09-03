@@ -64,7 +64,20 @@ const baseQueryWithSessionGuard: BaseQueryFn<
 export const baseApi = createApi({
     reducerPath: "api",
     baseQuery: baseQueryWithSessionGuard,
-    refetchOnMountOrArgChange: true,
+    /*
+     * Seconds, not `true`.
+     *
+     * `true` refetched on every mount, so the cache never once served a
+     * navigation: stepping from Inventory to Sales and back re-hit the
+     * network and put a spinner over figures already on screen. A number
+     * refetches only when the cached answer is older than that, which keeps
+     * the data honest while making the second visit to a screen instant.
+     *
+     * The two places that genuinely cannot show a stale answer — the open
+     * order list and the KHQR payment poll — pass `true` at the call site,
+     * which still overrides this.
+     */
+    refetchOnMountOrArgChange: 30,
     refetchOnReconnect: true,
     tagTypes: [
         "Business",

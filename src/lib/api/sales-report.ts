@@ -1,4 +1,4 @@
-
+import { z } from "zod";
 
 export type OrderChannelCode = "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
 
@@ -183,6 +183,65 @@ export function profitRangeStart(range: ProfitRange, now = new Date()) {
     return start;
 }
 
+
+/**
+ * A margin experiment against the current catalog.
+ *
+ * Priced entirely server-side: cost and quantity are read fresh from
+ * inventory on every call, so the numbers this feeds can't drift from a
+ * stock delivery that landed mid-session.
+ */
+export const saleProfitCalculatorModes = ["PER_ITEM", "BUSINESS_TARGET"] as const;
+export type SaleProfitCalculatorMode = (typeof saleProfitCalculatorModes)[number];
+
+export const saleProfitCalculatorRequestSchema = z.object({
+    mode: z.enum(saleProfitCalculatorModes),
+    /** Margin applied to any item without its own entry in itemMargins. */
+    defaultMarginPercent: z.coerce.number().min(0),
+    itemMargins: z.array(
+        z.object({
+            itemId: z.string(),
+            marginPercent: z.coerce.number().min(0),
+        }),
+    ),
+    /** Required only in BUSINESS_TARGET mode. */
+    targetMarginPercent: z.coerce.number().min(0).nullable(),
+    operatingExpense: z.coerce.number().min(0),
+});
+
+export type SaleProfitCalculatorRequest = z.infer<
+    typeof saleProfitCalculatorRequestSchema
+>;
+
+export type SaleProfitCalculatorItem = {
+    itemId: string;
+    name: string;
+    /** Weighted average of what's still on the shelf, not the last delivery price. */
+    cost: number;
+    qty: number;
+    marginPercent: number;
+    /** Null when the margin is 100% or more — no price can reach it. */
+    price: number | null;
+    revenue: number;
+    profit: number;
+    /** Set only in BUSINESS_TARGET mode: this item's price scaled to hit the target. */
+    newPrice: number | null;
+    newMarginPercent: number | null;
+};
+
+export type SaleProfitCalculatorResponse = {
+    mode: SaleProfitCalculatorMode;
+    operatingExpense: number;
+    /** Echoed back only in BUSINESS_TARGET mode. */
+    targetMarginPercent: number | null;
+    revenue: number;
+    cost: number;
+    grossProfit: number;
+    grossMarginPercent: number;
+    netProfit: number;
+    netMarginPercent: number;
+    items: SaleProfitCalculatorItem[];
+};
 
 export function toLocalDateTime(date: Date) {
     const pad = (value: number) => String(value).padStart(2, "0");

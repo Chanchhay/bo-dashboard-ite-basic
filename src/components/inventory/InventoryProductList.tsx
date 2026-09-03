@@ -14,7 +14,9 @@ import {
     Edit3,
     Eye,
     LoaderCircle,
+    Package,
     PackagePlus,
+    RotateCcw,
     ScanBarcode,
     Search,
     SlidersHorizontal,
@@ -65,6 +67,8 @@ import { exportItemsToExcel } from "@/lib/exportToExcel";
 import { cn } from "@/lib/utils";
 import {
     useDeleteInventoryItemMutation,
+    useRestoreInventoryItemMutation,
+    usePermanentDeleteInventoryItemMutation,
     useGetAddOnSetsQuery,
     useGetInventoryItemOptionsQuery,
     useGetInventoryItemsQuery,
@@ -449,10 +453,13 @@ export function InventoryProductList() {
         return () => window.clearTimeout(timer);
     }, [productSearch]);
 
+    const [viewMode, setViewMode] = useState<"active" | "trash">("active");
+
     const query: InventoryItemQuery = {
         page: productPage,
         size: productPageSize,
         sort: productSort,
+        isDeleted: viewMode === "trash",
         ...(debouncedSearch.trim() ? { keyword: debouncedSearch.trim() } : {}),
         ...(productStatus === "ALL" ? {} : { status: productStatus }),
         ...(productFilters.itemGroupId
@@ -483,16 +490,48 @@ export function InventoryProductList() {
     const groupsQuery = useGetItemGroupsQuery();
     const unitsQuery = useGetInventoryUnitsQuery();
     const [deleteItem, deleteState] = useDeleteInventoryItemMutation();
+    const [restoreItem, restoreState] = useRestoreInventoryItemMutation();
+    const [permanentDeleteItem, permanentDeleteState] = usePermanentDeleteInventoryItemMutation();
     const [deleteTarget, setDeleteTarget] = useState<{
         id: string;
         name?: string;
     } | null>(null);
+    const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<{
+        id: string;
+        name?: string;
+    } | null>(null);
 
-    const items = data?.content ?? [];
-    const currentPage = data?.page?.number ?? productPage;
-    const totalElements = data?.page?.totalElements ?? items.length;
-    const totalPages = data?.page?.totalPages ?? (items.length ? 1 : 0);
-    const responsePageSize = data?.page?.size ?? productPageSize;
+    /*
+     * RTK Query keeps `data` pointing at the last successful result while a
+     * new one is in flight, so it does not flicker between pages. That is
+     * right for pagination, but wrong across the Recycle Bin switch: for one
+     * request it means `data` is still last tab's rows — active items while
+     * `viewMode` already reads "trash", or the reverse. Rendering it as-is
+     * showed a flash of the wrong tab's items before the new fetch landed.
+     * Content answers which tab it belongs to on its own — every row's
+     * `isDeleted` either matches the tab being asked for or it does not — so
+     * a result that does not match the one being asked for is treated as not
+     * arrived yet, the same as if nothing had come back at all.
+     */
+    const wantsTrash = viewMode === "trash";
+    const rawItems = data?.content ?? [];
+    const dataMatchesView = rawItems.every(
+        (item) => Boolean(item.isDeleted) === wantsTrash,
+    );
+    const items = dataMatchesView ? rawItems : [];
+    const currentPage = dataMatchesView
+        ? (data?.page?.number ?? productPage)
+        : productPage;
+    const totalElements = dataMatchesView
+        ? (data?.page?.totalElements ?? items.length)
+        : 0;
+    const totalPages = dataMatchesView
+        ? (data?.page?.totalPages ?? (items.length ? 1 : 0))
+        : 0;
+    const responsePageSize = dataMatchesView
+        ? (data?.page?.size ?? productPageSize)
+        : productPageSize;
+    const isSwitchingView = isFetching && !dataMatchesView;
     const firstResult = totalElements ? currentPage * responsePageSize + 1 : 0;
     const lastResult = totalElements
         ? Math.min(firstResult + items.length - 1, totalElements)
@@ -717,19 +756,65 @@ export function InventoryProductList() {
             }
             toast({
                 tone: "success",
-                title: "Item deleted",
+                title: "Moved to Trash",
                 description: deleteTarget.name
-                    ? `${deleteTarget.name} is no longer in your inventory.`
-                    : undefined,
+                    ? `${deleteTarget.name} was moved to the Recycle Bin. You can restore it anytime.`
+                    : "Item moved to Recycle Bin.",
             });
         } catch (cause) {
             toast({
                 tone: "error",
-                title: "Delete failed",
-                description: getApiErrorMessage(cause, "Unable to delete the item."),
+                title: "Failed to move to Trash",
+                description: getApiErrorMessage(cause, "Unable to move the item to trash."),
             });
         } finally {
             setDeleteTarget(null);
+        }
+    }
+
+    async function handleRestore(item: InventoryItem) {
+        try {
+            await restoreItem(item.id).unwrap();
+            toast({
+                tone: "success",
+                title: "Item restored",
+                description: item.name
+                    ? `${item.name} has been restored to active inventory.`
+                    : "Item restored.",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Restore failed",
+                description: getApiErrorMessage(cause, "Unable to restore the item."),
+            });
+        }
+    }
+
+    async function handleConfirmPermanentDelete() {
+        if (!permanentDeleteTarget) return;
+
+        try {
+            await permanentDeleteItem(permanentDeleteTarget.id).unwrap();
+
+            if (items.length === 1 && productPage > 0) {
+                dispatch(setProductPage(productPage - 1));
+            }
+            toast({
+                tone: "success",
+                title: "Item permanently deleted",
+                description: permanentDeleteTarget.name
+                    ? `${permanentDeleteTarget.name} was permanently erased from the system.`
+                    : "Item permanently deleted.",
+            });
+        } catch (cause) {
+            toast({
+                tone: "error",
+                title: "Permanent delete failed",
+                description: getApiErrorMessage(cause, "Unable to permanently delete the item."),
+            });
+        } finally {
+            setPermanentDeleteTarget(null);
         }
     }
 
@@ -777,9 +862,9 @@ export function InventoryProductList() {
                                     className="h-9 sm:h-10 w-full sm:w-auto px-2.5 sm:px-4 text-xs sm:text-sm gap-1.5 rounded-xl justify-center"
                                 >
                                     {isExporting ? (
-                                        <LoaderCircle className="size-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                                        <LoaderCircle className="size-4 shrink-0 animate-spin text-primary" />
                                     ) : (
-                                        <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                        <Download className="size-4 shrink-0 text-primary" />
                                     )}
                                     <span className="truncate">{isExporting ? "Exporting..." : "Export Excel"}</span>
                                 </Button>
@@ -799,6 +884,43 @@ export function InventoryProductList() {
                 />
             </div>
 
+            {/* View Switcher: All Products vs Recycle Bin */}
+            <div className="flex items-center justify-end gap-1.5 sm:gap-2 border-b border-border pb-2.5 sm:pb-3 overflow-x-auto scrollbar-none flex-nowrap">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setViewMode("active");
+                        dispatch(setProductPage(0));
+                    }}
+                    className={cn(
+                        "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-xl transition-all shrink-0 whitespace-nowrap cursor-pointer",
+                        viewMode === "active"
+                            ? "bg-primary/10 text-primary font-semibold shadow-xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    )}
+                >
+                    <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                    <span>All Products</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        setViewMode("trash");
+                        dispatch(setProductPage(0));
+                    }}
+                    className={cn(
+                        "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-xl transition-all shrink-0 whitespace-nowrap cursor-pointer",
+                        viewMode === "trash"
+                            ? "bg-red-50 dark:bg-red-950/40 text-brand-red font-semibold shadow-xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    )}
+                >
+                    <Trash2 className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", viewMode === "trash" ? "text-brand-red" : "text-muted-foreground")} />
+                    <span>Recycle Bin</span>
+                </button>
+            </div>
+
             <section data-tour="item-list" className="overflow-clip rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-border bg-card p-3 sm:p-4">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
@@ -809,7 +931,7 @@ export function InventoryProductList() {
                                 onChange={(event) =>
                                     dispatch(setProductSearch(event.target.value))
                                 }
-                                placeholder="Search items..."
+                                placeholder={viewMode === "trash" ? "Search deleted items in trash..." : "Search items..."}
                                 className="!h-9 sm:!h-10 py-0 pl-8 sm:pl-9 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground w-full shadow-xs"
                                 aria-label="Search items"
                             />
@@ -1175,7 +1297,7 @@ export function InventoryProductList() {
                 </div>
 
 
-                {isLoading ? (
+                {isLoading || isSwitchingView ? (
                     <InventoryLoading label="Loading items" />
                 ) : error ? (
                     <InventoryError
@@ -1184,9 +1306,17 @@ export function InventoryProductList() {
                     />
                 ) : items.length === 0 ? (
                     <InventoryEmpty
-                        title={hasFilters ? "No matching items" : "No items yet"}
+                        title={
+                            viewMode === "trash"
+                                ? "Recycle Bin is empty"
+                                : hasFilters
+                                ? "No matching items"
+                                : "No items yet"
+                        }
                         description={
-                            hasFilters
+                            viewMode === "trash"
+                                ? "Deleted products will appear here. You can restore them anytime or permanently erase them."
+                                : hasFilters
                                 ? "Change or clear some filters to broaden the results."
                                 : "Create your first item to begin tracking inventory."
                         }
@@ -1228,46 +1358,82 @@ export function InventoryProductList() {
                                                 >
                                                     {item.status || "INACTIVE"}
                                                 </span>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    className="h-7 w-7"
-                                                    aria-label={`Preview ${item.name || "item"}`}
-                                                    onClick={() => setPreviewItem(toPreviewItem(item))}
-                                                >
-                                                    <Eye className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    className="h-7 w-7"
-                                                    render={
-                                                        <Link
-                                                            href={`/inventory/${item.id}/edit`}
-                                                            aria-label={`Edit ${item.name || "item"}`}
-                                                        />
-                                                    }
-                                                    nativeButton={false}
-                                                >
-                                                    <Edit3 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    className="h-7 w-7 text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                    aria-label={`Delete ${item.name || "item"}`}
-                                                    disabled={deleteState.isLoading}
-                                                    onClick={() =>
-                                                        setDeleteTarget({
-                                                            id: item.id,
-                                                            name: item.name,
-                                                        })
-                                                    }
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
+                                                {viewMode === "trash" ? (
+                                                    <>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="h-7 w-7 rounded-lg border-0 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary cursor-pointer transition-colors"
+                                                            title="Restore product"
+                                                            aria-label={`Restore ${item.name || "item"}`}
+                                                            disabled={restoreState.isLoading}
+                                                            onClick={() => handleRestore(item)}
+                                                        >
+                                                            <RotateCcw className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="h-7 w-7 rounded-lg border-0 bg-transparent text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-brand-red cursor-pointer transition-colors"
+                                                            title="Delete permanently"
+                                                            aria-label={`Permanently delete ${item.name || "item"}`}
+                                                            disabled={permanentDeleteState.isLoading}
+                                                            onClick={() =>
+                                                                setPermanentDeleteTarget({
+                                                                    id: item.id,
+                                                                    name: item.name,
+                                                                })
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="h-7 w-7"
+                                                            aria-label={`Preview ${item.name || "item"}`}
+                                                            onClick={() => setPreviewItem(toPreviewItem(item))}
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="h-7 w-7"
+                                                            render={
+                                                                <Link
+                                                                    href={`/inventory/${item.id}/edit`}
+                                                                    aria-label={`Edit ${item.name || "item"}`}
+                                                                />
+                                                            }
+                                                            nativeButton={false}
+                                                        >
+                                                            <Edit3 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            className="h-7 w-7 border-0 bg-transparent text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-brand-red cursor-pointer transition-colors"
+                                                            aria-label={`Delete ${item.name || "item"}`}
+                                                            disabled={deleteState.isLoading}
+                                                            onClick={() =>
+                                                                setDeleteTarget({
+                                                                    id: item.id,
+                                                                    name: item.name,
+                                                                })
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1424,44 +1590,80 @@ export function InventoryProductList() {
                                                 {isColVisible("actions") && (
                                                     <td className="px-5 py-4">
                                                         <div data-tour={items.indexOf(item) === 0 ? "item-actions" : undefined} className="flex justify-end gap-2">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="icon-sm"
-                                                                aria-label={`Preview ${item.name || "item"} in the store`}
-                                                                onClick={() => setPreviewItem(toPreviewItem(item))}
-                                                            >
-                                                                <Eye />
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon-sm"
-                                                                render={
-                                                                    <Link
-                                                                        href={`/inventory/${item.id}/edit`}
-                                                                        aria-label={`Edit ${item.name || "item"}`}
-                                                                    />
-                                                                }
-                                                                nativeButton={false}
-                                                            >
-                                                                <Edit3 />
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon-sm"
-                                                                className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"
-                                                                aria-label={`Delete ${item.name || "item"}`}
-                                                                disabled={deleteState.isLoading}
-                                                                onClick={() =>
-                                                                    setDeleteTarget({
-                                                                        id: item.id,
-                                                                        name: item.name,
-                                                                    })
-                                                                }
-                                                            >
-                                                                <Trash2 className="size-4 text-brand-red" />
-                                                            </Button>
+                                                            {viewMode === "trash" ? (
+                                                                <>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-8 px-3 rounded-xl border-0 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary gap-1.5 text-xs font-semibold cursor-pointer transition-colors shadow-none"
+                                                                        aria-label={`Restore ${item.name || "item"}`}
+                                                                        disabled={restoreState.isLoading}
+                                                                        onClick={() => handleRestore(item)}
+                                                                    >
+                                                                        <RotateCcw className="size-3.5 text-primary" />
+                                                                        <span>Restore</span>
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-8 px-3 rounded-xl border-0 bg-transparent text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-brand-red gap-1.5 text-xs font-semibold cursor-pointer transition-colors shadow-none"
+                                                                        aria-label={`Delete forever ${item.name || "item"}`}
+                                                                        disabled={permanentDeleteState.isLoading}
+                                                                        onClick={() =>
+                                                                            setPermanentDeleteTarget({
+                                                                                id: item.id,
+                                                                                name: item.name,
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        <Trash2 className="size-3.5 text-brand-red" />
+                                                                        <span>Delete Forever</span>
+                                                                    </Button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="icon-sm"
+                                                                        aria-label={`Preview ${item.name || "item"} in the store`}
+                                                                        onClick={() => setPreviewItem(toPreviewItem(item))}
+                                                                    >
+                                                                        <Eye />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="icon-sm"
+                                                                        render={
+                                                                            <Link
+                                                                                href={`/inventory/${item.id}/edit`}
+                                                                                aria-label={`Edit ${item.name || "item"}`}
+                                                                            />
+                                                                        }
+                                                                        nativeButton={false}
+                                                                    >
+                                                                        <Edit3 />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon-sm"
+                                                                        className="cursor-pointer border-0 bg-transparent text-brand-red hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-brand-red transition-colors"
+                                                                        aria-label={`Delete ${item.name || "item"}`}
+                                                                        disabled={deleteState.isLoading}
+                                                                        onClick={() =>
+                                                                            setDeleteTarget({
+                                                                                id: item.id,
+                                                                                name: item.name,
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        <Trash2 className="size-4 text-brand-red" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 )}
@@ -1520,26 +1722,57 @@ export function InventoryProductList() {
                 onOpenChange={(open) => {
                     if (!open) setDeleteTarget(null);
                 }}
+                tone="info"
                 title={
-                    deleteTarget?.name ? `Delete ${deleteTarget.name}?` : "Delete item?"
+                    deleteTarget?.name ? `Move ${deleteTarget.name} to Trash?` : "Move item to Trash?"
                 }
                 description={
                     deleteTarget?.name ? (
                         <>
-                            Are you sure you want to delete{" "}
+                            Are you sure you want to move{" "}
                             <strong className="font-semibold text-foreground">
                                 {deleteTarget.name}
-                            </strong>
-                            ? This action cannot be undone.
+                            </strong>{" "}
+                            to the Recycle Bin? It will be hidden from POS and storefronts, and you can restore it anytime.
                         </>
                     ) : (
-                        "Are you sure you want to delete this item? This action cannot be undone."
+                        "Are you sure you want to move this item to the Recycle Bin? You can restore it anytime."
                     )
                 }
-                confirmLabel="Delete"
+                confirmLabel="Move to Trash"
                 cancelLabel="Cancel"
                 isPending={deleteState.isLoading}
                 onConfirm={handleConfirmDelete}
+            />
+
+            <DestructiveConfirmDialog
+                open={Boolean(permanentDeleteTarget)}
+                onOpenChange={(open) => {
+                    if (!open) setPermanentDeleteTarget(null);
+                }}
+                tone="danger"
+                title={
+                    permanentDeleteTarget?.name
+                        ? `Permanently delete ${permanentDeleteTarget.name}?`
+                        : "Permanently delete item?"
+                }
+                description={
+                    permanentDeleteTarget?.name ? (
+                        <>
+                            Are you sure you want to permanently delete{" "}
+                            <strong className="font-semibold text-foreground">
+                                {permanentDeleteTarget.name}
+                            </strong>
+                            ? This action cannot be undone. All images and product records will be erased. Past receipts will preserve the snapshot name and price for accounting.
+                        </>
+                    ) : (
+                        "Are you sure you want to permanently delete this item? This action cannot be undone."
+                    )
+                }
+                confirmLabel="Delete Forever"
+                cancelLabel="Cancel"
+                isPending={permanentDeleteState.isLoading}
+                onConfirm={handleConfirmPermanentDelete}
             />
         </div>
     );

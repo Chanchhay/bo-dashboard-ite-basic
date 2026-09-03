@@ -97,7 +97,7 @@
   --font-sans: var(--font-google-sans);
   --font-heading: var(--font-google-sans);
   --font-display: var(--font-google-sans);
-  --font-mono: var(--font-mono);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

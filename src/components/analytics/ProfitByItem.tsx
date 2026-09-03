@@ -117,7 +117,7 @@ export function ProfitByItem({
                         disabled={nothingSold}
                         className="h-10 gap-2 rounded-xl"
                     >
-                        <Download className="size-4" />
+                        <Download className="size-4 text-primary" />
                         Download CSV
                     </Button>
                 ) : null}

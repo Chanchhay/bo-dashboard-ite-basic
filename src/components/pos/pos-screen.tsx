@@ -146,13 +146,30 @@ export function PosScreen({
   const [activeDiscountLabel, setActiveDiscountLabel] = useState<string | null>(null);
 
   useEffect(() => {
+    // What the poll last saw. The rule is written by other components in this
+    // same tab, where no `storage` event fires, so the till still has to look
+    // — but it re-renders only when the stored text has actually changed.
+    // Setting state on every tick re-rendered this whole screen, item grid
+    // and all, once a second for the length of a shift.
+    let lastSeen: string | null | undefined;
+
     const updateDiscountLabel = () => {
+      let raw: string | null = null;
       try {
-        const raw = localStorage.getItem("pos_store_default_discount");
+        raw = localStorage.getItem("pos_store_default_discount");
+      } catch {
+        raw = null;
+      }
+
+      if (raw === lastSeen) return;
+      lastSeen = raw;
+
+      try {
         if (raw) {
           const rule = JSON.parse(raw);
           if (rule?.isCoupon || rule?.discountCode) {
             localStorage.removeItem("pos_store_default_discount");
+            lastSeen = null;
             setActiveDiscountLabel(null);
           } else {
             setActiveDiscountLabel(rule.label || "Active");

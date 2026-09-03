@@ -7,6 +7,47 @@ import { formatAmount } from "@/lib/inventory-config/units";
 import { cn } from "@/lib/utils";
 
 /**
+ * 1. គណនា Net Selling Price (មិនទាន់រួមបញ្ចូល Tax) តាម Target Margin
+ * Formula: Net Price = Cost / (1 - Target Margin)
+ */
+export function calculateNetSellingPrice(cost: number, targetMarginPercent: number): number {
+    if (cost <= 0) return 0;
+    if (targetMarginPercent >= 100 || targetMarginPercent < 0) {
+        throw new Error("Target Margin ត្រូវតែចន្លោះពី 0% ទៅ 99.99%");
+    }
+
+    const marginDecimal = targetMarginPercent / 100;
+    return cost / (1 - marginDecimal);
+}
+
+/**
+ * 2. គណនា Tax និង Final Customer Price (Gross Price)
+ */
+export function calculateCustomerPrice(netPrice: number, taxRatePercent: number = 0): {
+    netPrice: number;
+    taxAmount: number;
+    finalPrice: number;
+} {
+    const taxAmount = netPrice * (taxRatePercent / 100);
+    const finalPrice = netPrice + taxAmount;
+
+    return {
+        netPrice,
+        taxAmount,
+        finalPrice,
+    };
+}
+
+/**
+ * 3. គណនា Gross Margin % ត្រឹមត្រូវ (គណនាលើ Net Price មិនគិត Tax)
+ * Formula: Gross Margin % = ((Net Price - Cost) / Net Price) * 100
+ */
+export function calculateGrossMargin(netPrice: number, cost: number): number {
+    if (netPrice <= 0) return 0;
+    return ((netPrice - cost) / netPrice) * 100;
+}
+
+/**
  * Every way one item is sold, and the box each price is typed into.
  *
  * Lifted out of the item card it used to live in so it could outlive it: the

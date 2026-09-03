@@ -294,6 +294,8 @@ export type InventoryItem = {
     uomConversions?: ItemUomConversion[];
     lowStockDefault?: number;
     status?: (typeof itemStatuses)[number];
+    isDeleted?: boolean;
+    deletedAt?: string | null;
 };
 
 export function itemImageUrls(
@@ -395,6 +397,11 @@ export const inventoryItemQuerySchema = z
             100,
             "Barcode must be 100 characters or fewer.",
         ),
+        isDeleted: z.preprocess((value) => {
+            if (value === "true" || value === true) return true;
+            if (value === "false" || value === false) return false;
+            return undefined;
+        }, z.boolean().optional()),
     })
     .superRefine((query, context) => {
         if (
