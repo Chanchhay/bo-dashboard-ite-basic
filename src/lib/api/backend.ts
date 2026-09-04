@@ -133,6 +133,44 @@ async function readErrorMessage(response: Response) {
     }
 }
 
+/**
+ * Tells the backend who is really calling.
+ *
+ * Every request from this app reaches the API through this server, so the
+ * connection the backend sees is always ours and never the person using the
+ * browser. Anything that records or counts by caller — the audit log's "signed
+ * in from", the rate limiter's buckets — would otherwise describe this process
+ * and put every member of staff in one bucket.
+ *
+ * `X-Client-IP` is the header the backend already reads first for exactly this
+ * reason. The user agent travels under its own name rather than overwriting
+ * `User-Agent`, which belongs to the hop that is actually being made.
+ *
+ * Neither is proof of anything: this is the honest answer to "who was this
+ * on behalf of", not an identity claim.
+ */
+async function forwardCallerHeaders(requestHeaders: Headers) {
+    try {
+        const incoming = await headers();
+
+        const clientIp =
+            incoming.get("x-client-ip") ??
+            incoming.get("x-forwarded-for")?.split(",")[0]?.trim();
+
+        if (clientIp && !requestHeaders.has("X-Client-IP")) {
+            requestHeaders.set("X-Client-IP", clientIp);
+        }
+
+        const userAgent = incoming.get("user-agent");
+        if (userAgent && !requestHeaders.has("X-Client-User-Agent")) {
+            requestHeaders.set("X-Client-User-Agent", userAgent);
+        }
+    } catch {
+        // Outside a request — a build-time render, say. There is no caller to
+        // describe, and failing the call over it would be absurd.
+    }
+}
+
 export async function backendResponse(
     path: string,
     init?: RequestInit,
@@ -142,6 +180,8 @@ export async function backendResponse(
     if (!requestHeaders.has("Accept")) {
         requestHeaders.set("Accept", "application/json");
     }
+
+    await forwardCallerHeaders(requestHeaders);
 
     if (
         typeof init?.body === "string" &&

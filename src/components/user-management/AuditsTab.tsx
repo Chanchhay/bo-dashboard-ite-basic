@@ -20,6 +20,7 @@ import {
     auditActionTypes,
     auditTargetTypes,
     humanizeEnum,
+    signInActions,
 } from "@/lib/api/user-management";
 import { useGetAuditLogsQuery } from "@/services/userManagementApi";
 
@@ -38,6 +39,63 @@ function formatTimestamp(value: string | undefined) {
     }).format(date);
 }
 
+/**
+ * A sign-in describes a person arriving; everything else describes a change.
+ *
+ * The two want different columns — a change has a target and a before/after, a
+ * sign-in has an address and a device — so the last column switches on this
+ * rather than showing every row a half-empty pair of both.
+ */
+function isSignIn(actionType: string | undefined) {
+    return actionType !== undefined && signInActions.includes(actionType);
+}
+
+/** Where a sign-in came from, as much of it as is worth a table cell. */
+function signInOrigin(ipAddress?: string, userAgent?: string) {
+    const device = describeDevice(userAgent);
+
+    return [ipAddress, device].filter(Boolean).join(" · ") || "—";
+}
+
+/**
+ * A user agent as a person would name it.
+ *
+ * Deliberately coarse. The full string is kept on the row's `title` for anyone
+ * who needs it; what a table cell is being scanned for is "was that their
+ * phone or the shop's till", and browser minor versions answer no question.
+ */
+function describeDevice(userAgent?: string) {
+    if (!userAgent) return "";
+
+    const platform = /android/i.test(userAgent)
+        ? "Android"
+        : /iphone|ipad|ipod/i.test(userAgent)
+          ? "iOS"
+          : /windows/i.test(userAgent)
+            ? "Windows"
+            : /mac os/i.test(userAgent)
+              ? "macOS"
+              : /linux/i.test(userAgent)
+                ? "Linux"
+                : "";
+
+    // Order matters: Edge and Chrome both claim to be Safari, and Chrome
+    // claims to be Safari too, so the most specific name has to win.
+    const browser = /edg\//i.test(userAgent)
+        ? "Edge"
+        : /opr\/|opera/i.test(userAgent)
+          ? "Opera"
+          : /firefox/i.test(userAgent)
+            ? "Firefox"
+            : /chrome|crios/i.test(userAgent)
+              ? "Chrome"
+              : /safari/i.test(userAgent)
+                ? "Safari"
+                : "";
+
+    return [browser, platform].filter(Boolean).join(" on ");
+}
+
 export default function AuditsTab({
     canReadAudits,
 }: {
@@ -54,7 +112,7 @@ export default function AuditsTab({
         { skip: !canReadAudits },
     );
 
-    // The audit log lives behind `admin-audit:read`; saying so beats a 403.
+    // The log lives behind `audit:read`; saying so beats a 403.
     if (!canReadAudits) {
         return (
             <Panel>
@@ -66,11 +124,11 @@ export default function AuditsTab({
                         You don&apos;t have access to the audit log
                     </p>
                     <p className="max-w-md text-[14px] text-muted-foreground">
-                        Viewing audits needs the{" "}
+                        Viewing the activity log needs the{" "}
                         <code className="rounded bg-muted text-foreground border border-border px-1.5 py-0.5 text-[13px]">
-                            admin-audit:read
+                            audit:read
                         </code>{" "}
-                        permission. Ask a platform administrator to grant it.
+                        permission. Ask the shop owner to add it to your role.
                     </p>
                 </div>
             </Panel>
@@ -90,8 +148,8 @@ export default function AuditsTab({
     return (
         <Panel data-tour="audit-logs">
             <PanelHeader
-                title="Audits"
-                description="Administrative changes recorded across the platform."
+                title="Activity"
+                description="Who signed in to this shop, and who changed staff or roles."
             />
 
             <div data-tour="audit-filters" className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
@@ -108,7 +166,7 @@ export default function AuditsTab({
                         type="search"
                         value={keyword}
                         onChange={(event) => resetTo(() => setKeyword(event.target.value))}
-                        placeholder="Search by actor or target"
+                        placeholder="Search by person"
                         className="h-9 sm:h-10 w-full rounded-xl border border-border bg-card pr-3 pl-9 text-xs sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-gray-400 dark:focus-visible:border-gray-600 focus-visible:ring-1 focus-visible:ring-gray-400/20 shadow-xs"
                     />
                 </div>
@@ -166,11 +224,11 @@ export default function AuditsTab({
                 />
             ) : logs.length === 0 ? (
                 <EmptyState
-                    title="No audit entries"
+                    title="No activity yet"
                     description={
                         keyword || actionType || targetType
                             ? "No entries match these filters."
-                            : "Administrative changes will appear here."
+                            : "Sign-ins and staff changes will appear here."
                     }
                 />
             ) : (
@@ -199,23 +257,37 @@ export default function AuditsTab({
 
                                 {/* Card Key-Value Rows */}
                                 <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
-                                    <div className="flex items-center justify-between px-3.5 py-2.5">
-                                        <span className="text-muted-foreground dark:text-slate-400">Target</span>
-                                        <div className="text-right">
-                                            <p className="font-medium text-foreground dark:text-slate-200">{log.targetLabel || "—"}</p>
-                                            <p className="text-[11px] text-muted-foreground">{humanizeEnum(log.targetType)}</p>
+                                    {isSignIn(log.actionType) ? (
+                                        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                                            <span className="text-muted-foreground dark:text-slate-400">From</span>
+                                            <span
+                                                className="text-right font-medium text-foreground dark:text-slate-200"
+                                                title={log.userAgent}
+                                            >
+                                                {signInOrigin(log.ipAddress, log.userAgent)}
+                                            </span>
                                         </div>
-                                    </div>
-
-                                    {(log.previousState || log.newState) && (
-                                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
-                                            <span className="text-muted-foreground dark:text-slate-400">Change</span>
-                                            <div className="text-right font-medium">
-                                                <span className="text-muted-foreground">{log.previousState || "—"}</span>
-                                                <span className="px-1 text-muted-foreground">→</span>
-                                                <span className="text-foreground dark:text-slate-200">{log.newState || "—"}</span>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between px-3.5 py-2.5">
+                                                <span className="text-muted-foreground dark:text-slate-400">Target</span>
+                                                <div className="text-right">
+                                                    <p className="font-medium text-foreground dark:text-slate-200">{log.targetLabel || "—"}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{humanizeEnum(log.targetType)}</p>
+                                                </div>
                                             </div>
-                                        </div>
+
+                                            {(log.previousState || log.newState) && (
+                                                <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30">
+                                                    <span className="text-muted-foreground dark:text-slate-400">Change</span>
+                                                    <div className="text-right font-medium">
+                                                        <span className="text-muted-foreground">{log.previousState || "—"}</span>
+                                                        <span className="px-1 text-muted-foreground">→</span>
+                                                        <span className="text-foreground dark:text-slate-200">{log.newState || "—"}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -231,7 +303,7 @@ export default function AuditsTab({
                     >
                         <table className="w-full min-w-[760px] border-collapse text-left">
                             <caption className="sr-only">
-                                Administrative audit entries
+                                Sign-ins and staff changes in this shop
                             </caption>
                             <thead>
                                 <tr className="border-b border-border text-[12px] text-muted-foreground">
@@ -248,7 +320,7 @@ export default function AuditsTab({
                                         Target
                                     </th>
                                     <th scope="col" className="py-3 font-medium">
-                                        Change
+                                        Details
                                     </th>
                                 </tr>
                             </thead>
@@ -268,13 +340,27 @@ export default function AuditsTab({
                                             {humanizeEnum(log.actionType)}
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-muted-foreground">
-                                            <p>{log.targetLabel || "—"}</p>
-                                            <p className="text-[13px] text-muted-foreground">
-                                                {humanizeEnum(log.targetType)}
-                                            </p>
+                                            {/* A sign-in's target is the person who signed
+                                                in, already named in Actor. Repeating it here
+                                                would fill the column with the previous one. */}
+                                            {isSignIn(log.actionType) ? (
+                                                "—"
+                                            ) : (
+                                                <>
+                                                    <p>{log.targetLabel || "—"}</p>
+                                                    <p className="text-[13px] text-muted-foreground">
+                                                        {humanizeEnum(log.targetType)}
+                                                    </p>
+                                                </>
+                                            )}
                                         </td>
-                                        <td className="py-4 text-[13px] text-muted-foreground">
-                                            {log.previousState || log.newState ? (
+                                        <td
+                                            className="py-4 text-[13px] text-muted-foreground"
+                                            title={isSignIn(log.actionType) ? log.userAgent : undefined}
+                                        >
+                                            {isSignIn(log.actionType) ? (
+                                                signInOrigin(log.ipAddress, log.userAgent)
+                                            ) : log.previousState || log.newState ? (
                                                 <span>
                                                     {log.previousState || "—"}
                                                     {" → "}

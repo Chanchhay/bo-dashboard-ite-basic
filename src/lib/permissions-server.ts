@@ -28,30 +28,44 @@ function decodeClaims(accessToken: string): KeycloakClaims | undefined {
 }
 
 
+const getClaims = cache(async (): Promise<KeycloakClaims | undefined> => {
+    try {
+        const requestHeaders = await headers();
+        const session = await auth.api.getSession({
+            headers: requestHeaders,
+        });
+        if (!session) return undefined;
+
+        const tokens = await auth.api.getAccessToken({
+            headers: requestHeaders,
+            body: { providerId: "keycloak" },
+        });
+        if (!tokens.accessToken) return undefined;
+
+        return decodeClaims(tokens.accessToken);
+    } catch {
+        return undefined;
+    }
+});
+
 export const getUserPermissions = cache(
     async (): Promise<GrantedPermissions> => {
-        try {
-            const requestHeaders = await headers();
-            const session = await auth.api.getSession({
-                headers: requestHeaders,
-            });
-            if (!session) return [];
+        const claims = await getClaims();
 
-            const tokens = await auth.api.getAccessToken({
-                headers: requestHeaders,
-                body: { providerId: "keycloak" },
-            });
-            if (!tokens.accessToken) return [];
-
-            const claims = decodeClaims(tokens.accessToken);
-
-            
-            return (
-                claims?.resource_access?.[RESOURCE_SERVER_CLIENT_ID]?.roles ??
-                []
-            );
-        } catch {
-            return [];
-        }
+        return claims?.resource_access?.[RESOURCE_SERVER_CLIENT_ID]?.roles ?? [];
     },
 );
+
+/**
+ * The realm roles on the caller's token — `BUSINESS_OWNER` and friends.
+ *
+ * Separate from the permissions above, which are client roles. The backend
+ * grants some endpoints to either one, and a page that gates on permissions
+ * alone shows an owner a locked screen for something the API would have
+ * answered.
+ */
+export const getUserRealmRoles = cache(async (): Promise<readonly string[]> => {
+    const claims = await getClaims();
+
+    return claims?.realm_access?.roles ?? [];
+});

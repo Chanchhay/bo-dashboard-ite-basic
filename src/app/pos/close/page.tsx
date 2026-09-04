@@ -95,6 +95,7 @@ export default function PosCloseRegisterPage() {
   return (
     <CloseRegister
       cashierName={session!.cashierName ?? session!.registerName ?? "—"}
+      joinedCashiers={(session!.cashierNames ?? []).slice(1)}
       openedAt={formatOpenedAt(session!.openedAt)}
       openingAmount={session!.openingBalance}
       revenue={session!.totalCashSales}
