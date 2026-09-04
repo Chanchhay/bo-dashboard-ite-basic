@@ -268,11 +268,11 @@ export function Payment({
                       <span>Subtotal</span>
                       <span>{format(subtotal, order.currency)}</span>
                     </div>
-                    <div className="flex justify-between text-[#00501a]">
+                    <div className="flex justify-between text-primary">
                       <span className="flex items-center gap-1.5">
                         Discount
                         {discountLabel && (
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-green-100 text-[#00501a]">
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                             ({discountLabel})
                           </span>
                         )}
@@ -280,7 +280,7 @@ export function Payment({
                       <span>-{format(discount, order.currency)}</span>
                     </div>
                     {isTaxActive && !isTaxInclusive && taxAmount > 0 && (
-                      <div className="flex justify-between text-[#00501a]">
+                      <div className="flex justify-between text-primary">
                         <span className="flex items-center gap-1.5 font-medium">
                           +
                           {taxName.includes("VAT") ? "VAT" : taxName}

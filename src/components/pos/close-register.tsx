@@ -147,7 +147,7 @@ export function CloseRegister({
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-2">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-green-100">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
               <Building2 className="h-5 w-5 text-primary" />
             </div>
             <h1 className="text-sm font-bold tracking-wide">CASH REGISTER</h1>
