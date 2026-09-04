@@ -335,11 +335,11 @@ export const NAVIGATION: NavSection[] = [
   },
   {
     id: "settings",
-    label: "Settings",
+    label: "Account Settings",
     icon: Settings,
     href: "/settings",
     app: {
-      label: "Settings",
+      label: "Account Settings",
       fill: "#e8e8e8",
       ink: "#00932a",
     },
