@@ -329,6 +329,13 @@ export const PERMISSION_GROUPS = [
                 platformAssignable: false,
             },
             {
+                value: "audit:read",
+                label: "View the activity log",
+                hint: "Who signed in, and who changed staff or roles",
+                businessAssignable: true,
+                platformAssignable: false,
+            },
+            {
                 value: "member:manage",
                 label: "Add and edit staff",
                 hint: "Invite people, change their details, suspend them",

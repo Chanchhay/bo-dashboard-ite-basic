@@ -8,6 +8,8 @@ export type RegisterSession = {
     userId: string | null;
     
     cashierName?: string | null;
+    /** Everyone who worked the drawer, the opener first. */
+    cashierNames?: string[] | null;
     orderCount?: number | null;
     businessId: string | null;
     openedAt: string | null;

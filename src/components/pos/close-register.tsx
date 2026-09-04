@@ -9,6 +9,13 @@ import { POS_ROUTES } from "@/lib/pos-routes";
 
 export interface CloseRegisterProps {
   cashierName: string;
+  /**
+   * Anyone who joined the drawer after it was opened.
+   *
+   * Their sales are in the expected total, so the person counting the cash has
+   * to be told the money is not only the opener's.
+   */
+  joinedCashiers?: string[];
   openedAt: string; // e.g. "24/07/2026 - 08:12"
   openingAmount: number;
   revenue: number;
@@ -23,6 +30,7 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
 
 export function CloseRegister({
   cashierName,
+  joinedCashiers = [],
   openedAt,
   openingAmount,
   revenue,
@@ -147,7 +155,7 @@ export function CloseRegister({
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-2">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-green-100">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
               <Building2 className="h-5 w-5 text-primary" />
             </div>
             <h1 className="text-sm font-bold tracking-wide">CASH REGISTER</h1>
@@ -176,6 +184,14 @@ export function CloseRegister({
               <span className="text-gray-500">Opened by</span>
               <span className="font-semibold">{cashierName}</span>
             </div>
+            {joinedCashiers.length > 0 && (
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Also on this session</span>
+                <span className="text-right font-semibold">
+                  {joinedCashiers.join(", ")}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-500">Opened at</span>
               <span className="font-semibold">{openedAt}</span>

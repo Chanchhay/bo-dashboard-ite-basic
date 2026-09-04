@@ -116,36 +116,26 @@ export const businessRoleSchema = z.object({
 export type BusinessRoleInput = z.infer<typeof businessRoleSchema>;
 
 
+/**
+ * What this shop's own audit log records.
+ *
+ * Not the platform's `AdminActionType` list, which is FluxiBiz staff acting on
+ * businesses — categories, units, feature flags. None of those happen inside a
+ * shop, so offering them here filtered a log by things it can never contain.
+ */
 export const auditActionTypes = [
-    "BUSINESS_ACTIVATED",
-    "BUSINESS_SUSPENDED",
-    "BUSINESS_ENABLED",
-    "BUSINESS_DISABLED",
-    "BUSINESS_CLOSED",
-    "BUSINESS_REOPENED",
-    "BUSINESS_DELETED",
-    "BUSINESS_CATEGORY_CREATED",
-    "BUSINESS_CATEGORY_UPDATED",
-    "BUSINESS_CATEGORY_DELETED",
-    "UNIT_CREATED",
-    "UNIT_UPDATED",
-    "UNIT_DELETED",
-    "BUSINESS_FEATURE_ENABLED",
-    "BUSINESS_FEATURE_DISABLED",
-    "PLATFORM_FEATURE_ENABLED",
-    "PLATFORM_FEATURE_DISABLED",
+    "STAFF_SIGNED_IN",
+    "STAFF_CREATED",
+    "STAFF_UPDATED",
+    "STAFF_SUSPENDED",
+    "STAFF_REACTIVATED",
+    "STAFF_DELETED",
+    "ROLE_CREATED",
+    "ROLE_UPDATED",
+    "ROLE_DELETED",
 ] as const;
 
-export const auditTargetTypes = [
-    "BUSINESS",
-    "BUSINESS_CATEGORY",
-    "UNIT",
-    "REALM_ROLE",
-    "PLATFORM_USER",
-    "BUSINESS_ROLE",
-    "BUSINESS_FEATURE",
-    "PLATFORM_FEATURE",
-] as const;
+export const auditTargetTypes = ["STAFF", "ROLE"] as const;
 
 export type AuditActionType = (typeof auditActionTypes)[number];
 export type AuditTargetType = (typeof auditTargetTypes)[number];
@@ -164,6 +154,15 @@ export type AuditLog = {
     userAgent?: string;
     createdAt?: string;
 };
+
+/**
+ * The action types that describe a sign-in rather than a change.
+ *
+ * The table shows a different pair of columns for each: a change has a target
+ * and a before/after, a sign-in has a device and an address, and forcing both
+ * shapes into one row leaves half of every row empty.
+ */
+export const signInActions: readonly string[] = ["STAFF_SIGNED_IN"];
 
 export type PageMetadata = {
     size?: number;

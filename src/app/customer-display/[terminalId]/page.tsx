@@ -253,8 +253,8 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             </div>
           ) : status === "COMPLETED" ? (
             <div className="my-auto flex flex-col items-center overflow-y-auto px-1 py-2 animate-in fade-in duration-300 w-full max-h-[92vh] scrollbar-hide">
-              <div className="mb-2 flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold text-emerald-300 border border-emerald-500/30 backdrop-blur-md">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <div className="mb-2 flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-extrabold text-primary border border-primary/25 backdrop-blur-md">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
                 <span>RECEIPT · វិក្កយបត្រ</span>
               </div>
               <ReceiptTicket
@@ -347,14 +347,14 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             </div>
           ) : status === "COMPLETED" ? (
             <div className="flex h-full flex-col items-center justify-center text-center p-8 animate-in fade-in zoom-in-95 duration-300">
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-inner">
-                <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border border-primary/20 shadow-inner">
+                <CheckCircle2 className="h-12 w-12 text-primary" />
               </div>
               <h3 className={`text-3xl font-black tracking-tight ${isDarkMode ? "text-white" : "text-slate-900"}`}>
                 ទូទាត់ប្រាក់រួចរាល់ (Sale Completed)
               </h3>
               {displayData?.invoiceNumber && (
-                <p className={`mt-2 font-mono text-base font-bold ${isDarkMode ? "text-emerald-400" : "text-primary"}`}>
+                <p className="mt-2 font-mono text-base font-bold text-primary">
                   Invoice #{displayData.invoiceNumber}
                 </p>
               )}
@@ -369,7 +369,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 </div>
                 <div className={`flex flex-col items-center p-3 rounded-xl shadow-sm ${isDarkMode ? "bg-slate-950" : "bg-white"}`}>
                   <span className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Grand Total</span>
-                  <span className="text-xl font-bold text-emerald-500 mt-1">{format(total, currency)}</span>
+                  <span className="text-xl font-bold text-primary mt-1">{format(total, currency)}</span>
                 </div>
               </div>
             </div>
@@ -434,7 +434,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                             on this line — invisible otherwise, since the
                             quantity column alone reads as an ordinary sale. */}
                         {item.freeQuantity ? (
-                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">
                             {item.freeQuantity} FREE
                           </span>
                         ) : null}
@@ -445,7 +445,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                       <td className="py-3.5 px-3 text-right">
                         {format(item.unitPrice, currency)}
                       </td>
-                      <td className="py-3.5 px-3 text-right text-emerald-500">
+                      <td className="py-3.5 px-3 text-right text-primary font-semibold">
                         {item.discountAmount > 0
                           ? `-${format(item.discountAmount, currency)}`
                           : "-"}
@@ -489,7 +489,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     <span>
                       បញ្ចុះតម្លៃ{discountLabel ? ` (${discountLabel})` : ""} (Discount):
                     </span>
-                    <span className="font-bold text-emerald-500">
+                    <span className="font-bold text-primary">
                       -{format(discount, currency)}
                     </span>
                   </div>
