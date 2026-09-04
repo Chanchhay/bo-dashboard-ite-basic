@@ -40,6 +40,23 @@ const WINDOW_PHRASE: Record<PredictionWindowKey, string> = {
     MONTH: "this month",
 };
 
+/**
+ * Formats trend metrics cleanly for business owners.
+ * Converts raw backend % into absolute unit growth (+X units) vs previous baseline.
+ */
+function getTrendDisplay(expectedDemandWindow: number, trendPercent: number | null) {
+    if (trendPercent === null || trendPercent === 0) {
+        return "0 units";
+    }
+
+    const expected = Math.round(expectedDemandWindow);
+    const ratio = 1 + trendPercent / 100;
+    const previous = ratio > 0 ? Math.round(expected / ratio) : 0;
+    const unitsChange = Math.max(0, expected - previous);
+
+    return `+${unitsChange} units`;
+}
+
 export function PredictionTables() {
     const [windowKey, setWindowKey] = useState<PredictionWindowKey>("WEEK");
     const windowPhrase = WINDOW_PHRASE[windowKey];
@@ -145,7 +162,7 @@ export function PredictionTables() {
                     <PredictionTable
                         icon={<Flame className="size-5 text-orange-600 dark:text-orange-400" />}
                         title={`Predicted to sell more ${windowPhrase}`}
-                        description="Trending up at least 10% vs the previous period — worth having plenty on hand."
+                        description="Products showing increased demand compared with the previous period."
                         emptyLabel={
                             query
                                 ? `No matches for "${search}".`
@@ -161,14 +178,17 @@ export function PredictionTables() {
                                 <TableCell className="font-semibold text-foreground">
                                     {f.name}
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums text-muted-foreground">
+                                <TableCell className="text-right tabular-nums text-muted-foreground font-medium">
                                     {Math.round(
                                         f.expectedDemandWindow,
                                     ).toLocaleString()}{" "}
                                     units
                                 </TableCell>
-                                <TableCell className="text-right font-semibold tabular-nums text-success">
-                                    +{f.trendPercent?.toFixed(1)}%
+                                <TableCell className="text-right font-semibold tabular-nums text-primary">
+                                    {getTrendDisplay(
+                                        f.expectedDemandWindow,
+                                        f.trendPercent,
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ))}
