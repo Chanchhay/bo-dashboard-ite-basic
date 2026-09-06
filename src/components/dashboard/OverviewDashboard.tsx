@@ -57,17 +57,7 @@ import { Input } from "@/components/ui/input";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ChartCardSkeleton } from "@/components/dashboard/charts/ChartCardSkeleton";
 
-/*
- * The three charting cards are fetched only once the dashboard is on screen.
- *
- * Recharts is by far the heaviest thing this page pulls in, and none of it is
- * needed to paint the figures above the charts or the tables below them. Held
- * back like this, the numbers land first and the charts fill in behind them —
- * rather than everything waiting on the chart library to parse.
- *
- * `ssr: false` because these render nothing meaningful on the server anyway:
- * they size themselves against a real viewport.
- */
+
 const ChannelDonutCard = dynamic(
     () => import("@/components/dashboard/charts/ChannelDonutCard").then((mod) => mod.ChannelDonutCard),
     { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-4" /> },
@@ -100,10 +90,7 @@ const CHART_SELECTORS = [
 
 type CapturedChart = { dataUrl: string; width: number; height: number };
 
-// Renders a dashboard card to a PNG data URI for embedding in exported reports (Excel/Word).
-// Strips SVG glow filters first — html2canvas rasterizes them as a muddy smear instead of a soft glow.
-// Returns the canvas's real pixel dimensions too, so callers can size the <img> without
-// distorting it — Word/Excel's HTML importer stretches images when only one dimension is set.
+
 async function captureChartImage(selector: string): Promise<CapturedChart | null> {
     const el = document.querySelector(selector);
     if (!el) return null;
@@ -120,8 +107,7 @@ async function captureChartImage(selector: string): Promise<CapturedChart | null
     return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
 }
 
-// Builds an <img> tag with an explicit width/height (derived from the real capture aspect
-// ratio) at the given display width, so it renders at a clean, undistorted size.
+
 function chartImgTag(chart: CapturedChart | null, filename: string, displayWidth: number, style = ""): string {
     if (!chart) return "";
     const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
@@ -139,8 +125,7 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 const DOC_BORDER_LIGHT = { style: BorderStyle.SINGLE, size: 2, color: "E0E0E0" } as const;
 const DOC_BORDER_HEADER = { style: BorderStyle.SINGLE, size: 4, color: "B4C6E7" } as const;
 
-// Renders a captured chart as a docx image paragraph, sized from its real
-// capture aspect ratio so it doesn't come out stretched.
+
 function chartImageParagraph(chart: CapturedChart | null, displayWidth: number): Paragraph | null {
     if (!chart) return null;
     const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
@@ -228,17 +213,6 @@ function docKpiTable(cells: { label: string; value: string }[]): Table {
     });
 }
 
-/**
- * Gives the chart cards a moment to actually be charts before they are
- * photographed.
- *
- * They are loaded on demand — recharts is the heaviest thing this page pulls
- * in and it is not needed to read the figures — so a card can still be a
- * skeleton when an export starts. Capturing then would put a grey placeholder
- * in the report where a chart belongs. This waits for the drawn SVG to appear
- * and gives up after a moment rather than blocking the export forever: a
- * missing chart is a report without a picture, which beats no report at all.
- */
 async function waitForCharts(selectors: string[], timeoutMs = 4000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
 
@@ -260,23 +234,13 @@ export function OverviewDashboard() {
     const [bestSellingPage, setBestSellingPage] = useState(1);
 
     const ITEMS_PER_PAGE = 5;
-    /** One page big enough to hold a CSV export of everything matching. */
+   
     const EXPORT_PAGE_SIZE = 1000;
 
-    /*
-     * Three reads, and nothing derived from them here.
-     *
-     * This screen used to fetch four reports plus the entire catalogue — up
-     * to ten thousand items — and then total, rank, accumulate and join them
-     * in the browser on every render. Most of that arithmetic needed the whole
-     * set to be right: a running total, a share of revenue, a ranking, a bar
-     * scaled to the largest row. The server has the whole set; a page does not.
-     */
+  
     const overviewQuery = useGetDashboardOverviewQuery({ granularity });
     const overview = overviewQuery.data;
 
-    // Searching and paging are the server's too, so a search reaches rows
-    // this page does not hold.
     const recentOrdersQuery = useGetRecentOrdersQuery({
         search: recentOrderFilter.trim() || undefined,
         page: recentOrderPage - 1,
@@ -296,8 +260,6 @@ export function OverviewDashboard() {
         inventory: overview?.kpis.inventoryOnHand ?? 0,
     };
 
-    // The only thing still worked out here is which colour a channel is drawn
-    // in, which belongs to the theme rather than to the data.
     const channelPercentageData = useMemo(
         () =>
             (overview?.channels ?? []).map((channel) => ({
@@ -330,11 +292,6 @@ export function OverviewDashboard() {
     const bestSellingTotal = bestSellingQuery.data?.totalElements ?? 0;
 
 
-    /*
-     * Export takes every row the current search matches, not the five on
-     * screen. The table itself reads a page at a time, so the rest is fetched
-     * here, on the click — the one moment anybody wants it.
-     */
     const handleExportRecentOrders = async () => {
         const all = await fetchAllRecentOrders({
             search: recentOrderFilter.trim() || undefined,
@@ -433,8 +390,6 @@ export function OverviewDashboard() {
                         (toolbar as HTMLElement).style.display = "none";
                     }
 
-                    // Force a clean white page background — the live dashboard's gray shell
-                    // backdrop looks like a dull tint once printed to a PDF page.
                     clonedDoc.body.style.backgroundColor = "#ffffff";
                     const dashboardClone = clonedDoc.getElementById("dashboard-container");
                     if (dashboardClone) {
@@ -471,8 +426,7 @@ export function OverviewDashboard() {
                         container.insertBefore(header, container.firstChild);
                     }
 
-                    // 3. Strip SVG glow filters (feGaussianBlur) — html2canvas rasterizes them
-                    // as a muddy smear instead of a soft glow, so drop them for the static export.
+             
                     clonedDoc.querySelectorAll("[filter]").forEach((el) => el.removeAttribute("filter"));
                     clonedDoc.querySelectorAll<HTMLElement>("[style*='filter']").forEach((el) => {
                         el.style.filter = "none";
@@ -482,8 +436,6 @@ export function OverviewDashboard() {
 
             const imgData = canvas.toDataURL("image/png");
 
-            // Size the page to the content itself (fixed A4 width, dynamic height) so the
-            // whole report fits on a single page instead of being cut across multiple pages.
             const margin = 6; // Tight 6mm margins for full-width presentation
             const pageWidth = 210; // A4 width in mm
             const imgWidth = pageWidth - margin * 2;
@@ -511,8 +463,7 @@ export function OverviewDashboard() {
 
     const handleExportDocs = async () => {
         try {
-            // The tables read a page at a time, so a report fetches the whole
-            // set the same way the CSV buttons do — on the click, once.
+       
             const [allOrders, allProducts] = await Promise.all([
                 fetchAllRecentOrders({
                     search: recentOrderFilter.trim() || undefined,
@@ -531,9 +482,6 @@ export function OverviewDashboard() {
             setIsExportingDocs(true);
             await new Promise((r) => setTimeout(r, 100));
 
-            // Charts are fetched on demand, so a card can still be a skeleton
-            // when an export starts. Give them a moment to become charts
-            // before photographing them.
             await waitForCharts(CHART_SELECTORS);
 
             const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
@@ -544,10 +492,7 @@ export function OverviewDashboard() {
             const dateStr = new Date().toISOString().split("T")[0];
             const generatedOn = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-            // A genuine OOXML .docx (built with the `docx` library) instead of the old
-            // MHTML-labeled-as-.doc trick \u2014 Word opened that via a proprietary importer,
-            // but Google Docs, LibreOffice, and everything else couldn't. This is a real
-            // zip-packaged Word document, so it opens correctly everywhere.
+    
             const doc = new Document({
                 sections: [
                     {
@@ -638,8 +583,7 @@ export function OverviewDashboard() {
 
     const handleExportExcel = async () => {
         try {
-            // The tables read a page at a time, so a report fetches the whole
-            // set the same way the CSV buttons do — on the click, once.
+   
             const [allOrders, allProducts] = await Promise.all([
                 fetchAllRecentOrders({
                     search: recentOrderFilter.trim() || undefined,
@@ -658,9 +602,6 @@ export function OverviewDashboard() {
             setIsExportingExcel(true);
             await new Promise((r) => setTimeout(r, 100));
 
-            // Charts are fetched on demand, so a card can still be a skeleton
-            // when an export starts. Give them a moment to become charts
-            // before photographing them.
             await waitForCharts(CHART_SELECTORS);
 
             const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
@@ -841,10 +782,8 @@ export function OverviewDashboard() {
               </html>
             `;
 
-            // Excel's HTML importer can't resolve `data:` image URIs — it treats them as
-            // broken external links. Package the report as an MHTML (multipart/related)
-            // archive instead, with each chart image as its own MIME part, which Excel
-            // opens and embeds natively.
+
+            
             const boundary = "----=ExcelReportBoundary";
             const mhtmlParts: string[] = [
                 "MIME-Version: 1.0",
