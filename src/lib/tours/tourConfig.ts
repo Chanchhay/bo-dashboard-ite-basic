@@ -1164,10 +1164,20 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
 
   "/inventory/import": [
     {
+      element: '[data-tour="sidebar-link-new-import"]',
+      popover: {
+        title: "1. Import Data → New Import",
+        description: "This page lives under 'Import data' in the sidebar. Use it to bring your items, categories, or opening stock in from a spreadsheet in one pass instead of typing them in by hand. Nothing changes in your catalog until the very last stage.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
       element: '[data-tour="import-stepper"]',
       popover: {
-        title: "1. The Five Steps",
-        description: "Choose what you are importing, upload the file, match its columns, let it be checked, then review. Nothing is written to FluxiBiz until the final step.",
+        title: "2. Six Stages — Nothing Saved Early",
+        description: "Choose → Upload → Match columns → Check data → Review → Import. A finished stage turns green and stays clickable, so you can jump back to fix something — but you cannot skip ahead. Only the final 'Import' stage actually writes anything into FluxiBiz.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1176,8 +1186,8 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-choose-type"]',
       popover: {
-        title: "2. What Are You Importing?",
-        description: "Pick Items, Categories or Stock. This decides which columns the next step expects, so choose before you upload. — [Required]",
+        title: "3. What Are You Importing?",
+        description: "Pick Items, Categories, or Opening stock. — [Required] — This decides which spreadsheet columns the next steps expect, and it cannot be changed once a file is uploaded, so get it right before continuing.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1186,8 +1196,28 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-panel"]',
       popover: {
-        title: "3. The Working Area",
-        description: "Each step appears here in turn — the file drop zone, the column matcher, the check results, then the review table listing every row that will be added or changed.",
+        title: "4. Upload: CSV or Excel",
+        description: "Drag your file here or use 'Choose file'. Accepts .csv and .xlsx, up to 10 MB, and the first row must be your column headings. Not sure of the layout? Download one of the sample templates shown here — a file built from it arrives already matched in the next step.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-panel"]',
+      popover: {
+        title: "5. Match Your Columns",
+        description: "Line up each column from your file with a FluxiBiz field. Columns matched automatically are marked with a ✨ sparkle. Anything required and still unmatched blocks 'Check my data' until fixed. This is also where you choose what happens to rows that already exist (Skip it, or Update it with the file) and set a fallback unit for rows that don't name one.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-panel"]',
+      popover: {
+        title: "6. Check, Review, Import",
+        description: "'Check my data' sorts every row into Ready to import, Already exist, or Have errors — click a count to filter the table. Nothing is written yet. Continue to Review and FluxiBiz spells out exactly what will be created, updated, or skipped; tick the confirmation box and press 'Import now' only once you're sure — this last step cannot be undone.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1196,8 +1226,8 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-history-link"]',
       popover: {
-        title: "4. Past Imports",
-        description: "Opens Import history: every file you have brought in, what it changed, and any rows it could not read.",
+        title: "7. Past Imports",
+        description: "Click 'History' anytime — mid-wizard or after — to see every file you have brought in: its status, how many rows made it in versus failed, who ran it, and when. Open any one for its full row-by-row report.",
         side: "bottom",
         align: "end",
         popoverClass: "fluxibiz-tour-popover",
@@ -1207,10 +1237,20 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
 
   "/inventory/import/history": [
     {
+      element: '[data-tour="sidebar-link-history"]',
+      popover: {
+        title: "1. Import Data → History",
+        description: "You are on 'Import data → History' in the sidebar. Every file ever brought into FluxiBiz is listed here, newest first — whether it fully succeeded, partly failed, or was later undone.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
       element: '[data-tour="import-history-list"]',
       popover: {
-        title: "1. Import History",
-        description: "Every file you have imported, newest first. Each row shows what was brought in, when, and how many rows succeeded or failed.",
+        title: "2. Reading a Row",
+        description: "File name and the data type it carried (Items, Categories, Opening stock); a status pill (Committed, Failed, Reverted…); the 'Rows' column showing how many made it in versus how many did not; who ran it; and when it was uploaded. Click a file name to open its full row-by-row report.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1219,8 +1259,8 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-new-link"]',
       popover: {
-        title: "2. Start a New Import",
-        description: "Begins the import wizard — choose the data type, upload a spreadsheet, match the columns and review before anything is saved.",
+        title: "3. Start Another Import",
+        description: "Click 'New import' (top-right here, or 'Import data → New import' in the sidebar) to run the six-stage wizard again for another spreadsheet.",
         side: "bottom",
         align: "end",
         popoverClass: "fluxibiz-tour-popover",
