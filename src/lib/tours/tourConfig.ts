@@ -176,7 +176,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="item-actions"]',
  popover: {
  title: "8. Product Actions",
- description: "Preview customer storefront view (👁️), edit product pricing & stock (✏️), or remove items (🗑️).",
+ description: "Preview customer storefront view, edit product pricing and stock, or remove items.",
  side: "left",
  align: "center",
  popoverClass: "fluxibiz-tour-popover",
@@ -1207,7 +1207,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       element: '[data-tour="import-panel"]',
       popover: {
         title: "5. Match Your Columns",
-        description: "Line up each column from your file with a FluxiBiz field. Columns matched automatically are marked with a ✨ sparkle. Anything required and still unmatched blocks 'Check my data' until fixed. This is also where you choose what happens to rows that already exist (Skip it, or Update it with the file) and set a fallback unit for rows that don't name one.",
+        description: "Line up each column from your file with a FluxiBiz field. Columns matched automatically are marked with a sparkle icon. Anything required and still unmatched blocks 'Check my data' until fixed. This is also where you choose what happens to rows that already exist (Skip it, or Update it with the file) and set a fallback unit for rows that don't name one.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1882,7 +1882,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="profile-about"]',
  popover: {
- title: "4. Store Description ℹ",
+ title: "4. Store Description",
  description: "Write a short summary about your business for customers.",
  side: "top",
  align: "start",

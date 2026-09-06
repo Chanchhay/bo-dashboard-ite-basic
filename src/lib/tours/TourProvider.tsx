@@ -223,9 +223,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       allowClose: true,
       stagePadding: 4,
       stageRadius: 12,
-      doneBtnText: nextRoute ? "Next Page →" : "Got it!",
-      nextBtnText: "Next →",
-      prevBtnText: "← Back",
+      doneBtnText: nextRoute ? "Next Page" : "Got it!",
+      nextBtnText: "Next",
+      prevBtnText: "Back",
       progressText: "Step {{current}} of {{total}}",
       steps,
       onNextClick: (_element, _step, _opts) => {
