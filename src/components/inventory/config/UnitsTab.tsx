@@ -370,6 +370,7 @@ export function UnitsTab() {
                             <Input
                                 id="unit-name"
                                 value={draft.name}
+                                maxLength={50}
                                 onChange={(event) =>
                                     updateDraft({ name: event.target.value })
                                 }
@@ -389,6 +390,7 @@ export function UnitsTab() {
                             <Input
                                 id="unit-symbol"
                                 value={draft.symbol}
+                                maxLength={20}
                                 onChange={(event) =>
                                     updateDraft({ symbol: event.target.value })
                                 }
@@ -453,6 +455,7 @@ export function UnitsTab() {
                             <Textarea
                                 id="unit-note"
                                 value={draft.note}
+                                maxLength={255}
                                 onChange={(event) =>
                                     updateDraft({ note: event.target.value })
                                 }

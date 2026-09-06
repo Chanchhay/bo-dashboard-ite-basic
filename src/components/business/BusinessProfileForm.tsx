@@ -385,9 +385,6 @@ function BusinessProfileEditor({
             communeName: String(formData.get("communeName") || ""),
             latitude: String(formData.get("latitude") || ""),
             longitude: String(formData.get("longitude") || ""),
-            openTime: String(formData.get("openTime") || ""),
-            closeTime: String(formData.get("closeTime") || ""),
-            isClosed: formData.get("isClosed") === "true",
         });
 
         if (!result.success) {
@@ -551,7 +548,7 @@ function BusinessProfileEditor({
                                     id="about"
                                     name="about"
                                     defaultValue={business.about || ""}
-                                    maxLength={255}
+                                    maxLength={300}
                                     rows={3}
                                     aria-invalid={Boolean(fieldErrors.about)}
                                     className={`${textareaClassName} min-h-[103px]`}
@@ -691,6 +688,13 @@ function BusinessProfileEditor({
                 <SectionTitle>Location</SectionTitle>
                 <LocationMapPicker
                     key={locationResetKey}
+                    errors={{
+                        provinceName: fieldErrors.provinceName,
+                        districtName: fieldErrors.districtName,
+                        communeName: fieldErrors.communeName,
+                        coordinates:
+                            fieldErrors.latitude ?? fieldErrors.longitude,
+                    }}
                     initial={
                         locationOverride ?? {
                             lat: business.latitude ?? null,

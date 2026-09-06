@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { khqrPreviewSchema } from "@/lib/api/bakong";
 import type { Khqr } from "@/lib/api/pos-order";
 
@@ -11,7 +11,7 @@ import type { Khqr } from "@/lib/api/pos-order";
  */
 export async function POST(request: Request) {
     try {
-        const result = khqrPreviewSchema.safeParse(await request.json());
+        const result = khqrPreviewSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

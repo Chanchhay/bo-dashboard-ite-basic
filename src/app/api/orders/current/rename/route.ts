@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
@@ -17,7 +17,7 @@ const renameSchema = z.object({
  */
 export async function PATCH(request: Request) {
     try {
-        const result = renameSchema.safeParse(await request.json());
+        const result = renameSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

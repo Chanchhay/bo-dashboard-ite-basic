@@ -159,9 +159,9 @@ function ChannelScopeChip({
             type="button"
             onClick={onSelect}
             aria-pressed={active}
-            className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 sm:py-2 text-xs sm:text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+            className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 sm:py-2 text-xs sm:text-sm font-normal transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                 active
-                    ? "border-primary bg-primary/10 font-bold text-primary shadow-xs ring-1 ring-primary/30"
+                    ? "border-primary bg-primary/10 text-primary shadow-xs ring-1 ring-primary/30"
                     : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
         >
@@ -217,7 +217,7 @@ function RuleControl({
                     <SelectTrigger
                         size="sm"
                         aria-label={label}
-                        className={`${controlClassName} !h-10 shrink-0 rounded-xl border border-border bg-card px-3.5 text-sm font-semibold`}
+                        className={`${controlClassName} !h-10 shrink-0 rounded-xl border border-border bg-card px-3.5 text-sm font-normal`}
                     >
                         <SelectValue />
                     </SelectTrigger>
@@ -240,7 +240,7 @@ function RuleControl({
                         onChange={(event) => onValueChange(event.target.value)}
                         placeholder="0"
                         aria-label={`${label} amount`}
-                        className={`${controlClassName} !h-10 w-24 rounded-xl bg-card pr-7 pl-3.5 text-sm font-semibold`}
+                        className={`${controlClassName} !h-10 w-24 rounded-xl bg-card pr-7 pl-3.5 text-sm font-normal`}
                     />
                     <span className="pointer-events-none absolute right-2.5 text-xs font-bold text-muted-foreground">
                         {kind === "MARKUP_PERCENT" ? "%" : "$"}
@@ -736,9 +736,9 @@ export function ItemPricingTab() {
                         type="button"
                         onClick={() => setScope(baseScope)}
                         aria-pressed={isBase}
-                        className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+                        className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-normal transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                             isBase
-                                ? "border-primary bg-primary/10 font-bold text-primary shadow-xs ring-1 ring-primary/30"
+                                ? "border-primary bg-primary/10 text-primary shadow-xs ring-1 ring-primary/30"
                                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                     >
@@ -810,7 +810,7 @@ export function ItemPricingTab() {
                                     type="button"
                                     variant="outline"
                                     onClick={() => setPublishingItemId("")}
-                                    className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-semibold"
+                                    className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-normal"
                                 >
                                     <ShoppingBag className="size-3.5 sm:size-4 shrink-0" />
                                     <span>Manage channels</span>
@@ -824,7 +824,7 @@ export function ItemPricingTab() {
                                     type="button"
                                     variant="outline"
                                     onClick={() => setSplittingStock(true)}
-                                    className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-semibold"
+                                    className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-normal"
                                 >
                                     <Scale className="size-3.5 sm:size-4 shrink-0" />
                                     <span>Split stock</span>
@@ -874,14 +874,14 @@ export function ItemPricingTab() {
                                         type="button"
                                         variant="outline"
                                         onClick={resetCostRule}
-                                        className="!h-9 sm:!h-10 rounded-xl px-3.5 text-xs sm:text-sm font-semibold"
+                                        className="!h-9 sm:!h-10 rounded-xl px-3.5 text-xs sm:text-sm font-normal"
                                     >
                                         Reset
                                     </Button>
                                     <Button
                                         type="button"
                                         onClick={applyCostRule}
-                                        className="!h-9 sm:!h-10 rounded-xl px-3.5 sm:px-4 text-xs sm:text-sm font-semibold shadow-xs"
+                                        className="!h-9 sm:!h-10 rounded-xl px-3.5 sm:px-4 text-xs sm:text-sm font-normal shadow-xs"
                                     >
                                         Apply to all
                                     </Button>
@@ -908,7 +908,7 @@ export function ItemPricingTab() {
                                         <SelectTrigger
                                             size="sm"
                                             aria-label="Show items"
-                                            className={`${controlClassName} !h-9 sm:!h-10 shrink-0 rounded-xl border border-border bg-card px-3.5 text-xs sm:text-sm font-semibold`}
+                                            className={`${controlClassName} !h-9 sm:!h-10 shrink-0 rounded-xl border border-border bg-card px-3.5 text-xs sm:text-sm font-normal`}
                                         >
                                             <SelectValue />
                                         </SelectTrigger>
@@ -969,7 +969,7 @@ export function ItemPricingTab() {
                         variant="outline"
                         disabled={saveState.isLoading}
                         onClick={handleResetChannel}
-                        className="!h-10 rounded-xl px-4 text-sm font-semibold"
+                        className="!h-10 rounded-xl px-4 text-sm font-normal"
                     >
                         Reset
                     </Button>
@@ -977,7 +977,7 @@ export function ItemPricingTab() {
                         type="button"
                         disabled={saveState.isLoading}
                         onClick={handleSaveChannel}
-                        className="!h-10 gap-2 rounded-xl px-5 text-sm font-semibold shadow-xs"
+                        className="!h-10 gap-2 rounded-xl px-5 text-sm font-normal shadow-xs"
                     >
                         {saveState.isLoading ? (
                             <LoaderCircle className="size-4 animate-spin" />

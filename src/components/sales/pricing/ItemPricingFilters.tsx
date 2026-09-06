@@ -14,12 +14,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import {
-    itemTypeLabels,
-    itemTypes,
-    type InventoryItem,
-} from "@/lib/api/inventory";
+import { itemTypeLabels, itemTypes, type InventoryItem } from "@/lib/api/inventory";
 import { linesOf } from "@/components/sales/pricing/channel-lines";
+import { useMoney } from "@/hooks/useMoney";
 
 /**
  * Finding one item to reprice, said once.
@@ -59,8 +56,7 @@ export function countActiveFilters(filters: AdvancedFilterState) {
     if (filters.category !== "ALL") count++;
     if (filters.unit !== "ALL") count++;
     if (filters.itemType !== "ALL") count++;
-    if (filters.minPrice !== "") count++;
-    if (filters.maxPrice !== "") count++;
+    if (filters.minPrice !== "" || filters.maxPrice !== "") count++;
     if (filters.sku !== "") count++;
     if (filters.barcode !== "") count++;
     if (filters.sortBy !== "name,asc") count++;
@@ -253,6 +249,182 @@ export function ItemPricingFilters({
         return [...byId.entries()].map(([id, label]) => ({ id, label }));
     }, [items]);
 
+    const categorySelectItems = useMemo(
+        () => ({
+            ALL: "All categories",
+            ...Object.fromEntries(
+                categoryOptions.map((option) => [option.id, option.name]),
+            ),
+        }),
+        [categoryOptions],
+    );
+
+    const unitSelectItems = useMemo(
+        () => ({
+            ALL: "All units",
+            ...Object.fromEntries(
+                unitOptions.map((unit) => [unit.id, unit.label]),
+            ),
+        }),
+        [unitOptions],
+    );
+
+    const itemTypeSelectItems = useMemo(
+        () => ({
+            ALL: "All item types",
+            ...Object.fromEntries(
+                itemTypes.map((type) => [type, itemTypeLabels[type] || type]),
+            ),
+        }),
+        [],
+    );
+
+    const sortLabels: Record<string, string> = {
+        "name,asc": "Name: A to Z",
+        "name,desc": "Name: Z to A",
+        "price,asc": "Price: low to high",
+        "price,desc": "Price: high to low",
+        "sku,asc": "SKU: A to Z",
+    };
+
+    const { format: formatMoney } = useMoney();
+
+    const dynamicPriceRanges = useMemo(() => {
+        const prices: number[] = [];
+
+        for (const item of items) {
+            for (const line of linesOf(item)) {
+                if (
+                    typeof line.base === "number" &&
+                    !isNaN(line.base) &&
+                    line.base >= 0
+                ) {
+                    prices.push(line.base);
+                }
+            }
+            if (
+                typeof item.price === "number" &&
+                !isNaN(item.price) &&
+                item.price >= 0
+            ) {
+                prices.push(item.price);
+            }
+        }
+
+        const candidateSteps = [
+            1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 500,
+            750, 1000, 1500, 2000, 5000, 10000,
+        ];
+
+        let boundaries: number[] = [];
+
+        if (prices.length === 0) {
+            boundaries = [5, 10, 20, 50];
+        } else {
+            const minP = Math.min(...prices);
+            const maxP = Math.max(...prices);
+
+            const firstStepIndex = candidateSteps.findIndex((step) => step > minP);
+            const startIndex = firstStepIndex !== -1 ? firstStepIndex : 0;
+
+            const selectedSteps: number[] = [];
+            let currIdx = startIndex;
+            while (currIdx < candidateSteps.length && selectedSteps.length < 4) {
+                const step = candidateSteps[currIdx];
+                selectedSteps.push(step);
+                if (step >= maxP) {
+                    break;
+                }
+                currIdx++;
+            }
+
+            if (
+                selectedSteps.length === 1 &&
+                startIndex + 1 < candidateSteps.length
+            ) {
+                selectedSteps.push(candidateSteps[startIndex + 1]);
+            }
+
+            boundaries = selectedSteps.length > 0 ? selectedSteps : [5, 10, 20, 50];
+        }
+
+        const options: Array<{
+            id: string;
+            label: string;
+            minPrice: string;
+            maxPrice: string;
+        }> = [];
+
+        const b1 = boundaries[0];
+        options.push({
+            id: `under-${b1}`,
+            label: `Under ${formatMoney(b1)}`,
+            minPrice: "",
+            maxPrice: String(b1),
+        });
+
+        for (let i = 0; i < boundaries.length - 1; i++) {
+            const low = boundaries[i];
+            const high = boundaries[i + 1];
+            options.push({
+                id: `${low}-${high}`,
+                label: `${formatMoney(low)} – ${formatMoney(high)}`,
+                minPrice: String(low),
+                maxPrice: String(high),
+            });
+        }
+
+        const lastB = boundaries[boundaries.length - 1];
+        options.push({
+            id: `${lastB}-plus`,
+            label: `${formatMoney(lastB)}+`,
+            minPrice: String(lastB),
+            maxPrice: "",
+        });
+
+        return options;
+    }, [items, formatMoney]);
+
+    const selectedPriceRangeKey = useMemo(() => {
+        const min = draftFilters.minPrice;
+        const max = draftFilters.maxPrice;
+        if (!min && !max) return "ALL";
+
+        const match = dynamicPriceRanges.find(
+            (r) => r.minPrice === min && r.maxPrice === max,
+        );
+        return match ? match.id : "ALL";
+    }, [draftFilters.minPrice, draftFilters.maxPrice, dynamicPriceRanges]);
+
+    const priceRangeSelectItems = useMemo(
+        () => ({
+            ALL: "All prices",
+            ...Object.fromEntries(
+                dynamicPriceRanges.map((option) => [option.id, option.label]),
+            ),
+        }),
+        [dynamicPriceRanges],
+    );
+
+    function handlePriceRangeChange(value: string) {
+        if (value === "ALL") {
+            onDraftFiltersChange({
+                ...draftFilters,
+                minPrice: "",
+                maxPrice: "",
+            });
+        } else {
+            const option = dynamicPriceRanges.find((r) => r.id === value);
+            if (option) {
+                onDraftFiltersChange({
+                    ...draftFilters,
+                    minPrice: option.minPrice,
+                    maxPrice: option.maxPrice,
+                });
+            }
+        }
+    }
+
     function update<K extends keyof AdvancedFilterState>(
         field: K,
         value: AdvancedFilterState[K],
@@ -272,7 +444,7 @@ export function ItemPricingFilters({
                         onChange={(event) => onSearchChange(event.target.value)}
                         placeholder="Search items by name, SKU or barcode..."
                         aria-label="Search items"
-                        className={`${controlClassName} !h-9 sm:!h-10 rounded-xl border-border bg-card pr-9 pl-10 text-xs sm:text-sm font-medium w-full`}
+                        className={`${controlClassName} !h-9 sm:!h-10 rounded-xl border-border bg-card pr-9 pl-10 text-xs sm:text-sm font-normal w-full`}
                     />
                     {searchQuery ? (
                         <button
@@ -293,7 +465,7 @@ export function ItemPricingFilters({
                         variant="outline"
                         onClick={() => onPanelOpenChange(!panelOpen)}
                         aria-expanded={panelOpen}
-                        className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-semibold"
+                        className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-normal"
                     >
                         <SlidersHorizontal className="size-3.5 sm:size-4 shrink-0" />
                         <span>Advanced filters</span>
@@ -310,7 +482,7 @@ export function ItemPricingFilters({
                         type="button"
                         variant="outline"
                         onClick={onScan}
-                        className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-semibold"
+                        className="!h-9 sm:!h-10 w-full sm:w-auto justify-center shrink-0 gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-3.5 text-xs sm:text-sm font-normal"
                     >
                         <ScanBarcode className="size-3.5 sm:size-4 shrink-0" />
                         <span>Scan barcode</span>
@@ -323,7 +495,7 @@ export function ItemPricingFilters({
             {panelOpen ? (
                 <div className="mt-2.5 animate-in rounded-2xl border border-border bg-card p-5 shadow-xs duration-200 fade-in slide-in-from-top-2 sm:p-6">
                     <div className="flex flex-col gap-1">
-                        <h3 className="text-base font-bold text-foreground sm:text-lg">
+                        <h3 className="text-base font-semibold text-foreground sm:text-lg">
                             Advanced filters
                         </h3>
                         <p className="text-sm text-muted-foreground">
@@ -333,17 +505,18 @@ export function ItemPricingFilters({
 
                     <div className="mt-5 grid gap-4.5 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
+                            <Label className="text-sm font-medium text-foreground">
                                 Category
                             </Label>
                             <Select
                                 value={draftFilters.category}
+                                items={categorySelectItems}
                                 onValueChange={(value) =>
                                     update("category", value || "ALL")
                                 }
                             >
                                 <SelectTrigger
-                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-medium`}
+                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-normal`}
                                 >
                                     <SelectValue placeholder="All categories" />
                                 </SelectTrigger>
@@ -364,22 +537,23 @@ export function ItemPricingFilters({
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
+                            <Label className="text-sm font-medium text-foreground">
                                 Unit
                             </Label>
                             <Select
                                 value={draftFilters.unit}
+                                items={unitSelectItems}
                                 onValueChange={(value) =>
                                     update("unit", value || "ALL")
                                 }
                             >
                                 <SelectTrigger
-                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-medium`}
+                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-normal`}
                                 >
-                                    <SelectValue placeholder="ALL" />
+                                    <SelectValue placeholder="All units" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ALL">ALL</SelectItem>
+                                    <SelectItem value="ALL">All units</SelectItem>
                                     {unitOptions.map((unit) => (
                                         <SelectItem
                                             key={unit.id}
@@ -393,22 +567,23 @@ export function ItemPricingFilters({
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
+                            <Label className="text-sm font-medium text-foreground">
                                 Item type
                             </Label>
                             <Select
                                 value={draftFilters.itemType}
+                                items={itemTypeSelectItems}
                                 onValueChange={(value) =>
                                     update("itemType", value || "ALL")
                                 }
                             >
                                 <SelectTrigger
-                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-medium`}
+                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-normal`}
                                 >
-                                    <SelectValue placeholder="ALL" />
+                                    <SelectValue placeholder="All item types" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ALL">ALL</SelectItem>
+                                    <SelectItem value="ALL">All item types</SelectItem>
                                     {itemTypes.map((type) => (
                                         <SelectItem key={type} value={type}>
                                             {itemTypeLabels[type]}
@@ -419,81 +594,63 @@ export function ItemPricingFilters({
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
+                            <Label className="text-sm font-medium text-foreground">
                                 Sort by
                             </Label>
                             <Select
                                 value={draftFilters.sortBy}
-                                items={{
-                                    "name,asc": "name,asc",
-                                    "name,desc": "name,desc",
-                                    "price,asc": "price,asc",
-                                    "price,desc": "price,desc",
-                                    "sku,asc": "sku,asc",
-                                }}
+                                items={sortLabels}
                                 onValueChange={(value) =>
                                     update("sortBy", value || "name,asc")
                                 }
                             >
                                 <SelectTrigger
-                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-medium`}
+                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-normal`}
                                 >
-                                    <SelectValue placeholder="name,asc" />
+                                    <SelectValue placeholder="Name: A to Z" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="name,asc">
-                                        name,asc
-                                    </SelectItem>
-                                    <SelectItem value="name,desc">
-                                        name,desc
-                                    </SelectItem>
-                                    <SelectItem value="price,asc">
-                                        price,asc
-                                    </SelectItem>
-                                    <SelectItem value="price,desc">
-                                        price,desc
-                                    </SelectItem>
-                                    <SelectItem value="sku,asc">
-                                        sku,asc
-                                    </SelectItem>
+                                    {Object.entries(sortLabels).map(([value, label]) => (
+                                        <SelectItem key={value} value={value}>
+                                            {label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
-                                Minimum price
+                            <Label className="text-sm font-medium text-foreground">
+                                Price range
                             </Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={draftFilters.minPrice}
-                                onChange={(event) =>
-                                    update("minPrice", event.target.value)
+                            <Select
+                                value={selectedPriceRangeKey}
+                                items={priceRangeSelectItems}
+                                onValueChange={(value) =>
+                                    handlePriceRangeChange(value || "ALL")
                                 }
-                                className={`${controlClassName} h-10 rounded-xl bg-card px-3.5 text-sm font-medium`}
-                            />
+                            >
+                                <SelectTrigger
+                                    className={`${controlClassName} h-10 rounded-xl border-border bg-card px-3.5 text-sm font-normal`}
+                                >
+                                    <SelectValue placeholder="All prices" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All prices</SelectItem>
+                                    {dynamicPriceRanges.map((option) => (
+                                        <SelectItem
+                                            key={option.id}
+                                            value={option.id}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
-                                Maximum price
-                            </Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="No maximum"
-                                value={draftFilters.maxPrice}
-                                onChange={(event) =>
-                                    update("maxPrice", event.target.value)
-                                }
-                                className={`${controlClassName} h-10 rounded-xl bg-card px-3.5 text-sm font-medium`}
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
+                            <Label className="text-sm font-medium text-foreground">
                                 SKU
                             </Label>
                             <Input
@@ -503,12 +660,12 @@ export function ItemPricingFilters({
                                 onChange={(event) =>
                                     update("sku", event.target.value)
                                 }
-                                className={`${controlClassName} h-10 rounded-xl bg-card px-3.5 text-sm font-medium`}
+                                className={`${controlClassName} h-10 rounded-xl bg-card px-3.5 text-sm font-normal`}
                             />
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-semibold text-foreground">
+                            <Label className="text-sm font-medium text-foreground">
                                 Barcode
                             </Label>
                             <Input
@@ -518,7 +675,7 @@ export function ItemPricingFilters({
                                 onChange={(event) =>
                                     update("barcode", event.target.value)
                                 }
-                                className={`${controlClassName} h-10 rounded-xl bg-card px-3.5 text-sm font-medium`}
+                                className={`${controlClassName} h-10 rounded-xl bg-card px-3.5 text-sm font-normal`}
                             />
                         </div>
                     </div>
@@ -527,7 +684,7 @@ export function ItemPricingFilters({
                         <Button
                             type="button"
                             onClick={onApply}
-                            className="h-10 rounded-xl px-6 text-sm font-semibold shadow-xs"
+                            className="h-10 rounded-xl px-6 text-sm font-normal shadow-xs"
                         >
                             Apply filters
                         </Button>
@@ -535,7 +692,7 @@ export function ItemPricingFilters({
                             type="button"
                             variant="outline"
                             onClick={onReset}
-                            className="h-10 rounded-xl px-5 text-sm font-semibold"
+                            className="h-10 rounded-xl px-5 text-sm font-normal"
                         >
                             Reset fields
                         </Button>

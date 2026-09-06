@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 
 export async function GET() {
@@ -16,7 +17,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
     try {
-        const body = await request.json();
+        const body = await readJsonBody(request);
         const result = await backendRequest(
             "/api/v1/businesses/social-settings/telegram-bot",
             {

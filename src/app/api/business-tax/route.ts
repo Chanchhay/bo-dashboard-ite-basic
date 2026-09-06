@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     taxSettingsSchema,
@@ -12,7 +13,7 @@ import {
 
 export async function PUT(request: Request) {
     try {
-        const result = taxSettingsSchema.safeParse(await request.json());
+        const result = taxSettingsSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

@@ -22,6 +22,26 @@ export async function GET(request: NextRequest) {
         return Response.json({ message: "lat and lon are required" }, { status: 400 });
     }
 
+    // Checked here rather than left to Nominatim: a garbled pin is a bad
+    // request, not a failure of theirs, and it should not cost a call against
+    // their rate limit to find that out.
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+
+    if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180
+    ) {
+        return Response.json(
+            { message: "lat and lon must be valid coordinates." },
+            { status: 400 },
+        );
+    }
+
     const params = new URLSearchParams({ lat, lon, format: "jsonv2", addressdetails: "1" });
 
     try {

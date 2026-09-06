@@ -28,8 +28,16 @@ export async function GET(request: Request) {
         
         if (!query.has("sort")) query.set("sort", "createdAt,desc");
 
+        // The shop's own log, not `/admin/audit-logs`. That one is the
+        // platform's record of FluxiBiz staff acting on businesses: it holds
+        // no business column, so there is nothing in it belonging to the
+        // caller's shop and everything in it belonging to other people's.
+        //
+        // Nothing here names a business. The backend resolves it from the
+        // token, so another shop's log is not something a caller can ask for
+        // by editing a query string.
         const logs = await backendRequest<any>(
-            `/api/v1/admin/audit-logs?${query.toString()}`,
+            `/api/v1/audit-logs?${query.toString()}`,
         );
 
         return Response.json(toPageResult(logs));

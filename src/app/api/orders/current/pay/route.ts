@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { payOrderSchema, type Sale } from "@/lib/api/pos-order";
 import {
@@ -23,7 +23,7 @@ import {
  */
 export async function POST(request: Request) {
     try {
-        const result = payOrderSchema.safeParse(await request.json());
+        const result = payOrderSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

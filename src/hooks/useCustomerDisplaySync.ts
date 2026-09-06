@@ -120,7 +120,7 @@ export function useCustomerDisplaySync({
       taxRate,
       taxInclusionType,
       total: sale?.totalAmount ?? order?.total ?? Math.max(0, subtotal - discountAmount + computedTax),
-      currency: sale?.currency ?? order?.currency ?? "USD",
+      currency: sale?.currency ?? order?.currency ?? null,
       invoiceNumber: sale?.invoiceNumber || order?.invoiceNumber || null,
       qrCodeUrl: qrCodeUrl ?? null,
       paymentMethod: sale?.paymentMethod ?? null,

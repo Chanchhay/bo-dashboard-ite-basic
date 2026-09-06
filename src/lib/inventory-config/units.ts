@@ -19,6 +19,8 @@
  * its symbol, and what kind of thing it measures.
  */
 
+import { itemLimits } from "@/lib/api/inventory";
+
 export const unitCategories = ["MASS", "VOLUME", "COUNT"] as const;
 
 export type UnitCategory = (typeof unitCategories)[number];
@@ -204,6 +206,10 @@ export function validateConversion(
         // The classic inversion: 1/6 instead of 6. Catchable, so catch it.
         errors.factor =
             "A conversion holds at least one base unit — did you mean the other way round? Use Swap.";
+    } else if (factor > itemLimits.conversionFactor) {
+        // Matches the item schema's cap, so an over-large factor is caught
+        // here in the dialog rather than on the far-away save.
+        errors.factor = `A conversion cannot be larger than ${itemLimits.conversionFactor.toLocaleString()}.`;
     }
 
     return errors;

@@ -21,7 +21,7 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-white hover:bg-primary/90",
         outline:
-          "border-[#c9cbc6] hover:border-[#9ea29b] dark:border-[#384252] dark:hover:border-[#526078] bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] font-semibold hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] shadow-xs dark:shadow-[0_2px_6px_rgba(0,0,0,0.25)] aria-expanded:bg-[#f4f5f3] dark:aria-expanded:bg-[#252a38]",
+          "border-[#c9cbc6] hover:border-[#9ea29b] dark:border-[#384252] dark:hover:border-[#526078] bg-white dark:bg-[#1e2330] text-[#16181c] dark:text-[#f8fafc] font-normal hover:bg-[#f4f5f3] dark:hover:bg-[#252a38] shadow-xs dark:shadow-[0_2px_6px_rgba(0,0,0,0.25)] aria-expanded:bg-[#f4f5f3] dark:aria-expanded:bg-[#252a38]",
         // Secondary is amber; white on it fails contrast, so it wears dark ink.
         secondary:
           "bg-secondary text-[#3d2c00] hover:bg-secondary/85 aria-expanded:bg-secondary",

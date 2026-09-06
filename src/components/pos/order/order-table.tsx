@@ -337,7 +337,7 @@ function legacyOrderShape(
 interface ItemRowProps {
   item: PosOrderItem;
   /** The order's own currency — an order opened before a base change keeps it. */
-  currency?: string;
+  currency?: string | null;
   onIncrease: (item: PosOrderItem) => void;
   onDecrease: (item: PosOrderItem) => void;
   onRemove: (orderItemId: string) => void;
@@ -398,7 +398,7 @@ const ItemRow = memo(function ItemRow({
         {/* Which promo cut this line's price, so the cashier (and the
             receipt) can say why it's discounted, not just by how much. */}
         {lineDiscount > 0 && discountInfo?.label ? (
-          <span className="mt-0.5 block text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="mt-0.5 block text-[11px] font-semibold text-primary">
             {discountInfo.label}
           </span>
         ) : null}
@@ -407,8 +407,8 @@ const ItemRow = memo(function ItemRow({
             to the cashier without this, since the total quantity alone
             reads as an ordinary sale. */}
         {item.freeQuantity ? (
-          <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            🎁 {item.freeQuantity} FREE
+          <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary dark:bg-primary/20 dark:text-primary">
+            {item.freeQuantity} FREE
           </span>
         ) : null}
 
@@ -456,7 +456,7 @@ const ItemRow = memo(function ItemRow({
             <span className="text-[11px] font-normal text-gray-400 line-through">
               {format(grossTotal, currency)}
             </span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+            <span className="text-sm font-bold text-primary">
               {format(netTotal, currency)}
             </span>
           </div>
@@ -653,7 +653,7 @@ export function OrderTable({
         const gained = current - previous;
         toast({
           tone: "success",
-          title: "🎁 Promotion applied",
+          title: "Promotion applied",
           description: `${item.itemName}: ${gained} free unit${gained > 1 ? "s" : ""} added automatically.`,
         });
       }
@@ -1190,7 +1190,9 @@ export function OrderTable({
     discountAmount: 0,
     taxAmount: 0,
     total: 0,
-    currency: "USD",
+    // Nothing here is priced yet, so nothing here names a currency: an empty
+    // cart renders its zeroes in whatever the business prices in today.
+    currency: null,
     displayCurrency: null,
     displayExchangeRate: null,
     note: null,
@@ -1682,7 +1684,7 @@ export function OrderTable({
               Discount
             </span>
             <div className="flex items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                 {activeDiscountRule?.label || "Auto Applied"}
               </span>
               {activeDiscountRule && (

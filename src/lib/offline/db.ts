@@ -25,7 +25,7 @@ export interface OfflineOrder {
   subtotal: number;
   discount_amount: number;
   total: number;
-  currency: string;
+  currency: string | null;
   payment_method: "CASH" | "DIGITAL" | "KHQR";
   amount_received?: number;
   change_amount?: number;

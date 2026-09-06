@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { ChevronDown, ChevronUp, Check, Search as SearchIcon, X, SlidersHorizontal, ImageOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, Search as SearchIcon, X, SlidersHorizontal } from "lucide-react";
 import { CategoryFilterSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -280,13 +280,13 @@ export default function CategoryFilter({
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex-1 flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] px-4 py-3 text-sm font-bold text-gray-800 dark:text-gray-200 shadow-2xs active:scale-[0.99] transition-transform"
+            className="flex-1 flex items-center justify-between rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151923] px-4 py-3 text-sm font-normal text-gray-800 dark:text-gray-200 shadow-2xs active:scale-[0.99] transition-transform"
           >
             <div className="flex items-center gap-2.5">
               <SlidersHorizontal className="size-4 text-primary" />
               <span>Filters</span>
               {selectedCategory !== "All" && (
-                <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-white">
                   {selectedCategory}
                 </span>
               )}

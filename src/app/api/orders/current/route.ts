@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { PosOrder, PosOrderItem } from "@/lib/api/pos-order";
 import {
@@ -80,7 +80,7 @@ function keyOfServerLine(line: PosOrderItem) {
  */
 export async function PUT(request: Request) {
     try {
-        const result = putCartSchema.safeParse(await request.json());
+        const result = putCartSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

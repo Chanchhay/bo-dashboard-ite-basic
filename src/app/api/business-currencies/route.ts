@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import type { Business } from "@/lib/api/business";
 import {
@@ -42,7 +43,7 @@ export async function GET() {
 export async function PUT(request: Request) {
     try {
         const result = businessCurrencyConfigurationSchema.safeParse(
-            await request.json(),
+            await readJsonBody(request),
         );
 
         if (!result.success) {

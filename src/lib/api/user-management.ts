@@ -14,8 +14,19 @@ export type Staff = {
     phoneNumber?: string;
     gender?: string;
     status?: StaffStatus;
-    roleId?: string;
+    /**
+     * The API moved from one role per person to a list. The form still offers
+     * a single choice, so this is normally zero or one entry — but read it
+     * through `staffRoleId`, because another client can assign several and the
+     * old singular `roleId` field no longer exists on the response.
+     */
+    roleIds?: string[];
 };
+
+/** The role shown for a staff member: the first, when several are assigned. */
+export function staffRoleId(staff: Staff) {
+    return staff.roleIds?.[0];
+}
 
 export type StaffPage = PageResult<Staff>;
 
@@ -60,9 +71,23 @@ export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 export type StaffStatusInput = z.infer<typeof staffStatusSchema>;
 
 
+/**
+ * Shapes a form value for the API, which takes `roleIds` as a list.
+ *
+ * Sending the old singular `roleId` did not merely fail to assign. On update
+ * the backend clears every `biz_*` role it finds and then adds back whatever
+ * arrived in `roleIds`, so a field it does not recognise meant each save
+ * silently stripped the person's role — including a save that only changed
+ * their phone number.
+ *
+ * Omitted entirely when nothing is chosen. That is not a no-op: the backend
+ * still clears the existing roles, which is exactly what picking "No role"
+ * should do. There is no way to say "leave the roles as they are", so every
+ * save has to send the full intended set.
+ */
 export function toStaffRequest<T extends { roleId: string }>(input: T) {
     const { roleId, ...rest } = input;
-    return roleId ? { ...rest, roleId } : rest;
+    return roleId ? { ...rest, roleIds: [roleId] } : rest;
 }
 
 export function staffFullName(staff: Staff) {
@@ -91,36 +116,26 @@ export const businessRoleSchema = z.object({
 export type BusinessRoleInput = z.infer<typeof businessRoleSchema>;
 
 
+/**
+ * What this shop's own audit log records.
+ *
+ * Not the platform's `AdminActionType` list, which is FluxiBiz staff acting on
+ * businesses — categories, units, feature flags. None of those happen inside a
+ * shop, so offering them here filtered a log by things it can never contain.
+ */
 export const auditActionTypes = [
-    "BUSINESS_ACTIVATED",
-    "BUSINESS_SUSPENDED",
-    "BUSINESS_ENABLED",
-    "BUSINESS_DISABLED",
-    "BUSINESS_CLOSED",
-    "BUSINESS_REOPENED",
-    "BUSINESS_DELETED",
-    "BUSINESS_CATEGORY_CREATED",
-    "BUSINESS_CATEGORY_UPDATED",
-    "BUSINESS_CATEGORY_DELETED",
-    "UNIT_CREATED",
-    "UNIT_UPDATED",
-    "UNIT_DELETED",
-    "BUSINESS_FEATURE_ENABLED",
-    "BUSINESS_FEATURE_DISABLED",
-    "PLATFORM_FEATURE_ENABLED",
-    "PLATFORM_FEATURE_DISABLED",
+    "STAFF_SIGNED_IN",
+    "STAFF_CREATED",
+    "STAFF_UPDATED",
+    "STAFF_SUSPENDED",
+    "STAFF_REACTIVATED",
+    "STAFF_DELETED",
+    "ROLE_CREATED",
+    "ROLE_UPDATED",
+    "ROLE_DELETED",
 ] as const;
 
-export const auditTargetTypes = [
-    "BUSINESS",
-    "BUSINESS_CATEGORY",
-    "UNIT",
-    "REALM_ROLE",
-    "PLATFORM_USER",
-    "BUSINESS_ROLE",
-    "BUSINESS_FEATURE",
-    "PLATFORM_FEATURE",
-] as const;
+export const auditTargetTypes = ["STAFF", "ROLE"] as const;
 
 export type AuditActionType = (typeof auditActionTypes)[number];
 export type AuditTargetType = (typeof auditTargetTypes)[number];
@@ -139,6 +154,15 @@ export type AuditLog = {
     userAgent?: string;
     createdAt?: string;
 };
+
+/**
+ * The action types that describe a sign-in rather than a change.
+ *
+ * The table shows a different pair of columns for each: a change has a target
+ * and a before/after, a sign-in has a device and an address, and forcing both
+ * shapes into one row leaves half of every row empty.
+ */
+export const signInActions: readonly string[] = ["STAFF_SIGNED_IN"];
 
 export type PageMetadata = {
     size?: number;

@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
@@ -23,7 +24,7 @@ type ItemRouteContext = { params: Promise<{ itemId: string }> };
  */
 export async function PUT(request: Request, context: ItemRouteContext) {
     try {
-        const result = itemPricingSchema.safeParse(await request.json());
+        const result = itemPricingSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

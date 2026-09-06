@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { collectPayLaterSchema } from "@/lib/api/pay-later";
 import type { PayLaterSale } from "@/lib/api/pay-later";
@@ -12,7 +12,7 @@ export async function PATCH(
 ) {
     try {
         const { saleId } = await params;
-        const result = collectPayLaterSchema.safeParse(await request.json());
+        const result = collectPayLaterSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

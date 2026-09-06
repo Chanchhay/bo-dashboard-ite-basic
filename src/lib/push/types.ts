@@ -8,7 +8,7 @@ export interface StoredPushSubscription {
     auth: string;
   };
   expirationTime?: number | null;
-  createdAt: string;
+  createdAt?: string;
 }
 
 /** What actually lands in the OS notification. */

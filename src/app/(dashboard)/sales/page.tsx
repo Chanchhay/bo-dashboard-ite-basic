@@ -45,7 +45,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { useMoney } from "@/hooks/useMoney";
 import type { PosOrder } from "@/lib/api/pos-order";
 import { DEFAULT_PAGE_SIZE, ORDER_PAGE_SIZES } from "@/lib/api/pos-order";
-import { usePendingOfflineOrders } from "@/lib/offline-orders";
+import { usePendingOfflineOrders, usePendingOfflineSales } from "@/lib/offline-orders";
 import {
     useGetOrderHistoryQuery,
     useGetOrderSummaryQuery,
@@ -170,7 +170,7 @@ function asPosOrder(order: any): PosOrder {
         displayExchangeRate: order.displayExchangeRate || null,
         createdDate: order.createdDate || order.created_at || new Date().toISOString(),
         note: order.note || null,
-        currency: order.currency || "USD",
+        currency: order.currency || null,
         items: (order.items || []).map((i: any) => ({
             id: i.id || "",
             itemId: i.itemId || i.product_id || "",
@@ -281,6 +281,9 @@ export default function SalesOrdersPage() {
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
     const pendingOfflineOrders = usePendingOfflineOrders();
+    // A queued sale has no server record, so the receipt reads what the
+    // till banked: the amount handed over, and the change given back.
+    const pendingOfflineSales = usePendingOfflineSales();
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
     const orders = useMemo(() => {
@@ -730,6 +733,7 @@ export default function SalesOrdersPage() {
                                 business={businessQuery.data ?? null}
                                 order={displayOrder}
                                 receipt={displayReceipt}
+                                sale={pendingOfflineSales.get(displayOrder.id)}
                                 currencies={currenciesQuery.data}
                             />
                         </div>

@@ -1,3 +1,5 @@
+import { boundedInteger } from "@/lib/api/order-filters";
+
 export type PageMetadata = {
   size?: number;
   number?: number;
@@ -102,15 +104,38 @@ export function toPageResult<T>(
   };
 }
 
+/** The largest page this app ever asks the backend for. `size` arrives from a
+ * query string, so without a ceiling anyone with a session could ask the
+ * backend to materialise an unbounded page. */
+const MAX_PAGE_SIZE = 1000;
+const MAX_PAGE_NUMBER = 100_000;
+
 export function pageQueryParams(
   searchParams: URLSearchParams,
   defaults?: { size?: number },
 ) {
+  const defaultSize = defaults?.size ?? MAX_PAGE_SIZE;
   const params = new URLSearchParams();
-  params.set("page", searchParams.get("page") ?? "0");
+
+  // Both are clamped rather than rejected: a nonsense page number is a
+  // malformed link, not something worth failing a list request over.
+  params.set(
+    "page",
+    String(
+      boundedInteger(searchParams.get("page"), 0, {
+        min: 0,
+        max: MAX_PAGE_NUMBER,
+      }),
+    ),
+  );
   params.set(
     "size",
-    searchParams.get("size") ?? String(defaults?.size ?? 1000),
+    String(
+      boundedInteger(searchParams.get("size"), defaultSize, {
+        min: 1,
+        max: Math.max(defaultSize, MAX_PAGE_SIZE),
+      }),
+    ),
   );
 
   const sort = searchParams.get("sort");

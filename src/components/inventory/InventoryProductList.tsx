@@ -84,6 +84,7 @@ import {
     clearProductFilter,
     resetProductDraftFilters,
     setProductDraftFilter,
+    setProductItemGroupId,
     setProductPage,
     setProductPageSize,
     setProductSearch,
@@ -681,11 +682,66 @@ export function InventoryProductList() {
         }
     }
 
+    const statusSelectItems: Record<string, string> = {
+        ALL: "All statuses",
+        ACTIVE: "Active",
+        INACTIVE: "Inactive",
+    };
+
+    const categorySelectItems = useMemo(
+        () => ({
+            ALL: "All categories",
+            ...Object.fromEntries(
+                categoryOptions.map((option) => [option.id, option.label]),
+            ),
+        }),
+        [categoryOptions],
+    );
+
+    const unitSelectItems = useMemo(
+        () => ({
+            ALL: "All units",
+            ...Object.fromEntries(
+                (unitsQuery.data ?? []).map((unit) => [
+                    unit.id,
+                    unit.name || "Unnamed unit",
+                ]),
+            ),
+        }),
+        [unitsQuery.data],
+    );
+
+    const itemTypeSelectItems = useMemo(
+        () => ({
+            ALL: "All item types",
+            ...Object.fromEntries(
+                itemTypes.map((type) => [type, titleCase(type)]),
+            ),
+        }),
+        [],
+    );
+
+    const priceRangeSelectItems = useMemo(
+        () => ({
+            ALL: "All prices",
+            ...Object.fromEntries(
+                dynamicPriceRanges.map((option) => [option.id, option.label]),
+            ),
+        }),
+        [dynamicPriceRanges],
+    );
+
     const advancedFilterCount = Object.entries(productFilters).filter(
-        ([key, value]) => (key === "itemType" ? value !== "ALL" : Boolean(value)),
+        ([key, value]) => {
+            if (key === "itemGroupId") return false;
+            return key === "itemType" ? value !== "ALL" : Boolean(value);
+        },
     ).length;
     const hasFilters = Boolean(
-        debouncedSearch.trim() || productStatus !== "ALL" || advancedFilterCount,
+        debouncedSearch.trim() ||
+            productStatus !== "ALL" ||
+            productFilters.itemGroupId ||
+            advancedFilterCount,
     );
 
     function updateDraftFilter(key: ProductAdvancedFilterKey, value: string) {
@@ -706,7 +762,7 @@ export function InventoryProductList() {
             page: 0,
             size: productPageSize,
             sort: productSort,
-            itemGroupId: productDraftFilters.itemGroupId || undefined,
+            itemGroupId: productFilters.itemGroupId || undefined,
             unitId: productDraftFilters.unitId || undefined,
             itemType:
                 productDraftFilters.itemType === "ALL"
@@ -937,10 +993,43 @@ export function InventoryProductList() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
-                            <div className="flex-1 min-w-0 sm:w-44 sm:flex-initial">
+                        <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap">
+                            <div className="flex-1 min-w-0 sm:w-52 md:w-56 sm:flex-initial">
+                                <Select
+                                    value={productFilters.itemGroupId || "ALL"}
+                                    items={categorySelectItems}
+                                    onValueChange={(value) =>
+                                        dispatch(
+                                            setProductItemGroupId(
+                                                value === "ALL" ? "" : value || "",
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        size="sm"
+                                        data-tour="category-filter"
+                                        title={categoryName.get(productFilters.itemGroupId) || "All categories"}
+                                        aria-label="Filter items by category"
+                                        className="!h-9 sm:!h-10 py-0 w-full sm:w-52 md:w-56 px-2.5 sm:px-3 text-xs sm:text-sm font-normal rounded-xl border border-border bg-card text-foreground justify-between items-center shadow-xs"
+                                    >
+                                        <SelectValue className="font-normal" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">All categories</SelectItem>
+                                        {categoryOptions.map((option) => (
+                                            <SelectItem key={option.id} value={option.id}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex-1 min-w-0 sm:w-40 sm:flex-initial">
                                 <Select
                                     value={productStatus}
+                                    items={statusSelectItems}
                                     onValueChange={(value) =>
                                         dispatch(
                                             setProductStatus(
@@ -953,9 +1042,9 @@ export function InventoryProductList() {
                                         size="sm"
                                         data-tour="status-filter"
                                         aria-label="Filter items by status"
-                                        className="!h-9 sm:!h-10 py-0 w-full sm:w-44 px-2.5 sm:px-3 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground justify-between items-center shadow-xs whitespace-nowrap"
+                                        className="!h-9 sm:!h-10 py-0 w-full sm:w-40 px-2.5 sm:px-3 text-xs sm:text-sm font-normal rounded-xl border border-border bg-card text-foreground justify-between items-center shadow-xs whitespace-nowrap"
                                     >
-                                        <SelectValue />
+                                        <SelectValue className="font-normal" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="ALL">All statuses</SelectItem>
@@ -974,10 +1063,10 @@ export function InventoryProductList() {
                                 aria-expanded={filterPanelOpen}
                                 aria-controls="inventory-advanced-filters"
                                 onClick={() => setFilterPanelOpen((open) => !open)}
-                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5 shadow-xs"
+                                className="relative !h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm font-normal rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5 shadow-xs"
                             >
                                 <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
-                                <span className="hidden sm:inline">Advanced Filters</span>
+                                <span className="hidden sm:inline font-normal">Advanced Filters</span>
                                 {advancedFilterCount ? (
                                     <span className="absolute -top-1 -right-1 sm:static grid size-4 sm:size-5 place-items-center rounded-full bg-primary text-[10px] sm:text-[11px] font-semibold text-white">
                                         {advancedFilterCount}
@@ -992,10 +1081,10 @@ export function InventoryProductList() {
                                 data-tour="scan-barcode"
                                 aria-label="Scan barcode"
                                 onClick={() => setScannerOpen(true)}
-                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5 shadow-xs"
+                                className="!h-9 !w-9 sm:!h-10 sm:!w-auto p-0 sm:px-3.5 text-xs sm:text-sm font-normal rounded-xl border border-border bg-card hover:bg-muted text-foreground shrink-0 flex items-center justify-center gap-1.5 shadow-xs"
                             >
                                 <ScanBarcode className="size-4 shrink-0 text-muted-foreground" />
-                                <span className="hidden sm:inline">Scan Barcode</span>
+                                <span className="hidden sm:inline font-normal">Scan Barcode</span>
                             </Button>
 
                             <ColumnSelectDropdown
@@ -1020,50 +1109,13 @@ export function InventoryProductList() {
                                 </p>
                             </div>
 
-                            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="flex flex-col gap-2">
-                                    <Label htmlFor="item-filter-category">Category</Label>
-                                    <Select
-                                        value={productDraftFilters.itemGroupId || "ALL"}
-                                        items={{
-                                            ALL: "All categories",
-                                            ...Object.fromEntries(
-                                                categoryOptions.map((option) => [
-                                                    option.id,
-                                                    option.label,
-                                                ]),
-                                            ),
-                                        }}
-                                        onValueChange={(value) =>
-                                            updateDraftFilter(
-                                                "itemGroupId",
-                                                value === "ALL" ? "" : value || "",
-                                            )
-                                        }
-                                    >
-                                        <SelectTrigger id="item-filter-category">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">All categories</SelectItem>
-                                            {categoryOptions.map((option) => (
-                                                <SelectItem key={option.id} value={option.id}>
-                                                    {option.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {filterErrors.itemGroupId ? (
-                                        <p className="text-xs text-danger">
-                                            {filterErrors.itemGroupId}
-                                        </p>
-                                    ) : null}
-                                </div>
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
                                 <div className="flex flex-col gap-2">
                                     <Label htmlFor="item-filter-unit">Unit</Label>
                                     <Select
                                         value={productDraftFilters.unitId || "ALL"}
+                                        items={unitSelectItems}
                                         onValueChange={(value) =>
                                             updateDraftFilter(
                                                 "unitId",
@@ -1092,6 +1144,7 @@ export function InventoryProductList() {
                                     <Label htmlFor="item-filter-type">Item type</Label>
                                     <Select
                                         value={productDraftFilters.itemType}
+                                        items={itemTypeSelectItems}
                                         onValueChange={(value) =>
                                             updateDraftFilter("itemType", value || "ALL")
                                         }
@@ -1119,6 +1172,7 @@ export function InventoryProductList() {
                                     <Label htmlFor="item-filter-sort">Sort by</Label>
                                     <Select
                                         value={productSort}
+                                        items={sortLabels}
                                         onValueChange={(value) =>
                                             dispatch(
                                                 setProductSort(
@@ -1144,6 +1198,7 @@ export function InventoryProductList() {
                                     <Label htmlFor="item-filter-price-range">Price range</Label>
                                     <Select
                                         value={selectedPriceRangeKey}
+                                        items={priceRangeSelectItems}
                                         onValueChange={(value) =>
                                             handlePriceRangeChange(value || "ALL")
                                         }

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { LoaderCircle, Search, X } from "lucide-react";
 
 import { CAMBODIA_PROVINCES, matchCambodiaProvince } from "@/lib/api/cambodia-provinces";
 import { controlClassName } from "@/components/ui/form-controls";
@@ -60,12 +61,35 @@ function MapClickHandler({ onLocationSelect }: { onLocationSelect: (lat: number,
     return null;
 }
 
+/** Submit-time messages from the profile form's schema. `coordinates` covers
+ * latitude and longitude together, since the pin is their only input. */
+export interface LocationErrors {
+    provinceName?: string;
+    districtName?: string;
+    communeName?: string;
+    coordinates?: string;
+}
+
+function FieldError({ message }: { message?: string }) {
+    if (!message) {
+        return null;
+    }
+
+    return (
+        <p className="pl-1 text-xs text-danger" role="alert">
+            {message}
+        </p>
+    );
+}
+
 export function LocationMapPicker({
     initial,
     onChange,
+    errors,
 }: {
     initial: LocationValue;
     onChange: (value: LocationValue) => void;
+    errors?: LocationErrors;
 }) {
   
     const [value, setValue] = useState<LocationValue>(() => ({
@@ -73,6 +97,11 @@ export function LocationMapPicker({
         provinceName: matchCambodiaProvince(initial.provinceName)?.nameEn ?? "",
     }));
     const [reversing, setReversing] = useState(false);
+
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState<GeocodeResult[] | null>(null);
+    const [searching, setSearching] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
 
 
     const [mapInstanceKey, setMapInstanceKey] = useState(0);
@@ -89,6 +118,61 @@ export function LocationMapPicker({
             onChange(merged);
             return merged;
         });
+    }
+
+    /** Fired by Enter or the search button, never per keystroke — Nominatim's
+     * usage policy rules out autocomplete against the public instance. */
+    async function runSearch() {
+        const q = query.trim();
+
+        if (!q) {
+            return;
+        }
+
+        setSearching(true);
+        setSearchError(null);
+        try {
+            const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(q)}`);
+
+            if (!res.ok) {
+                setResults(null);
+                setSearchError("Search is unavailable right now. Drop the pin by hand instead.");
+                return;
+            }
+
+            const found = (await res.json()) as GeocodeResult[];
+            setResults(found);
+
+            if (found.length === 0) {
+                setSearchError("No places found in Cambodia for that search.");
+            }
+        } catch {
+            setResults(null);
+            setSearchError("Couldn't reach the search service. Check your connection.");
+        } finally {
+            setSearching(false);
+        }
+    }
+
+    function clearSearch() {
+        setResults(null);
+        setSearchError(null);
+    }
+
+    /** Same shape as a reverse-geocode hit, so the pin, the three name fields
+     * and the form's Physical Address all update exactly as a pin drag does. */
+    function selectResult(result: GeocodeResult) {
+        const matched = matchCambodiaProvince(result.address.provinceName);
+        update({
+            lat: result.lat,
+            lng: result.lon,
+            provinceName: matched?.nameEn ?? "",
+            districtName: result.address.districtName ?? "",
+            communeName: result.address.communeName ?? "",
+            address: result.label || undefined,
+        });
+        setQuery(result.label);
+        clearSearch();
     }
 
     async function reverseGeocode(lat: number, lng: number) {
@@ -119,6 +203,69 @@ export function LocationMapPicker({
 
     return (
         <div className="flex flex-col gap-3">
+            <div className="relative">
+                {/* Enter is the only trigger — Nominatim's usage policy rules
+                    out searching as the merchant types. */}
+                {searching ? (
+                    <LoaderCircle className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                ) : (
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                )}
+                <Input
+                    type="text"
+                    value={query}
+                    placeholder="Search a place and press Enter — e.g. Wat Phnom"
+                    aria-label="Search for your business location"
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                        // The picker lives inside the profile form, so Enter
+                        // here must search, not save the profile.
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            void runSearch();
+                        } else if (event.key === "Escape") {
+                            clearSearch();
+                        }
+                    }}
+                    className={`${controlClassName} pl-9 ${query ? "pr-9" : ""}`}
+                />
+                {query ? (
+                    <button
+                        type="button"
+                        aria-label="Clear search"
+                        onClick={() => {
+                            setQuery("");
+                            clearSearch();
+                        }}
+                        className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                    >
+                        <X className="size-4" />
+                    </button>
+                ) : null}
+
+                {results && results.length > 0 ? (
+                    <ul className="absolute inset-x-0 top-full z-[1001] mt-1 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover py-1 shadow-lg">
+                        {results.map((result) => (
+                            <li key={`${result.lat},${result.lon},${result.label}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => selectResult(result)}
+                                    className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+                                >
+                                    {result.label}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
+            </div>
+
+            {searchError ? (
+                <p className="text-xs text-muted-foreground" role="status">
+                    {searchError}
+                </p>
+            ) : null}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                 <div className="isolate h-64 sm:h-72 md:h-80 w-full overflow-hidden rounded-xl border border-border" style={{ transform: "translateZ(0)" }}>
                     <MapContainer
@@ -165,7 +312,11 @@ export function LocationMapPicker({
                                 CAMBODIA_PROVINCES.map((province) => [province.nameEn, province.nameEn]),
                             )}
                         >
-                            <SelectTrigger id="provinceName" className={`${controlClassName} w-full`}>
+                            <SelectTrigger
+                                id="provinceName"
+                                aria-invalid={Boolean(errors?.provinceName)}
+                                className={`${controlClassName} w-full`}
+                            >
                                 <SelectValue placeholder="Select province" />
                             </SelectTrigger>
                             <SelectContent align="start">
@@ -176,6 +327,7 @@ export function LocationMapPicker({
                                 ))}
                             </SelectContent>
                         </Select>
+                        <FieldError message={errors?.provinceName} />
                     </div>
                     <div className="flex min-w-0 flex-col gap-2.5">
                         <Label
@@ -188,9 +340,12 @@ export function LocationMapPicker({
                             id="districtName"
                             name="districtName"
                             value={value.districtName}
+                            maxLength={150}
+                            aria-invalid={Boolean(errors?.districtName)}
                             onChange={(event) => update({ districtName: event.target.value })}
                             className={controlClassName}
                         />
+                        <FieldError message={errors?.districtName} />
                     </div>
                     <div className="flex min-w-0 flex-col gap-2.5">
                         <Label
@@ -203,18 +358,27 @@ export function LocationMapPicker({
                             id="communeName"
                             name="communeName"
                             value={value.communeName}
+                            maxLength={150}
+                            aria-invalid={Boolean(errors?.communeName)}
                             onChange={(event) => update({ communeName: event.target.value })}
                             className={controlClassName}
                         />
+                        <FieldError message={errors?.communeName} />
                     </div>
                 </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-                {reversing
-                    ? "Reading the address at that pin…"
-                    : "Drag the pin on the map — Province is matched automatically from Cambodia's 25 provinces, and District/Commune fill in on the right and can be corrected by hand."}
-            </p>
+            {errors?.coordinates ? (
+                <p className="text-xs text-danger" role="alert">
+                    {errors.coordinates}
+                </p>
+            ) : (
+                <p className="text-xs text-muted-foreground">
+                    {reversing
+                        ? "Reading the address at that pin…"
+                        : "Drag the pin on the map — Province is matched automatically from Cambodia's 25 provinces, and District/Commune fill in on the right and can be corrected by hand."}
+                </p>
+            )}
 
             {/* No visible field for these — the pin itself is the input. */}
             <input type="hidden" name="latitude" value={value.lat ?? ""} readOnly />

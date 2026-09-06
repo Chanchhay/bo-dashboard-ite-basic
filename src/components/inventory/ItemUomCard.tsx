@@ -51,6 +51,8 @@ export function ItemUomCard({
     options = [],
     lowStockDefault,
     lowStockError,
+    unitError,
+    conversionsError,
     draft,
     onDraftChange,
     trackInventory = true,
@@ -59,6 +61,10 @@ export function ItemUomCard({
     options?: readonly { id: string; name: string }[];
     lowStockDefault: number;
     lowStockError?: string;
+    /** Submit-time messages from the item schema, so the card's own fields
+     * report a failed save inline like every other field on the form. */
+    unitError?: string;
+    conversionsError?: string;
     draft: ItemUomDraft;
     onDraftChange: (patch: Partial<ItemUomDraft>) => void;
     trackInventory?: boolean;
@@ -179,6 +185,7 @@ export function ItemUomCard({
                     >
                         <SelectTrigger
                             id="unitId"
+                            aria-invalid={Boolean(unitError)}
                             className={`${inventoryControlClassName} w-full`}
                         >
                             <SelectValue placeholder="Choose a unit" />
@@ -191,9 +198,15 @@ export function ItemUomCard({
                             ))}
                         </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                        The smallest quantity you sell — a can, a gram, a cup.
-                    </p>
+                    {unitError ? (
+                        <p className="text-xs text-danger" role="alert">
+                            {unitError}
+                        </p>
+                    ) : (
+                        <p className="text-xs text-muted-foreground">
+                            The smallest quantity you sell — a can, a gram, a cup.
+                        </p>
+                    )}
                 </div>
 
                 {trackInventory ? (
@@ -204,12 +217,15 @@ export function ItemUomCard({
                         >
                             Warn me below
                         </Label>
+                        {/* Whole numbers only — the threshold is an integer
+                            end to end (schema `.int()`, backend `Integer`), so
+                            a decimal typed here could only be rejected on save. */}
                         <div className="flex items-center gap-2">
                             <Input
                                 id="lowStockDefault"
                                 name="lowStockDefault"
                                 type="text"
-                                inputMode="decimal"
+                                inputMode="numeric"
                                 defaultValue={lowStockDefault}
                                 aria-invalid={Boolean(lowStockError)}
                                 className={`${inventoryControlClassName} flex-1`}
@@ -227,20 +243,22 @@ export function ItemUomCard({
                                             "ArrowDown",
                                             "Home",
                                             "End",
-                                            ".",
                                         ].includes(e.key) ||
                                         e.ctrlKey ||
                                         e.metaKey
                                     ) {
                                         return;
                                     }
-                                    if (!/^[0-9.]$/.test(e.key)) {
+                                    if (!/^[0-9]$/.test(e.key)) {
                                         e.preventDefault();
                                     }
                                 }}
                                 onInput={(e) => {
+                                    // Splitting on "." keeps a pasted "2.5"
+                                    // as 2 rather than 25.
                                     e.currentTarget.value = clampStockInput(
-                                        e.currentTarget.value,
+                                        e.currentTarget.value.split(".")[0] ?? "",
+                                        0,
                                     );
                                 }}
                             />
@@ -535,6 +553,12 @@ export function ItemUomCard({
                 {errors.unitId || errors.factor ? (
                     <p className="mt-2 text-xs text-danger" role="alert">
                         {errors.unitId || errors.factor}
+                    </p>
+                ) : null}
+
+                {conversionsError ? (
+                    <p className="mt-2 text-xs text-danger" role="alert">
+                        {conversionsError}
                     </p>
                 ) : null}
 

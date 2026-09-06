@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getPosChannelState } from "@/lib/api/pos-channel-backend";
 import {
     normalizeRegisterSession,
@@ -21,7 +21,7 @@ import {
  */
 export async function POST(request: Request) {
     try {
-        const result = openSessionSchema.safeParse(await request.json());
+        const result = openSessionSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

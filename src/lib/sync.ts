@@ -44,6 +44,13 @@ export async function syncOfflineOrders(dispatch?: any): Promise<boolean> {
           taxInclusionType: order.tax_inclusion_type ?? null,
           tax_inclusion_type: order.tax_inclusion_type ?? null,
           total: order.total,
+          // What the customer handed over and what came back. The queue is
+          // the only record of either — the order itself knows what was owed,
+          // not what happened at the till.
+          paidAmount: order.paid_amount ?? null,
+          paid_amount: order.paid_amount ?? null,
+          changeAmount: order.change_amount ?? null,
+          change_amount: order.change_amount ?? null,
           createdAt: order.created_at,
           created_at: order.created_at,
           items: (order.items || []).map((i: any) => ({

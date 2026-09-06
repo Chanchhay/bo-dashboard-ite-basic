@@ -213,6 +213,7 @@ function AccountForm({
                         <Input
                             id="botToken"
                             value={fields.botToken}
+                            maxLength={100}
                             onChange={(e) =>
                                 setFields({ ...fields, botToken: e.target.value })
                             }
@@ -231,6 +232,7 @@ function AccountForm({
                         <Input
                             id="notificationChatId"
                             value={fields.notificationChatId}
+                            maxLength={100}
                             onChange={(e) =>
                                 setFields({ ...fields, notificationChatId: e.target.value })
                             }
@@ -248,6 +250,7 @@ function AccountForm({
                         <Textarea
                             id="welcomeMessage"
                             value={fields.welcomeMessage}
+                            maxLength={2000}
                             onChange={(e) =>
                                 setFields({ ...fields, welcomeMessage: e.target.value })
                             }

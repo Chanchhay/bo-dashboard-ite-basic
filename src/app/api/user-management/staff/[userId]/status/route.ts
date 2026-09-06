@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import {
     getCurrentBusinessId,
     validationErrorResponse,
@@ -11,7 +11,7 @@ type StaffRouteContext = {
 
 export async function PATCH(request: Request, context: StaffRouteContext) {
     try {
-        const result = staffStatusSchema.safeParse(await request.json());
+        const result = staffStatusSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return validationErrorResponse(

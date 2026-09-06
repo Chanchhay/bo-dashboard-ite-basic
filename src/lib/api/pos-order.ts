@@ -67,7 +67,13 @@ export type PosOrder = {
     taxAmount?: number | null;
     taxInclusionType?: TaxInclusionType | null;
     total: number;
-    currency: string;
+    /**
+     * What the order is priced in. Null on an order the till is still holding
+     * locally and the server has not named a currency for yet — read as the
+     * business base rather than defaulted to a code, which would mislabel the
+     * amounts and convert them twice on the secondary line.
+     */
+    currency: string | null;
     
     displayCurrency: string | null;
     displayExchangeRate: number | null;
@@ -263,7 +269,8 @@ export type Sale = {
     paidAmount: number;
     
     changeAmount: number;
-    currency: string;
+    /** Null on a sale shaped client-side from an order the server had not named a currency for. */
+    currency: string | null;
     
     displayCurrency: string | null;
     displayExchangeRate: number | null;

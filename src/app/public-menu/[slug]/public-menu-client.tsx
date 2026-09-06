@@ -348,6 +348,7 @@ export default function PublicMenuClient({
    * view and then replaced it — the cascading render the lint rule is about.
    */
   const searchParams = useSearchParams();
+  const [expandedAddress, setExpandedAddress] = useState(false);
   const [selectedItemEntry, setSelectedItemEntry] =
     useState<MenuItemEntry | null>(() => {
       const itemIdFromUrl =
@@ -493,36 +494,58 @@ export default function PublicMenuClient({
     <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
         <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
-          <div className="flex items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex items-start gap-3 sm:gap-5 min-w-0">
               {storeDetail.logo ? (
                 <img
                   src={storeDetail.logo}
                   alt={storeDetail.displayName || storeDetail.name}
-                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white dark:border-gray-800 shadow-md bg-white shrink-0"
+                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white dark:border-gray-800 shadow-md bg-white shrink-0 mt-0.5 sm:mt-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "/brand/fluxibiz-mark.png";
                   }}
                 />
               ) : (
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 sm:border-4 border-white dark:border-gray-800 shadow-md shrink-0">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 sm:border-4 border-white dark:border-gray-800 shadow-md shrink-0 mt-0.5 sm:mt-0">
                   <span className="text-lg sm:text-2xl font-bold text-gray-400">
                     {(storeDetail.displayName || storeDetail.name)?.charAt(0)}
                   </span>
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                {categoryName ? (
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
-                    {categoryName}
-                  </p>
-                ) : null}
-                <h1 className="text-base sm:text-2xl font-bold text-gray-900 dark:text-white mb-0.5 truncate">
-                  {storeDetail.displayName || storeDetail.name}
-                </h1>
-                <div className="flex items-center text-gray-500 dark:text-gray-400 gap-1 sm:gap-1.5 text-xs sm:text-sm">
-                  <MapPin className="w-3 sm:w-3.5 h-3 sm:h-3.5 shrink-0" />
-                  <span className="truncate">
+                <div className="flex items-start justify-between gap-2 sm:block">
+                  <div className="min-w-0">
+                    {categoryName ? (
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+                        {categoryName}
+                      </p>
+                    ) : null}
+                    <h1 className="text-base sm:text-2xl font-bold text-gray-900 dark:text-white mb-0.5 truncate">
+                      {storeDetail.displayName || storeDetail.name}
+                    </h1>
+                  </div>
+
+                  {/* Mobile-only theme toggle */}
+                  <div className="flex sm:hidden items-center shrink-0">
+                    <ThemeToggle
+                      variant="icon"
+                      className="size-8.5 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setExpandedAddress((prev) => !prev)}
+                  className="flex items-start text-gray-500 dark:text-gray-400 gap-1 sm:gap-1.5 text-xs sm:text-sm mt-0.5 cursor-pointer select-none group"
+                  title={storeDetail.address || storeDetail.cityOrProvince || "No location provided"}
+                >
+                  <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary group-hover:scale-110 transition-transform" />
+                  <span
+                    className={cn(
+                      "break-words leading-snug",
+                      expandedAddress ? "block" : "line-clamp-2 sm:line-clamp-1 sm:truncate"
+                    )}
+                  >
                     {storeDetail.address || storeDetail.cityOrProvince || "No location provided"}
                   </span>
                 </div>
@@ -555,21 +578,22 @@ export default function PublicMenuClient({
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 sm:shrink-0">
               <a
                 href={orderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shrink-0"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
               >
-                <ShoppingBag className="size-4" />
+                <ShoppingBag className="size-4 shrink-0" />
                 <span>Order Now</span>
-                <ExternalLink className="size-3.5 opacity-80" />
+                <ExternalLink className="size-3.5 opacity-80 shrink-0" />
               </a>
 
+              {/* Desktop ThemeToggle */}
               <ThemeToggle
                 variant="icon"
-                className="size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+                className="hidden sm:flex size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
               />
             </div>
           </div>

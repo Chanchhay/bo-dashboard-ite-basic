@@ -499,7 +499,7 @@ export function SplitStockDialog({
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl rounded-2xl border-none bg-white dark:bg-[#181b24] p-6 shadow-2xl">
                 <DialogHeader className="border-none pb-3">
-                    <DialogTitle className="flex items-center gap-2.5 text-xl font-bold text-foreground">
+                    <DialogTitle className="flex items-center gap-2.5 text-xl font-semibold text-foreground">
                         <Scale className="size-6 text-primary" /> Split stock
                         across channels
                     </DialogTitle>
@@ -525,7 +525,7 @@ export function SplitStockDialog({
                     <div className="space-y-2">
                         <label
                             htmlFor="split-method"
-                            className="text-sm font-bold text-foreground"
+                            className="text-sm font-medium text-foreground"
                         >
                             Method
                         </label>
@@ -538,7 +538,7 @@ export function SplitStockDialog({
                         >
                             <SelectTrigger
                                 id="split-method"
-                                className="h-11 w-full rounded-xl"
+                                className="h-11 w-full rounded-xl font-normal"
                             >
                                 <SelectValue />
                             </SelectTrigger>
@@ -559,14 +559,14 @@ export function SplitStockDialog({
                         <div className="space-y-1.5">
                             <label
                                 htmlFor="split-fixed"
-                                className="text-sm font-bold text-foreground"
+                                className="text-sm font-medium text-foreground"
                             >
                                 Units per channel
                             </label>
                             <Input
                                 id="split-fixed"
                                 inputMode="decimal"
-                                className="h-11 w-32 rounded-xl"
+                                className="h-11 w-32 rounded-xl font-normal"
                                 placeholder="0"
                                 value={fixed}
                                 onChange={(event) =>
@@ -579,12 +579,12 @@ export function SplitStockDialog({
                     {method !== "SHARED" && (
                         <div className="space-y-2">
                             <div className="flex items-baseline justify-between">
-                                <span className="text-sm font-bold text-foreground">
+                                <span className="text-sm font-medium text-foreground">
                                     Channels
                                 </span>
                                 {method === "PERCENT" && (
                                     <span
-                                        className={`text-xs font-bold ${percentTotal > 100
+                                        className={`text-xs font-medium ${percentTotal > 100
                                                 ? "text-destructive"
                                                 : "text-muted-foreground"
                                             }`}
@@ -630,7 +630,7 @@ export function SplitStockDialog({
                                                     )}
                                                 </span>
                                                 <span
-                                                    className={`text-sm font-bold whitespace-nowrap ${isChecked
+                                                    className={`text-sm font-normal whitespace-nowrap ${isChecked
                                                             ? "text-foreground"
                                                             : "text-muted-foreground"
                                                         }`}
@@ -679,13 +679,13 @@ export function SplitStockDialog({
 
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-foreground">
+                            <span className="text-sm font-medium text-foreground">
                                 Items
                             </span>
                             <button
                                 type="button"
                                 onClick={toggleAllFiltered}
-                                className="cursor-pointer text-sm font-bold text-primary hover:underline"
+                                className="cursor-pointer text-sm font-medium text-primary hover:underline"
                             >
                                 {filteredItems.every((item) =>
                                     checkedItemIds.has(item.id),
@@ -698,7 +698,7 @@ export function SplitStockDialog({
                         <div className="relative">
                             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
-                                className="h-11 rounded-xl pl-9"
+                                className="h-11 rounded-xl pl-9 font-normal text-sm"
                                 placeholder="Search items by name, SKU or barcode..."
                                 value={search}
                                 onChange={(event) =>
@@ -743,7 +743,7 @@ export function SplitStockDialog({
                                                         <Check className="size-3.5 stroke-3" />
                                                     )}
                                                 </span>
-                                                <span className="truncate text-sm font-semibold text-foreground">
+                                                <span className="truncate text-sm font-normal text-foreground">
                                                     {item.name || "Unnamed item"}
                                                 </span>
                                             </span>
@@ -764,7 +764,7 @@ export function SplitStockDialog({
                     {method !== "SHARED" && plannedRows.length > 0 && (
                         <div className="space-y-2">
                             <div className="flex items-baseline justify-between">
-                                <span className="text-sm font-bold text-foreground">
+                                <span className="text-sm font-medium text-foreground">
                                     What each item gets
                                 </span>
                                 <span className="text-xs text-muted-foreground">
@@ -777,21 +777,21 @@ export function SplitStockDialog({
                                 <table className="w-full min-w-fit border-collapse text-sm">
                                     <thead className="sticky top-0 z-10 bg-card">
                                         <tr className="border-b border-border">
-                                            <th className="px-3 py-2 text-left text-xs font-bold text-muted-foreground">
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                                                 Item
                                             </th>
                                             {previewChannels.map((channel) => (
                                                 <th
                                                     key={channel.id}
-                                                    className="px-3 py-2 text-right text-xs font-bold text-foreground whitespace-nowrap"
+                                                    className="px-3 py-2 text-right text-xs font-medium text-foreground whitespace-nowrap"
                                                 >
                                                     {channel.name}
                                                 </th>
                                             ))}
-                                            <th className="px-3 py-2 text-right text-xs font-bold text-muted-foreground whitespace-nowrap">
+                                            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                                                 On hand
                                             </th>
-                                            <th className="px-3 py-2 text-right text-xs font-bold text-muted-foreground whitespace-nowrap">
+                                            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                                                 Held back
                                             </th>
                                         </tr>
@@ -805,7 +805,7 @@ export function SplitStockDialog({
                                                     className="border-b border-border/50 last:border-0"
                                                 >
                                                     <td className="max-w-56 px-3 py-2">
-                                                        <span className="block truncate font-semibold text-foreground">
+                                                        <span className="block truncate font-normal text-foreground">
                                                             {row.itemName}
                                                         </span>
                                                         {row.optionName && (
@@ -822,7 +822,7 @@ export function SplitStockDialog({
                                                             <td
                                                                 key={channel.id}
                                                                 className={`px-3 py-2 text-right tabular-nums ${quantity
-                                                                        ? "font-bold text-foreground"
+                                                                        ? "font-normal text-foreground"
                                                                         : "text-muted-foreground/60"
                                                                     }`}
                                                             >
@@ -867,14 +867,14 @@ export function SplitStockDialog({
                             type="button"
                             variant="outline"
                             onClick={onClose}
-                            className="rounded-xl font-semibold"
+                            className="rounded-xl font-normal"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             disabled={isSaving}
-                            className="gap-2 rounded-xl font-semibold"
+                            className="gap-2 rounded-xl font-normal"
                         >
                             {isSaving && (
                                 <LoaderCircle className="size-4 animate-spin" />

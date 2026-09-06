@@ -1,6 +1,7 @@
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
@@ -22,7 +23,7 @@ type RouteContext = { params: Promise<{ itemId: string; addOnId: string }> };
 export async function PUT(request: Request, context: RouteContext) {
     try {
         const result = itemAddOnAvailabilitySchema.safeParse(
-            await request.json(),
+            await readJsonBody(request),
         );
 
         if (!result.success) {

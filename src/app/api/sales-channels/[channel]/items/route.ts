@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import type {
     ChannelItem,
     ItemChannel,
@@ -38,7 +38,7 @@ export async function POST(
 ) {
     try {
         const { channel: channelCode } = await context.params;
-        const parseResult = postChannelItemSchema.safeParse(await request.json());
+        const parseResult = postChannelItemSchema.safeParse(await readJsonBody(request));
 
         if (!parseResult.success) {
             return Response.json(

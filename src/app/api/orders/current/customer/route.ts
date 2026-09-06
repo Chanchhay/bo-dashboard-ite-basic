@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import {
     setOrderCustomerSchema,
@@ -19,7 +19,7 @@ import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
  */
 export async function PATCH(request: Request) {
     try {
-        const result = setOrderCustomerSchema.safeParse(await request.json());
+        const result = setOrderCustomerSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

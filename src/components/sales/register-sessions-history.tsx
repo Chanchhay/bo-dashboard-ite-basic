@@ -83,6 +83,35 @@ const ALL_SESSION_COLUMNS: SessionColumnConfig[] = [
   { key: "action", label: "Action" },
 ];
 
+/**
+ * Who worked a drawer, as a headline name plus however many joined it.
+ *
+ * A register session is shared, so naming only the person who opened it
+ * credits one cashier for a shift several people rang sales into. The opener
+ * stays first — they are the one the row is sorted and reconciled around — and
+ * the rest are counted rather than listed, so the column keeps its width.
+ */
+function cashiersOf(session: RegisterSession) {
+  const names = (session.cashierNames ?? []).filter(Boolean);
+  const all = names.length > 0 ? names : [session.cashierName || "Cashier"];
+
+  return { primary: all[0], others: all.slice(1), all };
+}
+
+/** The "+2" that follows a shared drawer's headline cashier. */
+function JoinedCashierCount({ others }: { others: string[] }) {
+  if (others.length === 0) return null;
+
+  return (
+    <span
+      className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground dark:bg-slate-800/60 dark:text-slate-400"
+      title={`Also on this session: ${others.join(", ")}`}
+    >
+      +{others.length}
+    </span>
+  );
+}
+
 export function RegisterSessionsHistory() {
   const { format } = useMoney();
 
@@ -618,7 +647,8 @@ export function RegisterSessionsHistory() {
                       <span className="text-muted-foreground dark:text-slate-400">Cashier</span>
                       <span className="font-semibold text-foreground dark:text-slate-100 flex items-center gap-1">
                         <User className="h-3 w-3 text-muted-foreground" />
-                        {session.cashierName || "Cashier"}
+                        {cashiersOf(session).primary}
+                        <JoinedCashierCount others={cashiersOf(session).others} />
                       </span>
                     </div>
 
@@ -836,7 +866,8 @@ export function RegisterSessionsHistory() {
                             </span>
                             <span className="text-xs text-muted-foreground dark:text-slate-400 flex items-center gap-1 mt-0.5">
                               <User className="h-3 w-3" />
-                              {session.cashierName || "Cashier"}
+                              {cashiersOf(session).primary}
+                              <JoinedCashierCount others={cashiersOf(session).others} />
                             </span>
                           </div>
                         </TableCell>
@@ -1009,9 +1040,11 @@ export function RegisterSessionsHistory() {
               {/* Cashier & Session metadata */}
               <div className="grid grid-cols-2 gap-3.5 rounded-2xl bg-muted/40 dark:bg-[#0d121c] p-4 border border-border/50 dark:border-slate-800">
                 <div>
-                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">Cashier Name</span>
+                  <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">
+                    {cashiersOf(selectedSession).all.length > 1 ? "Cashiers" : "Cashier Name"}
+                  </span>
                   <p className="font-semibold text-foreground dark:text-slate-100 mt-0.5">
-                    {selectedSession.cashierName || "Cashier"}
+                    {cashiersOf(selectedSession).all.join(", ")}
                   </p>
                 </div>
                 <div>

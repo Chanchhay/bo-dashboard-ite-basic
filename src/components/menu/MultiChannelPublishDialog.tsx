@@ -539,7 +539,7 @@ export function MultiChannelPublishDialog({
                 >
                     {/* Header */}
                     <DialogHeader className="pb-2 sm:pb-3 border-none shrink-0">
-                        <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2.5 text-foreground">
+                        <DialogTitle className="text-lg sm:text-xl font-semibold flex items-center gap-2.5 text-foreground">
                             <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 text-primary" /> Manage Sales Channels
                         </DialogTitle>
                         <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
@@ -570,7 +570,7 @@ export function MultiChannelPublishDialog({
                                 {/* Single Item Card without Image, Stroke, or Fill */}
                                 {singleItem && (
                                     <div className="py-2 px-1 bg-transparent">
-                                        <p className="text-sm font-bold text-foreground truncate">
+                                        <p className="text-sm font-normal text-foreground truncate">
                                             {singleItem.name || "Unnamed Item"}
                                         </p>
                                         {(singleItem.itemGroup?.name) && (
@@ -584,11 +584,11 @@ export function MultiChannelPublishDialog({
                                 {/* Single Item Channels Checklist */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-bold text-foreground">Allowed Sales Channels</span>
+                                        <span className="text-sm font-medium text-foreground">Allowed Sales Channels</span>
                                         <button
                                             type="button"
                                             onClick={toggleSelectAllChannels}
-                                            className="text-sm font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                            className="text-sm font-medium text-primary hover:underline flex items-center gap-1 cursor-pointer"
                                         >
                                             {checkedChannelIds.size === activeSalesChannels.length ? "Deselect All" : "Select All"}
                                         </button>
@@ -608,7 +608,7 @@ export function MultiChannelPublishDialog({
                                                         key={channel.id}
                                                         onClick={() => toggleChannel(channel.id)}
                                                         className={`flex items-center justify-between p-3.5 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${isChecked
-                                                                ? "text-foreground font-bold"
+                                                                ? "text-foreground font-normal"
                                                                 : "text-muted-foreground"
                                                             }`}
                                                     >
@@ -621,11 +621,11 @@ export function MultiChannelPublishDialog({
                                                             >
                                                                 {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                                                             </div>
-                                                            <span className="text-sm font-bold text-foreground">{channel.name}</span>
+                                                            <span className="text-sm font-normal text-foreground">{channel.name}</span>
                                                         </div>
 
                                                         <span
-                                                            className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${isChecked ? "text-primary" : "text-muted-foreground"
+                                                            className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${isChecked ? "text-primary" : "text-muted-foreground"
                                                                 }`}
                                                         >
                                                             {isChecked ? "Active" : "Disabled"}
@@ -663,7 +663,7 @@ export function MultiChannelPublishDialog({
                                                     setCheckedProductIds(new Set());
                                                 }}
                                                 className={cn(
-                                                    "rounded-lg px-4 py-2 text-sm font-bold transition-all cursor-pointer",
+                                                    "rounded-lg px-4 py-2 text-sm font-normal transition-all cursor-pointer",
                                                     isActive
                                                         ? value === "publish"
                                                             ? "bg-white dark:bg-card text-primary shadow-xs"
@@ -687,7 +687,7 @@ export function MultiChannelPublishDialog({
                                                     <button
                                                         type="button"
                                                         onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                                                        className="w-full h-11 px-3.5 flex items-center justify-between gap-1.5 text-sm font-bold rounded-xl border border-border bg-card text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+                                                        className="w-full h-11 px-3.5 flex items-center justify-between gap-1.5 text-sm font-normal rounded-xl border border-border bg-card text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
                                                     >
                                                         <span className="truncate">
                                                             {selectedCategory === "ALL" ? "All Categories" : selectedCategory}
@@ -708,8 +708,8 @@ export function MultiChannelPublishDialog({
                                                                         setSelectedCategory("ALL");
                                                                         setIsCategoryOpen(false);
                                                                     }}
-                                                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${selectedCategory === "ALL"
-                                                                            ? "bg-primary/10 text-primary font-bold"
+                                                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-normal transition-colors cursor-pointer ${selectedCategory === "ALL"
+                                                                            ? "bg-primary/10 text-primary font-medium"
                                                                             : "hover:bg-muted text-foreground"
                                                                         }`}
                                                                 >
@@ -727,8 +727,8 @@ export function MultiChannelPublishDialog({
                                                                                 setSelectedCategory(cat);
                                                                                 setIsCategoryOpen(false);
                                                                             }}
-                                                                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${isSelected
-                                                                                    ? "bg-primary/10 text-primary font-bold"
+                                                                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-normal transition-colors cursor-pointer ${isSelected
+                                                                                    ? "bg-primary/10 text-primary font-medium"
                                                                                     : "hover:bg-muted text-foreground"
                                                                                 }`}
                                                                         >
@@ -750,7 +750,7 @@ export function MultiChannelPublishDialog({
                                                     placeholder="Search items..."
                                                     value={productSearchQuery}
                                                     onChange={(e) => setProductSearchQuery(e.target.value)}
-                                                    className="h-11 pl-10 pr-9 text-sm font-semibold rounded-xl border border-border bg-card text-foreground"
+                                                    className="h-11 pl-10 pr-9 text-sm font-normal rounded-xl border border-border bg-card text-foreground"
                                                 />
                                                 {productSearchQuery && (
                                                     <button
@@ -766,11 +766,11 @@ export function MultiChannelPublishDialog({
 
                                         {/* Item list header */}
                                         <div className="flex items-center justify-between px-1">
-                                            <span className="text-sm font-bold text-foreground">Select items</span>
+                                            <span className="text-sm font-medium text-foreground">Select items</span>
                                             <button
                                                 type="button"
                                                 onClick={toggleSelectAllFilteredProducts}
-                                                className="text-sm font-bold text-primary hover:underline cursor-pointer"
+                                                className="text-sm font-medium text-primary hover:underline cursor-pointer"
                                             >
                                                 Select all shown
                                             </button>
@@ -799,7 +799,7 @@ export function MultiChannelPublishDialog({
                                                             key={item.id}
                                                             onClick={() => toggleProductCheck(item.id)}
                                                             className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${isChecked
-                                                                    ? "text-foreground font-bold"
+                                                                    ? "text-foreground font-normal"
                                                                     : "text-muted-foreground"
                                                                 }`}
                                                         >
@@ -816,7 +816,7 @@ export function MultiChannelPublishDialog({
                                                                 </div>
 
                                                                 <div className="min-w-0">
-                                                                    <p className="truncate font-bold text-foreground text-sm">{item.name || "Unnamed item"}</p>
+                                                                    <p className="truncate font-normal text-foreground text-sm">{item.name || "Unnamed item"}</p>
                                                                     <p className="text-xs text-muted-foreground truncate">
                                                                         {liveOn.length
                                                                             ? `On ${liveOn.map((c) => c.name).join(", ")}`
@@ -835,11 +835,11 @@ export function MultiChannelPublishDialog({
                                     <div className="md:col-span-5 space-y-3 flex flex-col justify-between">
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between px-1">
-                                                <span className="text-sm font-bold text-foreground">Target Channels</span>
+                                                <span className="text-sm font-medium text-foreground">Target Channels</span>
                                                 <button
                                                     type="button"
                                                     onClick={toggleSelectAllChannels}
-                                                    className="text-sm font-bold text-primary hover:underline cursor-pointer"
+                                                    className="text-sm font-medium text-primary hover:underline cursor-pointer"
                                                 >
                                                     {checkedChannelIds.size === activeSalesChannels.length ? "Deselect All" : "Select All"}
                                                 </button>
@@ -855,7 +855,7 @@ export function MultiChannelPublishDialog({
                                                             key={channel.id}
                                                             onClick={() => toggleChannel(channel.id)}
                                                             className={`flex items-center justify-between gap-2 p-3 rounded-xl cursor-pointer transition-all bg-transparent hover:bg-muted/30 ${isChecked
-                                                                    ? "text-foreground font-bold"
+                                                                    ? "text-foreground font-normal"
                                                                     : "text-muted-foreground"
                                                                 }`}
                                                         >
@@ -872,7 +872,7 @@ export function MultiChannelPublishDialog({
                                                                 </div>
 
                                                                 <div className="min-w-0">
-                                                                    <p className="text-sm font-bold truncate text-foreground">{channel.name}</p>
+                                                                    <p className="text-sm font-normal truncate text-foreground">{channel.name}</p>
                                                                     {/* What it sells now, not an echo of the tick. */}
                                                                     <p
                                                                         className={`text-xs truncate ${liveCount
@@ -896,7 +896,7 @@ export function MultiChannelPublishDialog({
                                                                         setPurgeChannelId(channel.id);
                                                                         setConfirmOpen(true);
                                                                     }}
-                                                                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+                                                                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-normal text-danger hover:bg-danger/10 transition-colors cursor-pointer"
                                                                 >
                                                                     Deactivate
                                                                 </button>
@@ -926,7 +926,7 @@ export function MultiChannelPublishDialog({
                                 variant="outline"
                                 onClick={onClose}
                                 disabled={isSaving}
-                                className="rounded-xl border-none bg-muted hover:bg-muted/80 font-bold text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-5"
+                                className="rounded-xl border-none bg-muted hover:bg-muted/80 font-normal text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-5"
                             >
                                 Cancel
                             </Button>
@@ -938,7 +938,7 @@ export function MultiChannelPublishDialog({
                                         ? isSingleItemLoading
                                         : pendingPairs.length === 0)
                                 }
-                                className={`rounded-xl text-white font-bold text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-6 shadow-xs cursor-pointer ${!initialItemId && mode === "unpublish"
+                                className={`rounded-xl text-white font-normal text-xs sm:text-sm h-10 sm:h-11 px-4 sm:px-6 shadow-xs cursor-pointer ${!initialItemId && mode === "unpublish"
                                         ? "bg-brand-red hover:bg-brand-red/90"
                                         : "bg-primary hover:bg-primary/90"
                                     }`}

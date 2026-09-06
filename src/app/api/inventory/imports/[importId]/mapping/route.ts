@@ -1,11 +1,11 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { importPath, type ImportRouteContext } from "@/lib/api/data-import-backend";
 import { inventoryValidationError } from "@/lib/api/inventory-backend";
 import { importMappingSchema, type ImportJob } from "@/lib/api/data-import";
 
 export async function PUT(request: Request, context: ImportRouteContext) {
     try {
-        const result = importMappingSchema.safeParse(await request.json());
+        const result = importMappingSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

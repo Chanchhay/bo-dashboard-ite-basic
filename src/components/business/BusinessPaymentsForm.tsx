@@ -196,6 +196,13 @@ function AccountForm({
             }
 
             setErrors(next);
+            toast({
+                tone: "error",
+                title: "Payment settings not saved",
+                description:
+                    result.error.issues[0]?.message ??
+                    "Check the highlighted fields and try again.",
+            });
             return;
         }
 
@@ -244,6 +251,8 @@ function AccountForm({
                     >
                         <Input
                             value={fields.bakongAccountId}
+                            maxLength={120}
+                            aria-invalid={Boolean(errors.bakongAccountId)}
                             onChange={(e) =>
                                 set("bakongAccountId")(e.target.value)
                             }
@@ -254,6 +263,8 @@ function AccountForm({
                     <Field label="Merchant name" error={errors.merchantName}>
                         <Input
                             value={fields.merchantName}
+                            maxLength={120}
+                            aria-invalid={Boolean(errors.merchantName)}
                             onChange={(e) => set("merchantName")(e.target.value)}
                             placeholder="e.g. Coffee Corner"
                         />
@@ -262,22 +273,28 @@ function AccountForm({
                     <Field label="City" error={errors.merchantCity}>
                         <Input
                             value={fields.merchantCity}
+                            maxLength={120}
+                            aria-invalid={Boolean(errors.merchantCity)}
                             onChange={(e) => set("merchantCity")(e.target.value)}
                             placeholder="Phnom Penh"
                         />
                     </Field>
 
-                    <Field label="Merchant ID" optional>
+                    <Field label="Merchant ID" optional error={errors.merchantId}>
                         <Input
                             value={fields.merchantId}
+                            maxLength={120}
+                            aria-invalid={Boolean(errors.merchantId)}
                             onChange={(e) => set("merchantId")(e.target.value)}
                             placeholder="e.g. 123456"
                         />
                     </Field>
 
-                    <Field label="Acquiring bank" optional>
+                    <Field label="Acquiring bank" optional error={errors.acquiringBank}>
                         <Input
                             value={fields.acquiringBank}
+                            maxLength={120}
+                            aria-invalid={Boolean(errors.acquiringBank)}
                             onChange={(e) =>
                                 set("acquiringBank")(e.target.value)
                             }
@@ -285,17 +302,21 @@ function AccountForm({
                         />
                     </Field>
 
-                    <Field label="Mobile number" optional>
+                    <Field label="Mobile number" optional error={errors.mobileNumber}>
                         <Input
                             value={fields.mobileNumber}
+                            maxLength={40}
+                            aria-invalid={Boolean(errors.mobileNumber)}
                             onChange={(e) => set("mobileNumber")(e.target.value)}
                             placeholder="e.g. +855 12 345 678"
                         />
                     </Field>
 
-                    <Field label="Store label" optional>
+                    <Field label="Store label" optional error={errors.storeLabel}>
                         <Input
                             value={fields.storeLabel}
+                            maxLength={120}
+                            aria-invalid={Boolean(errors.storeLabel)}
                             onChange={(e) => set("storeLabel")(e.target.value)}
                             placeholder="e.g. Main Branch"
                         />
@@ -331,10 +352,17 @@ function AccountForm({
                             <Input
                                 type="password"
                                 value={apiToken}
+                                maxLength={500}
                                 autoComplete="off"
+                                aria-invalid={Boolean(errors.apiToken)}
                                 onChange={(e) => setApiToken(e.target.value)}
                                 placeholder="Paste your Bakong API token"
                             />
+                            {errors.apiToken && (
+                                <p role="alert" className="text-xs text-danger">
+                                    {errors.apiToken}
+                                </p>
+                            )}
                             {hasToken && (
                                 <button
                                     type="button"

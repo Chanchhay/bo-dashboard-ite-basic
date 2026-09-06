@@ -23,16 +23,6 @@ function readSubject(accessToken: string): string | null {
   }
 }
 
-/**
- * The signed-in user's Keycloak subject, for server code with no request
- * object of its own (a Server Action).
- *
- * Same id `/api/session-context` hands the browser for the socket and the
- * notification inbox — anything stored against a different id (Better
- * Auth's local `user.id`, say) is written under a key nothing else will ever
- * look up. Null means no session, or a Keycloak token this server could not
- * resolve; callers treat both as "not signed in".
- */
 export async function getCurrentSubject(): Promise<string | null> {
   const requestHeaders = await headers();
 

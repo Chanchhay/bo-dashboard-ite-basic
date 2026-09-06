@@ -43,7 +43,7 @@ export function ColumnSelectDropdown({
                 type="button"
                 variant="outline"
                 onClick={() => setIsOpen(!isOpen)}
-                className="h-10 gap-1.5 sm:gap-2 rounded-xl border border-border bg-card px-2.5 sm:px-3.5 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 shadow-xs transition-colors whitespace-nowrap"
+                className="h-10 gap-1.5 sm:gap-2 rounded-xl border border-border bg-card px-2.5 sm:px-3.5 text-xs sm:text-sm font-normal text-foreground hover:bg-muted/80 shadow-xs transition-colors whitespace-nowrap"
             >
                 <SlidersHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                 <span>Columns</span>

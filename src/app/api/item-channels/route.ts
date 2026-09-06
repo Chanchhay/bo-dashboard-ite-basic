@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import type {
     CreateItemChannelInput,
     ItemChannel,
@@ -13,7 +13,7 @@ const createItemChannelSchema = z.object({
 
 export async function POST(request: Request) {
     try {
-        const body = createItemChannelSchema.safeParse(await request.json());
+        const body = createItemChannelSchema.safeParse(await readJsonBody(request));
 
         if (!body.success) {
             return Response.json(

@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
     inventoryValidationError,
@@ -41,7 +41,7 @@ export async function GET(_request: Request, context: RouteContext) {
  */
 export async function PUT(request: Request, context: RouteContext) {
     try {
-        const result = saveItemChannelStockSchema.safeParse(await request.json());
+        const result = saveItemChannelStockSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

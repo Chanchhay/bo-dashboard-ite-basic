@@ -46,7 +46,7 @@ interface DiscountSelectModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     subtotal: number;
-    currency?: string;
+    currency?: string | null;
     items?: { itemId: string; unitPrice: number; quantity: number }[];
     currentDiscountAmount: number;
     activeRule?: AppliedDiscountRule | null;

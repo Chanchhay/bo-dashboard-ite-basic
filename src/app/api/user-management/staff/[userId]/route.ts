@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import {
     getCurrentBusinessId,
     validationErrorResponse,
@@ -31,7 +31,7 @@ export async function GET(_request: Request, context: StaffRouteContext) {
 
 export async function PUT(request: Request, context: StaffRouteContext) {
     try {
-        const result = updateStaffSchema.safeParse(await request.json());
+        const result = updateStaffSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return validationErrorResponse(

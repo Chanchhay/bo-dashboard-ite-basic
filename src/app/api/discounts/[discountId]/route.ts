@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { DiscountResponse } from "@/lib/api/discount";
 
@@ -27,7 +27,7 @@ export async function PUT(
     try {
         const { discountId } = await params;
         const businessId = await getCurrentBusinessId();
-        const body = await request.json();
+        const body = await readJsonBody(request);
 
         const discount = await backendRequest<DiscountResponse>(
             `/api/v1/businesses/${businessId}/discounts/${discountId}`,

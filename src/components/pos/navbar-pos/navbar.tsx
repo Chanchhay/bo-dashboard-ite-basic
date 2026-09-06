@@ -298,8 +298,8 @@ function MobileMenu({
                 label="Connection"
                 right={
                   <span
-                    className={`rounded-md px-2 py-0.5 text-xs font-semibold text-white ${
-                      isOnline ? "bg-emerald-600" : "bg-amber-600"
+                    className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                      isOnline ? "bg-primary text-primary-foreground" : "bg-amber-600 text-white"
                     }`}
                   >
                     {isOnline ? "Online" : "Offline"}
@@ -442,11 +442,11 @@ function CategorySelectItem({
   return (
     <SelectItem
       value={value}
-      className="group flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 data-[selected]:bg-emerald-50 dark:data-[selected]:bg-emerald-950/50 data-[selected]:text-emerald-700 dark:data-[selected]:text-emerald-400 data-[selected]:font-semibold [&>span:first-child]:flex [&>span:first-child]:w-full [&>span:first-child]:items-center [&>span:first-child]:justify-between [&>span:last-child]:hidden"
+      className="group flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors hover:bg-primary/10 hover:text-primary data-[selected]:bg-primary/10 data-[selected]:text-primary data-[selected]:font-semibold [&>span:first-child]:flex [&>span:first-child]:w-full [&>span:first-child]:items-center [&>span:first-child]:justify-between [&>span:last-child]:hidden"
     >
       <span className="truncate">{children}</span>
       <Check
-        className="hidden size-4 shrink-0 text-primary dark:text-emerald-400 group-data-[selected]:block"
+        className="hidden size-4 shrink-0 text-primary dark:text-primary group-data-[selected]:block"
         strokeWidth={2.5}
         aria-hidden="true"
       />

@@ -3,17 +3,21 @@ import { z } from "zod";
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     getInventoryBusinessId,
     inventoryValidationError,
 } from "@/lib/api/inventory-backend";
-import { type InventoryItem } from "@/lib/api/inventory";
+import { maxItemImages, type InventoryItem } from "@/lib/api/inventory";
 
 const reorderSchema = z.object({
     imageIds: z
         .array(z.string().trim().min(1))
-        .min(1, "Send the images in their new order."),
+        .min(1, "Send the images in their new order.")
+        // An item never holds more than this, so a longer list is malformed
+        // rather than something to pass on to the backend.
+        .max(maxItemImages, `An item can have at most ${maxItemImages} images.`),
 });
 
 type ItemRouteContext = {
@@ -23,7 +27,7 @@ type ItemRouteContext = {
 /** Position is server-assigned, so the whole order is sent at once. */
 export async function PUT(request: Request, context: ItemRouteContext) {
     try {
-        const result = reorderSchema.safeParse(await request.json());
+        const result = reorderSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return inventoryValidationError(result.error);

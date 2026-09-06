@@ -1561,7 +1561,7 @@ export default function DiscountsAndCouponsPage() {
                                                     </div>
                                                 </div>
                                                 {channelDiscounts.length > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
                                                         <CheckCircle2 className="h-3 w-3" />
                                                         {channelDiscounts.length} Active
                                                     </span>
@@ -1671,7 +1671,7 @@ export default function DiscountsAndCouponsPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right align-top py-4 whitespace-nowrap">
                                                         {channelDiscounts.length > 0 ? (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
                                                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                                                 {channelDiscounts.length} {channelDiscounts.length === 1 ? "Promotion Active" : "Promotions Active"}
                                                             </span>

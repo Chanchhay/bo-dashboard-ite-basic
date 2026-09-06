@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import {
     parkOrderSchema,
@@ -13,7 +13,7 @@ import {
 /** Leaves the current order pending and releases the terminal for another cart. */
 export async function POST(request: Request) {
     try {
-        const result = parkOrderSchema.safeParse(await request.json());
+        const result = parkOrderSchema.safeParse(await readJsonBody(request));
 
         if (!result.success) {
             return Response.json(

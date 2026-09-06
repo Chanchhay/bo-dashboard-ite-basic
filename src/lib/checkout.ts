@@ -10,7 +10,7 @@ export async function processOfflineCheckout(params: {
   taxAmount?: number | null;
   taxInclusionType?: 'INCLUSIVE' | 'EXCLUSIVE' | null;
   total: number;
-  currency?: string;
+  currency?: string | null;
   paidAmount?: number;
   changeAmount?: number;
   paymentMethod: 'CASH' | 'KHQR' | 'CARD';

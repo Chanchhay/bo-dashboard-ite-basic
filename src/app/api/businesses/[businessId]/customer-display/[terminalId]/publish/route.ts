@@ -1,4 +1,4 @@
-import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
+import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 
 type RouteContext = {
   params: Promise<{ businessId: string; terminalId: string }>;
@@ -7,7 +7,7 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { businessId, terminalId } = await context.params;
-    const body = await request.json();
+    const body = await readJsonBody(request);
 
     await backendRequest<void>(
       `/api/v1/businesses/${encodeURIComponent(businessId)}/customer-display/${encodeURIComponent(terminalId)}/publish`,

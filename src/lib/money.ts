@@ -92,13 +92,14 @@ function getNumberFormatter(digits: number): Intl.NumberFormat {
  */
 export function formatMoney(
   value: string | number | null | undefined,
-  currency: CurrencyLike | string | undefined,
+  currency: CurrencyLike | string | null | undefined,
   options: FormatMoneyOptions = {},
 ): string {
   const { useCode = false, fallback = "—" } = options;
   if (value === null || value === undefined) return fallback;
 
-  const resolved = typeof currency === "string" ? undefined : currency;
+  const resolved =
+    typeof currency === "string" ? undefined : (currency ?? undefined);
   const code = (typeof currency === "string" ? currency : currency?.code) ?? "";
 
   if (!code) return toNumber(value).toFixed(2);
@@ -133,7 +134,7 @@ export function formatCurrencyAmount(
 
 export function findCurrency(
   configuration: BusinessCurrencyConfiguration | undefined,
-  code: string | undefined,
+  code: string | null | undefined,
 ): BusinessCurrency | undefined {
   if (!configuration || !code) return undefined;
   const wanted = code.toUpperCase();
@@ -216,7 +217,7 @@ export function getRecordedSecondaryAmount(
  */
 export function getSecondaryAmount(
   amount: number,
-  sourceCode: string | undefined,
+  sourceCode: string | null | undefined,
   configuration: BusinessCurrencyConfiguration | undefined,
 ): SecondaryAmount | null {
   if (!configuration?.displayCurrency) return null;

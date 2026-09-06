@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
     backendErrorResponse,
     backendRequest,
+    readJsonBody,
 } from "@/lib/api/backend";
 import {
     profilePictureRules,
@@ -54,7 +55,7 @@ export async function PATCH(request: Request) {
                 file = picture;
             }
         } else {
-            const body = await request.json();
+            const body = await readJsonBody(request);
             const result = userProfileSchema.safeParse(body);
 
             if (!result.success) {

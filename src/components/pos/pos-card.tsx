@@ -58,7 +58,7 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
       <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
         {/* Discount Badge on the card image */}
         {item.discountBadge && !isDisabled && (
-          <span className="absolute top-2 right-2 z-10 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm ring-1 ring-white/50">
+          <span className="absolute top-2 right-2 z-10 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm ring-1 ring-white/50">
             {item.discountBadge}
           </span>
         )}
