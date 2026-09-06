@@ -52,6 +52,7 @@ const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
   "/sales/taxes": "/sales/sessions",
   "/sales/sessions": "/sales/cash-register",
   "/sales/cash-register": "/pos",
+  "/employees": "/business/profile",
   "/business/profile": "/business/currency",
   "/business/currency": "/business/payments",
   "/business/payments": "/business/telegram",

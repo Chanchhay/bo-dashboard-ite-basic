@@ -160,6 +160,7 @@ export function AddOnSetDialog({
                         <Label htmlFor="set-name">Name *</Label>
                         <Input
                             id="set-name"
+                            data-tour="set-form-name"
                             value={draft.name}
                             maxLength={150}
                             onChange={(event) => {
@@ -181,7 +182,7 @@ export function AddOnSetDialog({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2" data-tour="set-form-rule">
                             <Label htmlFor="set-rule">How many</Label>
                             <Select
                                 value={draft.rule}
@@ -245,7 +246,7 @@ export function AddOnSetDialog({
                         ) : null}
                     </div>
 
-                    <label className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+                    <label data-tour="set-form-required" className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
                         <span className="min-w-0">
                             <span className="block text-sm font-semibold text-foreground">
                                 Required
@@ -266,7 +267,7 @@ export function AddOnSetDialog({
                         />
                     </label>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2" data-tour="set-form-addons">
                         <Label>Add-ons in this set *</Label>
                         {addOns.length === 0 ? (
                             <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
@@ -336,7 +337,7 @@ export function AddOnSetDialog({
                     >
                         Cancel
                     </Button>
-                    <Button type="button" disabled={busy} onClick={handleSave}>
+                    <Button type="button" data-tour="set-form-submit" disabled={busy} onClick={handleSave}>
                         {isEditing ? "Save set" : "Create set"}
                     </Button>
                 </DialogFooter>

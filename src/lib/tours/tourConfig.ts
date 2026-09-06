@@ -1,4 +1,37 @@
-import type { DriveStep } from "driver.js";
+import type { DriverHook, DriveStep } from "driver.js";
+
+function waitForElement(selector: string, timeout = 2000): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.querySelector(selector)) {
+      resolve();
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(selector)) {
+        observer.disconnect();
+        resolve();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, timeout);
+  });
+}
+
+/**
+ * For a step that highlights a "New X" button: keep the button on screen,
+ * untouched, until the visitor actually clicks Next — then open the modal
+ * and only advance once its first field has mounted, so the following step
+ * never races the dialog's render.
+ */
+function openModalOnNext(buttonSelector: string, firstFieldSelector: string): DriverHook {
+  return (_element, _step, opts) => {
+    (document.querySelector(buttonSelector) as HTMLButtonElement | null)?.click();
+    void waitForElement(firstFieldSelector).then(() => opts.driver.moveNext());
+  };
+}
 
 /**
  * Route-based step configuration for the FluxiBiz Multi-Page Tour System.
@@ -631,19 +664,9 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Switch seamlessly between Units, Categories, Add-ons, and Option presets without losing page context.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
  element: '[data-tour="units-info-banner"]',
  popover: {
- title: "3. Vocabulary vs Arithmetic Rule",
+ title: "2. Vocabulary vs Arithmetic Rule",
  description: "Units define measurement names & symbols (e.g. Sack, Box, Kg). Conversion ratios (e.g. how many grams per sack) are configured per item because a sack of rice and flour weigh differently.",
  side: "bottom",
  align: "start",
@@ -653,7 +676,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="units-category-list"]',
  popover: {
- title: "4. Grouped Units Directory",
+ title: "3. Grouped Units Directory",
  description: "View active units categorized by measurement type (Count, Weight, Volume, Dimension). Built-in system units are protected against deletion.",
  side: "right",
  align: "start",
@@ -663,7 +686,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-name"]',
  popover: {
- title: "5. Unit Name Input",
+ title: "4. Unit Name Input",
  description: "Enter the full title of your custom measurement unit (e.g. Sack, Tray, Can, Roll, Carton).",
  side: "top",
  align: "start",
@@ -673,7 +696,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-symbol"]',
  popover: {
- title: "6. Short Symbol",
+ title: "5. Short Symbol",
  description: "Enter a short symbol (e.g. sck, try, cn, ctn) displayed next to quantities on POS receipts and stock tables.",
  side: "top",
  align: "start",
@@ -683,7 +706,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-base-toggle"]',
  popover: {
- title: "7. Measurement Category",
+ title: "6. Measurement Category",
  description: "Select what the unit measures (Count, Weight, Volume, Dimension) to enforce accurate measurement types.",
  side: "top",
  align: "start",
@@ -693,7 +716,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-submit"]',
  popover: {
- title: "8. Save Unit Entry",
+ title: "7. Save Unit Entry",
  description: "Click to save your custom measurement unit into the system.",
  side: "top",
  align: "start",
@@ -703,7 +726,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-categories"]',
  popover: {
- title: "9. Next: Categories & Groups",
+ title: "8. Next: Categories & Groups",
  description: "Click 'Categories' in the left sidebar to organize items into menu groups!",
  side: "right",
  align: "start",
@@ -724,19 +747,9 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Quickly switch between Item Config building blocks anytime.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
  element: '[data-tour="category-structure-list"]',
  popover: {
- title: "3. Category Hierarchy Tree",
+ title: "2. Category Hierarchy Tree",
  description: "View configured categories and nested subcategories tree structure used on POS touchscreens and sales reports.",
  side: "right",
  align: "start",
@@ -746,7 +759,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-mode"]',
  popover: {
- title: "4. Category vs Subcategory Toggle",
+ title: "3. Category vs Subcategory Toggle",
  description: "Switch mode to create a top-level Category (e.g. Beverages) or a nested Subcategory (e.g. Matcha under Beverages).",
  side: "top",
  align: "start",
@@ -756,7 +769,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-name"]',
  popover: {
- title: "5. Category Title Input",
+ title: "4. Category Title Input",
  description: "Enter category title displayed on POS touchscreen grid buttons and sales summary reports.",
  side: "top",
  align: "start",
@@ -766,7 +779,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-note"]',
  popover: {
- title: "6. Description Note",
+ title: "5. Description Note",
  description: "Add optional descriptive notes explaining what items belong in this category.",
  side: "top",
  align: "start",
@@ -776,7 +789,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-submit"]',
  popover: {
- title: "7. Save Category Structure",
+ title: "6. Save Category Structure",
  description: "Click to save and publish your category structure.",
  side: "top",
  align: "start",
@@ -786,7 +799,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-add-ons"]',
  popover: {
- title: "8. Next: Product Add-ons",
+ title: "7. Next: Product Add-ons",
  description: "Click 'Add-ons' in the left sidebar to set up extra toppings and modifications!",
  side: "right",
  align: "start",
@@ -795,121 +808,359 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
- "/inventory/config/add-ons": [
- {
- element: '[data-tour="sidebar-link-add-ons"]',
- popover: {
- title: "1. Product Add-ons Module Link",
- description: "You are on the Add-ons management screen. Define extra toppings, modifications, and side choices once to share them across multiple menu items.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Tab navigation header across item building blocks.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="new-addon-btn"]',
- popover: {
- title: "3. Create Individual Add-On",
- description: "Click 'New add-on' to define individual extras (e.g. Extra Cheese, Espresso Shot, Boba Pearls) with unit inventory deduction rates.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="new-set-btn"]',
- popover: {
- title: "4. Create Add-On Group Set",
- description: "Click 'New set' to group multiple add-ons together (e.g. Choice of Toppings, Syrup Selection) with min/max selection rules.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-option-presets"]',
- popover: {
- title: "5. Next: Option Presets",
- description: "Click 'Option presets' in the left sidebar to set up reusable item option choices!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/inventory/config/add-ons": [
+    {
+      element: '[data-tour="sidebar-link-add-ons"]',
+      popover: {
+        title: "1. Add-ons Module Link",
+        description: "You are on the Add-ons management screen under Item config. Define extra toppings, modifications, and side choices once to share them across multiple menu items.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="config-tab-add-ons"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="new-addon-btn"]',
+      popover: {
+        title: "2. Create New Single Add-on",
+        description: "Click 'New add-on' to open the add-on creation modal form.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+        onNextClick: openModalOnNext('[data-tour="new-addon-btn"]', '[data-tour="addon-form-name"]'),
+      },
+    },
+    {
+      element: '[data-tour="addon-form-name"]',
+      popover: {
+        title: "3. Add-on Title / Name",
+        description: "Enter the name of the extra item or topping (e.g. Pearls, Extra Cheese, Espresso Shot, Oat Milk).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-unit"]',
+      popover: {
+        title: "4. Base Unit of Measure",
+        description: "Select the base unit in which stock for this add-on is counted (e.g. Bag, Gram, Milliliter, Piece).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-conversions"]',
+      popover: {
+        title: "5. Packaging & UOM Conversions",
+        description: "Optional: Define supplier delivery packaging conversion rates (e.g. 1 Bag holds 3000g).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-usage"]',
+      popover: {
+        title: "6. One Order Usage Rate",
+        description: "Specify how much quantity is deducted when a customer selects this add-on (e.g. 1 scoop, 30g, or 50ml).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-pricing"]',
+      popover: {
+        title: "7. Channel Pricing Note",
+        description: "Add-on selling prices are configured per sales channel in Sale Management pricing matrix.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-submit"]',
+      popover: {
+        title: "8. Save Add-on Item",
+        description: "Click 'Create add-on' to save this extra item into your master add-on library.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addons-list-section"]',
+      popover: {
+        title: "9. Add-on Library & Usage Tracking",
+        description: "This section lists all individual add-on items, their base unit, per-order consumption rate, and how many store products currently offer them.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
+        if (closeBtn) closeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="new-set-btn"]',
+      popover: {
+        title: "10. Create Add-on Group Set",
+        description: "Click 'New set' to group related add-ons together (e.g. 'Toppings' or 'Syrup Selection') into an ordered choice menu for customers.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+        onNextClick: openModalOnNext('[data-tour="new-set-btn"]', '[data-tour="set-form-name"]'),
+      },
+    },
+    {
+      element: '[data-tour="set-form-name"]',
+      popover: {
+        title: "11. Set Group Name",
+        description: "Enter a group title for these add-ons (e.g., 'Toppings', 'Sauces', or 'Choice of Sides').",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-rule"]',
+      popover: {
+        title: "12. Selection Rule ('How many')",
+        description: "Choose whether customers can select 'Any number' of add-ons or limit choices (e.g. 'Up to 3').",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-required"]',
+      popover: {
+        title: "13. Required vs Optional Switch",
+        description: "Toggle on if customers MUST pick at least one add-on before adding the item to cart, or leave off for optional toppings.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-addons"]',
+      popover: {
+        title: "14. Select Included Add-on Items",
+        description: "Check off which existing add-ons from your shared library belong to this set (e.g. Croissant, Extra Shrimp, Fried Egg).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-submit"]',
+      popover: {
+        title: "15. Save Add-on Set",
+        description: "Click 'Create set' to save this set group into your store catalog.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-sets-section"]',
+      popover: {
+        title: "16. Add-on Sets Directory & Selection Rules",
+        description: "Review all defined add-on sets, their selection rules ('Up to N choices' or 'Any number', Required vs Optional), and included add-on items.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
+        if (closeBtn) closeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-option-presets"]',
+      popover: {
+        title: "17. Next: Option Presets",
+        description: "Click 'Option presets' in the left sidebar to set up reusable item choices like Size, Color, or Sugar Level!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
 
- "/inventory/config/presets": [
- {
- element: '[data-tour="sidebar-link-option-presets"]',
- popover: {
- title: "1. Option Presets Module Link",
- description: "You are on the Option Presets screen. Predefine reusable choice lists (e.g. Small / Medium / Large, Ice Level 0% / 50% / 100%) so choices don't need to be retyped on every item.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Final building block in item configuration.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="preset-info-banner"]',
- popover: {
- title: "3. Template Master Copy Rule",
- description: "Applying a preset copies choice values onto an item — editing a preset afterwards does not rewrite existing items, preventing accidental mass changes.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="presets-list-container"]',
- popover: {
- title: "4. Master Presets Directory",
- description: "View saved choice lists (e.g. Size: Small, Medium, Large) and whether picking a choice is mandatory at checkout.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="preset-form-name"]',
- popover: {
- title: "5. Preset Name Input",
- description: "Enter preset title (e.g. Cup Size, Temperature, Sweetness Level).",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="preset-form-submit"]',
- popover: {
- title: "6. Save Option Preset",
- description: "Click to save your option preset template into your system.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/inventory/config/presets": [
+    {
+      element: '[data-tour="sidebar-link-option-presets"]',
+      popover: {
+        title: "1. Option Presets Module Link",
+        description: "You are on the Option Presets screen under Item config. Predefine reusable choice lists (e.g. Small / Medium / Large, Ice Level 0% / 50% / 100%) so choices don't need to be retyped on every item.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="config-tab-presets"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-info-banner"]',
+      popover: {
+        title: "2. Template Master Copy Rule",
+        description: "Important: Applying a preset copies choice values onto a product as a starting point. Modifying a preset later will NEVER rewrite products already using it, keeping your catalog safe from accidental bulk changes.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="config-tab-presets"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="add-preset-btn"]',
+      popover: {
+        title: "3. Create New Option Preset",
+        description: "Click 'Add preset' to open the preset builder modal form.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+        onNextClick: openModalOnNext('[data-tour="add-preset-btn"]', '[data-tour="preset-form-name"]'),
+      },
+    },
+    {
+      element: '[data-tour="preset-form-name"]',
+      popover: {
+        title: "4. Preset Name Input",
+        description: "Enter what the choice list is called (e.g. Size, Color, Temperature, Sugar Level).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-type"]',
+      popover: {
+        title: "5. Display Mode (Shown as)",
+        description: "Select how choices display to customers & cashiers: 'Pick from a list' (text buttons) or 'Colour swatches' (visual color circles).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-choices"]',
+      popover: {
+        title: "6. Custom Choice List & Photos",
+        description: "Add at least 2 choices (e.g. Small, Medium, Large). Click '+ Add choice' to add rows, attach optional photo thumbnails, or pick color swatches.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-required"]',
+      popover: {
+        title: "7. Required Selection Rule",
+        description: "Toggle Required ON if a customer or cashier MUST select one of these choices before adding the product to cart.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-submit"]',
+      popover: {
+        title: "8. Save Option Preset",
+        description: "Click '+ Add preset' to save this choice template into your master preset library.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="presets-list-container"]',
+      popover: {
+        title: "9. Master Presets Directory",
+        description: "View all configured option presets, display mode tags, required badges, and choice preview chips showing assigned values.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
+        if (closeBtn) closeBtn.click();
+      },
+    },
+  ],
 
   "/inventory/import": [
     {
@@ -1411,98 +1662,151 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     },
   ],
 
- "/employees": [
- {
- element: '[data-tour="sidebar-section-employees"]',
- popover: {
- title: "1. Employees & Staff Section",
- description: "You are in the Staff & User Management module. Manage staff accounts, assign security role permissions, and view platform audit logs.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="employees-tabs"]',
- popover: {
- title: "2. Management Tabs",
- description: "Switch between Users (staff accounts), Roles & permissions (security roles), and Audits (admin activity logs).",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="add-user"]',
- popover: {
- title: "3. Add User Account",
- description: "Create a new staff login account with name, email, phone number, gender, and security role.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="staff-search"]',
- popover: {
- title: "4. Search Staff Directory",
- description: "Search team members by full name, email address, username, or phone number.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="user-list"]',
- popover: {
- title: "5. Staff Directory Table",
- description: "View active and deactivated staff members, assigned security roles, and edit/delete account details.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tab-roles"]',
- popover: {
- title: "6. Roles & Permissions Tab",
- description: "Click here to switch to the security roles management view.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="add-role"]',
- popover: {
- title: "7. Create Custom Security Role",
- description: "Create custom roles (e.g. Cashier, Store Manager, Accountant) and configure granular module permissions.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="roles-list"]',
- popover: {
- title: "8. Roles & Permission Groups",
- description: "View configured security roles, total granted permissions, assigned staff count, and edit role checkboxes.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tab-audits"]',
- popover: {
- title: "9. Audit Logs Tab",
- description: "Switch to 'Audits' tab to inspect system administrative activity logs across your business.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/employees": [
+    {
+      element: '[data-tour="employees-tabs"]',
+      popover: {
+        title: "1. Staff & User Security Management",
+        description: "Welcome to User Management! This header bar lets you navigate between 3 core sections: Users (staff accounts), Roles & permissions (access control), and Activity (audit logs).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="add-user"]',
+      popover: {
+        title: "2. Create New Staff Account",
+        description: "Click 'Add user' to register a new employee account. Configure their full name, email address, phone number, login credentials, and assign their starting security role.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="staff-filters"]',
+      popover: {
+        title: "3. Search & Filter Staff Directory",
+        description: "Quickly locate team members by searching full names, emails, or usernames. Use dropdown filters to isolate staff by assigned security role or account status (Active vs Disabled).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="user-list"]',
+      popover: {
+        title: "4. Staff Directory & Account Actions",
+        description: "This table displays all registered staff accounts. Click the action buttons on any row to edit user profiles, change assigned roles, toggle access active state, or reset passwords.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="tab-roles"]',
+      popover: {
+        title: "5. Transition to Security Roles & Permissions",
+        description: "Next, let's explore Security Roles! Clicking 'Roles & permissions' switches to the security template configuration view.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="add-role"]',
+      popover: {
+        title: "6. Create Custom Security Role",
+        description: "Click 'Create role' to define a new job role (e.g. Cashier, Store Manager, Shift Supervisor, Inventory Clerk). Set custom role names and granular module permissions.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="roles-search"]',
+      popover: {
+        title: "7. Search Security Roles",
+        description: "Search configured security roles by role title or permission keywords to quickly locate and inspect role definitions.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="roles-list"]',
+      popover: {
+        title: "8. Roles Directory & Granular Permission Matrix",
+        description: "View all defined security roles, total active users assigned to each role, and total granted permissions. Click edit to customize specific action rights (e.g., POS sales, inventory edits, discount overrides).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="tab-audits"]',
+      popover: {
+        title: "9. Transition to Activity Audit Trail",
+        description: "Finally, let's look at Security Audit Activity! Clicking 'Activity' switches to real-time administrative event tracking across your business.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-audits"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="audit-filters"]',
+      popover: {
+        title: "10. Filter Activity & Audit Trails",
+        description: "Filter recorded activity logs by search keywords, action categories (Login, Role Edit, Price Change, Stock Adjustment), or custom date ranges.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-audits"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="audit-logs"]',
+      popover: {
+        title: "11. Detailed Security Audit Log",
+        description: "Complete immutable audit trail showing exact timestamps, acting staff member, IP address, action performed, and detailed before-and-after data changes.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-audits"]') as HTMLButtonElement)?.click();
+      },
+    },
+  ],
 
  "/business/profile": [
  {
