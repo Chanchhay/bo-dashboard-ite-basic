@@ -35,6 +35,7 @@ function revealForTour(element: Element | undefined) {
 }
 
 const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
+  "/inventory": "/inventory/stock",
   "/inventory/stock": "/inventory/stock/movements",
   "/inventory/stock/movements": "/inventory/stock/in",
   "/inventory/stock/in": "/inventory/stock/out",
@@ -45,7 +46,9 @@ const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
   "/inventory/config/add-ons": "/inventory/config/presets",
   "/dashboard": "/analytics",
   "/analytics": "/prediction",
-  "/sales": "/sales/pricing",
+  "/sales": "/sales/pay-later",
+  "/sales/orders": "/sales/pay-later",
+  "/sales/pay-later": "/sales/pricing",
   "/sales/pricing": "/sales/customers",
   "/sales/customers": "/sales/discounts",
   "/sales/discounts": "/sales/membership-types",
@@ -53,6 +56,7 @@ const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
   "/sales/taxes": "/sales/sessions",
   "/sales/sessions": "/sales/cash-register",
   "/sales/cash-register": "/pos",
+  "/pos": "/inventory",
   "/employees": "/business/profile",
   "/business/profile": "/business/currency",
   "/business/currency": "/business/payments",

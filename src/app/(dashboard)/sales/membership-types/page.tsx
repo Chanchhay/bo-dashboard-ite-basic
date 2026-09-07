@@ -470,7 +470,7 @@ export default function MembershipTypesPage() {
                     )}
 
                     <div className="space-y-4 py-2">
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="member-type-form-name">
                             <Label htmlFor="typeName">Type Name *</Label>
                             <Input
                                 id="typeName"
@@ -480,7 +480,7 @@ export default function MembershipTypesPage() {
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="member-type-form-discount">
                             <Label htmlFor="discount">Assign Discount Rule</Label>
                             <Select
                                 value={discountId || "NONE"}
@@ -513,7 +513,7 @@ export default function MembershipTypesPage() {
                             </p>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="member-type-form-remark">
                             <Label htmlFor="remark">Remark / Notes</Label>
                             <Textarea
                                 id="remark"
@@ -526,10 +526,11 @@ export default function MembershipTypesPage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                        <Button data-tour="member-type-form-cancel" variant="outline" onClick={() => setIsDialogOpen(false)}>
                             Cancel
                         </Button>
                         <Button
+                            data-tour="member-type-form-submit"
                             onClick={handleSave}
                             disabled={isCreating || isUpdating}
                             className="bg-primary hover:bg-primary/90 text-white"

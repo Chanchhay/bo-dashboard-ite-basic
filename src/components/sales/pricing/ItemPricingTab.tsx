@@ -157,6 +157,7 @@ function ChannelScopeChip({
     return (
         <button
             type="button"
+            data-tour={`pricing-channel-chip-${channel.code}`}
             onClick={onSelect}
             aria-pressed={active}
             className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 sm:py-2 text-xs sm:text-sm font-normal transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
@@ -734,6 +735,7 @@ export function ItemPricingTab() {
                 <div data-tour="pricing-scope-selector" className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
                     <button
                         type="button"
+                        data-tour="pricing-channel-chip-BASE"
                         onClick={() => setScope(baseScope)}
                         aria-pressed={isBase}
                         className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-normal transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
@@ -836,7 +838,7 @@ export function ItemPricingTab() {
                     {/* The rule sits under the search because it only ever applies
                         to what the search left showing — and on its own line so the
                         row above stays four things wide however narrow the window. */}
-                    <div className="mt-2.5 sm:mt-3 flex flex-col gap-2.5 border-t border-border/50 pt-2.5 sm:pt-3">
+                    <div data-tour="pricing-channel-overrides" className="mt-2.5 sm:mt-3 flex flex-col gap-2.5 border-t border-border/50 pt-2.5 sm:pt-3">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                             <div className="flex items-center justify-between sm:justify-start gap-2">
                                 <p className="text-xs sm:text-sm font-semibold text-muted-foreground shrink-0 mr-1">
@@ -988,7 +990,7 @@ export function ItemPricingTab() {
             ) : null}
 
             {/* The catalogue. */}
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <section data-tour="pricing-table" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 {/* The counts live on the pagination bar below, so the heading
                     only has to say which catalogue this is. */}
                 <div className="flex flex-wrap items-center gap-2 border-b border-border p-4 sm:px-5">
