@@ -2264,10 +2264,60 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="settings-profile-form"]',
       popover: {
-        title: "1. Your Profile",
-        description: "Your picture, name and account details. These identify you on receipts, stock movements and the audit log, so keep them accurate.",
+        title: "1. Settings Overview",
+        description: "Welcome to your User Settings! Manage your profile photo, account information, device notification preferences, and personal details in one place.",
         side: "top",
         align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-avatar-section"]',
+      popover: {
+        title: "2. Profile Picture & Avatar",
+        description: "Upload a personalized profile photo or remove your existing picture. Your avatar identifies you across transaction receipts, stock movement logs, and audit trails.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-account-info"]',
+      popover: {
+        title: "3. Account Credentials & Security Role",
+        description: "Review your system-assigned Username, registered Email address, and Access Role. Account roles and security levels are managed by your store administrator.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-notifications-card"]',
+      popover: {
+        title: "4. Device Push Notifications",
+        description: "Enable or disable web push alerts on this device to receive instant notifications for completed sales, low-stock warnings, and incoming orders.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-personal-form"]',
+      popover: {
+        title: "5. Personal Details Form",
+        description: "Update your First Name, Last Name, Phone Number, Gender preference, and Physical Address to keep your business contact records accurate.",
+        side: "left",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-form-actions"]',
+      popover: {
+        title: "6. Save or Revert Changes",
+        description: "Click 'Save changes' to commit your profile updates live to the database, or 'Cancel' to reset form fields back to their original state.",
+        side: "top",
+        align: "end",
         popoverClass: "fluxibiz-tour-popover",
       },
     },

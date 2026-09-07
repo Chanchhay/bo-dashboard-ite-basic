@@ -330,7 +330,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     return (
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="flex flex-col gap-5">
-                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section
+                    data-tour="settings-avatar-section"
+                    className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+                >
                     <ImagePicker
                         rules={profilePictureRules}
                         disabled={isSaving}
@@ -423,7 +426,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     </div>
                 </section>
 
-                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section
+                    data-tour="settings-account-info"
+                    className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+                >
                     <h2 className="text-base font-bold text-[#161d16] dark:text-[#f8fafc]">
                         Account Information
                     </h2>
@@ -453,6 +459,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             </aside>
 
             <form
+                data-tour="settings-personal-form"
                 ref={formRef}
                 onSubmit={handleSubmit}
                 noValidate
@@ -591,7 +598,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
                 </div>
 
-                <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] dark:border-[#242937] pt-6 sm:flex-row sm:items-center">
+                <div
+                    data-tour="settings-form-actions"
+                    className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] dark:border-[#242937] pt-6 sm:flex-row sm:items-center"
+                >
                     <div className="flex-1" />
                     <Button
                         type="button"
