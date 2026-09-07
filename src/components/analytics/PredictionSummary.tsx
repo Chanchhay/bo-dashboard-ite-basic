@@ -58,7 +58,7 @@ export function PredictionSummary({
     }
 
     return (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div data-tour="prediction-summary" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <PredictionTile
                 icon={<Flame className="size-6 stroke-[2.5]" />}
                 colorClass="bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 border-orange-500/25"

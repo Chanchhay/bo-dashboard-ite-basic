@@ -44,6 +44,7 @@ const NEXT_TOUR_ROUTE_MAP: Record<string, string> = {
   "/inventory/config/groups": "/inventory/config/add-ons",
   "/inventory/config/add-ons": "/inventory/config/presets",
   "/dashboard": "/analytics",
+  "/analytics": "/prediction",
   "/sales": "/sales/pricing",
   "/sales/pricing": "/sales/customers",
   "/sales/customers": "/sales/discounts",

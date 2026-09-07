@@ -1480,18 +1480,68 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="prediction-controls"]',
       popover: {
-        title: "1. Filter & Period",
-        description: "Narrow the forecast to one product, and choose the period it is calculated over. Everything below re-reads from your real sales history.",
+        title: "1. Sales-Based Forecasting",
+        description: "This page turns your recent sales history into forward-looking numbers — nothing here is typed in manually. Everything below recalculates the moment you change the product filter or the period.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
     },
     {
-      element: '[data-tour="prediction-group"]',
+      element: '[data-tour="prediction-search"]',
       popover: {
-        title: "2. What to Expect",
-        description: "Each group opens to show the items behind it — what is selling faster, what is slowing down, and what is close to running out. Use it to decide what to reorder next.",
+        title: "2. Filter by Product",
+        description: "Type a product name to narrow every table below to just that item — useful when you only want to check on one product instead of scrolling the full list.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-period-toggle"]',
+      popover: {
+        title: "3. This Week vs This Month",
+        description: "Switch the window the forecast is calculated over. A shorter window reacts faster to a recent spike; a longer one smooths out day-to-day noise — pick whichever matches how often you actually reorder.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-summary"]',
+      popover: {
+        title: "4. Headline Numbers",
+        description: "Four totals at a glance: how many products are trending up, how many risk running out, how many are going slow-moving, and a revenue range forecast for the period. The tables below spell out exactly which products sit behind each count.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group-rising"]',
+      popover: {
+        title: "5. Predicted to Sell More",
+        description: "Products showing increased demand versus the previous period. Click the row to expand it and see expected demand in units alongside the trend for each product.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group-stockout"]',
+      popover: {
+        title: "6. Stock Alert — May Run Out",
+        description: "Products whose current stock won't cover expected demand at the recent rate of sale. Expand it to see current stock and an estimated number of days until each one runs out, so you know what to reorder first.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group-restock"]',
+      popover: {
+        title: "7. Restock Recommendation",
+        description: "The recommended reorder quantity for each product — already worked out for you from the forecast, nothing to calculate yourself. Click 'Restock' on any row to jump straight into Stock In with that item preselected.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -2113,121 +2163,341 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
- "/dashboard": [
- {
- element: '[data-tour="sidebar-section-dashboard"]',
- popover: {
- title: "1. Dashboard Section",
- description: "You are on the Overview Dashboard screen. Monitor live store metrics, real-time catalog figures, channel revenue, and profit margins.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-overview"]',
- popover: {
- title: "2. Live Inventory Figures",
- description: "Central overview card displaying total product catalog counts, active items, total units in stock, and low stock alerts.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-stats"]',
- popover: {
- title: "3. Key KPI Counters",
- description: "Real-time stat cards monitoring Total Items in catalog, Active Items published for sale, Total Units in warehouse, and Low Stock Threshold alerts.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-sales-chart"]',
- popover: {
- title: "4. Sales Channel Performance Chart",
- description: "Interactive revenue chart comparing sales across physical POS, Online Store, Mobile App, and Marketplace channels.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-channel-cards"]',
- popover: {
- title: "5. Channel Revenue KPIs",
- description: "View total revenue per channel. Click any channel card (POS, Online, Mobile, Marketplace) to toggle line curves and compare sales trends.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-stock-on-hand"]',
- popover: {
- title: "6. Stock On Hand Leaderboard",
- description: "Displays your top six best-stocked inventory items with visual quantity balance bars.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-profit"]',
- popover: {
- title: "7. Next: Profit Analytics",
- description: "Click 'Profit' in the left sidebar to view net profit margins and channel cost breakdowns!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/dashboard": [
+    {
+      element: '[data-tour="sidebar-section-dashboard"]',
+      popover: {
+        title: "1. Overview Dashboard Module Link",
+        description: "You are on the Overview Dashboard screen. Monitor live business performance, real-time catalog figures, channel revenue, and multi-format report exports.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-reports-export"]',
+      popover: {
+        title: "2. Executive Multi-Format Report Export",
+        description: "Export full store reports in 3 formats: High-resolution visual PDF, formatted Excel (.xls) with embedded data tables, or Word document (.docx) executive summaries.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-stats"]',
+      popover: {
+        title: "3. Key Financial & Catalog KPI Counters",
+        description: "Real-time stat cards monitoring Total Revenue collected across sales, Total Items in catalog, and Total Product Categories.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-channel-cards"]',
+      popover: {
+        title: "4. Sales Channel Donut Chart",
+        description: "Percentage and revenue distribution donut chart comparing physical POS, Web Store, Telegram, and Messenger storefronts.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-cumulative-profit"]',
+      popover: {
+        title: "5. Cumulative Profit & Revenue Trend Chart",
+        description: "Interactive trend chart graphing cumulative profit growth over time. Use the top dropdown to toggle Day, Week, or Month groupings.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-item-vector"]',
+      popover: {
+        title: "6. Top Item Type Demand Bar Chart",
+        description: "Vertical bar chart visualizing sales volume and revenue across item categories and product types.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-stock-on-hand"]',
+      popover: {
+        title: "7. Stock Inventory & Balance Leaderboard",
+        description: "Horizontal distribution bars displaying stock levels and inventory counts per item. Hover over any bar to inspect total revenue vs quantity on hand.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-recent-orders"]',
+      popover: {
+        title: "8. Live Recent Orders Stream & Search",
+        description: "Real-time transaction log displaying Order Reference, Customer Avatar & Name, Product, Amount, and Order Status. Filter by keyword or click Export to download CSV.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-best-selling"]',
+      popover: {
+        title: "9. Best Selling Products Ranking",
+        description: "Leaderboard ranking your top products by revenue generated and total units sold. Includes instant search filter and CSV export.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-profit"]',
+      popover: {
+        title: "10. Next: Profit & Prediction Analytics",
+        description: "Click 'Next' (or 'Profit' in sidebar) to continue the tour onto the Profit Statement and Demand Prediction screens!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
 
- "/analytics": [
- {
- element: '[data-tour="sidebar-link-profit"]',
- popover: {
- title: "1. Profit Module Link",
- description: "You are on the Profit & Analytics screen under Dashboard. Monitor real-time net profit margins, cost of goods sold (COGS), and sales channel breakdowns.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="profit-range-select"]',
- popover: {
- title: "2. Date Period Filter",
- description: "Filter profit calculations by Today, This Week, This Month, This Year, or All Time.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="profit-kpi-grid"]',
- popover: {
- title: "3. Net Profit KPI Tiles",
- description: "Real-time summary tiles displaying Gross Revenue, Cost of Goods Sold (actual batch cost recorded at each sale), Net Profit kept, and Margin %.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="profit-channel-breakdown"]',
- popover: {
- title: "4. Channel Profit Breakdown Table",
- description: "Comprehensive breakdown table showing Sales count, Gross Revenue, COGS, Net Profit, and Margin % across POS, Online Store, Telegram, and Messenger.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/analytics": [
+    {
+      element: '[data-tour="profit-view-tabs"]',
+      popover: {
+        title: "1. Profit Analytics Overview",
+        description: "Welcome to Profit Analytics! This top tab bar lets you navigate between 3 core analytical views: Statement (P&L table by period), By channel (POS, Storefront, Messenger, Telegram), and Sale profit calculator (predictive margin modeling).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-range-select"]',
+      popover: {
+        title: "2. Date Period & Granularity Filter",
+        description: "Filter P&L figures by date range (Today, Last 30 Days, Month, Year, All Time) and view breakdowns daily, weekly, or monthly. All calculations update dynamically from real sales history.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-statement-table"]',
+      popover: {
+        title: "3. Detailed P&L Statement Table",
+        description: "Full financial breakdown per period: Sales count, Items sold, Gross sales, Discounts, Tax collected, Net Revenue, Cost of Goods (FIFO purchase batch cost), Gross Profit, and Net Margin %.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-item-breakdown"]',
+      popover: {
+        title: "4. Item Profit Breakdown",
+        description: "Inspect revenue, unit stock cost, profit, and margin generated per individual menu product.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-tab-channels"]',
+      popover: {
+        title: "5. Transition to Channel Profit Breakdown",
+        description: "Next, let's explore Channel Analytics! Clicking 'By channel' displays revenue, COGS stock cost, net profit, and margin performance split out across all sales channels.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-channels"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-kpi-grid"]',
+      popover: {
+        title: "6. Channel Profitability KPI Cards",
+        description: "Summary stat cards displaying Total Revenue, Cost of Goods, Net Profit, and Profit Margin % across your active sales channels.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-channels"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-channel-breakdown"]',
+      popover: {
+        title: "7. Where It Came From (Sales Channel Table)",
+        description: "Revenue, Cost, Profit, and Margin figures split out per channel — Point of Sale, Online Store, Messenger, and Telegram storefronts.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-channels"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-tab-calculator"]',
+      popover: {
+        title: "8. Transition to Sale Profit Calculator",
+        description: "Finally, let's explore the Profit Calculator! Clicking 'Sale profit calculator' opens predictive price and margin forecasting tools.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-mode-per-item"]',
+      popover: {
+        title: "9. Method 1: Margin Per Item Modeling",
+        description: "First, let's explore Method 1! 'Margin per item' allows you to experiment with individual product margin percentages and predict optimal selling prices.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-per-item"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-kpi-grid"]',
+      popover: {
+        title: "10. Per-Item Predictive KPI Projections",
+        description: "Real-time summary cards displaying Total Revenue, Cost of Goods, Gross Profit, and Gross Margin % calculated from your custom item margins.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-per-item"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-item-table"]',
+      popover: {
+        title: "11. Item Pricing & Custom Margin Matrix",
+        description: "Search items, adjust individual product margin percentages, bulk-apply profit margins to all items, and view predicted selling prices & gross profits. Includes CSV export.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-per-item"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-mode-business-target"]',
+      popover: {
+        title: "12. Method 2: Transition to Business Target Scaling",
+        description: "Next, let's explore Method 2! 'Business target' automatically recalculates target selling prices across your entire inventory to hit a target gross margin percentage.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-target-input"]',
+      popover: {
+        title: "13. Target Gross Margin Controller",
+        description: "Enter your business target gross margin percentage (e.g. 50%). The system automatically scales target prices for every catalog item to achieve this goal.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-kpi-grid"]',
+      popover: {
+        title: "14. Target Revenue & Profit Projections",
+        description: "Updated KPI cards showing Target Revenue, Cost of Goods, Target Gross Profit, and Target Gross Margin % at your desired business scale.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-item-table"]',
+      popover: {
+        title: "15. Business Target Pricing Predictions Table",
+        description: "View current price vs target price recommendations and target margins for every inventory item to hit your target profit. Includes CSV export.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-operating-expenses"]',
+      popover: {
+        title: "16. Operating Expenses & Estimated Net Profit",
+        description: "Deduct monthly overhead (rent, payroll, utilities) from gross profit to calculate your real estimated Net Profit and Net Margin percentage.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+      },
+    },
+  ],
 
  "/notifications": [
  {

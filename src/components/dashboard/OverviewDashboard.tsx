@@ -840,7 +840,7 @@ export function OverviewDashboard() {
     return (
         <div id="dashboard-container" data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
             {/* Dashboard Actions Bar: Export PDF, Export Excel Report, Export Docs */}
-            <div data-pdf-ignore="true" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+            <div data-pdf-ignore="true" data-tour="dashboard-reports-export" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
                 <div>
                     <h3 className="text-sm font-bold text-foreground">Dashboard Export & Reports</h3>
                     <p className="text-xs text-muted-foreground">Export visual PDF, formatted Excel (.xls) with embedded charts & tables, or a Word (.doc) report</p>
@@ -1057,7 +1057,7 @@ export function OverviewDashboard() {
             {/* Recent Orders & Best Selling Products Tables Row */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
                 {/* LEFT TABLE: Recent Orders */}
-                <Card className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-7">
+                <Card data-tour="dashboard-recent-orders" className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-7">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
                             <CardTitle className="text-base sm:text-lg font-bold text-foreground">
@@ -1194,7 +1194,7 @@ export function OverviewDashboard() {
                 </Card>
 
                 {/* RIGHT TABLE: Best Selling Products */}
-                <Card className="h-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-5">
+                <Card data-tour="dashboard-best-selling" className="h-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-5">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
                             <CardTitle className="text-base sm:text-lg font-bold text-foreground">
