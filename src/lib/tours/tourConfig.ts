@@ -1,4 +1,37 @@
-import type { DriveStep } from "driver.js";
+import type { DriverHook, DriveStep } from "driver.js";
+
+function waitForElement(selector: string, timeout = 2000): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.querySelector(selector)) {
+      resolve();
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(selector)) {
+        observer.disconnect();
+        resolve();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, timeout);
+  });
+}
+
+/**
+ * For a step that highlights a "New X" button: keep the button on screen,
+ * untouched, until the visitor actually clicks Next — then open the modal
+ * and only advance once its first field has mounted, so the following step
+ * never races the dialog's render.
+ */
+function openModalOnNext(buttonSelector: string, firstFieldSelector: string): DriverHook {
+  return (_element, _step, opts) => {
+    (document.querySelector(buttonSelector) as HTMLButtonElement | null)?.click();
+    void waitForElement(firstFieldSelector).then(() => opts.driver.moveNext());
+  };
+}
 
 /**
  * Route-based step configuration for the FluxiBiz Multi-Page Tour System.
@@ -143,7 +176,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  element: '[data-tour="item-actions"]',
  popover: {
  title: "8. Product Actions",
- description: "Preview customer storefront view (👁️), edit product pricing & stock (✏️), or remove items (🗑️).",
+ description: "Preview customer storefront view, edit product pricing and stock, or remove items.",
  side: "left",
  align: "center",
  popoverClass: "fluxibiz-tour-popover",
@@ -631,19 +664,9 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Switch seamlessly between Units, Categories, Add-ons, and Option presets without losing page context.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
  element: '[data-tour="units-info-banner"]',
  popover: {
- title: "3. Vocabulary vs Arithmetic Rule",
+ title: "2. Vocabulary vs Arithmetic Rule",
  description: "Units define measurement names & symbols (e.g. Sack, Box, Kg). Conversion ratios (e.g. how many grams per sack) are configured per item because a sack of rice and flour weigh differently.",
  side: "bottom",
  align: "start",
@@ -653,7 +676,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="units-category-list"]',
  popover: {
- title: "4. Grouped Units Directory",
+ title: "3. Grouped Units Directory",
  description: "View active units categorized by measurement type (Count, Weight, Volume, Dimension). Built-in system units are protected against deletion.",
  side: "right",
  align: "start",
@@ -663,7 +686,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-name"]',
  popover: {
- title: "5. Unit Name Input",
+ title: "4. Unit Name Input",
  description: "Enter the full title of your custom measurement unit (e.g. Sack, Tray, Can, Roll, Carton).",
  side: "top",
  align: "start",
@@ -673,7 +696,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-symbol"]',
  popover: {
- title: "6. Short Symbol",
+ title: "5. Short Symbol",
  description: "Enter a short symbol (e.g. sck, try, cn, ctn) displayed next to quantities on POS receipts and stock tables.",
  side: "top",
  align: "start",
@@ -683,7 +706,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-base-toggle"]',
  popover: {
- title: "7. Measurement Category",
+ title: "6. Measurement Category",
  description: "Select what the unit measures (Count, Weight, Volume, Dimension) to enforce accurate measurement types.",
  side: "top",
  align: "start",
@@ -693,7 +716,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="unit-form-submit"]',
  popover: {
- title: "8. Save Unit Entry",
+ title: "7. Save Unit Entry",
  description: "Click to save your custom measurement unit into the system.",
  side: "top",
  align: "start",
@@ -703,7 +726,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-categories"]',
  popover: {
- title: "9. Next: Categories & Groups",
+ title: "8. Next: Categories & Groups",
  description: "Click 'Categories' in the left sidebar to organize items into menu groups!",
  side: "right",
  align: "start",
@@ -724,19 +747,9 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  },
  {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Quickly switch between Item Config building blocks anytime.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
  element: '[data-tour="category-structure-list"]',
  popover: {
- title: "3. Category Hierarchy Tree",
+ title: "2. Category Hierarchy Tree",
  description: "View configured categories and nested subcategories tree structure used on POS touchscreens and sales reports.",
  side: "right",
  align: "start",
@@ -746,7 +759,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-mode"]',
  popover: {
- title: "4. Category vs Subcategory Toggle",
+ title: "3. Category vs Subcategory Toggle",
  description: "Switch mode to create a top-level Category (e.g. Beverages) or a nested Subcategory (e.g. Matcha under Beverages).",
  side: "top",
  align: "start",
@@ -756,7 +769,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-name"]',
  popover: {
- title: "5. Category Title Input",
+ title: "4. Category Title Input",
  description: "Enter category title displayed on POS touchscreen grid buttons and sales summary reports.",
  side: "top",
  align: "start",
@@ -766,7 +779,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-note"]',
  popover: {
- title: "6. Description Note",
+ title: "5. Description Note",
  description: "Add optional descriptive notes explaining what items belong in this category.",
  side: "top",
  align: "start",
@@ -776,7 +789,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="category-form-submit"]',
  popover: {
- title: "7. Save Category Structure",
+ title: "6. Save Category Structure",
  description: "Click to save and publish your category structure.",
  side: "top",
  align: "start",
@@ -786,7 +799,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="sidebar-link-add-ons"]',
  popover: {
- title: "8. Next: Product Add-ons",
+ title: "7. Next: Product Add-ons",
  description: "Click 'Add-ons' in the left sidebar to set up extra toppings and modifications!",
  side: "right",
  align: "start",
@@ -795,128 +808,376 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
- "/inventory/config/add-ons": [
- {
- element: '[data-tour="sidebar-link-add-ons"]',
- popover: {
- title: "1. Product Add-ons Module Link",
- description: "You are on the Add-ons management screen. Define extra toppings, modifications, and side choices once to share them across multiple menu items.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Tab navigation header across item building blocks.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="new-addon-btn"]',
- popover: {
- title: "3. Create Individual Add-On",
- description: "Click 'New add-on' to define individual extras (e.g. Extra Cheese, Espresso Shot, Boba Pearls) with unit inventory deduction rates.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="new-set-btn"]',
- popover: {
- title: "4. Create Add-On Group Set",
- description: "Click 'New set' to group multiple add-ons together (e.g. Choice of Toppings, Syrup Selection) with min/max selection rules.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-option-presets"]',
- popover: {
- title: "5. Next: Option Presets",
- description: "Click 'Option presets' in the left sidebar to set up reusable item option choices!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/inventory/config/add-ons": [
+    {
+      element: '[data-tour="sidebar-link-add-ons"]',
+      popover: {
+        title: "1. Add-ons Module Link",
+        description: "You are on the Add-ons management screen under Item config. Define extra toppings, modifications, and side choices once to share them across multiple menu items.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="config-tab-add-ons"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="new-addon-btn"]',
+      popover: {
+        title: "2. Create New Single Add-on",
+        description: "Click 'New add-on' to open the add-on creation modal form.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+        onNextClick: openModalOnNext('[data-tour="new-addon-btn"]', '[data-tour="addon-form-name"]'),
+      },
+    },
+    {
+      element: '[data-tour="addon-form-name"]',
+      popover: {
+        title: "3. Add-on Title / Name",
+        description: "Enter the name of the extra item or topping (e.g. Pearls, Extra Cheese, Espresso Shot, Oat Milk).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-unit"]',
+      popover: {
+        title: "4. Base Unit of Measure",
+        description: "Select the base unit in which stock for this add-on is counted (e.g. Bag, Gram, Milliliter, Piece).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-conversions"]',
+      popover: {
+        title: "5. Packaging & UOM Conversions",
+        description: "Optional: Define supplier delivery packaging conversion rates (e.g. 1 Bag holds 3000g).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-usage"]',
+      popover: {
+        title: "6. One Order Usage Rate",
+        description: "Specify how much quantity is deducted when a customer selects this add-on (e.g. 1 scoop, 30g, or 50ml).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-pricing"]',
+      popover: {
+        title: "7. Channel Pricing Note",
+        description: "Add-on selling prices are configured per sales channel in Sale Management pricing matrix.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-form-submit"]',
+      popover: {
+        title: "8. Save Add-on Item",
+        description: "Click 'Create add-on' to save this extra item into your master add-on library.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-addon-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="addon-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addons-list-section"]',
+      popover: {
+        title: "9. Add-on Library & Usage Tracking",
+        description: "This section lists all individual add-on items, their base unit, per-order consumption rate, and how many store products currently offer them.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
+        if (closeBtn) closeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="new-set-btn"]',
+      popover: {
+        title: "10. Create Add-on Group Set",
+        description: "Click 'New set' to group related add-ons together (e.g. 'Toppings' or 'Syrup Selection') into an ordered choice menu for customers.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+        onNextClick: openModalOnNext('[data-tour="new-set-btn"]', '[data-tour="set-form-name"]'),
+      },
+    },
+    {
+      element: '[data-tour="set-form-name"]',
+      popover: {
+        title: "11. Set Group Name",
+        description: "Enter a group title for these add-ons (e.g., 'Toppings', 'Sauces', or 'Choice of Sides').",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-rule"]',
+      popover: {
+        title: "12. Selection Rule ('How many')",
+        description: "Choose whether customers can select 'Any number' of add-ons or limit choices (e.g. 'Up to 3').",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-required"]',
+      popover: {
+        title: "13. Required vs Optional Switch",
+        description: "Toggle on if customers MUST pick at least one add-on before adding the item to cart, or leave off for optional toppings.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-addons"]',
+      popover: {
+        title: "14. Select Included Add-on Items",
+        description: "Check off which existing add-ons from your shared library belong to this set (e.g. Croissant, Extra Shrimp, Fried Egg).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="set-form-submit"]',
+      popover: {
+        title: "15. Save Add-on Set",
+        description: "Click 'Create set' to save this set group into your store catalog.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="new-set-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="set-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="addon-sets-section"]',
+      popover: {
+        title: "16. Add-on Sets Directory & Selection Rules",
+        description: "Review all defined add-on sets, their selection rules ('Up to N choices' or 'Any number', Required vs Optional), and included add-on items.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
+        if (closeBtn) closeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-option-presets"]',
+      popover: {
+        title: "17. Next: Option Presets",
+        description: "Click 'Option presets' in the left sidebar to set up reusable item choices like Size, Color, or Sugar Level!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
 
- "/inventory/config/presets": [
- {
- element: '[data-tour="sidebar-link-option-presets"]',
- popover: {
- title: "1. Option Presets Module Link",
- description: "You are on the Option Presets screen. Predefine reusable choice lists (e.g. Small / Medium / Large, Ice Level 0% / 50% / 100%) so choices don't need to be retyped on every item.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="inventory-config-tabs"]',
- popover: {
- title: "2. Config Building Blocks Bar",
- description: "Final building block in item configuration.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="preset-info-banner"]',
- popover: {
- title: "3. Template Master Copy Rule",
- description: "Applying a preset copies choice values onto an item — editing a preset afterwards does not rewrite existing items, preventing accidental mass changes.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="presets-list-container"]',
- popover: {
- title: "4. Master Presets Directory",
- description: "View saved choice lists (e.g. Size: Small, Medium, Large) and whether picking a choice is mandatory at checkout.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="preset-form-name"]',
- popover: {
- title: "5. Preset Name Input",
- description: "Enter preset title (e.g. Cup Size, Temperature, Sweetness Level).",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="preset-form-submit"]',
- popover: {
- title: "6. Save Option Preset",
- description: "Click to save your option preset template into your system.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/inventory/config/presets": [
+    {
+      element: '[data-tour="sidebar-link-option-presets"]',
+      popover: {
+        title: "1. Option Presets Module Link",
+        description: "You are on the Option Presets screen under Item config. Predefine reusable choice lists (e.g. Small / Medium / Large, Ice Level 0% / 50% / 100%) so choices don't need to be retyped on every item.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="config-tab-presets"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-info-banner"]',
+      popover: {
+        title: "2. Template Master Copy Rule",
+        description: "Important: Applying a preset copies choice values onto a product as a starting point. Modifying a preset later will NEVER rewrite products already using it, keeping your catalog safe from accidental bulk changes.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="config-tab-presets"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="add-preset-btn"]',
+      popover: {
+        title: "3. Create New Option Preset",
+        description: "Click 'Add preset' to open the preset builder modal form.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+        onNextClick: openModalOnNext('[data-tour="add-preset-btn"]', '[data-tour="preset-form-name"]'),
+      },
+    },
+    {
+      element: '[data-tour="preset-form-name"]',
+      popover: {
+        title: "4. Preset Name Input",
+        description: "Enter what the choice list is called (e.g. Size, Color, Temperature, Sugar Level).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-type"]',
+      popover: {
+        title: "5. Display Mode (Shown as)",
+        description: "Select how choices display to customers & cashiers: 'Pick from a list' (text buttons) or 'Colour swatches' (visual color circles).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-choices"]',
+      popover: {
+        title: "6. Custom Choice List & Photos",
+        description: "Add at least 2 choices (e.g. Small, Medium, Large). Click '+ Add choice' to add rows, attach optional photo thumbnails, or pick color swatches.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-required"]',
+      popover: {
+        title: "7. Required Selection Rule",
+        description: "Toggle Required ON if a customer or cashier MUST select one of these choices before adding the product to cart.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="preset-form-submit"]',
+      popover: {
+        title: "8. Save Option Preset",
+        description: "Click '+ Add preset' to save this choice template into your master preset library.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const btn = document.querySelector('[data-tour="add-preset-btn"]') as HTMLButtonElement;
+        if (btn && !document.querySelector('[data-tour="preset-form-name"]')) btn.click();
+      },
+    },
+    {
+      element: '[data-tour="presets-list-container"]',
+      popover: {
+        title: "9. Master Presets Directory",
+        description: "View all configured option presets, display mode tags, required badges, and choice preview chips showing assigned values.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
+        if (closeBtn) closeBtn.click();
+      },
+    },
+  ],
 
   "/inventory/import": [
     {
+      element: '[data-tour="sidebar-link-new-import"]',
+      popover: {
+        title: "1. Import Data → New Import",
+        description: "This page lives under 'Import data' in the sidebar. Use it to bring your items, categories, or opening stock in from a spreadsheet in one pass instead of typing them in by hand. Nothing changes in your catalog until the very last stage.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
       element: '[data-tour="import-stepper"]',
       popover: {
-        title: "1. The Five Steps",
-        description: "Choose what you are importing, upload the file, match its columns, let it be checked, then review. Nothing is written to FluxiBiz until the final step.",
+        title: "2. Six Stages — Nothing Saved Early",
+        description: "Choose → Upload → Match columns → Check data → Review → Import. A finished stage turns green and stays clickable, so you can jump back to fix something — but you cannot skip ahead. Only the final 'Import' stage actually writes anything into FluxiBiz.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -925,8 +1186,8 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-choose-type"]',
       popover: {
-        title: "2. What Are You Importing?",
-        description: "Pick Items, Categories or Stock. This decides which columns the next step expects, so choose before you upload. — [Required]",
+        title: "3. What Are You Importing?",
+        description: "Pick Items, Categories, or Opening stock. — [Required] — This decides which spreadsheet columns the next steps expect, and it cannot be changed once a file is uploaded, so get it right before continuing.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -935,8 +1196,28 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-panel"]',
       popover: {
-        title: "3. The Working Area",
-        description: "Each step appears here in turn — the file drop zone, the column matcher, the check results, then the review table listing every row that will be added or changed.",
+        title: "4. Upload: CSV or Excel",
+        description: "Drag your file here or use 'Choose file'. Accepts .csv and .xlsx, up to 10 MB, and the first row must be your column headings. Not sure of the layout? Download one of the sample templates shown here — a file built from it arrives already matched in the next step.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-panel"]',
+      popover: {
+        title: "5. Match Your Columns",
+        description: "Line up each column from your file with a FluxiBiz field. Columns matched automatically are marked with a sparkle icon. Anything required and still unmatched blocks 'Check my data' until fixed. This is also where you choose what happens to rows that already exist (Skip it, or Update it with the file) and set a fallback unit for rows that don't name one.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="import-panel"]',
+      popover: {
+        title: "6. Check, Review, Import",
+        description: "'Check my data' sorts every row into Ready to import, Already exist, or Have errors — click a count to filter the table. Nothing is written yet. Continue to Review and FluxiBiz spells out exactly what will be created, updated, or skipped; tick the confirmation box and press 'Import now' only once you're sure — this last step cannot be undone.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -945,8 +1226,8 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-history-link"]',
       popover: {
-        title: "4. Past Imports",
-        description: "Opens Import history: every file you have brought in, what it changed, and any rows it could not read.",
+        title: "7. Past Imports",
+        description: "Click 'History' anytime — mid-wizard or after — to see every file you have brought in: its status, how many rows made it in versus failed, who ran it, and when. Open any one for its full row-by-row report.",
         side: "bottom",
         align: "end",
         popoverClass: "fluxibiz-tour-popover",
@@ -956,10 +1237,20 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
 
   "/inventory/import/history": [
     {
+      element: '[data-tour="sidebar-link-history"]',
+      popover: {
+        title: "1. Import Data → History",
+        description: "You are on 'Import data → History' in the sidebar. Every file ever brought into FluxiBiz is listed here, newest first — whether it fully succeeded, partly failed, or was later undone.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
       element: '[data-tour="import-history-list"]',
       popover: {
-        title: "1. Import History",
-        description: "Every file you have imported, newest first. Each row shows what was brought in, when, and how many rows succeeded or failed.",
+        title: "2. Reading a Row",
+        description: "File name and the data type it carried (Items, Categories, Opening stock); a status pill (Committed, Failed, Reverted…); the 'Rows' column showing how many made it in versus how many did not; who ran it; and when it was uploaded. Click a file name to open its full row-by-row report.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -968,8 +1259,8 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="import-new-link"]',
       popover: {
-        title: "2. Start a New Import",
-        description: "Begins the import wizard — choose the data type, upload a spreadsheet, match the columns and review before anything is saved.",
+        title: "3. Start Another Import",
+        description: "Click 'New import' (top-right here, or 'Import data → New import' in the sidebar) to run the six-stage wizard again for another spreadsheet.",
         side: "bottom",
         align: "end",
         popoverClass: "fluxibiz-tour-popover",
@@ -1189,18 +1480,68 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="prediction-controls"]',
       popover: {
-        title: "1. Filter & Period",
-        description: "Narrow the forecast to one product, and choose the period it is calculated over. Everything below re-reads from your real sales history.",
+        title: "1. Sales-Based Forecasting",
+        description: "This page turns your recent sales history into forward-looking numbers — nothing here is typed in manually. Everything below recalculates the moment you change the product filter or the period.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
     },
     {
-      element: '[data-tour="prediction-group"]',
+      element: '[data-tour="prediction-search"]',
       popover: {
-        title: "2. What to Expect",
-        description: "Each group opens to show the items behind it — what is selling faster, what is slowing down, and what is close to running out. Use it to decide what to reorder next.",
+        title: "2. Filter by Product",
+        description: "Type a product name to narrow every table below to just that item — useful when you only want to check on one product instead of scrolling the full list.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-period-toggle"]',
+      popover: {
+        title: "3. This Week vs This Month",
+        description: "Switch the window the forecast is calculated over. A shorter window reacts faster to a recent spike; a longer one smooths out day-to-day noise — pick whichever matches how often you actually reorder.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-summary"]',
+      popover: {
+        title: "4. Headline Numbers",
+        description: "Four totals at a glance: how many products are trending up, how many risk running out, how many are going slow-moving, and a revenue range forecast for the period. The tables below spell out exactly which products sit behind each count.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group-rising"]',
+      popover: {
+        title: "5. Predicted to Sell More",
+        description: "Products showing increased demand versus the previous period. Click the row to expand it and see expected demand in units alongside the trend for each product.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group-stockout"]',
+      popover: {
+        title: "6. Stock Alert — May Run Out",
+        description: "Products whose current stock won't cover expected demand at the recent rate of sale. Expand it to see current stock and an estimated number of days until each one runs out, so you know what to reorder first.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="prediction-group-restock"]',
+      popover: {
+        title: "7. Restock Recommendation",
+        description: "The recommended reorder quantity for each product — already worked out for you from the forecast, nothing to calculate yourself. Click 'Restock' on any row to jump straight into Stock In with that item preselected.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
@@ -1411,98 +1752,151 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     },
   ],
 
- "/employees": [
- {
- element: '[data-tour="sidebar-section-employees"]',
- popover: {
- title: "1. Employees & Staff Section",
- description: "You are in the Staff & User Management module. Manage staff accounts, assign security role permissions, and view platform audit logs.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="employees-tabs"]',
- popover: {
- title: "2. Management Tabs",
- description: "Switch between Users (staff accounts), Roles & permissions (security roles), and Audits (admin activity logs).",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="add-user"]',
- popover: {
- title: "3. Add User Account",
- description: "Create a new staff login account with name, email, phone number, gender, and security role.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="staff-search"]',
- popover: {
- title: "4. Search Staff Directory",
- description: "Search team members by full name, email address, username, or phone number.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="user-list"]',
- popover: {
- title: "5. Staff Directory Table",
- description: "View active and deactivated staff members, assigned security roles, and edit/delete account details.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tab-roles"]',
- popover: {
- title: "6. Roles & Permissions Tab",
- description: "Click here to switch to the security roles management view.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="add-role"]',
- popover: {
- title: "7. Create Custom Security Role",
- description: "Create custom roles (e.g. Cashier, Store Manager, Accountant) and configure granular module permissions.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="roles-list"]',
- popover: {
- title: "8. Roles & Permission Groups",
- description: "View configured security roles, total granted permissions, assigned staff count, and edit role checkboxes.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tab-audits"]',
- popover: {
- title: "9. Audit Logs Tab",
- description: "Switch to 'Audits' tab to inspect system administrative activity logs across your business.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/employees": [
+    {
+      element: '[data-tour="employees-tabs"]',
+      popover: {
+        title: "1. Staff & User Security Management",
+        description: "Welcome to User Management! This header bar lets you navigate between 3 core sections: Users (staff accounts), Roles & permissions (access control), and Activity (audit logs).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="add-user"]',
+      popover: {
+        title: "2. Create New Staff Account",
+        description: "Click 'Add user' to register a new employee account. Configure their full name, email address, phone number, login credentials, and assign their starting security role.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="staff-filters"]',
+      popover: {
+        title: "3. Search & Filter Staff Directory",
+        description: "Quickly locate team members by searching full names, emails, or usernames. Use dropdown filters to isolate staff by assigned security role or account status (Active vs Disabled).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="user-list"]',
+      popover: {
+        title: "4. Staff Directory & Account Actions",
+        description: "This table displays all registered staff accounts. Click the action buttons on any row to edit user profiles, change assigned roles, toggle access active state, or reset passwords.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-users"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="tab-roles"]',
+      popover: {
+        title: "5. Transition to Security Roles & Permissions",
+        description: "Next, let's explore Security Roles! Clicking 'Roles & permissions' switches to the security template configuration view.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="add-role"]',
+      popover: {
+        title: "6. Create Custom Security Role",
+        description: "Click 'Create role' to define a new job role (e.g. Cashier, Store Manager, Shift Supervisor, Inventory Clerk). Set custom role names and granular module permissions.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="roles-search"]',
+      popover: {
+        title: "7. Search Security Roles",
+        description: "Search configured security roles by role title or permission keywords to quickly locate and inspect role definitions.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="roles-list"]',
+      popover: {
+        title: "8. Roles Directory & Granular Permission Matrix",
+        description: "View all defined security roles, total active users assigned to each role, and total granted permissions. Click edit to customize specific action rights (e.g., POS sales, inventory edits, discount overrides).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-roles"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="tab-audits"]',
+      popover: {
+        title: "9. Transition to Activity Audit Trail",
+        description: "Finally, let's look at Security Audit Activity! Clicking 'Activity' switches to real-time administrative event tracking across your business.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-audits"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="audit-filters"]',
+      popover: {
+        title: "10. Filter Activity & Audit Trails",
+        description: "Filter recorded activity logs by search keywords, action categories (Login, Role Edit, Price Change, Stock Adjustment), or custom date ranges.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-audits"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="audit-logs"]',
+      popover: {
+        title: "11. Detailed Security Audit Log",
+        description: "Complete immutable audit trail showing exact timestamps, acting staff member, IP address, action performed, and detailed before-and-after data changes.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="tab-audits"]') as HTMLButtonElement)?.click();
+      },
+    },
+  ],
 
  "/business/profile": [
  {
@@ -1538,7 +1932,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  {
  element: '[data-tour="profile-about"]',
  popover: {
- title: "4. Store Description ℹ",
+ title: "4. Store Description",
  description: "Write a short summary about your business for customers.",
  side: "top",
  align: "start",
@@ -1769,121 +2163,341 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
- "/dashboard": [
- {
- element: '[data-tour="sidebar-section-dashboard"]',
- popover: {
- title: "1. Dashboard Section",
- description: "You are on the Overview Dashboard screen. Monitor live store metrics, real-time catalog figures, channel revenue, and profit margins.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-overview"]',
- popover: {
- title: "2. Live Inventory Figures",
- description: "Central overview card displaying total product catalog counts, active items, total units in stock, and low stock alerts.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-stats"]',
- popover: {
- title: "3. Key KPI Counters",
- description: "Real-time stat cards monitoring Total Items in catalog, Active Items published for sale, Total Units in warehouse, and Low Stock Threshold alerts.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-sales-chart"]',
- popover: {
- title: "4. Sales Channel Performance Chart",
- description: "Interactive revenue chart comparing sales across physical POS, Online Store, Mobile App, and Marketplace channels.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-channel-cards"]',
- popover: {
- title: "5. Channel Revenue KPIs",
- description: "View total revenue per channel. Click any channel card (POS, Online, Mobile, Marketplace) to toggle line curves and compare sales trends.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="dashboard-stock-on-hand"]',
- popover: {
- title: "6. Stock On Hand Leaderboard",
- description: "Displays your top six best-stocked inventory items with visual quantity balance bars.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-profit"]',
- popover: {
- title: "7. Next: Profit Analytics",
- description: "Click 'Profit' in the left sidebar to view net profit margins and channel cost breakdowns!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/dashboard": [
+    {
+      element: '[data-tour="sidebar-section-dashboard"]',
+      popover: {
+        title: "1. Overview Dashboard Module Link",
+        description: "You are on the Overview Dashboard screen. Monitor live business performance, real-time catalog figures, channel revenue, and multi-format report exports.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-reports-export"]',
+      popover: {
+        title: "2. Executive Multi-Format Report Export",
+        description: "Export full store reports in 3 formats: High-resolution visual PDF, formatted Excel (.xls) with embedded data tables, or Word document (.docx) executive summaries.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-stats"]',
+      popover: {
+        title: "3. Key Financial & Catalog KPI Counters",
+        description: "Real-time stat cards monitoring Total Revenue collected across sales, Total Items in catalog, and Total Product Categories.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-channel-cards"]',
+      popover: {
+        title: "4. Sales Channel Donut Chart",
+        description: "Percentage and revenue distribution donut chart comparing physical POS, Web Store, Telegram, and Messenger storefronts.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-cumulative-profit"]',
+      popover: {
+        title: "5. Cumulative Profit & Revenue Trend Chart",
+        description: "Interactive trend chart graphing cumulative profit growth over time. Use the top dropdown to toggle Day, Week, or Month groupings.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-item-vector"]',
+      popover: {
+        title: "6. Top Item Type Demand Bar Chart",
+        description: "Vertical bar chart visualizing sales volume and revenue across item categories and product types.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-stock-on-hand"]',
+      popover: {
+        title: "7. Stock Inventory & Balance Leaderboard",
+        description: "Horizontal distribution bars displaying stock levels and inventory counts per item. Hover over any bar to inspect total revenue vs quantity on hand.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-recent-orders"]',
+      popover: {
+        title: "8. Live Recent Orders Stream & Search",
+        description: "Real-time transaction log displaying Order Reference, Customer Avatar & Name, Product, Amount, and Order Status. Filter by keyword or click Export to download CSV.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="dashboard-best-selling"]',
+      popover: {
+        title: "9. Best Selling Products Ranking",
+        description: "Leaderboard ranking your top products by revenue generated and total units sold. Includes instant search filter and CSV export.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-profit"]',
+      popover: {
+        title: "10. Next: Profit & Prediction Analytics",
+        description: "Click 'Next' (or 'Profit' in sidebar) to continue the tour onto the Profit Statement and Demand Prediction screens!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
 
- "/analytics": [
- {
- element: '[data-tour="sidebar-link-profit"]',
- popover: {
- title: "1. Profit Module Link",
- description: "You are on the Profit & Analytics screen under Dashboard. Monitor real-time net profit margins, cost of goods sold (COGS), and sales channel breakdowns.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="profit-range-select"]',
- popover: {
- title: "2. Date Period Filter",
- description: "Filter profit calculations by Today, This Week, This Month, This Year, or All Time.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="profit-kpi-grid"]',
- popover: {
- title: "3. Net Profit KPI Tiles",
- description: "Real-time summary tiles displaying Gross Revenue, Cost of Goods Sold (actual batch cost recorded at each sale), Net Profit kept, and Margin %.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="profit-channel-breakdown"]',
- popover: {
- title: "4. Channel Profit Breakdown Table",
- description: "Comprehensive breakdown table showing Sales count, Gross Revenue, COGS, Net Profit, and Margin % across POS, Online Store, Telegram, and Messenger.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
+  "/analytics": [
+    {
+      element: '[data-tour="profit-view-tabs"]',
+      popover: {
+        title: "1. Profit Analytics Overview",
+        description: "Welcome to Profit Analytics! This top tab bar lets you navigate between 3 core analytical views: Statement (P&L table by period), By channel (POS, Storefront, Messenger, Telegram), and Sale profit calculator (predictive margin modeling).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-range-select"]',
+      popover: {
+        title: "2. Date Period & Granularity Filter",
+        description: "Filter P&L figures by date range (Today, Last 30 Days, Month, Year, All Time) and view breakdowns daily, weekly, or monthly. All calculations update dynamically from real sales history.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-statement-table"]',
+      popover: {
+        title: "3. Detailed P&L Statement Table",
+        description: "Full financial breakdown per period: Sales count, Items sold, Gross sales, Discounts, Tax collected, Net Revenue, Cost of Goods (FIFO purchase batch cost), Gross Profit, and Net Margin %.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-item-breakdown"]',
+      popover: {
+        title: "4. Item Profit Breakdown",
+        description: "Inspect revenue, unit stock cost, profit, and margin generated per individual menu product.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-periods"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-tab-channels"]',
+      popover: {
+        title: "5. Transition to Channel Profit Breakdown",
+        description: "Next, let's explore Channel Analytics! Clicking 'By channel' displays revenue, COGS stock cost, net profit, and margin performance split out across all sales channels.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-channels"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-kpi-grid"]',
+      popover: {
+        title: "6. Channel Profitability KPI Cards",
+        description: "Summary stat cards displaying Total Revenue, Cost of Goods, Net Profit, and Profit Margin % across your active sales channels.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-channels"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-channel-breakdown"]',
+      popover: {
+        title: "7. Where It Came From (Sales Channel Table)",
+        description: "Revenue, Cost, Profit, and Margin figures split out per channel — Point of Sale, Online Store, Messenger, and Telegram storefronts.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-channels"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="profit-tab-calculator"]',
+      popover: {
+        title: "8. Transition to Sale Profit Calculator",
+        description: "Finally, let's explore the Profit Calculator! Clicking 'Sale profit calculator' opens predictive price and margin forecasting tools.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        (document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement)?.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-mode-per-item"]',
+      popover: {
+        title: "9. Method 1: Margin Per Item Modeling",
+        description: "First, let's explore Method 1! 'Margin per item' allows you to experiment with individual product margin percentages and predict optimal selling prices.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-per-item"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-kpi-grid"]',
+      popover: {
+        title: "10. Per-Item Predictive KPI Projections",
+        description: "Real-time summary cards displaying Total Revenue, Cost of Goods, Gross Profit, and Gross Margin % calculated from your custom item margins.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-per-item"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-item-table"]',
+      popover: {
+        title: "11. Item Pricing & Custom Margin Matrix",
+        description: "Search items, adjust individual product margin percentages, bulk-apply profit margins to all items, and view predicted selling prices & gross profits. Includes CSV export.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-per-item"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-mode-business-target"]',
+      popover: {
+        title: "12. Method 2: Transition to Business Target Scaling",
+        description: "Next, let's explore Method 2! 'Business target' automatically recalculates target selling prices across your entire inventory to hit a target gross margin percentage.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-target-input"]',
+      popover: {
+        title: "13. Target Gross Margin Controller",
+        description: "Enter your business target gross margin percentage (e.g. 50%). The system automatically scales target prices for every catalog item to achieve this goal.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-kpi-grid"]',
+      popover: {
+        title: "14. Target Revenue & Profit Projections",
+        description: "Updated KPI cards showing Target Revenue, Cost of Goods, Target Gross Profit, and Target Gross Margin % at your desired business scale.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-item-table"]',
+      popover: {
+        title: "15. Business Target Pricing Predictions Table",
+        description: "View current price vs target price recommendations and target margins for every inventory item to hit your target profit. Includes CSV export.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+        const modeBtn = document.querySelector('[data-tour="calculator-mode-business-target"]') as HTMLButtonElement;
+        if (modeBtn) modeBtn.click();
+      },
+    },
+    {
+      element: '[data-tour="calculator-operating-expenses"]',
+      popover: {
+        title: "16. Operating Expenses & Estimated Net Profit",
+        description: "Deduct monthly overhead (rent, payroll, utilities) from gross profit to calculate your real estimated Net Profit and Net Margin percentage.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: () => {
+        const tabBtn = document.querySelector('[data-tour="profit-tab-calculator"]') as HTMLButtonElement;
+        if (tabBtn) tabBtn.click();
+      },
+    },
+  ],
 
  "/notifications": [
  {

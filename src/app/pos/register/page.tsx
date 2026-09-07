@@ -35,9 +35,6 @@ export default async function OpenRegisterPage({
     redirect("/api/register/join");
   }
 
-  // Resolved on the server so the keypad never appears usable for a moment
-  // before turning itself off. An unknown answer permits opening, matching the
-  // rule the open endpoint enforces.
   const channel = await getPosChannelState();
 
   return (

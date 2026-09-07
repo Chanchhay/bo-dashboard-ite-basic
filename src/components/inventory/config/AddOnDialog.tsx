@@ -220,7 +220,7 @@ export function AddOnDialog({
                 ) : null}
 
                 <div className="mt-5 flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
+                    <div data-tour="addon-form-name" className="flex flex-col gap-2">
                         <Label htmlFor="addon-name">Name *</Label>
                         <CharCountField
                             length={draft.name.length}
@@ -246,7 +246,7 @@ export function AddOnDialog({
                     </div>
 
                     <Section title="Units of measure">
-                        <div className="flex flex-col gap-2">
+                        <div data-tour="addon-form-unit" className="flex flex-col gap-2">
                             <Label htmlFor="addon-unit">
                                 Base unit of measure *
                             </Label>
@@ -325,7 +325,7 @@ export function AddOnDialog({
                             </ul>
                         ) : null}
 
-                        <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                        <div data-tour="addon-form-conversions" className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
                             <div className="flex min-w-0 flex-col gap-2">
                                 <Label
                                     htmlFor="addon-conv-unit"
@@ -440,7 +440,7 @@ export function AddOnDialog({
                     </Section>
 
                     <Section title="Usage">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div data-tour="addon-form-usage" className="grid gap-3 sm:grid-cols-2">
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="addon-use">
                                     One order uses *
@@ -513,7 +513,7 @@ export function AddOnDialog({
                     </Section>
 
                     <Section title="Pricing">
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-4 py-3">
+                        <div data-tour="addon-form-pricing" className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-4 py-3">
                             <p className="text-sm text-muted-foreground">
                                 Priced per channel in Sale Management.
                             </p>
@@ -530,7 +530,7 @@ export function AddOnDialog({
                     >
                         Cancel
                     </Button>
-                    <Button type="button" onClick={handleSave}>
+                    <Button data-tour="addon-form-submit" type="button" onClick={handleSave}>
                         {isEditing ? "Save add-on" : "Create add-on"}
                     </Button>
                 </DialogFooter>

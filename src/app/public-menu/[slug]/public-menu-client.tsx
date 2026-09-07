@@ -494,7 +494,7 @@ export default function PublicMenuClient({
     <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
         <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
             <div className="flex items-start gap-3 sm:gap-5 min-w-0">
               {storeDetail.logo ? (
                 <img
@@ -513,7 +513,7 @@ export default function PublicMenuClient({
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2 sm:block">
+                <div className="flex items-start justify-between gap-2 md:block">
                   <div className="min-w-0">
                     {categoryName ? (
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
@@ -525,8 +525,8 @@ export default function PublicMenuClient({
                     </h1>
                   </div>
 
-                  {/* Mobile-only theme toggle */}
-                  <div className="flex sm:hidden items-center shrink-0">
+                  {/* Compact-layout theme toggle (hidden once the header switches to a single row) */}
+                  <div className="flex md:hidden items-center shrink-0">
                     <ThemeToggle
                       variant="icon"
                       className="size-8.5 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
@@ -578,22 +578,22 @@ export default function PublicMenuClient({
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 sm:shrink-0">
+            <div className="flex items-center gap-2.5 md:shrink-0">
               <a
                 href={orderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
+                className="inline-flex w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
               >
                 <ShoppingBag className="size-4 shrink-0" />
                 <span>Order Now</span>
                 <ExternalLink className="size-3.5 opacity-80 shrink-0" />
               </a>
 
-              {/* Desktop ThemeToggle */}
+              {/* Single-row-layout ThemeToggle */}
               <ThemeToggle
                 variant="icon"
-                className="hidden sm:flex size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+                className="hidden md:flex size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
               />
             </div>
           </div>
