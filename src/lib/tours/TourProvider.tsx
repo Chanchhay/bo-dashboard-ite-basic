@@ -31,6 +31,7 @@ function revealForTour(element: Element | undefined) {
 
   main.scrollTo({
     top: Math.max(0, main.scrollTop + offsetFromTop - STICKY_HEADER_OFFSET),
+    behavior: "smooth",
   });
 }
 
