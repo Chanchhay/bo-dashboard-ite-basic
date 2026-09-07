@@ -339,7 +339,7 @@ export function OptionPresetsTab() {
                     title="Option presets"
                     description="Saved lists of choices, so Small / Medium / Large is not retyped on every item."
                     action={
-                        <Button type="button" onClick={openAddForm}>
+                        <Button data-tour="add-preset-btn" type="button" onClick={openAddForm}>
                             <Plus className="size-4" />
                             Add preset
                         </Button>
@@ -520,7 +520,7 @@ export function OptionPresetsTab() {
                                 )}
                             </div>
 
-                            <div className="flex min-w-0 flex-col gap-2">
+                            <div data-tour="preset-form-type" className="flex min-w-0 flex-col gap-2">
                                 <Label
                                     htmlFor="preset-type"
                                     className="text-sm font-semibold text-foreground"
@@ -558,7 +558,7 @@ export function OptionPresetsTab() {
                             </div>
                         </div>
 
-                        <div className="mt-5 rounded-xl border border-dashed border-border p-4">
+                        <div data-tour="preset-form-choices" className="mt-5 rounded-xl border border-dashed border-border p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <h3 className="text-sm font-semibold text-foreground">
@@ -675,7 +675,7 @@ export function OptionPresetsTab() {
                             ) : null}
                         </div>
 
-                        <div className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-dashed border-border p-4">
+                        <div data-tour="preset-form-required" className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-dashed border-border p-4">
                             <div className="min-w-0">
                                 <Label
                                     htmlFor="preset-required"

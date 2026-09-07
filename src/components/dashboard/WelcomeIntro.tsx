@@ -56,7 +56,7 @@ export default function WelcomeIntro() {
         >
             <style>{KEYFRAMES}</style>
             <span
-                className="ipos-welcome-text select-none font-semibold text-[#16181c]"
+                className="ipos-welcome-text select-none font-semibold text-primary"
                 style={{
                     fontSize: "clamp(56px, 12vw, 156px)",
                     lineHeight: 1,

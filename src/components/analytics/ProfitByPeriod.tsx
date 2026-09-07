@@ -143,7 +143,7 @@ export function ProfitByPeriod() {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-3">
+            <div data-tour="profit-range-select" className="flex flex-wrap items-center gap-3">
                 <div className="w-44">
                     <Select
                         value={range}
@@ -240,7 +240,7 @@ export function ProfitByPeriod() {
                 </div>
             ) : (
                 <>
-                    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+                    <div data-tour="profit-statement-table" className="overflow-x-auto rounded-2xl border border-border bg-card">
                         <Table>
                             <TableHeader>
                                 <TableRow className="hover:bg-transparent">
@@ -401,7 +401,7 @@ export function ProfitByPeriod() {
                 </>
             )}
 
-            <div className="mt-4 border-t border-border pt-6">
+            <div data-tour="profit-item-breakdown" className="mt-4 border-t border-border pt-6">
                 <ProfitByItem
                     {...(start ? { from: toLocalDateTime(start) } : {})}
                     rangeLabel={range.toLowerCase()}

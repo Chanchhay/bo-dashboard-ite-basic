@@ -23,6 +23,7 @@ export function ProfitTabs() {
             <div
                 role="tablist"
                 aria-label="Profit view"
+                data-tour="profit-view-tabs"
                 className="flex w-fit gap-1 rounded-xl border border-border bg-card p-1"
             >
                 {Object.entries(tabs).map(([value, label]) => (
@@ -30,6 +31,7 @@ export function ProfitTabs() {
                         key={value}
                         type="button"
                         role="tab"
+                        data-tour={`profit-tab-${value.toLowerCase()}`}
                         aria-selected={tab === value}
                         onClick={() => setTab(value as ProfitTab)}
                         className={cn(
