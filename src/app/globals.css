@@ -348,3 +348,10 @@ svg:focus {
   outline: none !important;
   border: none !important;
 }
+
+html,
+body,
+#main-content {
+  scroll-behavior: smooth;
+}
+

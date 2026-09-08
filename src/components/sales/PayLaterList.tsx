@@ -273,18 +273,6 @@ export function PayLaterList() {
         );
     }
 
-    if (sales.length === 0) {
-        return (
-            <div className="flex flex-col gap-4">
-                <InventoryEmpty
-                    title="Nothing outstanding"
-                    description="Sales rung up as Pay later will show up here until they're settled."
-                />
-            </div>
-        );
-    }
-
-   
     const owedTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount - sale.paidAmount), 0);
     const overdueCount = sales.filter((sale) => (daysSince(sale.soldAt) ?? 0) > OVERDUE_DAYS).length;
 
@@ -453,8 +441,15 @@ export function PayLaterList() {
                 {/* Mobile Cards View (< md) */}
                 <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                     {pagedSales.length === 0 ? (
-                        <div className="py-12 text-center text-sm text-muted-foreground">
-                            {query ? `No sales match "${query}".` : "No sales on this page."}
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                            {query ? (
+                                `No sales match "${query}".`
+                            ) : (
+                                <InventoryEmpty
+                                    title="Nothing outstanding"
+                                    description="Sales rung up as Pay later will show up here until they're settled."
+                                />
+                            )}
                         </div>
                     ) : (
                         pagedSales.map((sale) => {
@@ -589,9 +584,14 @@ export function PayLaterList() {
                                         colSpan={activeColumnCount || 1}
                                         className="h-32 text-center text-sm text-muted-foreground"
                                     >
-                                        {query
-                                            ? `No sales match "${query}".`
-                                            : "No sales on this page."}
+                                        {query ? (
+                                            `No sales match "${query}".`
+                                        ) : (
+                                            <InventoryEmpty
+                                                title="Nothing outstanding"
+                                                description="Sales rung up as Pay later will show up here until they're settled."
+                                            />
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -699,6 +699,7 @@ export function PayLaterList() {
                                                 <TableCell className="text-right">
                                                     <button
                                                         type="button"
+                                                        data-tour={sale === pagedSales[0] ? "pay-later-collect-btn" : undefined}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setCollecting(sale);

@@ -33,6 +33,27 @@ function openModalOnNext(buttonSelector: string, firstFieldSelector: string): Dr
   };
 }
 
+function clickScopeAndRefresh(chipSelector: string): DriverHook {
+  return (_element, _step, opts) => {
+    const chip = document.querySelector(chipSelector) as HTMLButtonElement | null;
+    if (chip) {
+      const isActive =
+        chip.classList.contains("bg-primary/10") ||
+        chip.classList.contains("bg-primary") ||
+        chip.getAttribute("aria-selected") === "true";
+
+      if (!isActive) {
+        chip.click();
+        setTimeout(() => {
+          opts.driver.refresh();
+        }, 80);
+      } else {
+        opts.driver.refresh();
+      }
+    }
+  };
+}
+
 /**
  * Route-based step configuration for the FluxiBiz Multi-Page Tour System.
  * Keys match exact pathnames or prefix routes.
@@ -101,12 +122,776 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  },
  ],
 
+  "/sales": [
+    {
+      element: '[data-tour="sidebar-link-orders"]',
+      popover: {
+        title: "1. Connection: Inventory Catalog → Live Sales Orders",
+        description: "Welcome to Sale Management! Every order here is built from products in your Inventory Catalog, and stock is deducted the moment a sale is confirmed. Track customer purchases across all sales channels — POS, Web Store, Telegram, and Messenger.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-digital-menu"]',
+      popover: {
+        title: "2. Digital Menu & Online Storefront",
+        description: "Toggle customer web menu visibility ON/OFF, generate storefront QR codes for tables/countertops, and launch your live digital store link.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-totals"]',
+      popover: {
+        title: "3. Real-Time Sales & Revenue Metrics",
+        description: "Monitor live metrics for Total Orders, Gross Sales Revenue, Paid Transactions, and Pending Orders awaiting cashier confirmation or payment.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-filters"]',
+      popover: {
+        title: "4. Search & Multi-Channel Filter Bar",
+        description: "Instantly search orders by invoice #, customer name, phone, or item. Filter by Date Range (Today, 7 days, 30 days), Payment Status, or Sales Channel (POS, Web, Telegram, Messenger).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-list"]',
+      popover: {
+        title: "5. Master Orders List & Receipt Audit",
+        description: "View invoice totals, order item details, tax calculations, and status badges. Click any order row to review customer receipts, approve pay-later orders, print tickets, or cancel orders.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-pay-later"]',
+      popover: {
+        title: "6. Next: Pay Later Invoices",
+        description: "Click 'Pay Later' in the left sidebar anytime to review and collect unpaid credit customer invoices!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/orders": [
+    {
+      element: '[data-tour="sidebar-link-orders"]',
+      popover: {
+        title: "1. Connection: Inventory Catalog → Live Sales Orders",
+        description: "Welcome to Sale Management! Every order here is built from products in your Inventory Catalog, and stock is deducted the moment a sale is confirmed. Track customer purchases across all sales channels — POS, Web Store, Telegram, and Messenger.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-digital-menu"]',
+      popover: {
+        title: "2. Digital Menu & Online Storefront",
+        description: "Toggle customer web menu visibility ON/OFF, generate storefront QR codes for tables/countertops, and launch your live digital store link.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-totals"]',
+      popover: {
+        title: "3. Real-Time Sales & Revenue Metrics",
+        description: "Monitor live metrics for Total Orders, Gross Sales Revenue, Paid Transactions, and Pending Orders awaiting cashier confirmation or payment.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-filters"]',
+      popover: {
+        title: "4. Search & Multi-Channel Filter Bar",
+        description: "Instantly search orders by invoice #, customer name, phone, or item. Filter by Date Range (Today, 7 days, 30 days), Payment Status, or Sales Channel (POS, Web, Telegram, Messenger).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="orders-list"]',
+      popover: {
+        title: "5. Master Orders List & Receipt Audit",
+        description: "View invoice totals, order item details, tax calculations, and status badges. Click any order row to review customer receipts, approve pay-later orders, print tickets, or cancel orders.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-pay-later"]',
+      popover: {
+        title: "6. Next: Pay Later Invoices",
+        description: "Click 'Pay Later' in the left sidebar anytime to review and collect unpaid credit customer invoices!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/pay-later": [
+    {
+      element: '[data-tour="sidebar-link-pay-later"]',
+      popover: {
+        title: "1. Connection: Orders → Pay Later Collections",
+        description: "Any order checked out as 'Pay Later' in the Orders list lands here automatically. Track credit sales, unpaid invoices, and customer phone contacts — settling a balance updates that order's status back on the Orders screen and logs the cash in Register Sessions.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-totals"]',
+      popover: {
+        title: "2. Credit Metrics & Overdue Audit",
+        description: "Monitor live summaries for Total Outstanding sales count, Overdue invoices exceeding the 7-day threshold, and Total Dollar Amount Owed across all store customers.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-filters"]',
+      popover: {
+        title: "3. Customer Search & Filter Controls",
+        description: "Search unpaid sales by invoice number, customer name, or phone. Filter by Sales Channel (POS, Online Store, Telegram, Messenger), sort by Oldest/Newest/Highest Owed, or toggle visible table columns.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-list"]',
+      popover: {
+        title: "4. Outstanding Invoices Audit Table",
+        description: "Review invoice numbers, customer phone links, channel origin, sale timestamps, overdue aging badges (e.g. Overdue 11d), and exact dollar amounts owed per transaction.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pay-later-collect-btn"]',
+      popover: {
+        title: "5. Collect Payment & Issue Settled Receipt",
+        description: "Click 'Collect' on any row to launch the cash collection drawer, accept customer cash payment, automatically record the settlement, and print an updated receipt ticket.",
+        side: "left",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-pricing"]',
+      popover: {
+        title: "6. Next: Item & Pricing Matrix",
+        description: "Click 'Item & Pricing' in the left sidebar anytime to manage product retail prices and sales channel price overrides!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/pricing": [
+    {
+      element: '[data-tour="sidebar-link-pricing"]',
+      popover: {
+        title: "1. Connection: Inventory Catalog → Channel Pricing",
+        description: "Every product created in Inventory Management appears here for price configuration. Set base prices, markup margins, and channel-specific rates — this is exactly what customers see at checkout in POS, Web Store, Telegram, and Messenger.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pricing-scope-selector"]',
+      popover: {
+        title: "2. Scope Selector: One Catalogue, Five Price Contexts",
+        description: "This chip row is the switchboard for the whole page — Base price plus every live sales channel below it. Whichever chip is active decides which price the rest of the screen shows and edits. Let's step through each one.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-BASE"]'),
+    },
+    {
+      element: '[data-tour="pricing-filter-bar"]',
+      popover: {
+        title: "3. Catalog Search, Barcode & Channel Tools",
+        description: "Search items by name, SKU, or barcode. Use 'Manage channels' to bulk publish products or 'Split stock' for shelf allocation.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pricing-channel-overrides"]',
+      popover: {
+        title: "4. Base Price — What the Business Charges",
+        description: "This is the price floor before any channel gets involved. Calculate it automatically from stock cost with a margin rule, or set it manually. Every channel markup below is a percentage or fixed amount added on top of this number.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-BASE"]'),
+    },
+    {
+      element: '[data-tour="pricing-channel-overrides"]',
+      popover: {
+        title: "5. Connection: Point of Sale Markup → Profit by Channel",
+        description: "Set what your in-store register charges — Same as base, % markup, or a fixed markup over the base price. This exact rate is what feeds the 'Point of Sale' row on the Profit Analytics 'By channel' report.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-POS"]'),
+    },
+    {
+      element: '[data-tour="pricing-channel-overrides"]',
+      popover: {
+        title: "6. Connection: Online Store Markup → Profit by Channel",
+        description: "Set the price your web storefront charges customers browsing your digital menu. This rate drives the 'Online Store' row on the Profit Analytics 'By channel' report — raise it here to widen that channel's margin.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-WEB"]'),
+    },
+    {
+      element: '[data-tour="pricing-channel-overrides"]',
+      popover: {
+        title: "7. Connection: Telegram Markup → Profit by Channel",
+        description: "Set what your Telegram ordering bot charges. Same base price, its own markup rule — tracked separately on the 'Telegram' row of the Profit Analytics 'By channel' report so you can see if this channel is worth the bot's running cost.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-TELEGRAM"]'),
+    },
+    {
+      element: '[data-tour="pricing-channel-overrides"]',
+      popover: {
+        title: "8. Connection: Messenger Markup → Profit by Channel",
+        description: "Set what your Facebook Messenger bot charges. This is the last of the four channel rates, and it lands on the 'Messenger' row of the Profit Analytics 'By channel' report right alongside the other three.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-MESSENGER"]'),
+    },
+    {
+      element: '[data-tour="pricing-channel-schedule"]',
+      popover: {
+        title: "9. Channel Opening Hours & Operating Schedule",
+        description: "Every channel scope (not Base) gets its own hours here. Set 24/7 Always Open, or narrow windows for a channel that should stop taking orders overnight — a closed channel shows as closed on its chip up top.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-POS"]'),
+    },
+    {
+      element: '[data-tour="pricing-table"]',
+      popover: {
+        title: "10. Master Product Pricing Catalogue",
+        description: "Review all inventory items, product categories, price ranges, channel publishing status, and live channel badges — for whichever scope is currently active above. Still on POS from the last step, so this is the Point of Sale catalogue.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-POS"]'),
+    },
+    {
+      element: '[data-tour="pricing-sell-here-toggle"]',
+      popover: {
+        title: "11. Channel Availability Toggle ('Sell Here')",
+        description: "Toggle whether a product is active and available for customer checkout on this specific sales channel. Switch it off and the item disappears from that channel's menu without touching its price or the other channels.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pricing-channel-chip-POS"]'),
+    },
+    {
+      element: '[data-tour="pricing-set-prices-btn"]',
+      popover: {
+        title: "12. Set Prices & Option Overrides",
+        description: "Click 'Set prices' on any product to configure base prices, unit/pack prices, compare-at rates, or channel price overrides.",
+        side: "left",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-customers"]',
+      popover: {
+        title: "13. Next: Customer CRM Directory",
+        description: "Click 'Customers' in the left sidebar anytime to manage buyer profiles, contact details, and purchase history!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/customers": [
+    {
+      element: '[data-tour="sidebar-link-customers"]',
+      popover: {
+        title: "1. Connection: Checkout Sales → Customer Directory",
+        description: "Every purchase attached to a customer at checkout — in Orders, Pay Later, or POS — rolls up into this directory as lifetime spend and order counts. Manage contact details here and assign a Member Type to unlock loyalty discounts.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="add-customer-btn"]',
+      popover: {
+        title: "2. Create Customer Profile",
+        description: "Click 'Add Customer' to open the customer creation modal and record new buyer details.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="customers-search-bar"]',
+      popover: {
+        title: "3. Customer Search & Filtering",
+        description: "Quickly search customer records by phone number or name, and filter by sales channel, date range, or active status.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="customers-table-container"]',
+      popover: {
+        title: "4. Customer Directory Table",
+        description: "Track total lifetime sales spending per customer, total orders placed, assigned membership tier (e.g. VIP, Gold), and phone contact info.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-discounts"]',
+      popover: {
+        title: "5. Next: Discounts & Coupons Hub",
+        description: "Click 'Discounts & Coupons' in the left sidebar to create storewide promotional sales and promo codes!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/discounts": [
+    {
+      element: '[data-tour="sidebar-link-discounts"]',
+      popover: {
+        title: "1. Connection: Customers → Discounts & Promo System",
+        description: "Welcome to Discounts & Coupons! Every promotional rule created here automatically recalculates prices during checkout across all customer sales channels — Web Storefront, Telegram Bot, Messenger Bot, and POS Terminal.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-discounts"]'),
+    },
+    {
+      element: '[data-tour="discounts-tab-discounts"]',
+      popover: {
+        title: "2. Discounts Tab: Automatic Promotional Rules",
+        description: "This tab displays your store's automatic discounts (e.g. 20% OFF summer season, 90% Discount, Buy 2 free 1, Mid year 10%). Automatic rules trigger instantly at checkout without needing a promo code.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-discounts"]'),
+    },
+    {
+      element: '[data-tour="discounts-search-bar"]',
+      popover: {
+        title: "3. Discounts Search & Multi-Filter Bar",
+        description: "Search discount rules by name or description. Filter by All Status (Active/Inactive), All Channels (POS, WEB, Telegram, Messenger), and toggle visible table columns.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-discounts"]'),
+    },
+    {
+      element: '[data-tour="discounts-table-container"]',
+      popover: {
+        title: "4. Discounts Rule Directory & Controls",
+        description: "Audit rule details including discount type & value (20%, 90%, Buy 2 Get 1), target scope (All Items, Specific Items), rule conditions, active channels, status badges, and action buttons to edit or delete rules.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-discounts"]'),
+    },
+    {
+      element: '[data-tour="create-discount-btn"]',
+      popover: {
+        title: "5. Create Discount Action",
+        description: "Click '+ Create Discount' to configure brand new automatic percentage or fixed dollar discounts with custom date ranges, minimum order amounts, and channel limits.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-discounts"]'),
+    },
+    {
+      element: '[data-tour="discounts-tab-coupons"]',
+      popover: {
+        title: "6. Coupons Tab: Customer Promo Codes",
+        description: "Switch to the Coupons tab to manage voucher promo codes (e.g. SAVE990, WELCOME10) that customers or cashiers type at checkout to claim savings.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-coupons"]'),
+    },
+    {
+      element: '[data-tour="discounts-search-bar"]',
+      popover: {
+        title: "7. Coupons Search & Filter Bar",
+        description: "Search promo codes by voucher code string (e.g. SAVE990) and filter by coupon status (Active, Inactive, Expired, or Used Up).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-coupons"]'),
+    },
+    {
+      element: '[data-tour="discounts-table-container"]',
+      popover: {
+        title: "8. Coupons Directory & Usage Audit",
+        description: "Review active promo code vouchers, their linked discount rule (e.g. Mid year 10% OFF), usage count limits (e.g. 1 used / 100 max), minimum purchase thresholds, validity date ranges, and status badges.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-coupons"]'),
+    },
+    {
+      element: '[data-tour="create-discount-btn"]',
+      popover: {
+        title: "9. Create Coupon Action",
+        description: "When the Coupons tab is active, this button transforms into '+ Create Coupon'. Click it to generate new customer voucher codes linked to existing discount rules.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-coupons"]'),
+    },
+    {
+      element: '[data-tour="discounts-tab-channels"]',
+      popover: {
+        title: "10. Channel Discounts Tab: Multi-Channel Sales Matrix",
+        description: "Switch to Channel Discounts to inspect active promotional coverage across all 4 sales channels: Web Storefront, Telegram Bot, Messenger Bot, and POS Terminal.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-channels"]'),
+    },
+    {
+      element: '[data-tour="discounts-search-bar"]',
+      popover: {
+        title: "11. Channel Rules Search Bar",
+        description: "Search channel discount rules by channel name or promo rule title.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-channels"]'),
+    },
+    {
+      element: '[data-tour="discounts-table-container"]',
+      popover: {
+        title: "12. Sales Channel Status & Active Promotions",
+        description: "View which promotions are live on each specific sales channel (e.g. Web Storefront showing '1 Promotion Active: Buy 2 free 1', while POS Terminal or Bots run on Standard Price).",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-channels"]'),
+    },
+    {
+      element: '[data-tour="discounts-tab-items"]',
+      popover: {
+        title: "13. Discounted Items Tab: Live Catalog Price Audit",
+        description: "Switch to Discounted Items to review product-level pricing changes and active discount rules across catalog items.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-items"]'),
+    },
+    {
+      element: '[data-tour="discounts-search-bar"]',
+      popover: {
+        title: "14. Item Search, Category & Channel Filters",
+        description: "Search products by item name, SKU, or barcode. Filter items by Category (e.g. Juice & Smoothies, Soft Drink, Seeds, Rice) and Sales Channel.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-items"]'),
+    },
+    {
+      element: '[data-tour="discounts-table-container"]',
+      popover: {
+        title: "15. Discounted Products Directory",
+        description: "Compare Original Prices against Discounted Prices (e.g. Coca-Cola Original discounted rates), active promotion badges, discount rates, and target sales channels.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="discounts-tab-items"]'),
+    },
+    {
+      element: '[data-tour="sidebar-link-membership-types"]',
+      popover: {
+        title: "16. Next: Member Types & Customer Loyalty Tiers",
+        description: "Click 'Member Types' in the left sidebar to connect these discount rules to customer membership tiers (VIP, Gold, Silver)!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/membership-types": [
+    {
+      element: '[data-tour="sidebar-link-membership-types"]',
+      popover: {
+        title: "1. Connection: Discounts → Membership Tier Perks",
+        description: "Membership tiers you define here attach the discount rules from the previous Discounts & Coupons screen, then apply automatically once a customer's profile is tagged with a tier. Define tiers (e.g. VIP, Gold, Silver) to grant special privileges to loyal shoppers.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="add-member-type-btn"]',
+      popover: {
+        title: "2. Add Membership Tier",
+        description: "Click Add Member Type to create a new membership tier and attach automatic discount rules to it.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="member-types-search-bar"]',
+      popover: {
+        title: "3. Search & Column Controls",
+        description: "Filter membership tiers by name or notes, and customize visible table columns.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="member-types-table-container"]',
+      popover: {
+        title: "4. Membership Tiers Directory",
+        description: "Review all defined customer tiers, assigned discount rules, notes, and active status.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-taxes"]',
+      popover: {
+        title: "5. Next: Store Tax Settings",
+        description: "Click 'Tax Settings' in the left sidebar to configure store tax rates (VAT, GST) across sales channels!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/taxes": [
+    {
+      element: '[data-tour="sidebar-link-taxes"]',
+      popover: {
+        title: "1. Connection: Member Tiers → Store Tax Configuration",
+        description: "Welcome to Tax Settings! The tax calculation rules configured here apply automatically across all customer sales channels — POS Terminal, Web Storefront, Telegram Bot, and Messenger Bot.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="tax-status-toggle"]',
+      popover: {
+        title: "2. Tax Status Toggle",
+        description: "Turn ON or OFF automatic tax calculations across all checkout registers and digital storefront channels with a single switch.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="tax-name-input"]',
+      popover: {
+        title: "3. Official Tax Label & Title",
+        description: "Specify your country or store tax label (e.g. VAT, GST, Sales Tax, Service Tax). This label prints on customer invoices and receipts.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="tax-rate-input"]',
+      popover: {
+        title: "4. Tax Rate Percentage (%)",
+        description: "Enter the tax rate percentage (e.g. 10.00%). The system automatically calculates tax amounts on order subtotals during checkout.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="tax-mode-selection"]',
+      popover: {
+        title: "5. Tax Pricing Mode Selection",
+        description: "Choose how tax is calculated: 'Add Tax On Top' (Exclusive - adds tax above subtotal) or 'Included in Prices' (Inclusive - catalog prices already include tax).",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="tax-receipt-preview"]',
+      popover: {
+        title: "6. Live Customer Receipt Preview",
+        description: "Preview how your tax label, percentage rate, and calculation mode render on actual printed 80mm customer receipts before saving.",
+        side: "left",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="tax-save-btn"]',
+      popover: {
+        title: "7. Save Tax Configuration",
+        description: "Click Save Tax Settings to store and broadcast updated tax rules to all POS terminals and online storefront checkouts.",
+        side: "top",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sidebar-link-sessions"]',
+      popover: {
+        title: "8. Next: Register Sessions & Audit Logs",
+        description: "Click 'Register Sessions' in the left sidebar to audit cashier float cash, shift till balancing, and session logs!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/sessions": [
+    {
+      element: '[data-tour="sidebar-link-sessions"]',
+      popover: {
+        title: "1. Connection: POS Cash Drawer → Session Audit Log",
+        description: "Every register opened at the POS terminal, plus every cash payment collected via Pay Later, is recorded here as a session. Audit cashier shifts, starting cash, and drawer balancing to catch variances early.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sessions-header-stats"]',
+      popover: {
+        title: "2. Cash Register Sessions Audit",
+        description: "View total active till registers, open session count, starting drawer cash balances, and total cash collected.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sessions-search-bar"]',
+      popover: {
+        title: "3. Search & Filter Sessions",
+        description: "Search register sessions by staff cashier name or filter by session status (Open/Closed) and date range.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="sessions-table-container"]',
+      popover: {
+        title: "4. Till Register Audit Log",
+        description: "Review opening cash, closing cash, expected cash vs physical drawer count, and cash variance audit logs.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="pos-launch"]',
+      popover: {
+        title: "5. Next: Point of Sale Terminal",
+        description: "Click 'Open Point of Sale' at the bottom of the sidebar anytime to open your POS cashier drawer!",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
+  "/sales/cash-register": [
+    {
+      element: '[data-tour="pos-open-register"]',
+      popover: {
+        title: "1. Open Cash Register Floating Drawer & Next: POS Terminal",
+        description: "Enter your starting opening cash balance (e.g. $100.00) using the keypad to open a fresh POS register session. Click 'Next Page' to jump into the POS Terminal!",
+        side: "bottom",
+        align: "center",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+  ],
+
  "/inventory": [
  {
  element: '[data-tour="add-item"]',
  popover: {
- title: "1. Create New Product",
- description: "Click Create Item to add a new product. Fill in item name, SKU, barcode, retail price, unit, category, and initial stock.",
+ title: "1. Connection: Sales to Master Inventory Catalog",
+ description: "Welcome to Inventory Management! Every product sold in POS or Sales Orders connects directly to this master catalog. Click Create Item to add new products with SKU, barcode, retail price, and stock levels.",
  side: "bottom",
  align: "end",
  popoverClass: "fluxibiz-tour-popover",
@@ -1400,81 +2185,7 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
   ],
-  "/sales/orders": [
-    {
-      element: '[data-tour="orders-digital-menu"]',
-      popover: {
-        title: "1. Digital Menu",
-        description: "Publish a QR code customers scan to browse your menu and order online. The link stays live until you turn it off.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-    {
-      element: '[data-tour="orders-totals"]',
-      popover: {
-        title: "2. Today's Totals",
-        description: "Order count and takings for the period in view, so you can see the day at a glance before reading individual orders.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-    {
-      element: '[data-tour="orders-filters"]',
-      popover: {
-        title: "3. Search & Filter Orders",
-        description: "Find an order by invoice number, order name or an item inside it, then narrow by status or channel.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-    {
-      element: '[data-tour="orders-list"]',
-      popover: {
-        title: "4. The Order List",
-        description: "Every order, newest first. Open one to see its items, payment state and receipt, or settle an order still awaiting payment.",
-        side: "top",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-  ],
 
-  "/sales/pay-later": [
-    {
-      element: '[data-tour="pay-later-totals"]',
-      popover: {
-        title: "1. What You Are Owed",
-        description: "How much is outstanding across all unsettled sales, so you know what is still to come in before opening a single record.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-    {
-      element: '[data-tour="pay-later-filters"]',
-      popover: {
-        title: "2. Find a Sale",
-        description: "Search by invoice number or customer name to locate the sale you are collecting on.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-    {
-      element: '[data-tour="pay-later-list"]',
-      popover: {
-        title: "3. Unsettled Sales",
-        description: "Sales closed without taking the money. Record a payment against one when the cash arrives and it leaves this list.",
-        side: "top",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-    },
-  ],
 
   "/prediction": [
     {
@@ -1553,10 +2264,60 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="settings-profile-form"]',
       popover: {
-        title: "1. Your Profile",
-        description: "Your picture, name and account details. These identify you on receipts, stock movements and the audit log, so keep them accurate.",
+        title: "1. Settings Overview",
+        description: "Welcome to your User Settings! Manage your profile photo, account information, device notification preferences, and personal details in one place.",
         side: "top",
         align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-avatar-section"]',
+      popover: {
+        title: "2. Profile Picture & Avatar",
+        description: "Upload a personalized profile photo or remove your existing picture. Your avatar identifies you across transaction receipts, stock movement logs, and audit trails.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-account-info"]',
+      popover: {
+        title: "3. Account Credentials & Security Role",
+        description: "Review your system-assigned Username, registered Email address, and Access Role. Account roles and security levels are managed by your store administrator.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-notifications-card"]',
+      popover: {
+        title: "4. Device Push Notifications",
+        description: "Enable or disable web push alerts on this device to receive instant notifications for completed sales, low-stock warnings, and incoming orders.",
+        side: "right",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-personal-form"]',
+      popover: {
+        title: "5. Personal Details Form",
+        description: "Update your First Name, Last Name, Phone Number, Gender preference, and Physical Address to keep your business contact records accurate.",
+        side: "left",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+    },
+    {
+      element: '[data-tour="settings-form-actions"]',
+      popover: {
+        title: "6. Save or Revert Changes",
+        description: "Click 'Save changes' to commit your profile updates live to the database, or 'Cancel' to reset form fields back to their original state.",
+        side: "top",
+        align: "end",
         popoverClass: "fluxibiz-tour-popover",
       },
     },
@@ -1566,189 +2327,167 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
     {
       element: '[data-tour="pos-open-register"]',
       popover: {
-        title: "1. Open Register & Shift Float",
-        description: "Start your daily sales session by entering initial cash float in the drawer (e.g. $50.00). System tracks cash float vs end-of-day counts.",
+        title: "1. Connection: Discount Rules → POS Terminal",
+        description: "Welcome to Point of Sale! Open your cash register float (e.g. $50.00) to start your daily cashier shift. All catalog prices, tier discounts, and promo codes sync live to this terminal.",
         side: "bottom",
         align: "end",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
       element: '[data-tour="pos-tab-point-of-sale"]',
       popover: {
-        title: "2. Point of Sale Tab",
-        description: "Main selling workspace. Browse products, build order carts, attach customer profiles, and process instant checkouts.",
+        title: "2. Point of Sale Tab: Main Checkout Workspace",
+        description: "Main cashier workspace. Touch item cards, scan physical barcodes, attach customer profiles, and process rapid checkout.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
       element: '[data-tour="pos-search-grid"]',
       popover: {
-        title: "3. Fast Product Selection & Scanner",
-        description: "Tap product tiles directly or scan physical barcodes using a USB or Bluetooth scanner to add items to cart instantly.",
+        title: "3. Product Search & Barcode Scanner",
+        description: "Tap product cards directly or scan physical barcodes using a USB/Bluetooth scanner to add items to cart instantly.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
       element: '[data-tour="pos-category-select"]',
       popover: {
-        title: "4. Category Filter Selector",
-        description: "Filter touchscreen grid items by category (e.g. Beverages, Bakery, Merch) to locate products quickly during rush hours.",
+        title: "4. Quick Category Filter Bar",
+        description: "Filter touchscreen catalog items by category (e.g. Beverages, Bakery, Merch) for quick cashier access during peak sales.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
       element: '[data-tour="pos-cart-qty"]',
       popover: {
-        title: "5. Cart Quantity Adjuster",
-        description: "Increase, decrease, or remove item lines in the live cart. Tap any item to inspect base prices and unit measurements.",
+        title: "5. Live Cart Line Items & Quantity Controls",
+        description: "Increase, decrease, or remove cart items. Tap any item row to check base pricing and unit breakdown.",
         side: "left",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
       element: '[data-tour="pos-tab-customer"]',
       popover: {
-        title: "6. Customer Loyalty & CRM",
-        description: "Open the Customer tab to attach a shopper to the sale — earning loyalty points, applying their membership tier discount, and logging the sale against their history.",
+        title: "6. Customer Loyalty & Tier Link",
+        description: "Click Customer to attach a registered shopper — earning loyalty points, applying membership tier discounts, and logging order history.",
         side: "bottom",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
-    },
-    {
-      element: '[data-tour="pos-checkout"]',
-      popover: {
-        title: "7. Express Checkout & Payment",
-        description: "Click Pay to complete order settlement via Cash, Bakong KHQR digital payment, or Credit Card with multi-currency USD/KHR change calculation.",
-        side: "top",
-        align: "end",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-      },
-    },
-    {
-      element: '[data-tour="pos-tab-order"]',
-      popover: {
-        title: "8. Order Tab",
-        description: "Click Order tab to view all open held transactions, saved customer draft orders, and pending table carts.",
-        side: "top",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-order"]') as HTMLButtonElement)?.click();
-      },
-    },
-    {
-      element: '[data-tour="orders-open-count"]',
-      popover: {
-        title: "9. Open Orders Counter & Held Cart Actions",
-        description: "Monitors active open carts waiting for payment. Tap pencil icon to edit/resume order or trash icon to void cart and release reserved inventory.",
-        side: "bottom",
-        align: "end",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-order"]') as HTMLButtonElement)?.click();
-      },
-    },
-    {
-      element: '[data-tour="pos-tab-receipts"]',
-      popover: {
-        title: "10. Receipts Tab",
-        description: "Click Receipts tab to view full terminal sales history, daily sales KPI summaries, cash vs KHQR revenue, thermal 80mm ticket reprints, and Telegram invoice receipts.",
-        side: "top",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-receipts"]') as HTMLButtonElement)?.click();
-      },
-    },
-    {
-      element: '[data-tour="receipts-kpi-summary"]',
-      popover: {
-        title: "11. Daily Till Revenue Summary",
-        description: "Real-time summary counters showing total revenue collected across transactions, total cash drawer sales, and sales breakdown.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-receipts"]') as HTMLButtonElement)?.click();
-      },
-    },
-    {
-      element: '[data-tour="receipts-filter-bar"]',
-      popover: {
-        title: "12. Receipts Date & Staff Filter",
-        description: "Filter past transactions by Today, Yesterday, This Week, This Month, or filter by specific register cashier staff.",
-        side: "bottom",
-        align: "start",
-        popoverClass: "fluxibiz-tour-popover",
-      },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-receipts"]') as HTMLButtonElement)?.click();
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
       element: '[data-tour="pos-tab-custom-discount"]',
       popover: {
-        title: "13. Discounts & Coupons",
-        description: "Custom Discount takes a percentage or fixed amount off the cart. The Coupon tab beside it redeems a promo code. Active store promotions apply on their own.",
+        title: "7. Manual In-Cart Custom Discount",
+        description: "Click Custom Discount to apply an instant percentage or fixed dollar price reduction directly to the current order cart.",
         side: "top",
         align: "start",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
-        setTimeout(() => {
-          (document.querySelector('[data-tour="pos-tab-custom-discount"]') as HTMLButtonElement)?.click();
-        }, 50);
-      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
     {
-      element: '[data-tour="pos-open-register"]',
+      element: '[data-tour="pos-tab-coupon"]',
       popover: {
-        title: "14. Close Shift & Cash Drawer Audit",
-        description: "End your shift by counting actual cash drawer total, comparing expected vs counted cash, and logging shift discrepancy reports.",
+        title: "8. Coupon Promo Code Redemption",
+        description: "Click Coupon to type or scan customer voucher codes (e.g. SAVE990, WELCOME10) to claim promotional savings at checkout.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
+    },
+    {
+      element: '[data-tour="pos-checkout"]',
+      popover: {
+        title: "9. Express Checkout & Settlement Methods",
+        description: "Click Pay to settle order total using Cash (USD/KHR), Bakong KHQR digital payment, or Credit Card.",
+        side: "top",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
+    },
+    {
+      element: '[data-tour="pos-tab-order"]',
+      popover: {
+        title: "10. Order Tab: Held & Draft Carts",
+        description: "Switch to the Order tab to view all held orders, pending table tabs, and saved customer draft carts.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-order"]'),
+    },
+    {
+      element: '[data-tour="orders-open-count"]',
+      popover: {
+        title: "11. Open Orders Counter & Cart Actions",
+        description: "Audit active held orders waiting for payment. Tap the edit icon to resume checkout or trash icon to void cart.",
         side: "bottom",
         align: "end",
         popoverClass: "fluxibiz-tour-popover",
       },
-      onHighlightStarted: () => {
-        const closeBtn = (document.querySelector('[data-slot="dialog-close"]') || document.querySelector('button[aria-label="Close"]')) as HTMLButtonElement;
-        if (closeBtn) closeBtn.click();
-        (document.querySelector('[data-tour="pos-tab-point-of-sale"]') as HTMLButtonElement)?.click();
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-order"]'),
+    },
+    {
+      element: '[data-tour="pos-tab-receipts"]',
+      popover: {
+        title: "12. Receipts Tab: Sales & Revenue History",
+        description: "Switch to the Receipts tab to view completed shift sales, cash/KHQR revenue totals, and print 80mm receipts.",
+        side: "top",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
       },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-receipts"]'),
+    },
+    {
+      element: '[data-tour="receipts-kpi-summary"]',
+      popover: {
+        title: "13. Till Revenue & Payment Breakdown Summary",
+        description: "Real-time counters showing total shift revenue, cash collected, and digital KHQR payment breakdowns.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-receipts"]'),
+    },
+    {
+      element: '[data-tour="receipts-filter-bar"]',
+      popover: {
+        title: "14. Receipts Date & Staff Filter Bar",
+        description: "Filter past transaction history by date range (Today, Yesterday, This Month) or by cashier staff member.",
+        side: "bottom",
+        align: "start",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-receipts"]'),
+    },
+    {
+      element: '[data-tour="pos-open-register"]',
+      popover: {
+        title: "15. Close Shift & Cash Drawer Reconciliation",
+        description: "End your shift by counting cash drawer total, auditing counted vs expected cash, and submitting register shift reports.",
+        side: "bottom",
+        align: "end",
+        popoverClass: "fluxibiz-tour-popover",
+      },
+      onHighlightStarted: clickScopeAndRefresh('[data-tour="pos-tab-point-of-sale"]'),
     },
   ],
 
@@ -2546,450 +3285,6 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
  title: "5. Live Notification Stream",
  description: "Click any notification item to mark it as read and jump directly to its related sales order or stock item.",
  side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales": [
- {
- element: '[data-tour="sidebar-section-sales"]',
- popover: {
- title: "1. Sale Management Section",
- description: "You are in the Sale Management app. Track sales orders, digital menu storefronts, item channel pricing, customer CRM, discounts, and member types.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sales-digital-menu"]',
- popover: {
- title: "2. Digital QR Code Menu",
- description: "Toggle online storefront visibility so customers can scan QR codes to browse your live menu.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sales-order-stats"]',
- popover: {
- title: "3. Orders Summary KPIs",
- description: "Overview counters displaying Total Orders count, Gross Revenue, Paid orders, and Pending orders.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sales-orders-filters"]',
- popover: {
- title: "4. Search & Filter Bar",
- description: "Filter orders by Date range (Today, 7 days, 30 days, All time), Status (ALL, PENDING, PAID, CANCELLED, FAILED), or Channel (POS, TELEGRAM, MESSENGER, WEB).",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sales-orders-table"]',
- popover: {
- title: "5. Sales Orders History",
- description: "View order invoice numbers, timestamps, sales channels, item counts, total amounts, and payment status.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-item-&-pricing"]',
- popover: {
- title: "6. Next: Item & Pricing",
- description: "Click 'Item & Pricing' in the left sidebar to manage base prices and sales channel pricing!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/pricing": [
- {
- element: '[data-tour="sidebar-link-item-&-pricing"]',
- popover: {
- title: "1. Item & Pricing Link",
- description: "You are on the Item & Pricing page under Sale Management.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="pricing-scope-selector"]',
- popover: {
- title: "2. Base Price vs Channel Selector",
- description: "Switch between setting master Base Prices for your business or custom Channel Overrides for POS, Web, Telegram, and Messenger.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="pricing-filter-bar"]',
- popover: {
- title: "3. Item Search & Barcode Scanner",
- description: "Search products by name, SKU, or scan barcodes to set prices directly.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="pricing-channel-overrides"]',
- popover: {
- title: "4. Channel Pricing & Schedule Matrix",
- description: "Configure custom channel markups, percentage rules, and channel operating hours.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-customers"]',
- popover: {
- title: "5. Next: Customers",
- description: "Click 'Customers' in the left sidebar to manage customer profiles and CRM histories!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/customers": [
- {
- element: '[data-tour="sidebar-link-customers"]',
- popover: {
- title: "1. Customers Link",
- description: "You are on the Customer Directory & CRM page.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="add-customer-btn"]',
- popover: {
- title: "2. Add Customer",
- description: "Create new customer profiles with name, email, phone number, address, and membership tier.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="customers-search-bar"]',
- popover: {
- title: "3. Customer Search & Columns",
- description: "Search customers by name, phone, or email, and customize visible table columns.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="customers-table-container"]',
- popover: {
- title: "4. Customer Directory Table",
- description: "View customer contact info, assigned membership type, sales channel, address, lifetime spend, and active status.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-discounts-&-coupons"]',
- popover: {
- title: "5. Next: Discounts & Coupons",
- description: "Click 'Discounts & Coupons' in the left sidebar to set up promo codes and discount rules!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/discounts": [
- {
- element: '[data-tour="sidebar-link-discounts-&-coupons"]',
- popover: {
- title: "1. Discounts & Coupons Link",
- description: "You are on the Discounts & Coupons page.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="create-discount-btn"]',
- popover: {
- title: "2. Create Discount / Coupon",
- description: "Build percentage or fixed dollar discounts, minimum order requirements, buy-X-get-Y rules, or promo coupons.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="discounts-tabs"]',
- popover: {
- title: "3. Discounts vs Coupons Tab",
- description: "Toggle between automatic discount rules and customer-redeemable coupon codes.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="discounts-search-bar"]',
- popover: {
- title: "4. Search & Column Controls",
- description: "Search discount rules or coupon codes by keyword.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="discounts-table-container"]',
- popover: {
- title: "5. Discounts & Coupons Table",
- description: "View active promotional rules, linked coupons, usage limits, and channel applicability.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-member-types"]',
- popover: {
- title: "6. Next: Member Types",
- description: "Click 'Member Types' in the left sidebar to manage loyalty tiers!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/membership-types": [
- {
- element: '[data-tour="sidebar-link-member-types"]',
- popover: {
- title: "1. Member Types Link",
- description: "You are on the Member Types & Loyalty Tiers page.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="add-member-type-btn"]',
- popover: {
- title: "2. Add Member Type",
- description: "Define custom membership tiers (e.g. VIP, Gold, Silver) and link automatic discount rules.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="member-types-search-bar"]',
- popover: {
- title: "3. Search & Column Controls",
- description: "Filter membership tiers by name or notes.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="member-types-table-container"]',
- popover: {
- title: "4. Member Types Directory",
- description: "View active tier names, assigned discount rules, remarks, and status.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-tax-settings"]',
- popover: {
- title: "5. Next: Tax Settings",
- description: "Click 'Tax Settings' in the left sidebar to configure store tax rules, VAT rates, and receipt calculations!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/taxes": [
- {
- element: '[data-tour="sidebar-link-tax-settings"]',
- popover: {
- title: "1. Tax Settings Module Link",
- description: "You are on the Store Tax Settings screen. Configure default store tax rates, calculation rules, and receipt display settings.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tax-status-toggle"]',
- popover: {
- title: "2. Enable Tax Calculation",
- description: "Toggle Tax Calculation ON/OFF. When active, default tax rules automatically compute during POS checkout and customer invoicing.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tax-name-input"]',
- popover: {
- title: "3. Tax Label / Name",
- description: "Specify the legal tax title (e.g. VAT, Sales Tax, GST) displayed on line items on printed customer receipts.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tax-rate-input"]',
- popover: {
- title: "4. Tax Rate Value",
- description: "Set your business tax rate percentage (e.g. 10% VAT) applied to order subtotals.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tax-mode-selection"]',
- popover: {
- title: "5. Tax Pricing Mode (Exclusive vs Inclusive)",
- description: "Choose Exclusive mode (adds tax extra on top of subtotal) or Inclusive mode (product prices already include tax with zero extra charge).",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tax-save-btn"]',
- popover: {
- title: "6. Save Tax Settings",
- description: "Click Save to store and immediately enforce tax rules across all Point of Sale registers.",
- side: "top",
- align: "end",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="tax-receipt-preview"]',
- popover: {
- title: "7. Live Thermal Receipt Preview",
- description: "Real-time ticket preview showing how tax subtotals, tax rate lines, and total amounts render on printed receipts.",
- side: "left",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sidebar-link-register-sessions"]',
- popover: {
- title: "8. Next: Register Sessions",
- description: "Click 'Register Sessions' in the left sidebar to view cash register shift history, starting floats, and drawer reconciliation audit logs!",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/sessions": [
- {
- element: '[data-tour="sidebar-link-register-sessions"]',
- popover: {
- title: "1. Register Sessions Module Link",
- description: "You are on the Register Sessions page. Audit live and past till shifts, opening floats, cash sales, and counted drawer cash.",
- side: "right",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sessions-header-stats"]',
- popover: {
- title: "2. Key Till Metrics & KPI Tiles",
- description: "Real-time summary counters showing total live active tills, total opening cash float, gross cash sales, and total drawer discrepancies.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sessions-search-bar"]',
- popover: {
- title: "3. Search & Shift Status Filters",
- description: "Search sessions by register or cashier name, and filter shift logs by ALL, OPEN (live), or CLOSED status.",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sessions-column-picker"]',
- popover: {
- title: "4. Column Visibility Controls",
- description: "Toggle visible table columns (Session ID, Cashier, Opening Cash, Cash Sales, Counted Cash, Variance, Status).",
- side: "bottom",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="sessions-table-container"]',
- popover: {
- title: "5. Register Shift Audit Directory",
- description: "View shift open/close timestamps, cashier accounts, order counts, expected drawer cash, counted cash, and variance dollar amounts.",
- side: "top",
- align: "start",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- {
- element: '[data-tour="pos-launch"]',
- popover: {
- title: "6. Next: Open Point of Sale",
- description: "Click 'Open Point of Sale' at the bottom of the sidebar to launch the full-screen POS terminal!",
- side: "top",
- align: "center",
- popoverClass: "fluxibiz-tour-popover",
- },
- },
- ],
-
- "/sales/cash-register": [
- {
- element: '[data-tour="cash-register-shift"]',
- popover: {
- title: "Cash Register Shift & Float Management",
- description: "Open your shift float balance, count drawer cash, and close register with end-of-day X/Z reports.",
- side: "bottom",
  align: "start",
  popoverClass: "fluxibiz-tour-popover",
  },

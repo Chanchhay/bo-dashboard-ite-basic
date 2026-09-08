@@ -917,6 +917,7 @@ export default function CustomerManagement() {
                             <Label htmlFor="fullName">Full Name</Label>
                             <Input
                                 id="fullName"
+                                data-tour="customer-form-name"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 placeholder="e.g. John Doe"
@@ -927,6 +928,7 @@ export default function CustomerManagement() {
                             <Label htmlFor="phoneNumber">Phone Number</Label>
                             <Input
                                 id="phoneNumber"
+                                data-tour="customer-form-phone"
                                 value={phoneNumber}
                                 onChange={(e) => setPhoneNumber(e.target.value)}
                                 placeholder="012 345 678"
@@ -934,7 +936,7 @@ export default function CustomerManagement() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5" data-tour="customer-form-membership">
                                 <Label htmlFor="membershipType">Membership Type</Label>
                                 <Select
                                     value={membershipTypeId || "NONE"}
@@ -956,7 +958,7 @@ export default function CustomerManagement() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5" data-tour="customer-form-channel">
                                 <Label htmlFor="salesChannel">Sales Channel</Label>
                                 {posSalesChannels.length <= 1 ? (
                                     <Input
@@ -987,7 +989,7 @@ export default function CustomerManagement() {
                             </div>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="customer-form-spend">
                             <Label htmlFor="totalSpend">Total Spend ($)</Label>
                             <Input
                                 id="totalSpend"
@@ -1004,7 +1006,7 @@ export default function CustomerManagement() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex items-center gap-2 pt-2" data-tour="customer-form-active">
                             <input
                                 type="checkbox"
                                 id="active"
@@ -1026,6 +1028,7 @@ export default function CustomerManagement() {
                             Cancel
                         </Button>
                         <Button
+                            data-tour="customer-form-submit"
                             onClick={handleSave}
                             disabled={isCreating || isUpdating}
                             className="bg-primary hover:bg-primary/90 text-white"
