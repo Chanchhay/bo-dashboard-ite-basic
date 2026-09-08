@@ -280,7 +280,7 @@ export function PayLaterList() {
         <div className="flex flex-col gap-4">
             <div
                 data-tour="pay-later-totals"
-                className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3"
+                className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3"
             >
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
                     <div className="flex items-center justify-between">
@@ -316,7 +316,7 @@ export function PayLaterList() {
                     </p>
                 </div>
 
-                <div className="col-span-2 rounded-2xl border border-border bg-card p-4 shadow-xs sm:col-span-1">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Owed in total
