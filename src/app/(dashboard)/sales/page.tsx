@@ -391,16 +391,16 @@ export default function SalesOrdersPage() {
     }
 
     return (
-        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-12 sm:pb-16">
+        <div className="flex flex-col gap-5 pb-12 sm:pb-16">
             <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
-                <div className="flex items-center justify-between gap-4">
+                <div data-tour="orders-list" className="flex items-center justify-between gap-4">
                     <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
                         Track sales orders, order receipts, channel breakdown, and digital menu configuration.
                     </p>
                     <TourButton />
                 </div>
 
-                <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div data-tour="orders-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
                     <div>
                         <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
                         <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
@@ -434,7 +434,7 @@ export default function SalesOrdersPage() {
                 </div>
 
                 <section
-                    data-tour="sales-order-stats"
+                    data-tour="orders-totals"
                     aria-label="Totals"
                     className="grid grid-cols-2 gap-3 lg:grid-cols-6"
                 >
@@ -470,8 +470,8 @@ export default function SalesOrdersPage() {
                 )}
             </div>
 
-            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
-                <div data-tour="sales-orders-filters" className="static lg:sticky lg:top-0 lg:z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
+            <section data-tour="orders-list" className="relative rounded-2xl border border-border bg-card shadow-xs">
+                <div data-tour="orders-filters" className="static lg:sticky lg:top-0 lg:z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -650,7 +650,6 @@ export default function SalesOrdersPage() {
 
                         {/* Desktop Table (>= md) */}
                         <div
-                            data-tour="sales-orders-table"
                             className={cn(
                                 "hidden md:block overflow-x-auto transition-opacity duration-200 ease-in-out",
                                 isFetching && "opacity-60 pointer-events-none",

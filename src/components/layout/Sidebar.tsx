@@ -259,8 +259,13 @@ function SectionItem({
                     }
 
                     const leafKey = leaf.label.toLowerCase().replace(/\s+/g, "-");
+                    const leafSlug = (leaf.href === "/sales" || leaf.href === "/sales/orders")
+                        ? "orders"
+                        : leaf.href
+                        ? leaf.href.split("/").pop()!
+                        : leafKey;
                     return (
-                        <li key={leaf.href} data-tour={`sidebar-link-${leafKey}`}>
+                        <li key={leaf.href} data-tour={`sidebar-link-${leafSlug}`}>
                             <Link
                                 href={leaf.href}
                                 onClick={onNavigate}

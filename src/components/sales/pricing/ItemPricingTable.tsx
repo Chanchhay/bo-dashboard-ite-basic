@@ -206,7 +206,6 @@ export function ItemPricingTable({
 
     return (
         <div
-            data-tour="pricing-table"
             className="overflow-clip rounded-2xl border border-border bg-card shadow-xs"
         >
             {/* Mobile Cards (< md) */}
@@ -476,6 +475,7 @@ export function ItemPricingTable({
                                     {isBase ? null : (
                                         <TableCell>
                                             <Switch
+                                                data-tour={item === items[0] ? "pricing-sell-here-toggle" : undefined}
                                                 checked={listed}
                                                 disabled={!sellable}
                                                 onCheckedChange={(checked) =>
@@ -505,6 +505,7 @@ export function ItemPricingTable({
                                     <TableCell className="text-right">
                                         <Button
                                             type="button"
+                                            data-tour="pricing-set-prices-btn"
                                             variant="outline"
                                             size="sm"
                                             disabled={!isBase && !listed}

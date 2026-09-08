@@ -226,7 +226,7 @@ export function ChannelScheduleCard({
     }
 
     return (
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+        <section data-tour="pricing-channel-schedule" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             <div className="flex flex-wrap items-center gap-3 p-4 sm:p-5">
                 <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                     <Clock className="size-5" />
