@@ -269,13 +269,6 @@ export type InventoryItem = {
     code?: string;
     description?: string;
 
-    /**
-     * The item's own picture, as a plain link.
-     *
-     * Distinct from `images`, which holds files uploaded into our asset store.
-     * An imported item's picture is still hosted by the shop's old system and
-     * only ever arrives here.
-     */
     imageUrl?: string | null;
     images?: ItemImage[];
     badge?: string;
@@ -306,14 +299,6 @@ export function itemImageUrls(
         if (url && !gallery.includes(url)) gallery.push(url);
     };
 
-    /*
-     * The item's own picture comes first, and it is the only one that can be a
-     * plain link. Uploaded images live in `images` as keys into our asset
-     * store; an imported item has never been near it, and its picture is a URL
-     * on the shop's old system sitting in `imageUrl` alone. Leaving that out
-     * meant an imported item with options showed pictures — those hang off the
-     * options — and an imported item without them showed none at all.
-     */
     push(item.imageUrl);
 
     [...(item.images || [])]
@@ -575,15 +560,8 @@ const optionalMoney = (message: string) =>
         .nullish()
         .transform((value) => value ?? undefined);
 
-/** Ceiling for any stock figure a user types — on hand, moved, adjusted, split. */
 export const maxStockQuantity = 99_999;
 
-/**
- * Holds a typed stock figure at the ceiling by refusing the digit that would
- * overflow, rather than snapping the whole figure to the maximum — typing 7 six
- * times leaves 77777, not 99999. Sign is preserved, since a manual adjustment
- * can be negative, and a lone "-" survives so it can still be typed.
- */
 export function clampStockInput(value: string, maxDecimals: number = 3): string {
     const negative = value.trimStart().startsWith("-");
     const clean = value.replace(/[^0-9.]/g, "");
@@ -594,7 +572,6 @@ export function clampStockInput(value: string, maxDecimals: number = 3): string 
     let integerPart = parts[0] || "";
     const decimalPart = parts.length > 1 ? parts.slice(1).join("") : undefined;
 
-    // Strip leading zeros unless it's just "0" or before a dot
     integerPart = integerPart.replace(/^0+(?=\d)/, "");
 
     const width = String(maxStockQuantity).length;
@@ -614,11 +591,6 @@ export function clampStockInput(value: string, maxDecimals: number = 3): string 
     return `${negative ? "-" : ""}${result}`;
 }
 
-/**
- * Every ceiling the item form enforces. The inputs read these for `maxLength`
- * and for disabling their "Add" buttons, and this schema reads them again as
- * the backstop, so the two can never drift apart.
- */
 export const itemLimits = {
     name: 50,
     sku: 20,

@@ -46,7 +46,6 @@ type StatusFilter = (typeof STATUS_OPTIONS)[number];
 const DATE_RANGES = ["Today", "7 days", "30 days", "All time"] as const;
 type DateRange = (typeof DATE_RANGES)[number];
 
-/** Default rows per request. */
 const DEFAULT_PAGE_SIZE = 10;
 
 export type SessionColumnKey =
@@ -83,14 +82,6 @@ const ALL_SESSION_COLUMNS: SessionColumnConfig[] = [
   { key: "action", label: "Action" },
 ];
 
-/**
- * Who worked a drawer, as a headline name plus however many joined it.
- *
- * A register session is shared, so naming only the person who opened it
- * credits one cashier for a shift several people rang sales into. The opener
- * stays first — they are the one the row is sorted and reconciled around — and
- * the rest are counted rather than listed, so the column keeps its width.
- */
 function cashiersOf(session: RegisterSession) {
   const names = (session.cashierNames ?? []).filter(Boolean);
   const all = names.length > 0 ? names : [session.cashierName || "Cashier"];
@@ -98,7 +89,6 @@ function cashiersOf(session: RegisterSession) {
   return { primary: all[0], others: all.slice(1), all };
 }
 
-/** The "+2" that follows a shared drawer's headline cashier. */
 function JoinedCashierCount({ others }: { others: string[] }) {
   if (others.length === 0) return null;
 
@@ -115,14 +105,10 @@ function JoinedCashierCount({ others }: { others: string[] }) {
 export function RegisterSessionsHistory() {
   const { format } = useMoney();
 
-  // Dynamic state
   const [sessions, setSessions] = useState<RegisterSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Paging, and the totals the server worked out for the whole filtered set.
-  // Summing the rows on screen would total whichever twenty happened to be
-  // showing, which is not what a total means.
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageMeta, setPageMeta] = useState({ totalElements: 0, totalPages: 1 });
@@ -133,7 +119,6 @@ export function RegisterSessionsHistory() {
     totalDiscrepancies: 0,
   });
 
-  // Filters & Search
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dateRange, setDateRange] = useState<DateRange>("All time");
@@ -182,7 +167,7 @@ export function RegisterSessionsHistory() {
   const toggleColumn = (key: SessionColumnKey) => {
     setVisibleColumns((prev) => {
       const count = Object.values(prev).filter(Boolean).length;
-      if (prev[key] && count <= 1) return prev; // Keep at least 1 column visible
+      if (prev[key] && count <= 1) return prev;
       return { ...prev, [key]: !prev[key] };
     });
   };
@@ -204,7 +189,6 @@ export function RegisterSessionsHistory() {
     });
   };
 
-  // Open Details Modal with live fetch from /api/register/sessions/{sessionId}/summary
   const handleOpenDetails = useCallback(async (session: RegisterSession) => {
     setSelectedSession(session);
     setLoadingSummary(true);
@@ -224,9 +208,6 @@ export function RegisterSessionsHistory() {
     }
   }, []);
 
-  // The filters go to the server, not to the rows already on screen. The list
-  // is paged, so filtering here would answer "nothing matches" while the
-  // matches sat on page three.
   const fetchSessions = useCallback(
     async (showRefreshing = false) => {
       if (showRefreshing) {
@@ -277,17 +258,11 @@ export function RegisterSessionsHistory() {
     [page, pageSize, statusFilter, dateRange, query],
   );
 
-  // Debounced, because `query` changes on every keystroke and each change is
-  // now a database query rather than a filter over an array already in hand.
   useEffect(() => {
     const timer = setTimeout(() => fetchSessions(), query ? 300 : 0);
     return () => clearTimeout(timer);
   }, [fetchSessions, query]);
 
-
-  // Every filter change starts again at the first page — page 3 of one filter
-  // is not page 3 of another — and resets here rather than in an effect, so
-  // the fetch never fires once against the page the reader just left.
   const applyQuery = (value: string) => {
     setQuery(value);
     setPage(0);
@@ -303,8 +278,6 @@ export function RegisterSessionsHistory() {
     setPage(0);
   };
 
-  // Already filtered and ordered by the server; the rows are shown as they
-  // arrive. Kept under the old name so the table below reads unchanged.
   const filteredSessions = sessions;
 
   function formatDate(isoStr?: string | null) {
@@ -329,7 +302,6 @@ export function RegisterSessionsHistory() {
     <div className="flex flex-col gap-4 sm:gap-6 text-foreground pb-8">
 
       <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-1 sm:pt-2 pb-2 sm:pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3 sm:gap-4">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-2xl font-bold text-foreground dark:text-white tracking-tight">
@@ -344,7 +316,6 @@ export function RegisterSessionsHistory() {
           </div>
         </div>
 
-        {/* Metric Cards */}
         <div data-tour="sessions-header-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <div className="rounded-xl sm:rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs transition-all hover:shadow-md dark:border-slate-800/80 dark:bg-[#151c28] flex flex-col justify-between">
             <div className="flex items-center justify-between gap-1">
@@ -415,7 +386,6 @@ export function RegisterSessionsHistory() {
         </div>
       </div>
 
-      {/* Main Table Card */}
       <div
         data-tour="sessions-table-container"
         className={cn(
@@ -423,7 +393,6 @@ export function RegisterSessionsHistory() {
           (isLoading || isRefreshing) && "opacity-60 pointer-events-none",
         )}
       >
-        {/* Filters and Search Toolbar */}
         <div data-tour="sessions-search-bar" className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 border-b border-border bg-card p-3 sm:p-5 shrink-0">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -571,7 +540,6 @@ export function RegisterSessionsHistory() {
           </div>
         </div>
 
-        {/* Mobile Card List (< md) */}
         <div className="flex flex-col gap-3 md:hidden p-3 sm:p-4">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, idx) => (
@@ -602,7 +570,6 @@ export function RegisterSessionsHistory() {
                   onClick={() => handleOpenDetails(session)}
                   className="rounded-2xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800/80 shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
                 >
-                  {/* Card Top Header */}
                   <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-foreground dark:text-white">
@@ -639,7 +606,6 @@ export function RegisterSessionsHistory() {
                     </div>
                   </div>
 
-                  {/* Primary Key-Value Rows */}
                   <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                     <div className="flex items-center justify-between px-3.5 py-2.5">
                       <span className="text-muted-foreground dark:text-slate-400">Cashier</span>
@@ -704,7 +670,6 @@ export function RegisterSessionsHistory() {
                       </div>
                     </div>
 
-                    {/* Collapsible / Expandable Extra Fields */}
                     {isExpanded && (
                       <>
                         <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/15 dark:bg-slate-900/40">
@@ -744,7 +709,6 @@ export function RegisterSessionsHistory() {
                     )}
                   </div>
 
-                  {/* View More / View Less Toggle Button */}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -764,7 +728,6 @@ export function RegisterSessionsHistory() {
           )}
         </div>
 
-        {/* Desktop Table (>= md) */}
         <div className="hidden md:block overflow-auto max-h-[calc(100dvh-370px)] sm:max-h-[calc(100dvh-390px)] min-w-full">
           <Table className="w-full text-left text-sm">
             <TableHeader className="sticky top-0 z-10 bg-card border-b border-border shadow-xs">
@@ -1027,7 +990,6 @@ export function RegisterSessionsHistory() {
         )}
       </div>
 
-      {/* Session Details / Summary Modal */}
       {selectedSession && (
         <div
           onClick={() => setSelectedSession(null)}
@@ -1037,7 +999,6 @@ export function RegisterSessionsHistory() {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-lg rounded-3xl border border-border bg-card dark:bg-[#151c28] dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-foreground dark:text-slate-100 cursor-default"
           >
-            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -1064,9 +1025,7 @@ export function RegisterSessionsHistory() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="flex flex-col gap-5 p-6 text-sm max-h-[75vh] overflow-y-auto">
-              {/* Cashier & Session metadata */}
               <div className="grid grid-cols-2 gap-3.5 rounded-2xl bg-muted/40 dark:bg-[#0d121c] p-4 border border-border/50 dark:border-slate-800">
                 <div>
                   <span className="text-[11px] font-medium text-muted-foreground dark:text-slate-400">
@@ -1106,7 +1065,6 @@ export function RegisterSessionsHistory() {
                 </div>
               </div>
 
-              {/* Financial Breakdown */}
               <div className="flex flex-col gap-2.5 border-t border-b border-border dark:border-slate-800 py-4">
                 <div className="flex justify-between items-start text-muted-foreground dark:text-slate-400">
                   <div className="flex flex-col">
@@ -1202,7 +1160,6 @@ export function RegisterSessionsHistory() {
                 )}
               </div>
 
-              {/* Notes */}
               {selectedSession.note && (
                 <div className="flex flex-col gap-1 rounded-xl bg-amber-50/80 dark:bg-amber-950/50 p-3 text-xs border border-amber-200/60 dark:border-amber-900/60">
                   <span className="font-bold text-amber-800 dark:text-amber-300">Session Note:</span>
@@ -1211,7 +1168,6 @@ export function RegisterSessionsHistory() {
               )}
             </div>
 
-            {/* Modal Actions */}
             <div className="flex justify-end gap-3 border-t border-border dark:border-slate-800 px-6 py-4 bg-muted/30 dark:bg-[#0f1520]">
               <button
                 type="button"

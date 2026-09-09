@@ -57,17 +57,6 @@ import { Input } from "@/components/ui/input";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ChartCardSkeleton } from "@/components/dashboard/charts/ChartCardSkeleton";
 
-/*
- * The three charting cards are fetched only once the dashboard is on screen.
- *
- * Recharts is by far the heaviest thing this page pulls in, and none of it is
- * needed to paint the figures above the charts or the tables below them. Held
- * back like this, the numbers land first and the charts fill in behind them —
- * rather than everything waiting on the chart library to parse.
- *
- * `ssr: false` because these render nothing meaningful on the server anyway:
- * they size themselves against a real viewport.
- */
 const ChannelDonutCard = dynamic(
     () => import("@/components/dashboard/charts/ChannelDonutCard").then((mod) => mod.ChannelDonutCard),
     { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-4" /> },
@@ -83,14 +72,12 @@ const ItemTypeBarCard = dynamic(
     { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-7" /> },
 );
 
-// Color Palette for Channels matching system theme tokens
 const CHANNEL_COLORS: Record<string, string> = {
-    POS: "#00932a",       // Green (swapped with Telegram)
-    WEB: "#eda100",       // Yellow (swapped with Messenger)
-    TELEGRAM: "#d14341",  // Red (swapped with POS)
-    MESSENGER: "#2a78d6", // Blue (swapped with Web)
+    POS: "#00932a",
+    WEB: "#eda100",
+    TELEGRAM: "#d14341",
+    MESSENGER: "#2a78d6",
 };
-/** The four cards an export photographs, in the order a report shows them. */
 const CHART_SELECTORS = [
     "[data-tour='dashboard-channel-cards']",
     "[data-tour='dashboard-cumulative-profit']",
@@ -100,10 +87,6 @@ const CHART_SELECTORS = [
 
 type CapturedChart = { dataUrl: string; width: number; height: number };
 
-// Renders a dashboard card to a PNG data URI for embedding in exported reports (Excel/Word).
-// Strips SVG glow filters first — html2canvas rasterizes them as a muddy smear instead of a soft glow.
-// Returns the canvas's real pixel dimensions too, so callers can size the <img> without
-// distorting it — Word/Excel's HTML importer stretches images when only one dimension is set.
 async function captureChartImage(selector: string): Promise<CapturedChart | null> {
     const el = document.querySelector(selector);
     if (!el) return null;
@@ -120,8 +103,6 @@ async function captureChartImage(selector: string): Promise<CapturedChart | null
     return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
 }
 
-// Builds an <img> tag with an explicit width/height (derived from the real capture aspect
-// ratio) at the given display width, so it renders at a clean, undistorted size.
 function chartImgTag(chart: CapturedChart | null, filename: string, displayWidth: number, style = ""): string {
     if (!chart) return "";
     const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
@@ -139,8 +120,6 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 const DOC_BORDER_LIGHT = { style: BorderStyle.SINGLE, size: 2, color: "E0E0E0" } as const;
 const DOC_BORDER_HEADER = { style: BorderStyle.SINGLE, size: 4, color: "B4C6E7" } as const;
 
-// Renders a captured chart as a docx image paragraph, sized from its real
-// capture aspect ratio so it doesn't come out stretched.
 function chartImageParagraph(chart: CapturedChart | null, displayWidth: number): Paragraph | null {
     if (!chart) return null;
     const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
@@ -228,17 +207,6 @@ function docKpiTable(cells: { label: string; value: string }[]): Table {
     });
 }
 
-/**
- * Gives the chart cards a moment to actually be charts before they are
- * photographed.
- *
- * They are loaded on demand — recharts is the heaviest thing this page pulls
- * in and it is not needed to read the figures — so a card can still be a
- * skeleton when an export starts. Capturing then would put a grey placeholder
- * in the report where a chart belongs. This waits for the drawn SVG to appear
- * and gives up after a moment rather than blocking the export forever: a
- * missing chart is a report without a picture, which beats no report at all.
- */
 async function waitForCharts(selectors: string[], timeoutMs = 4000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
 
@@ -260,23 +228,13 @@ export function OverviewDashboard() {
     const [bestSellingPage, setBestSellingPage] = useState(1);
 
     const ITEMS_PER_PAGE = 5;
-    /** One page big enough to hold a CSV export of everything matching. */
+   
     const EXPORT_PAGE_SIZE = 1000;
 
-    /*
-     * Three reads, and nothing derived from them here.
-     *
-     * This screen used to fetch four reports plus the entire catalogue — up
-     * to ten thousand items — and then total, rank, accumulate and join them
-     * in the browser on every render. Most of that arithmetic needed the whole
-     * set to be right: a running total, a share of revenue, a ranking, a bar
-     * scaled to the largest row. The server has the whole set; a page does not.
-     */
+  
     const overviewQuery = useGetDashboardOverviewQuery({ granularity });
     const overview = overviewQuery.data;
 
-    // Searching and paging are the server's too, so a search reaches rows
-    // this page does not hold.
     const recentOrdersQuery = useGetRecentOrdersQuery({
         search: recentOrderFilter.trim() || undefined,
         page: recentOrderPage - 1,
@@ -296,8 +254,6 @@ export function OverviewDashboard() {
         inventory: overview?.kpis.inventoryOnHand ?? 0,
     };
 
-    // The only thing still worked out here is which colour a channel is drawn
-    // in, which belongs to the theme rather than to the data.
     const channelPercentageData = useMemo(
         () =>
             (overview?.channels ?? []).map((channel) => ({
@@ -329,12 +285,6 @@ export function OverviewDashboard() {
     const bestSellingTotalPages = bestSellingQuery.data?.totalPages ?? 0;
     const bestSellingTotal = bestSellingQuery.data?.totalElements ?? 0;
 
-
-    /*
-     * Export takes every row the current search matches, not the five on
-     * screen. The table itself reads a page at a time, so the rest is fetched
-     * here, on the click — the one moment anybody wants it.
-     */
     const handleExportRecentOrders = async () => {
         const all = await fetchAllRecentOrders({
             search: recentOrderFilter.trim() || undefined,
@@ -411,7 +361,6 @@ export function OverviewDashboard() {
     const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const handleExportPDF = async () => {
-        // The PDF photographs the whole page, charts included.
         await waitForCharts(CHART_SELECTORS);
 
         const dashboardEl = document.getElementById("dashboard-container");
@@ -422,26 +371,22 @@ export function OverviewDashboard() {
             await new Promise((r) => setTimeout(r, 150));
 
             const canvas = await html2canvas(dashboardEl, {
-                scale: 3, // Ultra-high resolution 3x rendering for crisp text & sharp charts
+                scale: 3,
                 useCORS: true,
                 logging: false,
-                backgroundColor: "#ffffff", // Print report on a clean white page, not the app's gray shell backdrop
+                backgroundColor: "#ffffff",
                 onclone: (clonedDoc) => {
-                    // 1. Hide export action toolbar from PDF report printout
                     const toolbar = clonedDoc.querySelector("[data-pdf-ignore='true']");
                     if (toolbar) {
                         (toolbar as HTMLElement).style.display = "none";
                     }
 
-                    // Force a clean white page background — the live dashboard's gray shell
-                    // backdrop looks like a dull tint once printed to a PDF page.
                     clonedDoc.body.style.backgroundColor = "#ffffff";
                     const dashboardClone = clonedDoc.getElementById("dashboard-container");
                     if (dashboardClone) {
                         dashboardClone.style.backgroundColor = "#ffffff";
                     }
 
-                    // 2. Inject Executive PDF Header into cloned document
                     const container = clonedDoc.getElementById("dashboard-container");
                     if (container) {
                         const dateStr = new Date().toLocaleDateString("en-US", {
@@ -471,8 +416,7 @@ export function OverviewDashboard() {
                         container.insertBefore(header, container.firstChild);
                     }
 
-                    // 3. Strip SVG glow filters (feGaussianBlur) — html2canvas rasterizes them
-                    // as a muddy smear instead of a soft glow, so drop them for the static export.
+             
                     clonedDoc.querySelectorAll("[filter]").forEach((el) => el.removeAttribute("filter"));
                     clonedDoc.querySelectorAll<HTMLElement>("[style*='filter']").forEach((el) => {
                         el.style.filter = "none";
@@ -482,10 +426,8 @@ export function OverviewDashboard() {
 
             const imgData = canvas.toDataURL("image/png");
 
-            // Size the page to the content itself (fixed A4 width, dynamic height) so the
-            // whole report fits on a single page instead of being cut across multiple pages.
-            const margin = 6; // Tight 6mm margins for full-width presentation
-            const pageWidth = 210; // A4 width in mm
+            const margin = 6;
+            const pageWidth = 210;
             const imgWidth = pageWidth - margin * 2;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             const pageHeight = imgHeight + margin * 2;
@@ -511,8 +453,7 @@ export function OverviewDashboard() {
 
     const handleExportDocs = async () => {
         try {
-            // The tables read a page at a time, so a report fetches the whole
-            // set the same way the CSV buttons do — on the click, once.
+       
             const [allOrders, allProducts] = await Promise.all([
                 fetchAllRecentOrders({
                     search: recentOrderFilter.trim() || undefined,
@@ -531,9 +472,6 @@ export function OverviewDashboard() {
             setIsExportingDocs(true);
             await new Promise((r) => setTimeout(r, 100));
 
-            // Charts are fetched on demand, so a card can still be a skeleton
-            // when an export starts. Give them a moment to become charts
-            // before photographing them.
             await waitForCharts(CHART_SELECTORS);
 
             const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
@@ -544,10 +482,7 @@ export function OverviewDashboard() {
             const dateStr = new Date().toISOString().split("T")[0];
             const generatedOn = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-            // A genuine OOXML .docx (built with the `docx` library) instead of the old
-            // MHTML-labeled-as-.doc trick \u2014 Word opened that via a proprietary importer,
-            // but Google Docs, LibreOffice, and everything else couldn't. This is a real
-            // zip-packaged Word document, so it opens correctly everywhere.
+    
             const doc = new Document({
                 sections: [
                     {
@@ -638,8 +573,7 @@ export function OverviewDashboard() {
 
     const handleExportExcel = async () => {
         try {
-            // The tables read a page at a time, so a report fetches the whole
-            // set the same way the CSV buttons do — on the click, once.
+   
             const [allOrders, allProducts] = await Promise.all([
                 fetchAllRecentOrders({
                     search: recentOrderFilter.trim() || undefined,
@@ -658,9 +592,6 @@ export function OverviewDashboard() {
             setIsExportingExcel(true);
             await new Promise((r) => setTimeout(r, 100));
 
-            // Charts are fetched on demand, so a card can still be a skeleton
-            // when an export starts. Give them a moment to become charts
-            // before photographing them.
             await waitForCharts(CHART_SELECTORS);
 
             const pieChartImg = await captureChartImage("[data-tour='dashboard-channel-cards']");
@@ -841,10 +772,7 @@ export function OverviewDashboard() {
               </html>
             `;
 
-            // Excel's HTML importer can't resolve `data:` image URIs — it treats them as
-            // broken external links. Package the report as an MHTML (multipart/related)
-            // archive instead, with each chart image as its own MIME part, which Excel
-            // opens and embeds natively.
+            
             const boundary = "----=ExcelReportBoundary";
             const mhtmlParts: string[] = [
                 "MIME-Version: 1.0",
@@ -900,8 +828,7 @@ export function OverviewDashboard() {
 
     return (
         <div id="dashboard-container" data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
-            {/* Dashboard Actions Bar: Export PDF, Export Excel Report, Export Docs */}
-            <div data-pdf-ignore="true" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+            <div data-pdf-ignore="true" data-tour="dashboard-reports-export" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
                 <div>
                     <h3 className="text-sm font-bold text-foreground">Dashboard Export & Reports</h3>
                     <p className="text-xs text-muted-foreground">Export visual PDF, formatted Excel (.xls) with embedded charts & tables, or a Word (.doc) report</p>
@@ -953,9 +880,7 @@ export function OverviewDashboard() {
                     </Button>
                 </div>
             </div>
-            {/* KPI Metric Cards Row (Top 3) */}
             <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
-                {/* 1. TOTAL REVENUE */}
                 <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
@@ -972,7 +897,6 @@ export function OverviewDashboard() {
                     </CardHeader>
                 </Card>
 
-                {/* 2. TOTAL ITEM */}
                 <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
@@ -989,7 +913,6 @@ export function OverviewDashboard() {
                     </CardHeader>
                 </Card>
 
-                {/* 3. TOTAL CATEGORY */}
                 <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
@@ -1007,13 +930,10 @@ export function OverviewDashboard() {
                 </Card>
             </div>
 
-            {/* Main Grid Layout for Charts (Top: 6/6 split, Bottom: 4/8 split) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                {/* 1. TOP-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
                 <ChannelDonutCard data={channelPercentageData} />
 
-                {/* 2. TOP-RIGHT: `profit` (Cumulative Profit — USD by Date) */}
                 <CumulativeProfitCard
                     data={cumulativeProfitData}
                     granularity={granularity}
@@ -1021,10 +941,8 @@ export function OverviewDashboard() {
                     isError={overviewQuery.isError}
                 />
 
-                {/* 3. BOTTOM-LEFT: `trending_items` (Total Amount of Item Type — Vertical Bar Chart) */}
                 <ItemTypeBarCard data={itemVectorData} isError={overviewQuery.isError} />
 
-                {/* 4. BOTTOM-RIGHT: `stock_inventory` (Stock Inventory — Horizontal Bar Chart) */}
                 <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-5">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
@@ -1048,12 +966,10 @@ export function OverviewDashboard() {
                             <div className="flex flex-col justify-between h-full pt-1 pb-1">
                                 <div className="space-y-2">
                                     {stockInventoryData.map((item) => {
-                                        // Floored at 3% so a real but tiny row is still a visible bar.
                                         const revPct = Math.min(100, Math.max(3, item.revenuePercent));
                                         const countPct = Math.min(100, Math.max(3, item.countPercent));
                                         return (
                                             <div key={item.name} className="relative group flex flex-col gap-1.5 p-1.5 px-2.5 rounded-xl transition-all duration-200 hover:bg-muted/40 cursor-pointer">
-                                                {/* Hover Tooltip (Picture 2 format) */}
                                                 <div className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 hidden -translate-x-1/2 group-hover:flex flex-col gap-2 rounded-xl border border-border/80 bg-popover p-3 shadow-xl backdrop-blur-xs min-w-48 text-xs">
                                                     <div className="font-bold text-foreground pb-1.5 border-b border-border/40 text-sm">{item.name}</div>
                                                     <div className="flex items-center justify-between gap-4">
@@ -1072,12 +988,10 @@ export function OverviewDashboard() {
                                                     </div>
                                                 </div>
 
-                                                {/* Text Directly Above Bar (Product Name Only) */}
                                                 <div className="flex items-center text-xs sm:text-sm font-bold text-foreground">
                                                     <span className="truncate">{item.name}</span>
                                                 </div>
 
-                                                {/* Horizontal Bars */}
                                                 <div className="space-y-1">
                                                     <div className="h-2 w-full">
                                                         <div
@@ -1097,7 +1011,6 @@ export function OverviewDashboard() {
                                     })}
                                 </div>
 
-                                {/* Polished Bottom Legend Pill Badges */}
                                 <div className="flex items-center justify-center gap-3 pt-3 pb-1 mt-2 text-xs font-bold">
                                     <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/40 border border-border/60 text-foreground font-semibold shadow-2xs">
                                         <span className="size-2.5 rounded-full bg-[var(--primary)] shrink-0" />
@@ -1115,10 +1028,8 @@ export function OverviewDashboard() {
 
             </div>
 
-            {/* Recent Orders & Best Selling Products Tables Row */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
-                {/* LEFT TABLE: Recent Orders */}
-                <Card className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-7">
+                <Card data-tour="dashboard-recent-orders" className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-7">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
                             <CardTitle className="text-base sm:text-lg font-bold text-foreground">
@@ -1131,7 +1042,6 @@ export function OverviewDashboard() {
                         </CardHeader>
 
                         <CardContent className="p-0 flex flex-col gap-3">
-                            {/* Search Filter */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                                 <Input
@@ -1145,7 +1055,6 @@ export function OverviewDashboard() {
                                 />
                             </div>
 
-                            {/* Orders Table */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs text-left">
                                     <thead>
@@ -1222,7 +1131,6 @@ export function OverviewDashboard() {
                         </CardContent>
                     </div>
 
-                    {/* Pagination Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 text-xs text-muted-foreground font-medium">
                         <span>
                             Showing {recentOrderTotal > 0 ? (recentOrderPage - 1) * ITEMS_PER_PAGE + 1 : 0}-
@@ -1254,8 +1162,7 @@ export function OverviewDashboard() {
                     </div>
                 </Card>
 
-                {/* RIGHT TABLE: Best Selling Products */}
-                <Card className="h-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-5">
+                <Card data-tour="dashboard-best-selling" className="h-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-5">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
                             <CardTitle className="text-base sm:text-lg font-bold text-foreground">
@@ -1268,7 +1175,6 @@ export function OverviewDashboard() {
                         </CardHeader>
 
                         <CardContent className="p-0 flex flex-col gap-3">
-                            {/* Search Filter */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                                 <Input
@@ -1282,7 +1188,6 @@ export function OverviewDashboard() {
                                 />
                             </div>
 
-                            {/* Best Selling Products Table */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs text-left">
                                     <thead>
@@ -1341,7 +1246,6 @@ export function OverviewDashboard() {
                         </CardContent>
                     </div>
 
-                    {/* Pagination Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 text-xs text-muted-foreground font-medium">
                         <span>
                             Showing {bestSellingTotal > 0 ? (bestSellingPage - 1) * ITEMS_PER_PAGE + 1 : 0}-

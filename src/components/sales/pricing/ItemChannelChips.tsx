@@ -12,21 +12,12 @@ const channelIcons: Record<string, React.ElementType> = {
     MESSENGER: MessageSquare,
 };
 
-/**
- * Where this item is being sold, on the row that prices it.
- *
- * This is the job the separate channel matrix screen existed to do — answer
- * "which channels is this on" and let it be changed in one go. On the row it
- * answers itself for every item at once, and clicking it opens the same
- * publish form the matrix opened, so nothing is lost by not having the grid.
- */
 export function ItemChannelChips({
     channels,
     liveOn,
     onManage,
 }: {
     channels: SalesChannel[];
-    /** Channel ids this item is currently sold on. */
     liveOn: Set<string>;
     onManage: () => void;
 }) {

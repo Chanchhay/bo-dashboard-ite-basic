@@ -119,7 +119,6 @@ export default function DiscountsAndCouponsPage() {
         });
     };
 
-    // --- Column Visibility States ---
     const [discountCols, setDiscountCols] = useState([
         { id: "name", label: "Rule Name", visible: true },
         { id: "typeValue", label: "Type & Value", visible: true },
@@ -182,7 +181,6 @@ export default function DiscountsAndCouponsPage() {
         setChannelCols((prev) => prev.map((c) => ({ ...c, visible: true })));
     };
 
-    // --- RTK Queries & Mutations ---
     const { data: discounts = [], isLoading: isDiscountsLoading, refetch: refetchDiscounts } = useGetDiscountsQuery();
     const { data: coupons = [], isLoading: isCouponsLoading, refetch: refetchCoupons } = useGetCouponsQuery(undefined);
     const { data: items = [] } = useGetInventoryItemOptionsQuery();
@@ -200,12 +198,10 @@ export default function DiscountsAndCouponsPage() {
     const [deactivateCoupon] = useDeactivateCouponMutation();
     const [deleteCoupon, { isLoading: isDeletingCoupon }] = useDeleteCouponMutation();
 
-    // --- State for Discount Dialog ---
     const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
     const [editingDiscount, setEditingDiscount] = useState<DiscountResponse | null>(null);
     const [discountFormError, setDiscountFormError] = useState("");
 
-    // Discount Form Data
     const [dName, setDName] = useState("");
     const [dDescription, setDDescription] = useState("");
     const [dType, setDType] = useState<DiscountType>("PERCENTAGE");
@@ -226,11 +222,9 @@ export default function DiscountsAndCouponsPage() {
     const [itemSearchQuery, setItemSearchQuery] = useState("");
     const [itemCategoryFilter, setItemCategoryFilter] = useState<string>("ALL");
 
-    // Build list of main category options only (no sub-categories listed in dropdown)
     const availableCategoryOptions = useMemo(() => {
         const catMap = new Map<string, { id: string; name: string; matchingIds: Set<string> }>();
 
-        // 1. Add main itemGroups and collect all their sub-group IDs into matchingIds
         itemGroups.forEach((group) => {
             if (!group.id) return;
             const matchingIds = new Set<string>([group.id]);
@@ -246,7 +240,6 @@ export default function DiscountsAndCouponsPage() {
             });
         });
 
-        // 2. Also register any standalone root category found on items
         items.forEach((item) => {
             if (item.itemGroup?.id && !item.itemGroup.parentId && !catMap.has(item.itemGroup.id)) {
                 catMap.set(item.itemGroup.id, {
@@ -260,7 +253,6 @@ export default function DiscountsAndCouponsPage() {
         return Array.from(catMap.values());
     }, [itemGroups, items]);
 
-    // Count how many products belong to each category (matching by ID, sub-group ID, parent ID, or name)
     const categoryItemCountMap = useMemo(() => {
         const counts: Record<string, number> = {};
 
@@ -279,7 +271,6 @@ export default function DiscountsAndCouponsPage() {
         return counts;
     }, [availableCategoryOptions, items]);
 
-    // Filter items for the discount specific-items selector by search query and category filter
     const filteredInventoryItems = useMemo(() => {
         let result = items;
         if (itemCategoryFilter !== "ALL") {
@@ -308,7 +299,6 @@ export default function DiscountsAndCouponsPage() {
         return result;
     }, [items, itemCategoryFilter, availableCategoryOptions, itemSearchQuery]);
 
-    // --- State for Coupon Dialog ---
     const [isCouponDialogOpen, setIsCouponDialogOpen] = useState(false);
     const [editingCoupon, setEditingCoupon] = useState<CouponResponse | null>(null);
     const [couponFormError, setCouponFormError] = useState("");
@@ -322,10 +312,8 @@ export default function DiscountsAndCouponsPage() {
     const [cEndsAt, setCEndsAt] = useState("");
     const [cStatus, setCStatus] = useState<CouponStatus>("ACTIVE");
 
-    // --- Delete confirmation ---
     const [deletingItem, setDeletingItem] = useState<{ id: string; type: "discount" | "coupon"; name: string } | null>(null);
 
-    // --- Filtered Data ---
     const filteredDiscounts = useMemo(() => {
         let list = discounts;
         if (discountFilter === "AUTO") {
@@ -364,8 +352,6 @@ export default function DiscountsAndCouponsPage() {
         );
     }, [coupons, selectedStatusFilter, searchQuery]);
 
-    // --- Active Discounted Items Map (Item exclusion rule) ---
-    // Maps itemId -> { discountId, discountName } for all active discounts except the one currently being edited
     const activeDiscountedItemsMap = useMemo(() => {
         const map: Record<string, { discountId: string; discountName: string }> = {};
         discounts.forEach((disc) => {
@@ -385,7 +371,6 @@ export default function DiscountsAndCouponsPage() {
         return map;
     }, [discounts, editingDiscount]);
 
-    // --- List of All Items with an Active Discount Applied ---
     const discountedItemsList = useMemo(() => {
         const activeAutoDiscounts = discounts.filter(
             (d) => d.status === "ACTIVE" && !d.requiresCoupon
@@ -404,7 +389,6 @@ export default function DiscountsAndCouponsPage() {
         }> = [];
 
         items.forEach((item) => {
-            // Collect all prices for this item across base price, variants/options, and packs
             const prices: number[] = [];
             if (item.price !== undefined && item.price !== null && Number(item.price) > 0) {
                 prices.push(Number(item.price));
@@ -427,7 +411,6 @@ export default function DiscountsAndCouponsPage() {
             const lowestPrice = isPriced ? Math.min(...prices) : 0;
             const highestPrice = isPriced ? Math.max(...prices) : 0;
 
-            // 1. Specific item discount match
             let matchedDisc = activeAutoDiscounts.find((d) => {
                 if (d.scope === "SPECIFIC_ITEMS" || d.scope === "ITEM") {
                     const ids = d.targets?.map((t) => t.targetId) || (d as any).targetItemIds || [];
@@ -436,7 +419,6 @@ export default function DiscountsAndCouponsPage() {
                 return false;
             });
 
-            // 2. Category discount match
             if (!matchedDisc && item.itemGroup?.id) {
                 const itemGroupId = item.itemGroup.id;
                 matchedDisc = activeAutoDiscounts.find((d) => {
@@ -448,7 +430,6 @@ export default function DiscountsAndCouponsPage() {
                 });
             }
 
-            // 3. Storewide discount match
             if (!matchedDisc) {
                 matchedDisc = activeAutoDiscounts.find(
                     (d) => d.scope === "ALL_ITEMS" || d.scope === "ORDER" || !d.scope
@@ -530,7 +511,6 @@ export default function DiscountsAndCouponsPage() {
         );
     }, [discountedItemsList, selectedItemCategoryFilter, availableCategoryOptions, selectedChannelFilter, searchQuery]);
 
-    // --- Storewide Pause Prompt Dialog State ---
     const [isStorewidePromptOpen, setIsStorewidePromptOpen] = useState(false);
     const [pendingDiscountPayload, setPendingDiscountPayload] = useState<CreateDiscountInput | null>(null);
 
@@ -538,7 +518,6 @@ export default function DiscountsAndCouponsPage() {
         return discounts.filter((d) => d.requiresCoupon || d.id === cDiscountId);
     }, [discounts, cDiscountId]);
 
-    // --- Open Create/Edit Handlers ---
     const openCreateDiscount = () => {
         setEditingDiscount(null);
         setDiscountFormError("");
@@ -663,7 +642,6 @@ export default function DiscountsAndCouponsPage() {
             targetItemIds: isSpecificScope ? dSelectedItems : [],
         };
 
-        // If setting an ACTIVE storewide discount and other active discounts exist, prompt user
         if (scopePayload === "ALL_ITEMS" && dStatus === "ACTIVE") {
             const activeOthers = discounts.filter(
                 (d) => d.status === "ACTIVE" && (!editingDiscount || d.id !== editingDiscount.id)
@@ -813,7 +791,6 @@ export default function DiscountsAndCouponsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header section */}
             <div data-tour="discounts-list" className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
                     <div className="min-w-0 flex-1">
@@ -843,9 +820,9 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             </div>
 
-            {/* Navigation Tabs */}
             <div data-tour="discounts-tabs" className="flex items-center gap-1.5 sm:gap-2 border-b border-border pb-2.5 sm:pb-3 overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap">
                 <button
+                    data-tour="discounts-tab-discounts"
                     onClick={() => setActiveTab("discounts")}
                     className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "discounts"
@@ -857,6 +834,7 @@ export default function DiscountsAndCouponsPage() {
                     Discounts ({discounts.length})
                 </button>
                 <button
+                    data-tour="discounts-tab-coupons"
                     onClick={() => setActiveTab("coupons")}
                     className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "coupons"
@@ -868,6 +846,7 @@ export default function DiscountsAndCouponsPage() {
                     Coupons ({coupons.length})
                 </button>
                 <button
+                    data-tour="discounts-tab-channels"
                     onClick={() => setActiveTab("channels")}
                     className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "channels"
@@ -879,6 +858,7 @@ export default function DiscountsAndCouponsPage() {
                     Channel Discounts
                 </button>
                 <button
+                    data-tour="discounts-tab-items"
                     onClick={() => setActiveTab("discounted-items")}
                     className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                         activeTab === "discounted-items"
@@ -891,7 +871,6 @@ export default function DiscountsAndCouponsPage() {
                 </button>
             </div>
 
-            {/* Toolbar: Search, Filters & Columns */}
             <div data-tour="discounts-search-bar" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0">
                     <div className="relative w-full sm:w-80 lg:w-[380px] shrink-0">
@@ -914,7 +893,6 @@ export default function DiscountsAndCouponsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0 flex-nowrap sm:flex-wrap">
-                        {/* Status Filter */}
                         {activeTab !== "channels" && activeTab !== "discounted-items" && (
                             <div className="w-32 sm:w-36 shrink-0">
                                 <SelectField
@@ -931,7 +909,6 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         )}
 
-                        {/* Category Filter for Discounted Items */}
                         {activeTab === "discounted-items" && (
                             <div className="w-36 sm:w-44 shrink-0">
                                 <SelectField
@@ -950,7 +927,6 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         )}
 
-                        {/* Channel Filter (for Discounts & Discounted Items) */}
                         {(activeTab === "discounts" || activeTab === "discounted-items") && (
                             <div className="w-36 sm:w-40 shrink-0">
                                 <SelectField
@@ -969,7 +945,6 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         )}
 
-                        {/* Columns Dropdown on mobile inside the horizontal filter row */}
                         {activeTab !== "channels" && activeTab !== "discounted-items" && (
                             <div className="sm:hidden shrink-0">
                                 <ColumnSelectDropdown
@@ -982,7 +957,6 @@ export default function DiscountsAndCouponsPage() {
                     </div>
                 </div>
 
-                {/* Columns Dropdown on Desktop (aligned right) */}
                 {activeTab !== "channels" && activeTab !== "discounted-items" && (
                     <div className="hidden sm:block shrink-0">
                         <ColumnSelectDropdown
@@ -994,7 +968,6 @@ export default function DiscountsAndCouponsPage() {
                 )}
             </div>
 
-            {/* Discounts Table */}
             {activeTab === "discounts" && (
                 <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
@@ -1007,7 +980,6 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Mobile Card List (< md) */}
                             <div className="flex flex-col gap-3 md:hidden p-3">
                                 {filteredDiscounts.map((d) => {
                                     const isExpanded = expandedCards.has(d.id);
@@ -1016,7 +988,6 @@ export default function DiscountsAndCouponsPage() {
                                             key={d.id}
                                             className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
                                         >
-                                            {/* Card Top Header */}
                                             <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
                                                 <div className="min-w-0 flex-1 pr-2">
                                                     <h4 className="font-bold text-sm text-foreground truncate">{d.name}</h4>
@@ -1046,7 +1017,6 @@ export default function DiscountsAndCouponsPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Key-Value Rows */}
                                             <div className="divide-y divide-border/60 text-xs">
                                                 <div className="flex items-center justify-between px-3.5 py-2.5">
                                                     <span className="text-muted-foreground">Type & Value</span>
@@ -1121,7 +1091,6 @@ export default function DiscountsAndCouponsPage() {
                                                 )}
                                             </div>
 
-                                            {/* View More / Less Toggle */}
                                             <button
                                                 type="button"
                                                 onClick={() => toggleCardExpanded(d.id)}
@@ -1137,7 +1106,6 @@ export default function DiscountsAndCouponsPage() {
                                 })}
                             </div>
 
-                            {/* Desktop Table (>= md) */}
                             <div className="hidden md:block overflow-x-auto">
                                 <Table>
                                     <TableHeader>
@@ -1281,9 +1249,8 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             )}
 
-            {/* Coupons Table */}
             {activeTab === "coupons" && (
-                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isCouponsLoading ? (
                         <div className="p-4"><TableSkeleton rows={5} cols={6} /></div>
                     ) : filteredCoupons.length === 0 ? (
@@ -1294,7 +1261,6 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Mobile Card List (< md) */}
                             <div className="flex flex-col gap-3 md:hidden p-3">
                                 {filteredCoupons.map((c) => {
                                     const isExpanded = expandedCards.has(c.id);
@@ -1303,7 +1269,6 @@ export default function DiscountsAndCouponsPage() {
                                             key={c.id}
                                             className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
                                         >
-                                            {/* Card Top Header */}
                                             <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
                                                 <div className="min-w-0 flex-1 pr-2">
                                                     <span className="font-mono font-bold text-sm text-primary">{c.code}</span>
@@ -1330,7 +1295,6 @@ export default function DiscountsAndCouponsPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Key-Value Rows */}
                                             <div className="divide-y divide-border/60 text-xs">
                                                 <div className="flex items-center justify-between px-3.5 py-2.5">
                                                     <span className="text-muted-foreground">Linked Discount</span>
@@ -1386,7 +1350,6 @@ export default function DiscountsAndCouponsPage() {
                                                 )}
                                             </div>
 
-                                            {/* View More / Less Toggle */}
                                             <button
                                                 type="button"
                                                 onClick={() => toggleCardExpanded(c.id)}
@@ -1402,7 +1365,6 @@ export default function DiscountsAndCouponsPage() {
                                 })}
                             </div>
 
-                            {/* Desktop Table (>= md) */}
                             <div className="hidden md:block overflow-x-auto">
                                 <Table>
                                     <TableHeader>
@@ -1524,14 +1486,12 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             )}
 
-            {/* Channel Discounts Overview Table (View Only) */}
             {activeTab === "channels" && (
-                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
                         <div className="p-4"><TableSkeleton rows={4} cols={3} /></div>
                     ) : (
                         <>
-                            {/* Mobile Card List (< md) */}
                             <div className="flex flex-col gap-3 md:hidden p-3">
                                 {[
                                     { channel: "WEB" as OrderChannel, title: "Web Storefront", subtitle: "Online customer storefront checkout", icon: Globe, color: "text-blue-500 bg-blue-500/10" },
@@ -1600,7 +1560,6 @@ export default function DiscountsAndCouponsPage() {
                                 })}
                             </div>
 
-                            {/* Desktop Table (>= md) */}
                             <div className="hidden md:block overflow-x-auto">
                                 <Table>
                                     <TableHeader>
@@ -1692,9 +1651,8 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             )}
 
-            {/* Discounted Items Tab (View All Products with Active Discounts) */}
             {activeTab === "discounted-items" && (
-                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+                <div data-tour="discounts-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
                     {isDiscountsLoading ? (
                         <div className="p-4"><TableSkeleton rows={5} cols={7} /></div>
                     ) : filteredDiscountedItems.length === 0 ? (
@@ -1707,7 +1665,6 @@ export default function DiscountsAndCouponsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Mobile Card List (< md) */}
                             <div className="flex flex-col gap-3 md:hidden p-3">
                                 {filteredDiscountedItems.map(({ item, discount, lowestPrice, highestPrice, discountedLowest, discountedHighest, isPriced, discountRateLabel }) => {
                                     const cardKey = `${item.id}-${discount.id}`;
@@ -1717,7 +1674,6 @@ export default function DiscountsAndCouponsPage() {
                                             key={cardKey}
                                             className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden"
                                         >
-                                            {/* Card Top Header */}
                                             <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border/70">
                                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                                     <div className="size-9 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
@@ -1744,7 +1700,6 @@ export default function DiscountsAndCouponsPage() {
                                                 </span>
                                             </div>
 
-                                            {/* Key-Value Rows */}
                                             <div className="divide-y divide-border/60 text-xs">
                                                 <div className="flex items-center justify-between px-3.5 py-2.5">
                                                     <span className="text-muted-foreground">Discounted Price</span>
@@ -1793,7 +1748,6 @@ export default function DiscountsAndCouponsPage() {
                                                 )}
                                             </div>
 
-                                            {/* View More / Less Toggle */}
                                             <button
                                                 type="button"
                                                 onClick={() => toggleCardExpanded(cardKey)}
@@ -1809,7 +1763,6 @@ export default function DiscountsAndCouponsPage() {
                                 })}
                             </div>
 
-                            {/* Desktop Table (>= md) */}
                             <div className="hidden md:block overflow-x-auto">
                                 <Table>
                                     <TableHeader>
@@ -1911,7 +1864,6 @@ export default function DiscountsAndCouponsPage() {
                 </div>
             )}
 
-            {/* --- CREATE / EDIT DISCOUNT DIALOG --- */}
             <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
                     <div className="p-6 pb-4 border-b border-border shrink-0">
@@ -1929,8 +1881,7 @@ export default function DiscountsAndCouponsPage() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                        {/* Name & Calculation Type */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div data-tour="discount-form-name-type" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label htmlFor="dName">Discount Name *</Label>
                                 <Input
@@ -1964,7 +1915,7 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div data-tour="discount-form-description" className="space-y-1.5">
                             <Label htmlFor="dDesc">Description</Label>
                             <Textarea
                                 id="dDesc"
@@ -1975,10 +1926,9 @@ export default function DiscountsAndCouponsPage() {
                             />
                         </div>
 
-                        {/* Calculation specific inputs */}
                         {dType === "BUY_X_GET_Y" ? (
                             <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div data-tour="discount-form-value" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <Label htmlFor="dBuyQty">Buy Quantity (X) *</Label>
                                         <Input
@@ -2013,7 +1963,7 @@ export default function DiscountsAndCouponsPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div data-tour="discount-form-condition" className="space-y-1.5">
                                     <Label htmlFor="dScopeBogo">Scope *</Label>
                                     <SelectField
                                         id="dScopeBogo"
@@ -2028,8 +1978,7 @@ export default function DiscountsAndCouponsPage() {
                             </>
                         ) : (
                             <>
-                                {/* Value & Scope for Percentage / Fixed Amount */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div data-tour="discount-form-value" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <Label htmlFor="dValue">
                                             Discount Value ({dType === "PERCENTAGE" ? "%" : baseSymbol}) *
@@ -2067,8 +2016,7 @@ export default function DiscountsAndCouponsPage() {
                                     </div>
                                 </div>
 
-                                {/* Rule Conditions (Only for Percentage / Fixed Amount) */}
-                                <div className="space-y-4">
+                                <div data-tour="discount-form-condition" className="space-y-4">
                                     <div className="space-y-1.5">
                                         <Label htmlFor="dRuleType">Condition Rule Type</Label>
                                         <SelectField
@@ -2127,7 +2075,6 @@ export default function DiscountsAndCouponsPage() {
                             </>
                         )}
 
-                        {/* Specific Products Selector when Scope is Specific Items */}
                         {(dScope === "ITEM" || dScope === "SPECIFIC_ITEMS") && (
                             <div className="space-y-3 pt-1">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -2169,7 +2116,6 @@ export default function DiscountsAndCouponsPage() {
                                     </div>
                                 </div>
 
-                                {/* Search & Category Filter for products */}
                                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                                     <div className="relative flex-1">
                                         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -2207,7 +2153,6 @@ export default function DiscountsAndCouponsPage() {
                                     </div>
                                 </div>
 
-                                {/* Clean List of products */}
                                 <div className="max-h-60 overflow-y-auto border border-border rounded-xl bg-card divide-y divide-border/60 shadow-2xs">
                                     {filteredInventoryItems.length === 0 ? (
                                         <div className="py-8 text-center text-xs text-muted-foreground">
@@ -2298,8 +2243,7 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         )}
 
-                        {/* Dates */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div data-tour="discount-form-dates" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label htmlFor="dStartsAt">Starts At *</Label>
                                 <DateTimePicker
@@ -2318,8 +2262,7 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         </div>
 
-                        {/* Status Toggle Switch */}
-                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
+                        <div data-tour="discount-form-status" className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
                             <div>
                                 <Label className="text-sm font-semibold">Discount Rule Status</Label>
                                 <p className="text-xs text-muted-foreground">
@@ -2343,8 +2286,7 @@ export default function DiscountsAndCouponsPage() {
                             </button>
                         </div>
 
-                        {/* Applicable Channels */}
-                        <div className="space-y-1.5">
+                        <div data-tour="discount-form-channels" className="space-y-1.5">
                             <Label>Applicable Channels</Label>
                             <div className="flex flex-wrap gap-2 pt-1">
                                 {(["POS", "WEB", "TELEGRAM", "MESSENGER"] as OrderChannel[]).map((ch) => (
@@ -2364,8 +2306,7 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         </div>
 
-                        {/* Requires Coupon Checkbox */}
-                        <div className="flex items-center gap-2 pt-2">
+                        <div data-tour="discount-form-coupon-required" className="flex items-center gap-2 pt-2">
                             <input
                                 type="checkbox"
                                 id="dReqCoupon"
@@ -2381,10 +2322,11 @@ export default function DiscountsAndCouponsPage() {
 
                     <div className="p-4 sm:px-6 border-t border-border shrink-0 bg-card">
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
+                            <Button data-tour="discount-form-cancel" variant="outline" onClick={() => setIsDiscountDialogOpen(false)}>
                                 Cancel
                             </Button>
                             <Button
+                                data-tour="discount-form-submit"
                                 onClick={handleSaveDiscount}
                                 disabled={isCreatingDiscount || isUpdatingDiscount}
                                 className="bg-primary hover:bg-primary/90 text-white"
@@ -2399,7 +2341,6 @@ export default function DiscountsAndCouponsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* --- CREATE / EDIT COUPON DIALOG --- */}
             <Dialog open={isCouponDialogOpen} onOpenChange={setIsCouponDialogOpen}>
                 <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
                     <div className="p-6 pb-4 border-b border-border shrink-0">
@@ -2417,7 +2358,7 @@ export default function DiscountsAndCouponsPage() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                        <div className="space-y-1.5">
+                        <div data-tour="coupon-form-discount" className="space-y-1.5">
                             <Label htmlFor="cDiscount">Linked Discount Rule *</Label>
                             <SelectField
                                 id="cDiscount"
@@ -2440,7 +2381,7 @@ export default function DiscountsAndCouponsPage() {
                             )}
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div data-tour="coupon-form-code" className="space-y-1.5">
                             <Label htmlFor="cCode">Coupon Promo Code *</Label>
                             <Input
                                 id="cCode"
@@ -2451,7 +2392,7 @@ export default function DiscountsAndCouponsPage() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div data-tour="coupon-form-limits" className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="cLimit">Total Usage Limit</Label>
                                 <Input
@@ -2482,7 +2423,7 @@ export default function DiscountsAndCouponsPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div data-tour="coupon-form-min-purchase" className="space-y-1.5">
                             <Label htmlFor="cMinPurchase">Minimum Purchase Amount ({baseSymbol})</Label>
                             <Input
                                 id="cMinPurchase"
@@ -2503,7 +2444,7 @@ export default function DiscountsAndCouponsPage() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div data-tour="coupon-form-dates" className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="cStarts">Starts At *</Label>
                                 <DateTimePicker
@@ -2521,8 +2462,7 @@ export default function DiscountsAndCouponsPage() {
                                 />
                             </div>
                         </div>
-                        {/* Status Toggle Switch */}
-                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
+                        <div data-tour="coupon-form-status" className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20">
                             <div>
                                 <Label className="text-sm font-semibold">Coupon Status</Label>
                                 <p className="text-xs text-muted-foreground">
@@ -2549,10 +2489,11 @@ export default function DiscountsAndCouponsPage() {
 
                     <div className="p-4 sm:px-6 border-t border-border shrink-0 bg-card">
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
+                            <Button data-tour="coupon-form-cancel" variant="outline" onClick={() => setIsCouponDialogOpen(false)}>
                                 Cancel
                             </Button>
                             <Button
+                                data-tour="coupon-form-submit"
                                 onClick={handleSaveCoupon}
                                 disabled={isCreatingCoupon || isUpdatingCoupon}
                                 className="bg-primary hover:bg-primary/90 text-white"
@@ -2567,7 +2508,6 @@ export default function DiscountsAndCouponsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* --- STOREWIDE OVERRIDE CONFIRMATION DIALOG --- */}
             <Dialog open={isStorewidePromptOpen} onOpenChange={setIsStorewidePromptOpen}>
                 <DialogContent className="max-w-md p-6">
                     <DialogHeader>
@@ -2636,7 +2576,6 @@ export default function DiscountsAndCouponsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* --- DELETE CONFIRMATION DIALOG --- */}
             <DestructiveConfirmDialog
                 open={Boolean(deletingItem)}
                 onOpenChange={(open) => !open && setDeletingItem(null)}

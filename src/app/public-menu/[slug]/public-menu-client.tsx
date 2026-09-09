@@ -34,17 +34,10 @@ function getFacebookDisplayText(url: string) {
       return pathname.startsWith("@") ? pathname : `@${pathname}`;
     }
   } catch {
-    // fallback
   }
   return "Facebook";
 }
 
-/**
- * The anonymous view of a business served by
- * `/api/v1/public/stores/{slug}` — a trimmed payload, not the authenticated
- * `Business`, so it is typed here rather than reused from there. Every field
- * is optional: it is whatever that particular shop has filled in.
- */
 export type PublicStoreDetail = Pick<Business, "socialLinks"> & {
   name?: string;
   displayName?: string;
@@ -57,10 +50,8 @@ export type PublicStoreDetail = Pick<Business, "socialLinks"> & {
   websiteUrl?: string;
   baseCurrency?: string;
   displayCurrency?: string;
-  /** An object on current payloads; older ones send a bare string. */
   category?: { name?: string } | string;
   categoryName?: string;
-  /** Pre-`socialLinks` shapes, still read for shops not yet migrated. */
   facebookPage?: string;
   facebookUrl?: string;
   facebook?: string;
@@ -71,7 +62,6 @@ export type MenuItemEntry = {
   name: string;
   category: string;
   price: number;
-  /** Always a string — `""` when the shop gave the item no picture. */
   image: string;
   rawItem: InventoryItem;
 };
@@ -87,16 +77,11 @@ function PublicProductDetailView({
   orderUrl: string;
   onBack: () => void;
 }) {
-  // Plain currency-code formatting from the public store payload — never
-  // the authenticated /api/business-currencies endpoint (useMoney), which
-  // 401s for an anonymous visitor and bounces them to /login.
   const currencyCode = storeDetail?.displayCurrency || storeDetail?.baseCurrency || "USD";
   const rawItem = entry.rawItem;
   const gallery = itemImageUrls(rawItem);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  // No stock-photo stand-in on the public menu: an item the shop never gave
-  // a picture shows a neutral placeholder instead of someone else's product.
   const activeImage = gallery[selectedImageIndex] || entry.image || "";
   const [imageBroken, setImageBroken] = useState(false);
 
@@ -107,7 +92,6 @@ function PublicProductDetailView({
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
-      {/* Top Header */}
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
         <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
           <div className="flex items-center justify-between gap-3 sm:gap-4">
@@ -148,10 +132,8 @@ function PublicProductDetailView({
         </div>
       </div>
 
-      {/* Main Full Page Item Container */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-8 py-6 sm:py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start bg-white dark:bg-[#1a1e29] p-6 sm:p-10 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs">
-          {/* Left: Product Gallery */}
           <div className="flex flex-col gap-4">
             <div className="relative aspect-square w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-gray-50 dark:bg-[#12151e] border border-gray-100 dark:border-gray-800 flex items-center justify-center">
               {activeImage && !imageBroken ? (
@@ -205,7 +187,6 @@ function PublicProductDetailView({
             )}
           </div>
 
-          {/* Right: Product Details & Description */}
           <div className="flex flex-col gap-6">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
@@ -231,7 +212,6 @@ function PublicProductDetailView({
               </div>
             ) : null}
 
-            {/* Specifications */}
             {specs.length > 0 && (
               <div className="border-t border-gray-100 dark:border-gray-800 pt-5 space-y-3">
                 <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -307,7 +287,6 @@ export default function PublicMenuClient({
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
   const [selectedSubCategory, setSelectedSubCategory] = useState("All");
 
-  // Dynamically resolve store website / online ordering URL for ANY store or shop
   const orderUrl = useMemo(() => {
     if (storeDetail?.websiteUrl && storeDetail.websiteUrl.trim().length > 0) {
       return storeDetail.websiteUrl;
@@ -337,16 +316,6 @@ export default function PublicMenuClient({
     });
   }, [storeItems]);
 
-  /*
-   * A shared or refreshed ?item=<id> link opens straight into that item's
-   * detail view.
-   *
-   * Seeded as initial state rather than set from an effect: this route always
-   * renders dynamically, so `useSearchParams` returns the same value on the
-   * server and on hydration. Reading `window.location` in an effect meant the
-   * server could only ever emit the grid, so a shared link painted the wrong
-   * view and then replaced it — the cascading render the lint rule is about.
-   */
   const searchParams = useSearchParams();
   const [expandedAddress, setExpandedAddress] = useState(false);
   const [selectedItemEntry, setSelectedItemEntry] =
@@ -478,7 +447,6 @@ export default function PublicMenuClient({
     );
   }, [storeDetail]);
 
-  // If a product is selected or opened via URL, render the FULL PAGE SCREEN of its detail!
   if (selectedItemEntry) {
     return (
       <PublicProductDetailView
@@ -494,7 +462,7 @@ export default function PublicMenuClient({
     <div className="min-h-screen md:h-screen w-full md:overflow-hidden bg-[#f8f9fa] dark:bg-[#0f1219] text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-200">
       <div className="shrink-0 bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-gray-800/80 transition-colors z-40">
         <div className="mx-auto max-w-7xl px-4 py-3.5 sm:py-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
             <div className="flex items-start gap-3 sm:gap-5 min-w-0">
               {storeDetail.logo ? (
                 <img
@@ -513,7 +481,7 @@ export default function PublicMenuClient({
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2 sm:block">
+                <div className="flex items-start justify-between gap-2 md:block">
                   <div className="min-w-0">
                     {categoryName ? (
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
@@ -525,8 +493,7 @@ export default function PublicMenuClient({
                     </h1>
                   </div>
 
-                  {/* Mobile-only theme toggle */}
-                  <div className="flex sm:hidden items-center shrink-0">
+                  <div className="flex md:hidden items-center shrink-0">
                     <ThemeToggle
                       variant="icon"
                       className="size-8.5 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
@@ -578,22 +545,21 @@ export default function PublicMenuClient({
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 sm:shrink-0">
+            <div className="flex items-center gap-2.5 md:shrink-0">
               <a
                 href={orderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
+                className="inline-flex w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-3.5 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
               >
                 <ShoppingBag className="size-4 shrink-0" />
                 <span>Order Now</span>
                 <ExternalLink className="size-3.5 opacity-80 shrink-0" />
               </a>
 
-              {/* Desktop ThemeToggle */}
               <ThemeToggle
                 variant="icon"
-                className="hidden sm:flex size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
+                className="hidden md:flex size-9 sm:size-10 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700/80 bg-white dark:bg-[#1a1e29] text-gray-700 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#242937] shadow-2xs transition-all"
               />
             </div>
           </div>

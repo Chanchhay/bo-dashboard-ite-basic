@@ -86,20 +86,6 @@ import {
     useSaveChannelListingMutation,
 } from "@/services/salesChannelApi";
 
-/**
- * Everything a shop does to an item's price, on one screen.
- *
- * Set Price, Channel Pricing and the channel matrix each held a third of the
- * same job and rebuilt the same catalogue to do it — three search bars, two
- * price forms, and two places to say whether an item is sold on a channel. The
- * thing that actually changes between them is only ever the scope: whose price
- * is being set. So the scope becomes a control, and everything else is shared.
- *
- * Base scope sets what the business charges. A channel scope never sets a price
- * from scratch — it says what it sells, what it charges instead, and when it is
- * open, which is why the two are one screen and not one form.
- */
-
 const channelIcons: Record<string, React.ElementType> = {
     POS: Store,
     WEB: Globe,
@@ -108,18 +94,8 @@ const channelIcons: Record<string, React.ElementType> = {
     MESSENGER: MessageSquare,
 };
 
-/** The scope showing what the business charges, before any channel. */
 const baseScope = "BASE";
 
-/**
- * One channel to price for, showing whether it is taking orders right now.
- *
- * Each chip reads its own listing rather than only the one being edited: a
- * channel that quietly went dark is the thing the strip exists to show. It
- * hands the item ids back up as well, so the row chips can say where an item
- * sells without a request per item. The reads are cached, so the whole strip
- * costs one request per channel for the session.
- */
 function ChannelScopeChip({
     channel,
     active,
@@ -130,9 +106,7 @@ function ChannelScopeChip({
 }: {
     channel: SalesChannel;
     active: boolean;
-    /** Set when another channel shares this name and the two must be told apart. */
     showCode: boolean;
-    /** The hours being edited, which outrank the saved ones on the open chip. */
     liveSchedule?: ChannelSchedule;
     onSelect: () => void;
     onListingLoaded: (channelId: string, enabledItemIds: string[]) => void;
@@ -150,13 +124,14 @@ function ChannelScopeChip({
         liveSchedule ??
         (listingQuery.data?.schedule
             ? (listingQuery.data.schedule as ChannelSchedule)
-            : // Nobody has said it closes, which is read as always open.
+            :
               { ...emptySchedule(), alwaysOpen: true });
     const open = isOpenAt(schedule, new Date());
 
     return (
         <button
             type="button"
+            data-tour={`pricing-channel-chip-${channel.code}`}
             onClick={onSelect}
             aria-pressed={active}
             className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 sm:py-2 text-xs sm:text-sm font-normal transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
@@ -190,7 +165,6 @@ function ChannelScopeChip({
     );
 }
 
-/** The markup control, said the same way whichever scope it belongs to. */
 function RuleControl({
     kind,
     value,
@@ -259,11 +233,9 @@ export function ItemPricingTab() {
     const stockQuery = useGetCurrentStockQuery();
     const channelsQuery = useGetSalesChannelsQuery();
 
-    /** Whose price is being set: the business, or one channel. */
     const [scope, setScope] = useState<string>(baseScope);
     const channelId = scope === baseScope ? "" : scope;
 
-    // Shared across both scopes: the same catalogue, asked the same questions.
     const [searchQuery, setSearchQuery] = useState("");
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
     const [draftFilters, setDraftFilters] =
@@ -273,21 +245,16 @@ export function ItemPricingTab() {
     const [scannerOpen, setScannerOpen] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState<number>(pageSizes[0]);
-    /** The item whose prices are being set, if any. */
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    /** The item whose channels are being chosen, if any. */
     const [publishingItemId, setPublishingItemId] = useState<string | null>(
         null,
     );
-    /** Whether the bulk "divide the shelf by a rule" form is open. */
     const [splittingStock, setSplittingStock] = useState(false);
 
-    // Base scope only.
     const [drafts, setDrafts] = useState<PriceDrafts>({});
     const [costRule, setCostRule] = useState<OverrideKind>("INHERIT");
     const [costRuleValue, setCostRuleValue] = useState("0");
 
-    // Channel scope only.
     const [draft, setDraft] = useState<ChannelDraft | null>(null);
     const [seededFor, setSeededFor] = useState<string | null>(null);
     const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
@@ -296,7 +263,6 @@ export function ItemPricingTab() {
         "ALL" | "OVERRIDDEN" | "DEFAULT"
     >("ALL");
 
-    /** Which channels sell each item, gathered from the scope chips. */
     const [liveOn, setLiveOn] = useState<Record<string, string[]>>({});
 
     const items = useMemo(() => itemsQuery.data || [], [itemsQuery.data]);
@@ -311,12 +277,6 @@ export function ItemPricingTab() {
     });
     const [saveListing, saveState] = useSaveChannelListingMutation();
 
-    // A channel's saved state seeds the form once. Typing after that is the
-    // shop's, and is only thrown away when it asks or when it saves.
-    //
-    // Keyed on the read having settled, not on it having returned something: a
-    // channel nobody has set up yet answers with nothing, and it still has to
-    // open on an empty form rather than sit on a spinner forever.
     if (channelId && listingQuery.isSuccess && seededFor !== channelId) {
         setSeededFor(channelId);
         setDraft(toChannelDraft(listingQuery.data));
@@ -329,8 +289,6 @@ export function ItemPricingTab() {
             setLiveOn((current) => {
                 const previous = current[id];
 
-                // Cached reads re-report the same ids on every render pass, and
-                // a fresh array each time would never settle.
                 if (
                     previous &&
                     previous.length === enabledItemIds.length &&
@@ -347,7 +305,6 @@ export function ItemPricingTab() {
         [],
     );
 
-    /** Item id -> the channels selling it, for the chips on each row. */
     const channelsByItem = useMemo(() => {
         const byItem = new Map<string, Set<string>>();
 
@@ -359,8 +316,6 @@ export function ItemPricingTab() {
             }
         }
 
-        // The channel being edited answers from the form, not from the last
-        // read: an item just switched off should stop claiming it sells there.
         if (channelId && draft) {
             for (const [itemId, ids] of byItem) {
                 if (!draft.enabled.has(itemId)) ids.delete(channelId);
@@ -376,17 +331,6 @@ export function ItemPricingTab() {
         return byItem;
     }, [liveOn, channelId, draft]);
 
-    /**
-     * What one base unit of each item costs.
-     *
-     * The API works it out from the batch the next unit will come out of, so
-     * it is what the stock actually cost rather than an average.
-     *
-     * Keyed per option, not per item. Each option is its own shelf and is
-     * received on its own: S/Black bought at $2.00 sits beside S/Blue bought
-     * at $1.50, and one figure for the whole item quoted the wrong margin on
-     * every option but whichever the API happened to list first.
-     */
     const unitCosts = useMemo(() => {
         const costs = new Map<string, number>();
 
@@ -396,8 +340,6 @@ export function ItemPricingTab() {
             const key = stockTargetKey(summary.itemId, summary.variantId);
             if (!costs.has(key)) costs.set(key, summary.unitCost);
 
-            // The item's own key answers for a row with no option — and backs
-            // up an option received before it was split out.
             if (!costs.has(summary.itemId)) {
                 costs.set(summary.itemId, summary.unitCost);
             }
@@ -406,13 +348,6 @@ export function ItemPricingTab() {
         return costs;
     }, [stockQuery.data]);
 
-    /**
-     * What one base unit of a given option cost, falling back to the item.
-     *
-     * The fallback matters for an option added after stock was already taken
-     * in against the item as a whole: it has no shelf of its own yet, and the
-     * item's figure is the honest answer until it does.
-     */
     const unitCostFor = useCallback(
         (itemId: string) => (variantId?: string) => {
             const itemObj = items.find((i) => i.id === itemId);
@@ -430,7 +365,6 @@ export function ItemPricingTab() {
         [items, unitCosts],
     );
 
-    /** The same for add-ons, which are stocked and costed in their own right. */
     const addOnCosts = useMemo(() => {
         const costs = new Map<string, number>();
 
@@ -445,7 +379,6 @@ export function ItemPricingTab() {
     const filteredItems = useMemo(() => {
         const matched = filterAndSortItems(items, searchQuery, appliedFilters);
 
-        // Only a channel has overrides to filter on.
         if (scope === baseScope || statusFilter === "ALL") return matched;
 
         const overrides = draft?.overrides || {};
@@ -464,8 +397,6 @@ export function ItemPricingTab() {
         draft?.overrides,
     ]);
 
-    // Clamped rather than reset in an effect: narrowing the search while on
-    // page nine should land on the last page there is, not flash an empty one.
     const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
     const currentPage = Math.min(page, pageCount);
     const pageItems = filteredItems.slice(
@@ -483,17 +414,6 @@ export function ItemPricingTab() {
         setPage(1);
     }
 
-    /**
-     * Fills every base price from what the stock cost.
-     *
-     * "Same as base" sells at cost; the other two add a margin on top of it. A
-     * pack is worked out from what the whole pack cost, so a case of
-     * twenty-four is marked up on twenty-four units rather than on one.
-     *
-     * Nothing is sent: this fills the boxes, and each item is still saved on
-     * its own, so a rule can be looked over before it becomes the price. It
-     * runs over everything the filters matched, not only the page on screen.
-     */
     function applyCostRule() {
         const amount = Number(costRuleValue) || 0;
         const priced = (cost: number) => {
@@ -511,7 +431,6 @@ export function ItemPricingTab() {
 
                 if (cost === undefined) continue;
 
-                // An item sold in options is never sold as itself.
                 if (!(item.variants || []).some((option) => option.id)) {
                     next[soldAsKey(item.id, "BASE")] = priced(cost).toFixed(2);
                 }
@@ -522,8 +441,6 @@ export function ItemPricingTab() {
                         priced(cost).toFixed(2);
                 }
 
-                // A conversion already says which option it is for, so each
-                // one is a price of its own.
                 for (const conversion of item.uomConversions || []) {
                     if (!conversion.unit?.id) continue;
 
@@ -545,7 +462,6 @@ export function ItemPricingTab() {
     function resetCostRule() {
         setCostRule("INHERIT");
         setCostRuleValue("0");
-        // Typed prices go too: the boxes go back to what is actually saved.
         setDrafts({});
     }
 
@@ -571,13 +487,6 @@ export function ItemPricingTab() {
         }));
     }
 
-    /**
-     * Sets or clears one line's exception.
-     *
-     * "Same as base" removes the row rather than storing a rule of zero: the
-     * two charge the same today and part ways the moment the business price
-     * moves, which is the whole reason an exception is a rule and not a number.
-     */
     function setOverride(line: SoldLine, kind: OverrideKind, raw: string) {
         editDraft((current) => {
             const overrides = { ...current.overrides };
@@ -669,13 +578,6 @@ export function ItemPricingTab() {
         toast({ tone: "info", title: "Changes reset to original state" });
     }
 
-    /**
-     * Names more than one channel goes by.
-     *
-     * Two channels can be set up with the same name — and once they are, the
-     * chips are indistinguishable and the shop cannot tell which one it is
-     * pricing. Those chips show their code as well.
-     */
     const repeatedNames = useMemo(() => {
         const seen = new Set<string>();
         const repeated = new Set<string>();
@@ -730,10 +632,10 @@ export function ItemPricingTab() {
                     <TourButton />
                 </div>
 
-                {/* Whose price is being set: 2-column grid on mobile, flex row on desktop */}
                 <div data-tour="pricing-scope-selector" className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
                     <button
                         type="button"
+                        data-tour="pricing-channel-chip-BASE"
                         onClick={() => setScope(baseScope)}
                         aria-pressed={isBase}
                         className={`w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 rounded-xl border px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-normal transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
@@ -782,9 +684,6 @@ export function ItemPricingTab() {
                     ))}
                 </div>
 
-                {/* Finding the item and pricing the lot, in one bar. The rule and
-                    the search belong together: the rule only ever applies to what
-                    the search left showing. */}
                 <div data-tour="pricing-filter-bar" className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_30px_rgba(26,34,43,0.05)] sm:p-4 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                     <ItemPricingFilters
                         items={items}
@@ -816,10 +715,6 @@ export function ItemPricingTab() {
                                     <span>Manage channels</span>
                                 </Button>
 
-                                {/* The same allocation the item form asks for one
-                                    number at a time, arrived at by a rule instead
-                                    — which is the only way to do it to eighty
-                                    items at once. */}
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -833,10 +728,7 @@ export function ItemPricingTab() {
                         }
                     />
 
-                    {/* The rule sits under the search because it only ever applies
-                        to what the search left showing — and on its own line so the
-                        row above stays four things wide however narrow the window. */}
-                    <div className="mt-2.5 sm:mt-3 flex flex-col gap-2.5 border-t border-border/50 pt-2.5 sm:pt-3">
+                    <div data-tour="pricing-channel-overrides" className="mt-2.5 sm:mt-3 flex flex-col gap-2.5 border-t border-border/50 pt-2.5 sm:pt-3">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                             <div className="flex items-center justify-between sm:justify-start gap-2">
                                 <p className="text-xs sm:text-sm font-semibold text-muted-foreground shrink-0 mr-1">
@@ -866,8 +758,6 @@ export function ItemPricingTab() {
                                 )}
                             </div>
 
-                            {/* A channel's rule is saved with the rest of the channel,
-                                so it has nothing to apply on its own. */}
                             {isBase ? (
                                 <div className="flex items-center justify-end gap-2 sm:gap-2.5 shrink-0">
                                     <Button
@@ -931,8 +821,6 @@ export function ItemPricingTab() {
                 </div>
             </div>
 
-            {/* When this channel takes orders. Orders arriving while it is shut
-                are turned away, so this is not a note to self. */}
             {isBase ? null : (
                 <>
                     {listingQuery.error ? (
@@ -958,7 +846,6 @@ export function ItemPricingTab() {
                 </>
             )}
 
-            {/* Unsaved channel edits, said where they can be acted on. */}
             {!isBase && dirty ? (
                 <div className="sticky bottom-4 z-10 flex animate-in flex-wrap items-center gap-2.5 rounded-2xl border border-warning/40 bg-card p-3 shadow-lg fade-in duration-200">
                     <span className="mr-auto text-sm font-semibold text-warning">
@@ -987,10 +874,7 @@ export function ItemPricingTab() {
                 </div>
             ) : null}
 
-            {/* The catalogue. */}
-            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-                {/* The counts live on the pagination bar below, so the heading
-                    only has to say which catalogue this is. */}
+            <section data-tour="pricing-table" className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                 <div className="flex flex-wrap items-center gap-2 border-b border-border p-4 sm:px-5">
                     <h2 className="text-base font-semibold text-foreground">
                         {isBase ? "Base prices" : `${channel?.name} catalogue`}
@@ -1079,7 +963,6 @@ export function ItemPricingTab() {
                 )}
             </section>
 
-            {/* The price form for whichever scope is open. */}
             {editingItem && isBase ? (
                 <SetPriceDialog
                     item={editingItem}
@@ -1115,10 +998,6 @@ export function ItemPricingTab() {
                 />
             ) : null}
 
-            {/* Where an item sells, changed in one go — the job the separate
-                channel matrix screen was doing on its own. */}
-            {/* An empty id opens it with nothing picked, which is how the
-                toolbar button gets to the same form as a row's chips. */}
             <MultiChannelPublishDialog
                 open={publishingItemId !== null}
                 onClose={() => setPublishingItemId(null)}
@@ -1142,10 +1021,6 @@ export function ItemPricingTab() {
                 open={scannerOpen}
                 onOpenChange={setScannerOpen}
                 onItemFound={(item) => {
-                    // Scanning is how you say "this one" — so it opens the
-                    // form rather than leaving a filter to click through. On a
-                    // channel, only for an item it actually sells: there is
-                    // nothing to price on one that is switched off.
                     const known = isBase
                         ? items.some((entry) => entry.id === item.id)
                         : Boolean(draft?.enabled.has(item.id));
@@ -1157,8 +1032,6 @@ export function ItemPricingTab() {
                         return;
                     }
 
-                    // Not sold here, or not known to this screen. Searching for
-                    // it says so, where opening nothing would look broken.
                     setSearchQuery(item.barcode || item.sku || item.name || "");
                     setPage(1);
                 }}

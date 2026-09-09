@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-
 export type RegisterSession = {
     id: number;
     registerId: number;
@@ -8,7 +7,6 @@ export type RegisterSession = {
     userId: string | null;
 
     cashierName?: string | null;
-    /** Everyone who worked the drawer, the opener first. */
     cashierNames?: string[] | null;
     orderCount?: number | null;
     businessId: string | null;
@@ -33,7 +31,6 @@ export type RegisterSession = {
     status: "OPEN" | "CLOSED";
     note: string | null;
 };
-
 
 export const POS_SESSION_COOKIE = "pos_session_id";
 
@@ -65,11 +62,9 @@ export const closeSessionSchema = z.object({
     closingNote: z.string().trim().max(500).optional(),
 });
 
-
 function money(value: unknown): number {
     return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
-
 
 export function normalizeRegisterSession(
     session: RegisterSession,
@@ -89,7 +84,6 @@ export function normalizeRegisterSession(
         expectedAmount: money(session.expectedAmount),
     };
 }
-
 
 export type RegisterSessionPage = {
     content: RegisterSession[];
@@ -116,7 +110,6 @@ export type RegisterSessionSearch = {
     page: RegisterSessionPage;
     metrics: RegisterSessionMetrics;
 };
-
 
 export function normalizeRegisterSessionSearch(
     payload: Partial<RegisterSessionSearch> | null | undefined,

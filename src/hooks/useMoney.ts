@@ -15,22 +15,12 @@ import {
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 
 export type UseMoney = {
-  /**
-   * Formats an amount. Pass the currency the record was priced in; falls back
-   * to the business base currency for values that carry none.
-   */
   format: (
     value: string | number | null | undefined,
     code?: string | null,
     options?: FormatMoneyOptions,
   ) => string;
-  /** The converted equivalent to show alongside a total, when configured. */
   secondary: (amount: number, code?: string | null) => SecondaryAmount | null;
-  /**
-   * The equivalent for an amount on an order or sale, using the rate that
-   * record was priced at and only falling back to the live configuration when
-   * it carries none.
-   */
   secondaryFor: (
     amount: number,
     record:
@@ -46,14 +36,9 @@ export type UseMoney = {
   base?: BusinessCurrency;
   display?: BusinessCurrency;
   baseCode: string;
-  /** True until the configuration arrives; amounts format on Intl defaults. */
   isLoading: boolean;
 };
 
-/**
- * Currency-aware formatting for any client component. The underlying query is
- * cached by RTK Query, so calling this in many components costs one request.
- */
 export function useMoney(): UseMoney {
   const { data: configuration, isLoading } = useGetBusinessCurrenciesQuery();
 
@@ -63,8 +48,6 @@ export function useMoney(): UseMoney {
     const display = findCurrency(configuration, configuration?.displayCurrency);
 
     function currencyFor(code?: string | null) {
-      // No code at all means "whatever the business prices in" — the base.
-      // An unmatched one still formats sensibly through Intl defaults.
       return findCurrency(configuration, code) ?? code ?? base ?? baseCode;
     }
 

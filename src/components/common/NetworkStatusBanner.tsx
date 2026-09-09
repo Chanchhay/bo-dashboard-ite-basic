@@ -17,12 +17,10 @@ export function NetworkStatusBanner() {
   const isPosOrCustomerDisplayRoute =
     pathname?.startsWith("/pos") || pathname?.startsWith("/customer-display");
 
-  // On POS and Customer Display routes, status is managed locally inside the view — no floating banners needed
   if (isPosOrCustomerDisplayRoute) return null;
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto transition-all duration-300 ease-out">
-      {/* Syncing State */}
       {isSyncing && (
         <div className="flex items-center gap-2.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-md animate-pulse">
           <CloudSync className="size-4 animate-spin" />
@@ -30,9 +28,6 @@ export function NetworkStatusBanner() {
         </div>
       )}
 
-
-
-      {/* Offline State on Non-POS Route */}
       {status === "offline" && (
         <div className="flex items-center gap-3 rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-xl border border-rose-400/40 backdrop-blur-md animate-in fade-in slide-in-from-top-3">
           <WifiOff className="size-4 shrink-0" />
@@ -48,7 +43,6 @@ export function NetworkStatusBanner() {
         </div>
       )}
 
-      {/* Connection Restored State */}
       {status === "online" && showRestored && (
         <div className="flex items-center gap-2.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-lg border border-emerald-400/30 backdrop-blur-md animate-in fade-in slide-in-from-top-3">
           <Wifi className="size-4 shrink-0" />

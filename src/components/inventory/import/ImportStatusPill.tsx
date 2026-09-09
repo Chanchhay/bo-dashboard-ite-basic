@@ -8,10 +8,6 @@ import {
 } from "@/lib/api/data-import";
 import { cn } from "@/lib/utils";
 
-/**
- * Colour carries meaning here, so it is never the only thing that does — every
- * pill also says what it means in words.
- */
 const TONE = {
     neutral: "bg-muted text-muted-foreground",
     progress: "bg-[color-mix(in_srgb,var(--chart-1)_14%,transparent)] text-[var(--chart-1)]",

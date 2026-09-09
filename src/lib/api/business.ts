@@ -15,7 +15,6 @@ export type SocialLink = {
     url: string;
 };
 
-
 export const FACEBOOK_SOCIAL_LINK_PLATFORM = "facebook";
 
 export function facebookPageUrl(business: Pick<Business, "socialLinks">) {
@@ -102,9 +101,6 @@ const optionalPhoneSchema = z
         "Use 8–30 characters containing only numbers, spaces, and an optional +.",
     );
 
-/** `true` when the value parses as an http(s) URL whose host is one of
- * `hosts` (or any host, when `hosts` is omitted). Subdomains count, so
- * "web.facebook.com" passes for "facebook.com". */
 function isUrlOnHost(value: string, hosts?: readonly string[]) {
     let url: URL;
 
@@ -142,8 +138,6 @@ function optionalUrlSchema(
         );
 }
 
-/** The hosts Google hands out for a place — the long maps.google.com link,
- * the "Share" short link, and the older goo.gl/maps one. */
 const GOOGLE_MAP_HOSTS = ["google.com", "goo.gl"] as const;
 
 const FACEBOOK_HOSTS = ["facebook.com", "fb.com", "fb.me"] as const;
@@ -154,7 +148,6 @@ const optionalGoogleMapUrlSchema = optionalUrlSchema(
     GOOGLE_MAP_HOSTS,
 );
 
-/** Cambodia's bounding box, padded — catches a mis-dropped pin, not a precise fence. */
 const coordinateBounds = { latitude: [9, 15], longitude: [102, 108] } as const;
 
 function optionalCoordinateSchema(axis: keyof typeof coordinateBounds, label: string) {
@@ -248,11 +241,6 @@ export type UpdateBusinessInput = {
     longitude?: number;
 };
 
-/**
- * Merges the form's single Facebook Page field into the business's existing
- * `socialLinks`, so saving the profile doesn't clobber other platforms a
- * future editor adds to that same list.
- */
 function mergedSocialLinks(
     facebookPage: string,
     existingLinks: SocialLink[] | undefined,
@@ -296,8 +284,6 @@ export function toUpdateBusinessInput(
     };
 }
 
-/** Sale Management's Tax Settings page — a separate save from the general
- * business profile, since it lives on its own page there. */
 export const taxSettingsSchema = z.object({
     taxEnabled: z.boolean(),
     taxRate: z
@@ -318,8 +304,6 @@ export const taxSettingsSchema = z.object({
 
 export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
 
-/** Same `UpdateBusinessRequest` endpoint, but with only the tax fields set —
- * every other field stays null so nothing else on the profile is touched. */
 export type UpdateBusinessTaxInput = {
     taxEnabled: boolean;
     taxRate?: number;

@@ -502,18 +502,6 @@ export function InventoryProductList() {
         name?: string;
     } | null>(null);
 
-    /*
-     * RTK Query keeps `data` pointing at the last successful result while a
-     * new one is in flight, so it does not flicker between pages. That is
-     * right for pagination, but wrong across the Recycle Bin switch: for one
-     * request it means `data` is still last tab's rows — active items while
-     * `viewMode` already reads "trash", or the reverse. Rendering it as-is
-     * showed a flash of the wrong tab's items before the new fetch landed.
-     * Content answers which tab it belongs to on its own — every row's
-     * `isDeleted` either matches the tab being asked for or it does not — so
-     * a result that does not match the one being asked for is treated as not
-     * arrived yet, the same as if nothing had come back at all.
-     */
     const wantsTrash = viewMode === "trash";
     const rawItems = data?.content ?? [];
     const dataMatchesView = rawItems.every(
@@ -901,7 +889,6 @@ export function InventoryProductList() {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Header Section (sticky on desktop only) */}
             <div className="static lg:sticky lg:top-0 lg:z-30 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all w-full max-w-full min-w-0">
                 <InventoryPageHeader
                     title="Master Items"
@@ -940,7 +927,6 @@ export function InventoryProductList() {
                 />
             </div>
 
-            {/* View Switcher: All Products vs Recycle Bin */}
             <div className="flex items-center justify-end gap-1.5 sm:gap-2 border-b border-border pb-2.5 sm:pb-3 overflow-x-auto scrollbar-none flex-nowrap">
                 <button
                     type="button"
@@ -1351,7 +1337,6 @@ export function InventoryProductList() {
                     ) : null}
                 </div>
 
-
                 {isLoading || isSwitchingView ? (
                     <InventoryLoading label="Loading items" />
                 ) : error ? (
@@ -1378,7 +1363,6 @@ export function InventoryProductList() {
                     />
                 ) : (
                     <>
-                        {/* Mobile Cards (< md) */}
                         <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                             {items.map((item, index) => {
                                 const hasExpandableContent = Boolean(
@@ -1393,7 +1377,6 @@ export function InventoryProductList() {
                                         key={item.id}
                                         className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
                                     >
-                                        {/* Card Header */}
                                         <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                             <div className="flex flex-col min-w-0 pr-2">
                                                 <div className="flex items-center gap-2">
@@ -1492,7 +1475,6 @@ export function InventoryProductList() {
                                             </div>
                                         </div>
 
-                                        {/* Card Key-Value Rows */}
                                         <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                             <div className="flex items-center justify-between px-3.5 py-2.5">
                                                 <span className="text-muted-foreground dark:text-slate-400">Category</span>
@@ -1545,7 +1527,6 @@ export function InventoryProductList() {
                             })}
                         </div>
 
-                        {/* Desktop Table (>= md) */}
                         <div className="hidden md:block overflow-auto max-h-[calc(100dvh-290px)] sm:max-h-[calc(100dvh-300px)]">
                             <table className="w-full min-w-[820px] text-left text-sm">
                                 <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">

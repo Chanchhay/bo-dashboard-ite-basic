@@ -5,7 +5,6 @@ import {
   resolveKeycloakAccessToken,
 } from "@/lib/auth/keycloak-token";
 
-/** Reads the `sub` claim without verifying — whoever reads this token back verifies it. */
 function readSubject(accessToken: string): string | null {
   try {
     const payload = accessToken.split(".")[1];

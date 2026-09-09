@@ -13,11 +13,9 @@ import { cn } from "@/lib/utils";
 
 interface PredictionSummaryProps {
     windowKey: PredictionWindowKey;
-    /** e.g. "this week", "this month" — used in the tile copy. */
     windowPhrase: string;
 }
 
-/** The 4 headline numbers — the tables below spell out exactly which products. */
 export function PredictionSummary({
     windowKey,
     windowPhrase,
@@ -58,7 +56,7 @@ export function PredictionSummary({
     }
 
     return (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div data-tour="prediction-summary" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <PredictionTile
                 icon={<Flame className="size-6 stroke-[2.5]" />}
                 colorClass="bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 border-orange-500/25"

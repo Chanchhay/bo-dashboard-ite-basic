@@ -6,13 +6,11 @@ import { requireBusiness } from "@/lib/api/business-guard";
 import { getUserPermissions } from "@/lib/permissions-server";
 import "@/app/globals.css";
 
-
 export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    // Before anything renders: an account with no business has nothing here.
     await requireBusiness();
 
     const [session, permissions] = await Promise.all([

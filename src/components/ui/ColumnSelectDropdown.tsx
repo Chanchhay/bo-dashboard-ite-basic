@@ -26,7 +26,6 @@ export function ColumnSelectDropdown({
 
     const visibleCount = columns.filter((c) => c.visible).length;
 
-    // Close on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {

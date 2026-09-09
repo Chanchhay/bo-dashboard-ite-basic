@@ -7,8 +7,6 @@ import Link from "next/link";
 import BrandLogo from "@/components/brand/BrandLogo";
 import { useToast } from "@/components/ui/toast";
 
-
-
 const PIN_LENGTH = 6;
 
 export function PinPad() {
@@ -28,14 +26,12 @@ export function PinPad() {
     setPin("");
   };
 
-  // Auto-submit once the pin reaches full length — no separate "confirm" button
   useEffect(() => {
     if (pin.length !== PIN_LENGTH) return;
 
     loginPin(pin)
       .then(({ cashierId, businessOwnerId }) => {
-        // dispatch(setCashier({ cashierId, businessOwnerId }));
-        router.replace("/sales/cash-register"); // next step in flow
+        router.replace("/sales/cash-register");
       })
       .catch(() => {
         toast({
@@ -50,13 +46,11 @@ export function PinPad() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
       <div className="flex w-full max-w-110 flex-col items-center gap-5 rounded-3xl bg-white p-12 shadow-sm">
-        {/* Logo */}
         <div className="flex flex-col items-center gap-3 pt-2">
           <BrandLogo variant="stacked" className="w-36" preload />
           <p className="text-sm text-gray-500">Enter your PIN code</p>
         </div>
 
-        {/* PIN dots */}
         <div className="flex gap-2.5">
           {Array.from({ length: PIN_LENGTH }, (_, i) => (
             <div
@@ -70,7 +64,6 @@ export function PinPad() {
           ))}
         </div>
 
-        {/* Keypad */}
         <div className="grid grid-cols-3 gap-3 w-62">
           {Array.from({ length: 9 }, (_, i) => (
             <button
@@ -112,7 +105,6 @@ export function PinPad() {
           </button>
         </div>
 
-        {/* Footer links */}
         <Link
           href="/sales/pos/pin/recovery"
           className="text-sm text-gray-500 hover:text-gray-700 pt-1"

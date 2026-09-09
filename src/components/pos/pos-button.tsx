@@ -1,13 +1,5 @@
 "use client";
 
-/**
- * The terminal's tab bar.
- *
- * Controlled rather than self-managing: the screen switches tabs on its own
- * after a payment, and a bar holding its own idea of "active" would keep
- * highlighting a tab you are no longer on.
- */
-
 export const POS_TABS = [
   { label: "Point of Sale" },
   { label: "Order" },

@@ -65,7 +65,6 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     { id: "actions", label: "Actions", visible: true },
 ];
 
-/** A select can't carry an empty value, so "no role" needs a sentinel. */
 const NO_ROLE = "__none";
 
 function issueMap(issues: { path: PropertyKey[]; message: string }[]) {
@@ -652,7 +651,6 @@ export default function StaffTab() {
                             )}
                         </div>
 
-                        {/* Filter controls + Columns + Reset (unified together) */}
                         <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto">
                             <div className="flex-1 min-w-0 sm:w-40 md:w-44 sm:flex-initial">
                                 <SelectField
@@ -750,7 +748,6 @@ export default function StaffTab() {
                     />
                 ) : (
                     <>
-                        {/* Mobile Cards View (< md) */}
                         <div className="flex flex-col gap-3 pt-3 md:hidden">
                             {members.map((member: Staff) => (
                                 <div
@@ -764,7 +761,6 @@ export default function StaffTab() {
                                     }}
                                     className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
                                 >
-                                    {/* Card Header */}
                                     <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                         <div className="flex flex-col min-w-0 pr-2">
                                             <span className="font-bold text-sm text-foreground dark:text-white truncate">
@@ -812,7 +808,6 @@ export default function StaffTab() {
                                         </div>
                                     </div>
 
-                                    {/* Card Key-Value Rows */}
                                     <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                         <div className="flex items-center justify-between px-3.5 py-2.5">
                                             <span className="text-muted-foreground dark:text-slate-400">Role</span>
@@ -854,7 +849,6 @@ export default function StaffTab() {
                             ))}
                         </div>
 
-                        {/* Desktop Table (>= md) */}
                         <div
                             className={cn(
                                 "hidden md:block mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",

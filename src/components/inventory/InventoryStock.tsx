@@ -421,7 +421,6 @@ export function InventoryStock() {
                             />
                         </div>
 
-                        {/* State Filter Pills */}
                         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-muted/60 p-1 w-full sm:w-auto">
                             <button
                                 type="button"
@@ -478,9 +477,7 @@ export function InventoryStock() {
                     </div>
                 </div>
 
-                {/* Styled Date Filter Bar matching /inventory/stock/movements */}
                 <div data-tour="movements-date-filter" className="flex flex-col gap-3 p-3.5 sm:p-4 border-t border-border/60 text-sm bg-card lg:flex-row lg:items-center lg:justify-between">
-                    {/* Date Presets */}
                     <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full lg:w-auto py-0.5">
                         <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5 shrink-0 text-xs sm:text-sm">
                             <Calendar className="size-4 text-primary" />
@@ -510,7 +507,6 @@ export function InventoryStock() {
                         ))}
                     </div>
 
-                    {/* Clean Custom Calendar Inputs */}
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3 w-full lg:w-auto">
                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                             <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>

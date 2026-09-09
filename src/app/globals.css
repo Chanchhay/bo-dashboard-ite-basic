@@ -237,14 +237,13 @@
   }
 }
 
-/* Hide scrollbars globally across WebKit, Blink, Firefox, and IE/Edge */
 *,
 *::before,
 *::after,
 html,
 body {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 ::-webkit-scrollbar,
@@ -327,7 +326,6 @@ body {
   box-shadow: none !important;
 }
 
-/* Recharts Border & Outline Resets */
 .recharts-wrapper,
 .recharts-surface,
 .recharts-responsive-container,
@@ -348,3 +346,10 @@ svg:focus {
   outline: none !important;
   border: none !important;
 }
+
+html,
+body,
+#main-content {
+  scroll-behavior: smooth;
+}
+

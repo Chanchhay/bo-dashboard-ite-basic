@@ -16,18 +16,11 @@ export function NotificationToastListener() {
     const handledIdsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
-        /*
-         * Signing out is a form POST that navigates away, so the socket dies
-         * with the page. This covers the other case: a session that expires
-         * while the tab stays open, where the connection would otherwise keep
-         * running against a token that is no longer valid.
-         */
         if (!userId) {
             notificationSocket.disconnect();
             return;
         }
 
-        // Ensure websocket is connected for logged in user
         notificationSocket.connect({
             receiverId: userId,
             userId: userId,
@@ -36,22 +29,18 @@ export function NotificationToastListener() {
         const unsubscribe = notificationSocket.subscribe((notification: Notification) => {
             if (!notification || !notification.id) return;
 
-            // Deduplicate to avoid double popping toasts
             if (handledIdsRef.current.has(notification.id)) {
                 return;
             }
             handledIdsRef.current.add(notification.id);
 
-            // Limit history set size
             if (handledIdsRef.current.size > 200) {
                 const first = handledIdsRef.current.values().next().value;
                 if (first) handledIdsRef.current.delete(first);
             }
 
-            // Play audio chime
             playNotificationSound(notification.type ?? undefined);
 
-            // Determine toast tone based on notification type
             const type = (notification.type || "").toUpperCase();
             let tone: "success" | "error" | "info" = "info";
             if (type === "ORDER" || type === "PAYMENT" || type === "SUCCESS") {

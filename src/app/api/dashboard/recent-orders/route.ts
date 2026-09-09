@@ -2,12 +2,6 @@ import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { DashboardPage, RecentOrderRow } from "@/lib/api/dashboard";
 
-/**
- * The recent orders table, already searched and paged by the server.
- *
- * The search has to reach rows that are not on the current page, so it cannot
- * be applied here on whatever this page happens to hold.
- */
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);

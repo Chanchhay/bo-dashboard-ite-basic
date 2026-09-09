@@ -23,7 +23,6 @@ export function inventoryItemsBackendPath(businessId: string) {
     return `/api/v1/businesses/${businessId}/items`;
 }
 
-
 export async function getAllInventoryItems(businessId: string) {
     const items = await backendRequest<InventoryItem[] | { content?: InventoryItem[] }>(
         `${inventoryItemsBackendPath(businessId)}?page=0&size=10000&sort=name,asc`,
@@ -34,34 +33,12 @@ export async function getAllInventoryItems(businessId: string) {
     return items?.content ?? [];
 }
 
-/**
- * Every item in the Recycle Bin.
- *
- * The plain list above deliberately excludes trash — dashboard stats and the
- * item-picker dropdowns that call it must never count a deleted item. That
- * leaves nowhere else to find one, so the Recycle Bin reaches for it through
- * the same `/filter` search the item list's advanced filters already use,
- * asking specifically for `isDeleted = true`.
- *
- * That has to be the `TRUE` operation, not `EQUAL` with a "true" string:
- * `isDeleted` is a boolean column, and the backend's generic filter only
- * parses EQUAL's value into a matching Java type for a handful of types
- * (string, number, date, UUID, enum) — boolean isn't one of them, so EQUAL
- * would compare the column against a literal string and Hibernate rejects
- * the query outright. TRUE/FALSE exist on the filter specifically so a
- * boolean column never needs a value parsed at all.
- */
 async function getAllDeletedInventoryItems(businessId: string) {
     const result = await backendRequest<{ content?: InventoryItem[] }>(
         `${inventoryItemsBackendPath(businessId)}/filter?page=0&size=10000&sort=name,asc`,
         {
             method: "POST",
             body: JSON.stringify({
-                // The service layer also reads this same `value` string,
-                // separately from the filter engine above, to decide whether
-                // to search the bin instead of the shelf — so it has to say
-                // "true" even though the TRUE operation itself never looks
-                // at it in building the query.
                 searchRequestDto: [
                     { column: "isDeleted", value: "true", operation: "TRUE" },
                 ],
@@ -127,7 +104,6 @@ function compareItems(sort: InventoryItemQuery["sort"]) {
     };
 }
 
-
 export async function getInventoryItemsPage(
     businessId: string,
     query: InventoryItemQuery,
@@ -160,10 +136,6 @@ export async function getInventoryItemsPage(
             );
 
             if (response && !Array.isArray(response) && "content" in response) {
-                // Spring serialises `Page` either flat (the fields sit on the
-                // response) or nested under `page` — Boot 4 defaults to the
-                // nested DTO. Read both, or `totalPages` lands on 1 and the
-                // next-page button stays disabled.
                 const nested =
                     typeof response.page === "object" && response.page !== null
                         ? response.page
@@ -239,7 +211,6 @@ export function inventoryValidationError(error: z.ZodError) {
     );
 }
 
-
 export function readItemImageFiles(formData: FormData) {
     const files = formData
         .getAll("files")
@@ -267,7 +238,6 @@ export function itemImageError(message: string) {
     return Response.json({ message }, { status: 400 });
 }
 
-
 export async function inventoryBarcodeImageResponse(
     backendPath: string,
     filename: string,
@@ -286,7 +256,6 @@ export async function inventoryBarcodeImageResponse(
         },
     });
 }
-
 
 export type ItemSave =
     | { error: Response; save?: undefined }

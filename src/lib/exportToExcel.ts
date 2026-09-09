@@ -1,14 +1,10 @@
 import type { InventoryItem } from "@/lib/api/inventory";
 
-/**
- * Helper to escape fields for CSV format compatible with Microsoft Excel.
- */
 function escapeCsvCell(value: string | number | boolean | null | undefined): string {
     if (value === null || value === undefined) {
         return '""';
     }
     const str = String(value);
-    // If the cell contains commas, quotes, or newlines, enclose in quotes and escape internal quotes
     if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
         return `"${str.replace(/"/g, '""')}"`;
     }
@@ -29,9 +25,6 @@ export type ExportItemRow = {
     description?: string;
 };
 
-/**
- * Export inventory items array to CSV (Excel compatible with UTF-8 BOM).
- */
 export function exportItemsToExcel(items: InventoryItem[], categoryMap?: Map<string, string>, unitMap?: Map<string, string>, fileNamePrefix = "inventory_items_export") {
     const headers = [
         "Item ID",
@@ -71,7 +64,7 @@ export function exportItemsToExcel(items: InventoryItem[], categoryMap?: Map<str
     });
 
     const csvContent =
-        "\uFEFF" + // UTF-8 Byte Order Mark for Excel auto-encoding
+        "\uFEFF" +
         [headers.map(escapeCsvCell).join(",")]
             .concat(rows.map((row) => row.map(escapeCsvCell).join(",")))
             .join("\r\n");

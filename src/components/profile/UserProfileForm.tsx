@@ -95,11 +95,6 @@ function getFieldErrors(
     return fieldErrors;
 }
 
-/**
- * A backend that keeps one path per user answers a save with the URL the
- * browser already has cached, and the old picture would stay on screen. Tagging
- * the unchanged URL forces the new bytes to be fetched.
- */
 function withFreshPicture(updated: UserProfile, previous: string) {
     const picture = updated.profilePicture;
 
@@ -113,8 +108,6 @@ function withFreshPicture(updated: UserProfile, previous: string) {
     };
 }
 
-// Both helpers read the names being typed rather than the stored profile, so
-// the summary card tracks the form as it is edited.
 function getInitials(firstName: string, lastName: string, username?: string) {
     const initials = [firstName, lastName]
         .map((name) => name.trim().charAt(0))
@@ -204,15 +197,9 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     )
         ? (profile.gender as (typeof userProfileGenders)[number])
         : "UNSPECIFIED";
-    // The names drive the summary card while they are typed, so they are the
-    // two fields this form keeps in state.
     const [firstName, setFirstName] = useState(profile.firstName || "");
     const [lastName, setLastName] = useState(profile.lastName || "");
-    // The picked file travels with the rest of the form, so it stays staged
-    // until the save carries it up.
     const picture = useStagedImage(profilePictureRules, storedPicture);
-    // Picture feedback sits under the avatar, next to the control it belongs
-    // to, rather than in the form's status line.
     const [pictureNote, setPictureNote] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const { toast } = useToast();
@@ -222,10 +209,6 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         useDeleteProfilePictureMutation();
     const profileName = getProfileName(firstName, lastName, profile.username);
 
-    /**
-     * Publishes a mutation's answer to every reader of the profile — this form
-     * and the account menu in the header — without waiting for a refetch.
-     */
     function publishProfile(updated: UserProfile) {
         dispatch(
             userProfileApi.util.upsertQueryData(
@@ -241,7 +224,6 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         setPictureNote("New picture ready — save to apply it.");
     }
 
-    /** Clearing the avatar has its own endpoint, so it applies immediately. */
     async function handlePictureRemove() {
         setPictureNote(null);
 
@@ -296,8 +278,6 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
         setFieldErrors({});
 
         try {
-            // One multipart request carries the fields and, when one was
-            // picked, the new picture.
             const updated = await updateUserProfile({
                 ...result.data,
                 file: picture.file,
@@ -330,7 +310,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
     return (
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="flex flex-col gap-5">
-                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section
+                    data-tour="settings-avatar-section"
+                    className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-6 text-center shadow-[0_8px_30px_rgba(26,34,43,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+                >
                     <ImagePicker
                         rules={profilePictureRules}
                         disabled={isSaving}
@@ -349,8 +332,6 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                             <span className="relative inline-flex size-28 items-center justify-center">
                                 <span className="flex size-full items-center justify-center overflow-hidden rounded-full border-4 border-white dark:border-[#1a1e29] bg-[linear-gradient(145deg,#dff5e2,#b9e5bf)] dark:bg-[linear-gradient(145deg,#153e1a,#1e5426)] text-3xl font-bold text-primary dark:text-[#6ee7b7] shadow-md">
                                     {picture.preview ? (
-                                        // The API supplies this URL dynamically and
-                                        // the staged preview uses a blob URL.
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
                                             src={picture.preview}
@@ -423,7 +404,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
                     </div>
                 </section>
 
-                <section className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+                <section
+                    data-tour="settings-account-info"
+                    className="rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] p-5 shadow-[0_8px_30px_rgba(26,34,43,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+                >
                     <h2 className="text-base font-bold text-[#161d16] dark:text-[#f8fafc]">
                         Account Information
                     </h2>
@@ -453,6 +437,7 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
             </aside>
 
             <form
+                data-tour="settings-personal-form"
                 ref={formRef}
                 onSubmit={handleSubmit}
                 noValidate
@@ -591,7 +576,10 @@ function UserProfileEditor({ profile }: { profile: UserProfile }) {
 
                 </div>
 
-                <div className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] dark:border-[#242937] pt-6 sm:flex-row sm:items-center">
+                <div
+                    data-tour="settings-form-actions"
+                    className="mt-8 flex flex-col gap-4 border-t border-[#edf0ec] dark:border-[#242937] pt-6 sm:flex-row sm:items-center"
+                >
                     <div className="flex-1" />
                     <Button
                         type="button"
@@ -664,9 +652,6 @@ export default function UserProfileForm() {
 
     const profile = profileQuery.data;
 
-    // Keyed on the account only: the editor holds live edits, and every save
-    // pushes its answer back into this query, so remounting on each change
-    // would throw away what the user is typing.
     return (
         <UserProfileEditor
             key={profile.userId || "user-profile"}
@@ -674,5 +659,4 @@ export default function UserProfileForm() {
         />
     );
 }
-
 

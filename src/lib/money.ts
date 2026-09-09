@@ -3,10 +3,6 @@ import type {
   BusinessCurrencyConfiguration,
 } from "@/lib/api/currency";
 
-/**
- * The minimum a caller needs to render an amount. Anything holding a
- * `BusinessCurrency` from the API satisfies this.
- */
 export type CurrencyLike = {
   code: string;
   symbol?: string;
@@ -23,10 +19,6 @@ export function toMoneyString(value: number): string {
   return value.toFixed(2);
 }
 
-/**
- * Fraction digits to use when the business has not configured the currency.
- * Intl knows the real minor unit for most codes (JPY 0, USD 2, BHD 3).
- */
 export function defaultDecimalPlaces(code: string): number {
   try {
     return (
@@ -48,7 +40,6 @@ function fractionDigits(currency: CurrencyLike | undefined, code: string) {
 }
 
 function symbolFor(currency: CurrencyLike | undefined, code: string) {
-  // A business may define its own symbol, and that wins over CLDR's.
   if (currency?.symbol?.trim()) return currency.symbol.trim();
 
   try {
@@ -64,9 +55,7 @@ function symbolFor(currency: CurrencyLike | undefined, code: string) {
 }
 
 export type FormatMoneyOptions = {
-  /** Render the ISO code instead of the symbol, e.g. `USD 12.50`. */
   useCode?: boolean;
-  /** Text to return for null/undefined input. Defaults to an em dash. */
   fallback?: string;
 };
 
@@ -85,11 +74,6 @@ function getNumberFormatter(digits: number): Intl.NumberFormat {
   return formatter;
 }
 
-/**
- * Formats an amount in a specific currency, honouring the symbol and decimal
- * places the business configured. Pass either a configured currency or a bare
- * ISO code; with a code alone the Intl defaults apply.
- */
 export function formatMoney(
   value: string | number | null | undefined,
   currency: CurrencyLike | string | null | undefined,
@@ -112,19 +96,10 @@ export function formatMoney(
     : `${symbolFor(resolved, code)}${amount}`;
 }
 
-/**
- * Compatibility helper for older call sites that expect a simple
- * `formatCurrency(value)` API.
- */
 export function formatCurrency(value: string | number | null | undefined): string {
   return formatMoney(value, undefined);
 }
 
-/**
- * Formats using only an ISO code. Prefer `formatMoney` with the configured
- * currency; this is the fallback for records whose currency is not in the
- * business configuration.
- */
 export function formatCurrencyAmount(
   value: string | number | null | undefined,
   currency: string,
@@ -143,10 +118,6 @@ export function findCurrency(
   );
 }
 
-/**
- * Rates are quoted as units of the currency per one unit of the base, so the
- * base itself carries a rate of 1. Converting therefore goes through the base.
- */
 export function convertAmount(
   amount: number,
   from: CurrencyLike | undefined,
@@ -165,20 +136,11 @@ export function convertAmount(
 }
 
 export type SecondaryAmount = {
-  /** Configured where possible, otherwise just the code for Intl to resolve. */
   currency: CurrencyLike;
-  /** Units of the display currency per one unit of the source currency. */
   rate: number;
   amount: number;
 };
 
-/**
- * The equivalent recorded against a settled order or sale.
- *
- * Preferred over {@link getSecondaryAmount} wherever a record carries its own
- * rate: rates move, and a receipt has to keep showing the figure the customer
- * was actually handed rather than one recomputed from today's configuration.
- */
 export function getRecordedSecondaryAmount(
   amount: number,
   record: {
@@ -192,10 +154,6 @@ export function getRecordedSecondaryAmount(
 
   if (!code || !Number.isFinite(rate) || rate <= 0) return null;
 
-  // The configured entry only supplies presentation — symbol and decimals.
-  // The rate always comes from the record.
-  // Symbol is left unset when the currency is not configured, so Intl resolves
-  // it rather than the code standing in for it.
   const currency: CurrencyLike = findCurrency(configuration, code) ?? {
     code,
     exchangeRate: rate,
@@ -210,11 +168,6 @@ export function getRecordedSecondaryAmount(
   };
 }
 
-/**
- * The converted equivalent to show alongside a price, or null when the
- * business has no distinct display currency configured. For amounts on a
- * settled record, prefer {@link getRecordedSecondaryAmount}.
- */
 export function getSecondaryAmount(
   amount: number,
   sourceCode: string | null | undefined,

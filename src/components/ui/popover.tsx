@@ -12,11 +12,6 @@ function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
 }
 
-/*
- * Positioned and portalled, matching the dropdown menu beside it: the same
- * radius, ring and open/close motion, so a calendar opening under a field
- * looks like the rest of the app rather than like a second design.
- */
 function PopoverContent({
   align = "start",
   alignOffset = 0,

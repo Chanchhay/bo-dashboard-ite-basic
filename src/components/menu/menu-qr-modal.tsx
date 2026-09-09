@@ -54,7 +54,6 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#1a1e29] border border-transparent dark:border-[#2a3042] p-6 shadow-2xl transition-all">
-        {/* Close Button */}
         <button
           onClick={onClose}
           type="button"
@@ -64,7 +63,6 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
           <X className="h-5 w-5" />
         </button>
 
-        {/* Title */}
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary dark:bg-emerald-500/20 dark:text-emerald-400">
             <QrCode className="h-6 w-6" />
@@ -75,7 +73,6 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
           </div>
         </div>
 
-        {/* QR Code Render Area */}
         <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 dark:border-[#2a3042] bg-gray-50 dark:bg-[#12151e] p-6 shadow-inner my-4">
           <img
             src={qrImageUrl}
@@ -90,7 +87,6 @@ export default function MenuQRModal({ isOpen, onClose, menuUrl }: MenuQRModalPro
           </p>
         </div>
 
-        {/* Action Buttons */}
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <button

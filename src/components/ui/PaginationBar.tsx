@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-
 function getPageItems(currentPage: number, totalPages: number): (number | null)[] {
   const siblingCount = 1;
   const totalVisible = siblingCount * 2 + 5;
@@ -70,15 +69,6 @@ export type PaginationBarProps = {
   itemLabelPlural?: string;
   className?: string;
 
-  /**
-   * How many rows the pages before this one held, and how many this one is
-   * showing, where that is not simply `page * size`.
-   *
-   * A list that pins rows to its first page — unsynced sales waiting to reach
-   * the server — has a first page longer than the rest, and the running count
-   * has to say so rather than working it out from arithmetic that no longer
-   * holds. Left out, the bar counts the usual way.
-   */
   rowsBefore?: number;
   rowsOnPage?: number;
 };
@@ -127,7 +117,6 @@ export function PaginationBar({
         className,
       )}
     >
-      {/* Left / Top: rows per page + range readout */}
       <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start gap-2.5 sm:gap-4">
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="text-xs sm:text-sm font-normal text-muted-foreground whitespace-nowrap">
@@ -170,7 +159,6 @@ export function PaginationBar({
         </span>
       </div>
 
-      {/* Right / Bottom: page navigation */}
       <div className="flex items-center justify-center w-full sm:w-auto gap-0.5 sm:gap-1 self-center sm:self-auto overflow-x-auto py-0.5">
         <Button
           type="button"

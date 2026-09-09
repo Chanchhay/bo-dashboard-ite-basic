@@ -20,7 +20,6 @@ interface ReceiptTicketProps {
   business?: Business | null;
   order: PosOrder;
   receipt?: PosReceipt | null;
-  /** Present immediately after payment; historical sale lookup is not exposed. */
   sale?: Sale | null;
   currencies?: BusinessCurrencyConfiguration;
   className?: string;
@@ -46,7 +45,6 @@ function computeItemDiscountFromRule(
   }
   if (!rule) return 0;
 
-  // Check minimum conditions
   if (rule.minOrderAmount && rule.minOrderAmount > 0) {
     const subtotal = orderItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
     if (subtotal < rule.minOrderAmount) return 0;
@@ -74,7 +72,6 @@ function computeItemDiscountFromRule(
     ? new Set(rule.targetItemIds || [])
     : null;
 
-  // Handle Buy X Get Y discount scope calculation
   if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
     const eligibleUnits: { itemId: string; unitPrice: number }[] = [];
     for (const orderItem of orderItems) {
@@ -143,11 +140,8 @@ export function ReceiptTicket({
     receipt?.invoiceNumber || sale?.invoiceNumber || order.invoiceNumber || "—";
   const issuedAtValue = sale?.soldAt || receipt?.issuedAt || order.createdDate;
   const issuedAt = issuedAtValue ? new Date(issuedAtValue) : null;
-  // A record that names no currency of its own was priced in the base — the
-  // only reading that keeps a receipt's symbol matching the amounts on it.
   const currencyCode =
     sale?.currency || order.currency || currencies?.baseCurrency || null;
-  // Prefer the business's own symbol and decimal places over the CLDR default.
   const currency = findCurrency(currencies, currencyCode) ?? currencyCode;
   const storedRule = useMemo(() => {
     const id = sale?.orderId || sale?.id || order?.id;
@@ -161,12 +155,6 @@ export function ReceiptTicket({
     return null;
   }, [sale?.orderId, sale?.id, order?.id]);
 
-  // Once the backend has attributed the discount to specific lines (any line
-  // carries its own non-zero discountAmount), that breakdown is authoritative
-  // — a line the backend left at zero really got nothing, most commonly a
-  // storewide Buy X Get Y that gave its free unit to a different, cheaper
-  // line entirely. Only a fully legacy order with no per-line breakdown at
-  // all falls back to guessing a proportional split.
   const hasExplicitLineDiscounts = (order.items || []).some(
     (item) => (item.discountAmount ?? 0) > 0,
   );
@@ -185,9 +173,6 @@ export function ReceiptTicket({
   const subtotal = rawSubtotal > 0 ? rawSubtotal : (order.items || []).reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const afterDiscount = Math.max(0, subtotal - discount);
 
-  // `sale` is only ever passed right after a live payment; every other
-  // viewer (Sales history, a reopened receipt) has to fall back to the
-  // order's own record of how it was paid.
   const paymentMethod = sale?.paymentMethod ?? order.paymentMethod;
   const isPayLater = paymentMethod === "PAY_LATER";
 
@@ -200,9 +185,6 @@ export function ReceiptTicket({
           ? "Pay later"
           : "—";
 
-  // Tax was computed once, server-side, when the order was created (or last
-  // repriced) — reading it straight off the record matches every other
-  // channel and never drifts from what was actually charged.
   const isTaxInclusive = (sale?.taxInclusionType ?? order?.taxInclusionType) === "INCLUSIVE";
   const effectiveTaxRate = sale?.taxRate ?? order?.taxRate ?? 0;
   const isTaxActive = (sale?.taxAmount ?? order?.taxAmount ?? 0) > 0 || effectiveTaxRate > 0;
@@ -221,18 +203,9 @@ export function ReceiptTicket({
   const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
   const discountRatio = subtotal > 0 && discount > 0 ? discount / subtotal : 0;
 
-  // The backend names the discount the same way on every channel — prefer
-  // that over the locally-stored rule, which only exists on the device that
-  // applied it and is never populated at all on the customer display.
   const discountLabel = useMemo(() => {
     if (sale?.discountLabel) return sale.discountLabel;
     if (order?.discountLabel) return order.discountLabel;
-    // The order/sale record itself often has no aggregate label even though
-    // the backend already named the discount on whichever line(s) it
-    // actually applied to — reuse that real name instead of fabricating a
-    // percentage that may not even describe the discount (e.g. a Buy X Get Y
-    // showing up as "27% OFF", which is just discount÷subtotal, not what the
-    // discount actually is).
     const firstLineLabel = (order.items || []).find(
       (item) => (item.discountAmount ?? 0) > 0 && item.discountLabel,
     )?.discountLabel;
@@ -243,8 +216,6 @@ export function ReceiptTicket({
     }
     return null;
   }, [sale?.discountLabel, order?.discountLabel, order.items, storedRule, discount, discountPercent]);
-  // The settled record carries the rate it was priced at; only an order still
-  // open has to fall back to whatever is configured right now.
   const record = sale ?? order;
   const displayTotal =
     getRecordedSecondaryAmount(total, record, currencies) ??
@@ -307,7 +278,6 @@ export function ReceiptTicket({
       <header className="flex flex-col items-center pb-[14px] text-center">
         <span className="grid size-[50px] place-items-center overflow-hidden rounded-lg bg-primary/5 text-base font-black text-primary">
           {business?.logo ? (
-            // The owner controls this URL through the business-profile API.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={business.logo}
@@ -453,10 +423,6 @@ export function ReceiptTicket({
                       .join(" · ")}
                   </p>
                 ) : null}
-                {/* The promotion that turned into extra units on this line —
-                    worth naming on the receipt itself, not just implied by
-                    the discount below, so it reads as a gift rather than a
-                    markdown. */}
                 {item.freeQuantity ? (
                   <p className="text-[11px] font-bold leading-[1.45] text-primary">
                     {item.freeQuantity} FREE
@@ -591,8 +557,6 @@ export function ReceiptTicket({
         ) : (
           <>
             <div className="flex justify-between gap-4">
-              {/* Named as the customer paid it. "Digital" is the field's own
-                  word for it; KHQR is what they scanned. */}
               <dt>Paid · {paymentMethodLabel}</dt>
               <dd className="font-mono text-[#0e140e]">
                 {formatMoney(effectivePaidAmount, currency)}

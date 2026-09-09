@@ -29,7 +29,6 @@ export type ItemChannel = {
     createdAt?: string;
 };
 
-
 export type ChannelItem = {
     itemChannelId: string;
     item: {
@@ -55,7 +54,6 @@ export type ChannelItem = {
         uomConversions?: ItemUomConversion[];
         
         addOns?: AddOn[];
-        /** Count at or below which the till warns. Per item, not per shop. */
         lowStockDefault?: number;
     };
 };

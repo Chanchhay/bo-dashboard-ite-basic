@@ -60,7 +60,6 @@ export default function MembershipTypesPage() {
     const { format, base } = useMoney();
     const [searchQuery, setSearchQuery] = useState("");
 
-    // --- Column Visibility State ---
     const [memberTypeCols, setMemberTypeCols] = useState([
         { id: "typeName", label: "Member Type Name", visible: true },
         { id: "discount", label: "Assigned Discount", visible: true },
@@ -80,7 +79,6 @@ export default function MembershipTypesPage() {
         setMemberTypeCols((prev) => prev.map((c) => ({ ...c, visible: true })));
     };
 
-    // RTK Query Hooks
     const { data: membershipTypes = [], isLoading: isTypesLoading, refetch } = useGetMembershipTypesQuery();
     const { data: discounts = [] } = useGetDiscountsQuery();
 
@@ -90,7 +88,6 @@ export default function MembershipTypesPage() {
     const [deactivateMembershipType] = useDeactivateMembershipTypeMutation();
     const [deleteMembershipType, { isLoading: isDeleting }] = useDeleteMembershipTypeMutation();
 
-    // Dialog state
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingType, setEditingType] = useState<MembershipTypeResponse | null>(null);
     const [formError, setFormError] = useState("");
@@ -99,7 +96,6 @@ export default function MembershipTypesPage() {
     const [remark, setRemark] = useState("");
     const [discountId, setDiscountId] = useState("");
 
-    // Delete state
     const [deletingType, setDeletingType] = useState<MembershipTypeResponse | null>(null);
 
     const filteredTypes = useMemo(() => {
@@ -212,7 +208,6 @@ export default function MembershipTypesPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header section */}
             <div data-tour="membership-tiers-list" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
                     <div className="min-w-0 flex-1">
@@ -241,7 +236,6 @@ export default function MembershipTypesPage() {
                 </div>
             </div>
 
-            {/* Controls Bar */}
             <div data-tour="member-types-search-bar" className="flex items-center justify-between border-b border-border pb-3 gap-2">
                 <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -259,7 +253,6 @@ export default function MembershipTypesPage() {
                 />
             </div>
 
-            {/* Table / Card Container */}
             <div data-tour="member-types-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isTypesLoading ? (
                     <TableSkeleton rows={5} cols={5} />
@@ -271,7 +264,6 @@ export default function MembershipTypesPage() {
                     </div>
                 ) : (
                     <>
-                        {/* Mobile Cards (< md) */}
                         <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                             {filteredTypes.map((t) => (
                                 <div
@@ -279,7 +271,6 @@ export default function MembershipTypesPage() {
                                     onClick={() => openEditDialog(t)}
                                     className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
                                 >
-                                    {/* Card Header */}
                                     <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                         <div className="flex items-center gap-2">
                                             <Award className="h-4 w-4 text-primary" />
@@ -328,7 +319,6 @@ export default function MembershipTypesPage() {
                                         </div>
                                     </div>
 
-                                    {/* Card Key-Value Rows */}
                                     <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                         <div className="flex items-center justify-between px-3.5 py-2.5">
                                             <span className="text-muted-foreground dark:text-slate-400">Discount</span>
@@ -355,7 +345,6 @@ export default function MembershipTypesPage() {
                             ))}
                         </div>
 
-                        {/* Desktop Table (>= md) */}
                         <div className="hidden md:block overflow-x-auto">
                             <Table>
                                 <TableHeader>
@@ -454,7 +443,6 @@ export default function MembershipTypesPage() {
                 )}
             </div>
 
-            {/* --- CREATE / EDIT MEMBER TYPE DIALOG --- */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -470,7 +458,7 @@ export default function MembershipTypesPage() {
                     )}
 
                     <div className="space-y-4 py-2">
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="member-type-form-name">
                             <Label htmlFor="typeName">Type Name *</Label>
                             <Input
                                 id="typeName"
@@ -480,7 +468,7 @@ export default function MembershipTypesPage() {
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="member-type-form-discount">
                             <Label htmlFor="discount">Assign Discount Rule</Label>
                             <Select
                                 value={discountId || "NONE"}
@@ -513,7 +501,7 @@ export default function MembershipTypesPage() {
                             </p>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="member-type-form-remark">
                             <Label htmlFor="remark">Remark / Notes</Label>
                             <Textarea
                                 id="remark"
@@ -526,10 +514,11 @@ export default function MembershipTypesPage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                        <Button data-tour="member-type-form-cancel" variant="outline" onClick={() => setIsDialogOpen(false)}>
                             Cancel
                         </Button>
                         <Button
+                            data-tour="member-type-form-submit"
                             onClick={handleSave}
                             disabled={isCreating || isUpdating}
                             className="bg-primary hover:bg-primary/90 text-white"
@@ -543,7 +532,6 @@ export default function MembershipTypesPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* --- DELETE CONFIRMATION DIALOG --- */}
             <DestructiveConfirmDialog
                 open={Boolean(deletingType)}
                 onOpenChange={(open) => !open && setDeletingType(null)}

@@ -98,10 +98,8 @@ export const isBoOrCashierCustomer = (c?: CustomerResponse | null): boolean => {
 
 export default function CustomerManagement() {
     const [searchQuery, setSearchQuery] = useState("");
-    // Total spend is recorded in the business base currency.
     const { format: formatMoney } = useMoney();
 
-    // --- Column Visibility State ---
     const [customerCols, setCustomerCols] = useState([
         { id: "customerInfo", label: "Customer Name", visible: true },
         { id: "phoneNumber", label: "Phone Number", visible: true },
@@ -124,7 +122,6 @@ export default function CustomerManagement() {
         setCustomerCols((prev) => prev.map((c) => ({ ...c, visible: true })));
     };
 
-    // RTK Query Hooks
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
     const {
@@ -149,7 +146,6 @@ export default function CustomerManagement() {
     const [deleteCustomer, { isLoading: isDeleting }] =
         useDeleteCustomerMutation();
 
-    // Dialog state
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] =
         useState<CustomerResponse | null>(null);
@@ -165,11 +161,9 @@ export default function CustomerManagement() {
     const [totalSpend, setTotalSpend] = useState<number | "">("");
     const [active, setActive] = useState(true);
 
-    // Delete state
     const [deletingCustomer, setDeletingCustomer] =
         useState<CustomerResponse | null>(null);
 
-    // Filter states
     const [selectedChannelFilter, setSelectedChannelFilter] = useState<string>("ALL");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
     const [datePreset, setDatePreset] = useState<string>("ALL");
@@ -212,11 +206,9 @@ export default function CustomerManagement() {
 
     const filteredCustomers = useMemo(() => {
         return customers.filter((c) => {
-            // 1. Status Filter
             if (statusFilter === "ACTIVE" && !c.active) return false;
             if (statusFilter === "INACTIVE" && c.active) return false;
 
-            // 2. Channel Filter
             if (selectedChannelFilter !== "ALL") {
                 if (selectedChannelFilter === "NONE") {
                     if (c.salesChannel) return false;
@@ -228,7 +220,6 @@ export default function CustomerManagement() {
                 }
             }
 
-            // 3. Date Range Filter (Registered Date)
             if (fromDate || toDate) {
                 const gc = c.globalCustomer as unknown as { createdDate?: string; createdAt?: string } | undefined;
                 const createdStr =
@@ -252,7 +243,6 @@ export default function CustomerManagement() {
                 }
             }
 
-            // 4. Search Query Filter
             if (!searchQuery.trim()) return true;
             const q = searchQuery.trim().toLowerCase();
 
@@ -260,7 +250,6 @@ export default function CustomerManagement() {
             const formattedPhone = formatLocalPhone(rawPhone).toLowerCase();
             const rawPhoneLower = rawPhone.toLowerCase();
 
-            // Phone search match starting from 0 (e.g. 092...) or containing query
             const isPhoneMatch =
                 formattedPhone.startsWith(q) ||
                 formattedPhone.includes(q) ||
@@ -428,7 +417,6 @@ export default function CustomerManagement() {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Header Section (sticky on desktop only) */}
             <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-3 sm:pt-4 pb-3 sm:pb-4 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-3 sm:gap-4">
                 <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
@@ -458,12 +446,9 @@ export default function CustomerManagement() {
                     </div>
                 </div>
 
-                {/* Controls Bar & Filters */}
                 <div data-tour="customers-search-bar" className="flex flex-col gap-2.5 sm:gap-3 pt-1">
-                    {/* Top Control Row: Search + Status Filter + Channel Filter + Column Dropdown */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
-                            {/* Search Input */}
                             <div className="relative w-full sm:w-80 lg:w-[380px] shrink-0">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -474,9 +459,7 @@ export default function CustomerManagement() {
                                 />
                             </div>
 
-                            {/* Filter controls in a single horizontally scrollable row on mobile, inline on desktop */}
                             <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap pb-1 sm:pb-0">
-                                {/* Sales Channel Filter Dropdown */}
                                 <div className="w-36 sm:w-44 shrink-0">
                                     <Select
                                         value={selectedChannelFilter}
@@ -500,7 +483,6 @@ export default function CustomerManagement() {
                                     </Select>
                                 </div>
 
-                                {/* Status Filter Dropdown */}
                                 <div className="w-32 sm:w-36 shrink-0">
                                     <Select
                                         value={statusFilter}
@@ -520,7 +502,6 @@ export default function CustomerManagement() {
                                     </Select>
                                 </div>
 
-                                {/* Columns Dropdown on mobile inside the horizontal filter row */}
                                 <div className="sm:hidden shrink-0">
                                     <ColumnSelectDropdown
                                         columns={customerCols}
@@ -531,7 +512,6 @@ export default function CustomerManagement() {
                             </div>
                         </div>
 
-                        {/* Columns Dropdown on Desktop (aligned right) */}
                         <div className="hidden sm:block shrink-0">
                             <ColumnSelectDropdown
                                 columns={customerCols}
@@ -541,9 +521,7 @@ export default function CustomerManagement() {
                         </div>
                     </div>
 
-                    {/* Date Filter Toolbar Row */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pt-1">
-                        {/* Presets row: horizontally scrollable on mobile */}
                         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap shrink-0">
                             <span className="font-semibold text-xs sm:text-sm text-foreground mr-1 flex items-center gap-1.5 shrink-0">
                                 <Calendar className="size-3.5 sm:size-4 text-primary" />
@@ -573,7 +551,6 @@ export default function CustomerManagement() {
                             ))}
                         </div>
 
-                        {/* From / To Date Pickers: 2-column grid on mobile, flex on desktop */}
                         <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>
@@ -611,7 +588,6 @@ export default function CustomerManagement() {
                 </div>
             </div>
 
-            {/* Table / Card Container */}
             <div data-tour="customers-table-container" className="rounded-xl border border-border bg-card shadow-xs overflow-clip">
                 {isCustomersLoading ? (
                     <TableSkeleton rows={6} cols={6} />
@@ -628,7 +604,6 @@ export default function CustomerManagement() {
                     </div>
                 ) : (
                     <>
-                        {/* Mobile Cards (< md) */}
                         <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                             {filteredCustomers.map((c) => {
                                 const displayName = c.globalCustomer?.fullName || "Unnamed Customer";
@@ -640,7 +615,6 @@ export default function CustomerManagement() {
                                         key={c.id}
                                         className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all hover:border-primary/40"
                                     >
-                                        {/* Card Header */}
                                         <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                             <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
                                                 <span className="font-bold text-sm text-foreground dark:text-white truncate">
@@ -707,7 +681,6 @@ export default function CustomerManagement() {
                                             </div>
                                         </div>
 
-                                        {/* Card Key-Value Rows */}
                                         <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                             <div className="flex items-center justify-between px-3.5 py-2.5">
                                                 <span className="text-muted-foreground dark:text-slate-400">Phone</span>
@@ -768,7 +741,6 @@ export default function CustomerManagement() {
                                             )}
                                         </div>
 
-                                        {/* View More / Less Toggle */}
                                         <button
                                             type="button"
                                             onClick={() => toggleCardExpanded(c.id)}
@@ -784,7 +756,6 @@ export default function CustomerManagement() {
                             })}
                         </div>
 
-                        {/* Desktop Table (>= md) */}
                         <div className="hidden md:block overflow-x-auto">
                             <Table>
                                 <TableHeader>
@@ -947,7 +918,6 @@ export default function CustomerManagement() {
                 )}
             </div>
 
-      {/* --- PAGINATION --- */}
       {totalPages > 0 && (
         <PaginationBar
           page={currentPage}
@@ -961,7 +931,7 @@ export default function CustomerManagement() {
         />
       )}
 
-                  {/* --- CREATE / EDIT / VIEW CUSTOMER DIALOG --- */}
+            {/* --- CREATE / EDIT / VIEW CUSTOMER DIALOG --- */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -1007,6 +977,7 @@ export default function CustomerManagement() {
                             <Label htmlFor="fullName">Full Name</Label>
                             <Input
                                 id="fullName"
+                                data-tour="customer-form-name"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 placeholder="e.g. John Doe"
@@ -1019,6 +990,7 @@ export default function CustomerManagement() {
                             <Label htmlFor="phoneNumber">Phone Number</Label>
                             <Input
                                 id="phoneNumber"
+                                data-tour="customer-form-phone"
                                 value={phoneNumber}
                                 onChange={(e) => setPhoneNumber(e.target.value)}
                                 placeholder="012 345 678"
@@ -1028,7 +1000,7 @@ export default function CustomerManagement() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5" data-tour="customer-form-membership">
                                 <Label htmlFor="membershipType" className="flex items-center gap-1.5">
                                     <Crown className="h-3.5 w-3.5 text-amber-500" />
                                     Membership Type
@@ -1066,7 +1038,7 @@ export default function CustomerManagement() {
                                 )}
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5" data-tour="customer-form-channel">
                                 <Label htmlFor="salesChannel">Sales Channel</Label>
                                 {isViewOnly ? (
                                     <Input
@@ -1104,7 +1076,7 @@ export default function CustomerManagement() {
                             </div>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-tour="customer-form-spend">
                             <Label htmlFor="totalSpend">Total Spend ($)</Label>
                             <Input
                                 id="totalSpend"
@@ -1123,7 +1095,7 @@ export default function CustomerManagement() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex items-center gap-2 pt-2" data-tour="customer-form-active">
                             <input
                                 type="checkbox"
                                 id="active"
@@ -1158,6 +1130,7 @@ export default function CustomerManagement() {
                                     Cancel
                                 </Button>
                                 <Button
+                                    data-tour="customer-form-submit"
                                     onClick={handleSave}
                                     disabled={isCreating || isUpdating}
                                     className="bg-primary hover:bg-primary/90 text-white"
@@ -1173,7 +1146,6 @@ export default function CustomerManagement() {
                 </DialogContent>
             </Dialog>
 
-            {/* --- DELETE CONFIRMATION DIALOG --- */}
             <DestructiveConfirmDialog
                 open={Boolean(deletingCustomer)}
                 onOpenChange={(open) => !open && setDeletingCustomer(null)}

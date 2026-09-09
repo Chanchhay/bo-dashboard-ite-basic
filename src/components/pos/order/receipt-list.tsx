@@ -181,21 +181,11 @@ export function ReceiptsList({
   const pageCurrencies = new Set(receipts.map((order) => order.currency));
   const pageTotal = receipts.reduce((sum, order) => sum + order.total, 0);
 
-  /*
-   * What was taken by KHQR, from the receipts on this page.
-   *
-   * This card used to read "—" under the words "Not exposed by receipts API",
-   * which is a note to whoever was going to build it, printed on the screen a
-   * shop owner reads. The receipts carry the method they were paid by, so the
-   * figure was there all along — counted over the same page as the Total
-   * beside it, and labelled as such rather than implying a day's takings.
-   */
   const pageKhqrTotal = receipts
     .filter((order) => order.paymentMethod === "DIGITAL")
     .reduce((sum, order) => sum + order.total, 0);
   const currency =
     receipts[0]?.currency || businessQuery.data?.baseCurrency || null;
-  // The till's own currency when it recorded one; older sessions have none.
   const cashCurrency =
     registerCurrency || businessQuery.data?.baseCurrency || currency;
   const currentUserOptions = currentRegisterUser ? [currentRegisterUser] : [];

@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { parseNominatimAddress, type GeocodeResult } from "@/lib/api/geocode";
 
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
-// Nominatim's usage policy requires a User-Agent identifying the caller.
 const USER_AGENT = "ipos-business-dashboard/1.0";
 
 type NominatimSearchItem = {
@@ -13,7 +12,6 @@ type NominatimSearchItem = {
     address?: Record<string, string>;
 };
 
-/** Proxied server-side so the required User-Agent header can be set — browsers won't let JS override it. */
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q")?.trim();
@@ -22,8 +20,6 @@ export async function GET(request: NextRequest) {
         return Response.json([]);
     }
 
-    // Nominatim is a shared public instance; there is no reason to forward a
-    // query longer than any real place name.
     if (q.length > 200) {
         return Response.json(
             { message: "Search text is too long." },

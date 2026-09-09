@@ -1,19 +1,3 @@
-/**
- * Pulls the backend's `message` out of an RTK Query error, if there is one.
- *
- * `duplicate` renames the one backend message no reader can act on: a unique
- * constraint reaches the client as "duplicate key", which names a database
- * object rather than the thing the reader typed. Only the screen that hit it
- * knows what was duplicated, so only that screen supplies the wording.
- *
- * Nothing else is rewritten. This used to turn every database error at all
- * into "this phone number or email is already registered", which meant a
- * broken query anywhere in the app was reported to the user — and to whoever
- * they told — as a duplicate customer.
- */
-/**
- * Checks if an error is a 403 Forbidden / Access Denied error.
- */
 export function isForbiddenError(error: unknown): boolean {
     if (typeof error === "object" && error !== null) {
         if ("status" in error) {
@@ -45,15 +29,6 @@ export function isForbiddenError(error: unknown): boolean {
     return false;
 }
 
-/*
- * Words that mean the server is talking to a developer, not to the person at
- * the till.
- *
- * A cashier with a queue does not need a class path, and a customer reading
- * the screen over their shoulder should never see one. Anything matching here
- * is dropped for the caller's own sentence, which at least says what the
- * reader was trying to do.
- */
 const TECHNICAL_MARKERS = [
     "exception",
     "stack trace",
@@ -83,8 +58,6 @@ function looksTechnical(message: string) {
 
     if (TECHNICAL_MARKERS.some((marker) => lower.includes(marker))) return true;
 
-    // A stack frame, a serialised object, or a paragraph. None is a sentence
-    // anyone can act on.
     if (/\bat\s+[\w.$]+\s*\(/.test(trimmed)) return true;
     if (/^[{[<]/.test(trimmed)) return true;
     if (trimmed.length > 200) return true;
@@ -124,8 +97,6 @@ export function getApiErrorMessage(
             return duplicate;
         }
 
-        // The caller's fallback names what the reader was doing; a stack frame
-        // names what the server was doing. Only one of those helps.
         if (looksTechnical(msg)) {
             console.error("[api] technical error hidden from the UI:", msg);
             return fallback;
@@ -137,14 +108,6 @@ export function getApiErrorMessage(
     return fallback;
 }
 
-/**
- * Whether the backend answered with something worth repeating, rather than the
- * request failing to reach it — or falling over in its own words.
- *
- * Screens use this to decide between explaining what the server said and
- * pointing at the connection. A stack trace is neither, so it counts as no
- * message at all.
- */
 export function hasApiErrorMessage(error: unknown) {
     const message = rawApiMessage(error)?.trim();
 
@@ -153,7 +116,6 @@ export function hasApiErrorMessage(error: unknown) {
 
 export type FieldErrors = Record<string, string[] | undefined>;
 
-/** Zod field errors returned by the route handlers on a 400. */
 export function getApiFieldErrors(error: unknown): FieldErrors {
     if (
         typeof error === "object" &&

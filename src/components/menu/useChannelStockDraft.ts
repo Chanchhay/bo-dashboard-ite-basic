@@ -16,13 +16,6 @@ import {
     useSaveItemChannelStockMutation,
 } from "@/services/inventoryApi";
 
-/**
- * One thing an item holds stock of: an option, or the item itself.
- *
- * The editor needs the same row shape either way, so an item with no options
- * is described as a single target with no variant rather than as a special
- * case threaded through every calculation below.
- */
 export type StockTarget = {
     variantId: string | null;
     name: string;
@@ -31,13 +24,6 @@ export type StockTarget = {
 
 export type ChannelStockDraft = ReturnType<typeof useChannelStockDraft>;
 
-/**
- * The split, in the shape a form can be typed into.
- *
- * Quantities are held as the strings the user typed, not as numbers: clearing
- * a box to retype it would otherwise snap to 0 under their cursor and, worse,
- * read as "this channel sells none" for as long as the box was empty.
- */
 export function useChannelStockDraft({
     item,
     open,
@@ -54,10 +40,8 @@ export function useChannelStockDraft({
 
     const [mode, setMode] = useState<ChannelStockMode>("SHARED");
     const [quantities, setQuantities] = useState<Record<string, string>>({});
-    /** Which opening of the form these numbers were filled in for. */
     const [seededFor, setSeededFor] = useState<string | null>(null);
 
-    /** Everything this item counts, with what is on the shelf for each. */
     const targets = useMemo<StockTarget[]>(() => {
         const onHandFor = new Map<string, number>();
 
@@ -89,13 +73,6 @@ export function useChannelStockDraft({
         }));
     }, [item, itemId, stockQuery.data]);
 
-    /**
-     * What is saved, filled in once per opening.
-     *
-     * Keyed on the opening rather than on the data, for the same reason the
-     * channel ticks are: a refetch handing back the same split is not the user
-     * reopening the form, and re-seeding on one would discard their typing.
-     */
     const seedKey = skip || !splitQuery.isSuccess ? null : `${itemId}`;
 
     if (seedKey && seedKey !== seededFor) {
@@ -124,8 +101,6 @@ export function useChannelStockDraft({
 
     const setQuantity = useCallback(
         (channelId: string, variantId: string | null, value: string) => {
-            // Digits only: a share is a count of units, and letting "1.5" or
-            // "-2" be typed here only defers the complaint to the save.
             const cleaned = value.replace(/[^\d]/g, "");
 
             setQuantities((prev) => ({
@@ -136,13 +111,6 @@ export function useChannelStockDraft({
         [],
     );
 
-    /**
-     * Fills one option's row by dividing its shelf between the channels.
-     *
-     * The quickest correct answer, and the one a shop reaches for before it
-     * starts tuning: whole units, odd ones to the first channels rather than
-     * stranded, and never more than is on the shelf.
-     */
     const distributeEvenly = useCallback(
         (channelIds: string[], variantId: string | null) => {
             const target = targets.find((row) => row.variantId === variantId);
@@ -169,17 +137,8 @@ export function useChannelStockDraft({
         [targets],
     );
 
-    /** Empties every box, for a shop starting the split over. */
     const clearAll = useCallback(() => setQuantities({}), []);
 
-    /**
-     * The shares as numbers, for the channels that actually sell the item.
-     *
-     * A channel the user has just unticked keeps whatever was typed against it
-     * — they may tick it back — but it is not counted against the shelf and is
-     * not saved: an unpublished channel with a share would be holding stock
-     * back for a channel that cannot sell it.
-     */
     const allocationsFor = useCallback(
         (channelIds: Iterable<string>): ChannelStockAllocation[] => {
             const rows: ChannelStockAllocation[] = [];
@@ -206,7 +165,6 @@ export function useChannelStockDraft({
         [quantityAt, targets],
     );
 
-    /** What each option has left to give out, once the ticked channels take theirs. */
     const remainingFor = useCallback(
         (channelIds: Iterable<string>) => {
             const allocations = allocationsFor(channelIds);
@@ -231,13 +189,6 @@ export function useChannelStockDraft({
         [allocationsFor, targets],
     );
 
-    /**
-     * Whether the split can be saved as it stands.
-     *
-     * Only ever fails one way: more given out than there is on the shelf. Two
-     * channels promised eight of the ten in the fridge is a shop that has sold
-     * six cakes it does not have, and it finds out at the counter.
-     */
     const overAllocated = useCallback(
         (channelIds: Iterable<string>) =>
             [...remainingFor(channelIds).values()].some(
@@ -246,12 +197,6 @@ export function useChannelStockDraft({
         [remainingFor],
     );
 
-    /**
-     * Writes the split, and only when there is one to write.
-     *
-     * An item nobody has split stays untouched: the shop that never opens this
-     * section should not have a mode written against every item it publishes.
-     */
     const save = useCallback(
         async (channelIds: Iterable<string>) => {
             if (!itemId) return;
@@ -296,7 +241,6 @@ export function useChannelStockDraft({
         save,
         isSaving: saveState.isLoading,
         isLoading: splitQuery.isLoading || stockQuery.isLoading,
-        /** True when the split could not be read — the editor says so rather than showing zeroes as fact. */
         isUnavailable: splitQuery.isError,
     };
 }

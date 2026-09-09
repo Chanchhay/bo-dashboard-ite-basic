@@ -46,11 +46,10 @@ export function ImageCropperDialog({
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
 
-    const [rotation, setRotation] = useState(0); // 0, 90, 180, 270
+    const [rotation, setRotation] = useState(0);
     const [zoom, setZoom] = useState(1);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Rendered layout of the image inside the viewport
     const [imageLayout, setImageLayout] = useState<{
         width: number;
         height: number;
@@ -58,10 +57,8 @@ export function ImageCropperDialog({
         naturalHeight: number;
     } | null>(null);
 
-    // 1:1 Square crop box coordinates
     const [crop, setCrop] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
 
-    // Active drag state
     const dragRef = useRef<{
         handle: HandleType;
         startX: number;
@@ -69,7 +66,6 @@ export function ImageCropperDialog({
         startCrop: CropRect;
     } | null>(null);
 
-    // Calculate initial 1:1 square crop box centered on displayed image
     const calculateSquareCrop = useCallback((layoutWidth: number, layoutHeight: number) => {
         const side = Math.min(layoutWidth, layoutHeight) * 0.9;
         const x = Math.max(0, (layoutWidth - side) / 2);
@@ -77,7 +73,6 @@ export function ImageCropperDialog({
         return { x, y, width: side, height: side };
     }, []);
 
-    // Reset when dialog opens or image changes
     useEffect(() => {
         if (!open || !imageSrc) {
             setImageLayout(null);
@@ -95,7 +90,6 @@ export function ImageCropperDialog({
         img.src = imageSrc;
     }, [open, imageSrc]);
 
-    // Update layout when image element renders
     const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
         const img = e.currentTarget;
         const rect = img.getBoundingClientRect();
@@ -109,7 +103,6 @@ export function ImageCropperDialog({
         setCrop(calculateSquareCrop(layout.width, layout.height));
     };
 
-    // Smooth global pointer drag handling
     useEffect(() => {
         const handlePointerMove = (e: PointerEvent) => {
             if (!dragRef.current || !imageLayout) return;
@@ -138,26 +131,21 @@ export function ImageCropperDialog({
                 return;
             }
 
-            // Always maintain 1:1 square ratio
             if (handle === "se") {
-                // Dragging bottom-right corner
                 const delta = Math.max(deltaX, deltaY);
                 const maxAvailable = Math.min(imgW - startCrop.x, imgH - startCrop.y);
                 nextSide = Math.min(Math.max(minSize, startCrop.width + delta), maxAvailable);
             } else if (handle === "sw") {
-                // Dragging bottom-left corner
                 const delta = Math.max(-deltaX, deltaY);
                 const maxAvailable = Math.min(startCrop.x + startCrop.width, imgH - startCrop.y);
                 nextSide = Math.min(Math.max(minSize, startCrop.width + delta), maxAvailable);
                 nextX = startCrop.x + (startCrop.width - nextSide);
             } else if (handle === "ne") {
-                // Dragging top-right corner
                 const delta = Math.max(deltaX, -deltaY);
                 const maxAvailable = Math.min(imgW - startCrop.x, startCrop.y + startCrop.height);
                 nextSide = Math.min(Math.max(minSize, startCrop.width + delta), maxAvailable);
                 nextY = startCrop.y + (startCrop.height - nextSide);
             } else if (handle === "nw") {
-                // Dragging top-left corner
                 const delta = Math.max(-deltaX, -deltaY);
                 const maxAvailable = Math.min(
                     startCrop.x + startCrop.width,
@@ -212,7 +200,6 @@ export function ImageCropperDialog({
         }
     };
 
-    // Export cropped canvas
     const handleApplyCrop = async () => {
         if (!imageLayout || !imgRef.current) return;
         setIsProcessing(true);
@@ -293,7 +280,6 @@ export function ImageCropperDialog({
                     </DialogTitle>
                 </DialogHeader>
 
-                {/* Cropper Viewport Container (Seamless, no outer frame line) */}
                 <div
                     ref={containerRef}
                     className="relative flex w-full min-h-[280px] max-h-[420px] items-center justify-center overflow-hidden py-2"
@@ -306,7 +292,6 @@ export function ImageCropperDialog({
                                 transformOrigin: "center center",
                             }}
                         >
-                            {/* Target Image */}
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 ref={imgRef}
@@ -317,7 +302,6 @@ export function ImageCropperDialog({
                                 className="max-h-[360px] max-w-full select-none rounded-lg object-contain"
                             />
 
-                            {/* 1:1 Resizable Crop Overlay Area */}
                             {imageLayout && crop.width > 0 && (
                                 <div
                                     className="absolute inset-0 pointer-events-none"
@@ -326,7 +310,6 @@ export function ImageCropperDialog({
                                         height: imageLayout.height,
                                     }}
                                 >
-                                    {/* Darkened Mask overlays */}
                                     <div
                                         className="absolute bg-black/60 backdrop-blur-[0.5px]"
                                         style={{
@@ -364,7 +347,6 @@ export function ImageCropperDialog({
                                         }}
                                     />
 
-                                    {/* Resizable 1:1 Square Box with small gray dotted/dashed line */}
                                     <div
                                         onPointerDown={(e) => startDrag(e, "move")}
                                         className="pointer-events-auto absolute cursor-move border-2 border-dashed border-neutral-400 dark:border-neutral-500"
@@ -375,7 +357,6 @@ export function ImageCropperDialog({
                                             height: crop.height,
                                         }}
                                     >
-                                        {/* Rule of Thirds grid */}
                                         <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30">
                                             <div className="border-r border-b border-neutral-400/50" />
                                             <div className="border-r border-b border-neutral-400/50" />
@@ -388,7 +369,6 @@ export function ImageCropperDialog({
                                             <div />
                                         </div>
 
-                                        {/* 4 Corner Handles (Small, elegant dots) */}
                                         <div
                                             onPointerDown={(e) => startDrag(e, "nw")}
                                             className="absolute -top-1.5 -left-1.5 size-3 cursor-nwse-resize rounded-full border border-neutral-800 bg-white transition-transform hover:scale-125 before:absolute before:-inset-2 before:content-['']"
@@ -412,7 +392,6 @@ export function ImageCropperDialog({
                     )}
                 </div>
 
-                {/* Minimalist Controls */}
                 <div className="space-y-3 pt-1">
                     <div className="flex items-center gap-3">
                         <Slider

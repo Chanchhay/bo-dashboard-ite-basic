@@ -45,11 +45,8 @@ export function ItemColorDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Bumped by the caller on every open, so each one starts on a clean form. */
     seed?: number;
-    /** Absent when adding. */
     color?: ItemColorDraft;
-    /** Lower-cased, excluding the one being edited. */
     existingNames: string[];
     onSubmit: (color: ItemColorDraft) => void;
 }) {

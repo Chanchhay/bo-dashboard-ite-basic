@@ -61,7 +61,6 @@ import {
 import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 import { useGetCustomersQuery } from "@/services/customerApi";
 
-
 const STATUS_FILTERS = [
     "ALL",
     "PENDING",
@@ -281,8 +280,6 @@ export default function SalesOrdersPage() {
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
     const pendingOfflineOrders = usePendingOfflineOrders();
-    // A queued sale has no server record, so the receipt reads what the
-    // till banked: the amount handed over, and the change given back.
     const pendingOfflineSales = usePendingOfflineSales();
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
@@ -391,16 +388,16 @@ export default function SalesOrdersPage() {
     }
 
     return (
-        <div data-tour="sales-orders-list" className="flex flex-col gap-5 pb-12 sm:pb-16">
+        <div className="flex flex-col gap-5 pb-12 sm:pb-16">
             <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-3.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-4 sm:gap-5">
-                <div className="flex items-center justify-between gap-4">
+                <div data-tour="orders-list" className="flex items-center justify-between gap-4">
                     <p className="max-w-2xl text-[15px] text-[#5c6660] dark:text-[#94a3b8]">
                         Track sales orders, order receipts, channel breakdown, and digital menu configuration.
                     </p>
                     <TourButton />
                 </div>
 
-                <div data-tour="sales-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div data-tour="orders-digital-menu" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-4 shadow-sm">
                     <div>
                         <h2 className="text-lg font-bold text-foreground">Digital Menu</h2>
                         <p className="text-sm text-muted-foreground">Allow customers to scan a QR code and view your menu online.</p>
@@ -434,7 +431,7 @@ export default function SalesOrdersPage() {
                 </div>
 
                 <section
-                    data-tour="sales-order-stats"
+                    data-tour="orders-totals"
                     aria-label="Totals"
                     className="grid grid-cols-2 gap-3 lg:grid-cols-6"
                 >
@@ -470,8 +467,8 @@ export default function SalesOrdersPage() {
                 )}
             </div>
 
-            <section className="relative rounded-2xl border border-border bg-card shadow-xs">
-                <div data-tour="sales-orders-filters" className="static lg:sticky lg:top-0 lg:z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
+            <section data-tour="orders-list" className="relative rounded-2xl border border-border bg-card shadow-xs">
+                <div data-tour="orders-filters" className="static lg:sticky lg:top-0 lg:z-10 flex flex-wrap items-center gap-2 border-b border-border p-3.5 sm:p-4 bg-card rounded-t-2xl shadow-xs">
                     <label className="relative min-w-50 flex-1">
                         <span className="sr-only">Search orders</span>
                         <Search
@@ -521,7 +518,6 @@ export default function SalesOrdersPage() {
                     <ErrorState error={error} onRetry={() => void refetch()} />
                 ) : (
                     <div>
-                        {/* Mobile Cards (< md) */}
                         <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                             {rows.map((order) => {
                                 const itemCount = order.items.reduce(
@@ -549,7 +545,6 @@ export default function SalesOrdersPage() {
                                         onClick={() => setSelectedOrderId(order.id)}
                                         className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
                                     >
-                                        {/* Card Header */}
                                         <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-bold text-sm text-primary">
@@ -586,7 +581,6 @@ export default function SalesOrdersPage() {
                                             </div>
                                         </div>
 
-                                        {/* Card Key-Value Rows */}
                                         <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                             <div className="flex items-center justify-between px-3.5 py-2.5">
                                                 <span className="text-muted-foreground dark:text-slate-400">Date</span>
@@ -648,9 +642,7 @@ export default function SalesOrdersPage() {
                             })}
                         </div>
 
-                        {/* Desktop Table (>= md) */}
                         <div
-                            data-tour="sales-orders-table"
                             className={cn(
                                 "hidden md:block overflow-x-auto transition-opacity duration-200 ease-in-out",
                                 isFetching && "opacity-60 pointer-events-none",
@@ -709,7 +701,6 @@ export default function SalesOrdersPage() {
                 )}
             </section>
 
-            {/* Receipt / Order Ticket Detail Modal Dialog */}
             <Dialog
                 open={Boolean(selectedOrderId)}
                 onOpenChange={(open) => !open && setSelectedOrderId(null)}
@@ -889,10 +880,6 @@ function OrderRow({
             )}
             {visibleColumns.status && (
                 <TableCell>
-                    {/* The order itself reads as settled the moment stock left —
-                        pay later still deducts stock and prints a receipt, it
-                        just hasn't collected the money yet. That's a fact about
-                        the sale, not the order, so it has to be checked here. */}
                     {order.status === "PAID" && order.paymentMethod === "PAY_LATER" ? (
                         <span className="inline-flex rounded-md px-2 py-0.5 text-[12px] font-medium bg-warning/15 text-warning">
                             PENDING
@@ -956,7 +943,6 @@ function Stat({ label, value }: { label: string; value: string }) {
         </div>
     );
 }
-
 
 function FilterGroup<T extends string>({
     label,

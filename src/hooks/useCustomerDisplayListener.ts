@@ -14,7 +14,6 @@ export function useCustomerDisplayListener(
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 0. Read cached payload from localStorage immediately (0ms initial state when opened after items added)
     try {
       const stored =
         localStorage.getItem(`ipos_customer_display_${terminalId}`) ||
@@ -27,7 +26,6 @@ export function useCustomerDisplayListener(
       }
     } catch {}
 
-    // 1. Local BroadcastChannel Listener (Instant 0ms sync)
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel(CUSTOMER_DISPLAY_CHANNEL);
@@ -42,13 +40,10 @@ export function useCustomerDisplayListener(
         }
       };
 
-      // Request immediate sync from active POS tab when display opens
       channel.postMessage({ type: "REQUEST_CUSTOMER_DISPLAY_SYNC", terminalId });
     } catch {
-      // BroadcastChannel not available
     }
 
-    // 2. STOMP WebSocket Listener for Remote Display Screens
     let stompClient: Client | null = null;
 
     async function initSocket() {

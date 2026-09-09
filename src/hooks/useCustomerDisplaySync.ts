@@ -33,7 +33,6 @@ export function useCustomerDisplaySync({
   const lastPayloadKeyRef = useRef<string>("");
   const channelRef = useRef<BroadcastChannel | null>(null);
 
-  // Maintain long-lived BroadcastChannel instance for maximum performance
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -63,7 +62,6 @@ export function useCustomerDisplaySync({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 1. Build Payload
     const items: CustomerDisplayItem[] = (order?.items || []).map((item) => ({
       id: item.id,
       itemId: item.itemId,
@@ -82,9 +80,6 @@ export function useCustomerDisplaySync({
     const computedStatus: CustomerDisplayStatus =
       statusOverride || (items.length > 0 ? "CART_UPDATED" : "IDLE");
 
-    // Signed by what is on the lines, not just how many: swapping a can for a
-    // six pack can leave the count and the total untouched while changing what
-    // the customer is looking at.
     const linesKey = items
       .map((item) => `${item.id}#${item.quantity}@${item.unitPrice}`)
       .join(",");
@@ -98,9 +93,6 @@ export function useCustomerDisplaySync({
     const discountAmount = sale?.discountAmount ?? order?.discountAmount ?? 0;
     const discountLabel = sale?.discountLabel ?? order?.discountLabel ?? null;
 
-    // Tax was already computed server-side when the order was created —
-    // read directly rather than re-derived, so the customer-facing screen
-    // never shows a different number than the receipt will.
     const computedTax = sale?.taxAmount ?? order?.taxAmount ?? 0;
     const taxRate = sale?.taxRate ?? order?.taxRate ?? 0;
     const taxInclusionType = sale?.taxInclusionType ?? order?.taxInclusionType ?? null;
@@ -129,7 +121,6 @@ export function useCustomerDisplaySync({
       updatedAt: new Date().toISOString(),
     };
 
-    // Non-blocking local broadcast & storage (0ms UI thread impact)
     setTimeout(() => {
       try {
         const jsonStr = JSON.stringify(payload);
@@ -144,7 +135,6 @@ export function useCustomerDisplaySync({
       }
     }, 0);
 
-    // Remote Publish to Backend API (Debounced 200ms for standalone screens)
     const activeBusinessId = businessId || business?.id;
     if (!activeBusinessId) return;
 

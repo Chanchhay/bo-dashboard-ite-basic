@@ -17,8 +17,6 @@ const KEYFRAMES = `
   100% { opacity: 0; transform: scale(2.1);  filter: blur(10px); }
 }
 .ipos-welcome-text { animation: iposWelcomeIn ${ZOOM_MS}ms both; }
-/* Reduced motion still gets the greeting — just held still, and carried out
-   by the veil's own fade rather than a zoom. */
 @media (prefers-reduced-motion: reduce) {
   .ipos-welcome-text { animation: none; }
 }
@@ -56,7 +54,7 @@ export default function WelcomeIntro() {
         >
             <style>{KEYFRAMES}</style>
             <span
-                className="ipos-welcome-text select-none font-semibold text-[#16181c]"
+                className="ipos-welcome-text select-none font-semibold text-primary"
                 style={{
                     fontSize: "clamp(56px, 12vw, 156px)",
                     lineHeight: 1,

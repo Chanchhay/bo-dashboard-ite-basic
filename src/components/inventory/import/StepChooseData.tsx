@@ -16,14 +16,6 @@ const ICONS = {
     OPENING_STOCK: Warehouse,
 } as const;
 
-/**
- * What the shop is bringing across.
- *
- * Items is offered first and described most fully because it is what almost
- * every migration actually is — a shop's export puts the category and the
- * quantity on hand in the same row as the item, and this import will take all
- * three from it.
- */
 export function StepChooseData({
     value,
     onChange,

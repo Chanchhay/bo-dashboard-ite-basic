@@ -84,13 +84,15 @@ function StatTile({
     label,
     children,
     hint,
+    tour,
 }: {
     label: string;
     children: React.ReactNode;
     hint?: string;
+    tour?: string;
 }) {
     return (
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
+        <div data-tour={tour} className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {label}
             </p>
@@ -203,6 +205,7 @@ export function ProfitByChannel() {
                 <>
                     <div data-tour="profit-kpi-grid" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <StatTile
+                            tour="profit-tile-revenue"
                             label="Revenue"
                             hint={`${total.sales} sale${total.sales === 1 ? "" : "s"} · ${total.itemsSold} item${total.itemsSold === 1 ? "" : "s"}`}
                         >
@@ -210,6 +213,7 @@ export function ProfitByChannel() {
                         </StatTile>
 
                         <StatTile
+                            tour="profit-tile-cost"
                             label="Cost of goods"
                             hint="What those units cost you"
                         >
@@ -217,6 +221,7 @@ export function ProfitByChannel() {
                         </StatTile>
 
                         <StatTile
+                            tour="profit-tile-profit"
                             label="Profit"
                             hint={
                                 total.profit < 0
@@ -232,6 +237,7 @@ export function ProfitByChannel() {
                         </StatTile>
 
                         <StatTile
+                            tour="profit-tile-margin"
                             label="Margin"
                             hint={
                                 total.discounts > 0

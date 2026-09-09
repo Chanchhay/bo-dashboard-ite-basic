@@ -1,21 +1,5 @@
 import { sendPushToUsers } from "@/lib/push/send-push";
 
-/**
- * The one door the external backend needs to know about.
- *
- * Everything this dashboard's own client code triggers (a POS sale, a parked
- * order) already runs through a Server Action instead, because it already
- * has a signed-in browser session to read the recipient off of. A channel
- * order has no browser in the loop at all — it lands on the backend's own
- * order endpoint, which is the only thing that knows it happened and who
- * should hear about it. This route exists so that backend can tell this one
- * "push this, to these Keycloak subjects" without either side needing to
- * know anything about the other's internals.
- *
- * Authenticated with a shared secret rather than a user session, because the
- * caller is a server, not a browser — set `PUSH_INTERNAL_SECRET` to the same
- * value on both sides and send it as `X-Push-Secret`.
- */
 export async function POST(request: Request) {
   const configuredSecret = process.env.PUSH_INTERNAL_SECRET;
 
@@ -58,9 +42,6 @@ export async function POST(request: Request) {
     tag: typeof body?.tag === "string" ? body.tag : undefined,
   });
 
-  // A 200 here means the request was well-formed, not that a phone actually
-  // heard anything — `sent: 0` (no subscription on file for that user) is a
-  // silent no-op otherwise, so it's worth a server-side line to grep for.
   console.log(`[push] POST /api/push/send userIds=${JSON.stringify(userIds)} ->`, result);
 
   return Response.json(result);

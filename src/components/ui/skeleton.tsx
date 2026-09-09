@@ -79,13 +79,11 @@ export function FormSkeleton({ rows = 4 }: { rows?: number }) {
 export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
   return (
     <div className="w-full space-y-3 p-4">
-      {/* Table Header */}
       <div className="flex items-center justify-between pb-3 border-b border-border/80 gap-4">
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} className={cn("h-4 rounded-md", i === 0 ? "w-36" : "w-24")} />
         ))}
       </div>
-      {/* Table Rows */}
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex items-center justify-between py-3 border-b border-border/40 gap-4">
           <div className="flex items-center gap-3 w-44 shrink-0">

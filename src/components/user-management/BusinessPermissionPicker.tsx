@@ -3,18 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { BUSINESS_PERMISSION_GROUPS } from "@/lib/api/permission-catalog";
 
-/**
- * What a role may do, as tick boxes.
- *
- * Groups follow the job someone is hired to do rather than the resource prefix
- * of the underlying Keycloak role, and every line carries a hint, because the
- * person assembling a role is usually a shop owner deciding what a cashier
- * should touch — not someone who knows what `order:generate-khqr` means.
- *
- * Only permissions the API will actually accept are offered; the catalog
- * filters out the ones `KeycloakRoleAdapter` refuses for business staff, which
- * would otherwise fail the whole save.
- */
 export function BusinessPermissionPicker({
     selected,
     onToggle,
@@ -61,7 +49,6 @@ export function BusinessPermissionPicker({
                                     {allOn ? "Clear all" : "Select all"}
                                 </Button>
 
-                                {/* Tells you a collapsed-looking group is not empty. */}
                                 {someOn && !allOn && (
                                     <span className="text-[12px] text-muted-foreground">
                                         {

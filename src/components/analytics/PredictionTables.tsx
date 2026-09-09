@@ -34,16 +34,11 @@ import {
 import { cn } from "@/lib/utils";
 import { PredictionSummary } from "@/components/analytics/PredictionSummary";
 
-/** Natural phrasing for sentences — "expected to sell more ___". */
 const WINDOW_PHRASE: Record<PredictionWindowKey, string> = {
     WEEK: "this week",
     MONTH: "this month",
 };
 
-/**
- * Formats trend metrics cleanly for business owners.
- * Converts raw backend % into absolute unit growth (+X units) vs previous baseline.
- */
 function getTrendDisplay(expectedDemandWindow: number, trendPercent: number | null) {
     if (trendPercent === null || trendPercent === 0) {
         return "0 units";
@@ -134,7 +129,7 @@ export function PredictionTables() {
                 data-tour="prediction-controls"
                 className="flex flex-wrap items-center justify-between gap-3"
             >
-                <div className="relative min-w-56 flex-1">
+                <div data-tour="prediction-search" className="relative min-w-56 flex-1">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         value={search}
@@ -144,7 +139,7 @@ export function PredictionTables() {
                         className="h-10 max-w-sm rounded-xl pl-9 text-sm"
                     />
                 </div>
-                {rangeSelector}
+                <div data-tour="prediction-period-toggle">{rangeSelector}</div>
             </div>
 
             {!hasAnySales ? (
@@ -160,6 +155,7 @@ export function PredictionTables() {
                     />
 
                     <PredictionTable
+                        dataTour="prediction-group-rising"
                         icon={<Flame className="size-5 text-orange-600 dark:text-orange-400" />}
                         title={`Predicted to sell more ${windowPhrase}`}
                         description="Products showing increased demand compared with the previous period."
@@ -195,6 +191,7 @@ export function PredictionTables() {
                     />
 
                     <PredictionTable
+                        dataTour="prediction-group-stockout"
                         icon={<PackageX className="size-5 text-rose-600 dark:text-rose-400" />}
                         title={`Stock alert — may run out ${windowPhrase}`}
                         description="Current stock won't cover expected demand at the recent rate of sale."
@@ -239,6 +236,7 @@ export function PredictionTables() {
                     />
 
                     <PredictionTable
+                        dataTour="prediction-group-restock"
                         icon={<AlertTriangle className="size-5 text-danger" />}
                         title="Restock recommendation"
                         description="How many units to order — already worked out for you, nothing to calculate."
@@ -290,6 +288,7 @@ export function PredictionTables() {
 }
 
 function PredictionTable({
+    dataTour,
     icon,
     title,
     description,
@@ -297,6 +296,7 @@ function PredictionTable({
     columns,
     rows,
 }: {
+    dataTour: string;
     icon: ReactNode;
     title: string;
     description: string;
@@ -308,7 +308,7 @@ function PredictionTable({
 
     return (
         <Card
-            data-tour="prediction-group"
+            data-tour={dataTour}
             className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm"
         >
             <button

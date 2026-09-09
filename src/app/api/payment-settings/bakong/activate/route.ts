@@ -1,12 +1,6 @@
 import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/backend";
 import type { BakongSettings } from "@/lib/api/bakong";
 
-/**
- * Turns KHQR on or off without discarding the configuration.
- *
- * A merchant closing for the season should not have to retype their account
- * details to start taking payments again.
- */
 export async function PATCH(request: Request) {
     try {
         const { active } = (await readJsonBody(request)) as { active?: boolean };

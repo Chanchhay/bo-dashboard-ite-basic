@@ -14,7 +14,6 @@ import type {
 
 export const userManagementApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
-        /** Every staff member, unpaged — for lookups (Stock movement "by"). */
         getStaff: builder.query<Staff[], void>({
             query: () => "/user-management/staff",
             transformResponse: (response: StaffPage) =>
@@ -27,7 +26,6 @@ export const userManagementApi = baseApi.injectEndpoints({
                 })),
             ],
         }),
-        /** One page of staff, for the Staff management list. */
         getStaffPage: builder.query<StaffPage, { page: number; size: number }>({
             query: (params) => ({ url: "/user-management/staff", params }),
             providesTags: (result) => [
@@ -81,14 +79,12 @@ export const userManagementApi = baseApi.injectEndpoints({
             }),
             invalidatesTags: ["Staff"],
         }),
-        /** Every role, unpaged — for lookups (Staff form role picker). */
         getBusinessRoles: builder.query<BusinessRole[], void>({
             query: () => "/user-management/roles",
             transformResponse: (response: BusinessRolePage) =>
                 response.content ?? [],
             providesTags: ["BusinessRoles"],
         }),
-        /** One page of roles, for the Roles management list. */
         getBusinessRolesPage: builder.query<
             BusinessRolePage,
             { page: number; size: number }
@@ -113,7 +109,6 @@ export const userManagementApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body,
             }),
-            // Staff carry a roleId, so their effective permissions change too.
             invalidatesTags: ["BusinessRoles", "Staff"],
         }),
         deleteBusinessRole: builder.mutation<void, string>({

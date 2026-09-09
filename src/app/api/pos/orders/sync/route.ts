@@ -11,7 +11,6 @@ export async function POST(request: Request) {
         ? (body as Record<string, unknown>)
         : null;
 
-    // Accept { orders: [...] }, array [...], or single order object
     const ordersToSync: unknown[] = Array.isArray(record?.orders)
       ? record.orders
       : Array.isArray(body)
@@ -27,25 +26,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // No fallback business. Posting a shift's takings to whichever business
-    // happens to be "1" is worse than refusing: the till keeps its queue and
-    // retries, and nothing lands in a stranger's ledger.
     const businessId = await getCurrentBusinessId();
 
-    /*
-     * Named exactly as the backend's OfflineOrderDto declares them.
-     *
-     * That DTO annotates its fields `@JsonProperty("unit_price")`,
-     * `@JsonProperty("variant_id")` and so on, and the service configures no
-     * snake_case naming strategy — so Jackson matches those strings and
-     * nothing else. A key sent as `unitPrice` is not renamed, it is ignored,
-     * and the field arrives null: a sale whose lines are all priced at zero
-     * while its total is right, which is exactly what the offline receipts
-     * were showing.
-     *
-     * Both casings are accepted coming in, because the queue has been written
-     * by more than one version of the till. Only the DTO's own names go out.
-     */
     const num = (...values: unknown[]) => {
       for (const value of values) {
         if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -94,12 +76,6 @@ export async function POST(request: Request) {
     }));
 
     let backendResult: any = null;
-    // Forward sync payload to Spring Boot Backend API (/api/v1/businesses/{businessId}/orders/sync)
-    //
-    // A failure here is reported as one. The till deletes an order from its
-    // own queue on the strength of this response, so answering "synced" when
-    // the backend refused destroys the only record of a sale that was taken
-    // in cash. Left queued, it is retried until it lands.
     try {
       backendResult = await backendRequest(ordersPath(businessId, "/sync"), {
         method: "POST",
@@ -118,22 +94,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // No list back means the backend took the lot; a list means it took those.
     const syncedUuids: string[] =
       Array.isArray(backendResult?.syncedUuids) && backendResult.syncedUuids.length > 0
         ? backendResult.syncedUuids
         : formattedOrders.map((o: any) => o.uuid).filter(Boolean);
 
-    /*
-     * The backend holds these now, so nothing is kept here.
-     *
-     * A copy used to be stashed in this server's memory and merged into the
-     * orders list, from a time when the sync could not be relied on. Since a
-     * refusal is reported as one, this code is only ever reached after the
-     * backend accepted the sale — so the copy could only ever be a second row
-     * for the same sale, priced at zero because it read the line fields under
-     * names this route does not use.
-     */
     for (const order of formattedOrders) {
       if (order?.uuid && syncedUuids.includes(order.uuid)) {
         console.log(
@@ -152,8 +117,6 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    // A body the till could not serialise is the till's problem, not this
-    // server's — and it must not read as "try again later".
     if (error instanceof RequestBodyError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }

@@ -14,9 +14,9 @@ export function TourButton({ className = "" }: { className?: string }) {
       onClick={startTour}
       title="Start Page Guided Tour"
       aria-label="Start Page Guided Tour"
-      className={`grid size-9 place-items-center rounded-full text-primary hover:bg-primary/10 transition-colors focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center p-0.5 text-[#00932a] dark:text-[#36f928] bg-transparent border-0 outline-none hover:opacity-80 active:scale-95 transition-all cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-primary ${className}`}
     >
-      <HelpCircle className="size-5" />
+      <HelpCircle className="size-5 shrink-0 stroke-[2]" />
     </button>
   );
 }

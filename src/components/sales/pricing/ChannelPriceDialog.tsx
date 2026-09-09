@@ -35,18 +35,6 @@ import {
     type SoldLine,
 } from "@/components/sales/pricing/channel-lines";
 
-/**
- * Where one item's price on this channel parts ways with the business price.
- *
- * Every line the item sells as is listed, because the question being asked is
- * per line — a case can be discounted on delivery while a single is not. A
- * line with no exception charges the business price, so the form opens saying
- * nothing rather than pre-filling rules nobody asked for.
- *
- * A form on its own rather than a table in a list: an item can carry a dozen
- * of these lines, and opened one at a time the prices being changed are the
- * only prices on screen.
- */
 export function ChannelPriceDialog({
     item,
     lines,
@@ -64,11 +52,9 @@ export function ChannelPriceDialog({
     item: InventoryItem;
     lines: SoldLine[];
     overrides: Record<string, DraftOverride>;
-    /** The rule every line starts from, unless it has one of its own. */
     globalRule?: PriceOverride;
     globalKind: OverrideKind;
     channelName?: string;
-    /** Lines whose rule controls are showing but that carry no exception yet. */
     editingKeys: Set<string>;
     open: boolean;
     format: (value: number) => string;
@@ -133,10 +119,6 @@ export function ChannelPriceDialog({
                                     globalRule,
                                 );
 
-                                // An unpriced line is not sold — unless it
-                                // still carries an exception, which has to
-                                // stay reachable or it could never be taken
-                                // off again.
                                 if (line.base === undefined && kind === "INHERIT") {
                                     return (
                                         <tr key={line.key}>
@@ -300,8 +282,6 @@ export function ChannelPriceDialog({
                 </div>
 
                 <DialogFooter>
-                    {/* Nothing is saved per item here: the channel is saved as
-                        a piece, from the bar on the rule card. */}
                     <span className="mr-auto text-xs text-muted-foreground">
                         Changes are kept until you save the channel.
                     </span>

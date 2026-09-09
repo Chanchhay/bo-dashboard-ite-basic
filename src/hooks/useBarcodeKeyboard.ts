@@ -2,56 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/*
- * Hardware barcode scanners are keyboards: they type the code and — usually —
- * press Enter. This hook listens at the window while a scan is armed, so the
- * user never has to keep a text field focused.
- *
- * Two modes, because the two screens that scan want opposite things:
- *
- * "capture" — the BO scanner overlay. The screen is dimmed and given over to
- * scanning, so every keystroke is taken (capture phase + preventDefault) and
- * Enter always commits, whether a scanner or a person typed it.
- *
- * "passive" — the till, which is always armed and never dimmed. Keystrokes are
- * watched, not taken: the cashier can type into search, the PIN pad, a quantity
- * box, and none of it reaches `onScan`. Only a burst that reads like a scanner
- * — keys arriving faster than fingers move — commits. That is the whole
- * difference between a scan and a person, and it is measured rather than
- * declared.
- *
- * In both modes a scanner that sends no Enter suffix is covered by the idle
- * commit: the burst goes quiet for `idleMs` and submits itself.
- */
-
 export type BarcodeKeyboardMode = "capture" | "passive";
 
 export type ScanSource = {
-    /**
-     * Whether the burst landed in a text field. The till uses this to wipe the
-     * digits back out of the search box after it has acted on them.
-     */
     intoField: boolean;
 };
 
 type UseBarcodeKeyboardOptions = {
-    /** Only listens while this is true. */
     enabled: boolean;
     mode?: BarcodeKeyboardMode;
     onScan: (barcode: string, source: ScanSource) => void;
-    /** Escape, in "capture" mode only. */
     onCancel?: () => void;
-    /**
-     * Checked on each keystroke in "passive" mode. True drops the burst — the
-     * till uses it to stand down while a modal is up, which is state the DOM
-     * knows about sooner than React does.
-     */
     isPaused?: () => boolean;
-    /** Quiet time after the last key before an unterminated scan commits. */
     idleMs?: number;
-    /** Mean gap between keys at or below which the input reads as a scanner. */
     scannerGapMs?: number;
-    /** Shortest buffer worth submitting. */
     minLength?: number;
 };
 
@@ -79,8 +43,6 @@ export function useBarcodeKeyboard({
 }: UseBarcodeKeyboardOptions) {
     const [buffer, setBuffer] = useState("");
 
-    // Kept in refs so the listener can stay mounted for the whole scan instead
-    // of being torn down and rebuilt on every keystroke.
     const bufferRef = useRef("");
     const lastKeyAtRef = useRef(0);
     const gapsRef = useRef<number[]>([]);
@@ -176,8 +138,6 @@ export function useBarcodeKeyboard({
             }
 
             if (event.key === "Enter" || event.key === "Tab") {
-                // On the till, Enter is the cashier's key first — it only means
-                // "end of scan" when a scanner-speed burst came before it.
                 if (
                     passive &&
                     !(
@@ -197,7 +157,6 @@ export function useBarcodeKeyboard({
 
             if (event.key === "Backspace") {
                 if (passive) {
-                    // A correction is a person, and a person is not a scan.
                     reset();
                     return;
                 }
@@ -209,8 +168,6 @@ export function useBarcodeKeyboard({
                 return;
             }
 
-            // Printable characters only — modifiers, arrows and F-keys arrive
-            // as multi-character key names.
             if (event.key.length !== 1) {
                 return;
             }
@@ -236,8 +193,6 @@ export function useBarcodeKeyboard({
             armIdleCommit();
         }
 
-        // Passive listening stays on the bubble phase so anything that stops
-        // propagation on its own keys is left alone.
         window.addEventListener("keydown", handleKeyDown, !passive);
 
         return () => {
@@ -257,7 +212,5 @@ export function useBarcodeKeyboard({
         setBuffer("");
     }
 
-    // While disarmed the buffer reads empty rather than holding the last
-    // scan's characters, so reopening always starts from a blank line.
     return { buffer: enabled ? buffer : "", clear };
 }

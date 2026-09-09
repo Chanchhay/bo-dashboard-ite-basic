@@ -7,33 +7,10 @@ import type {
 } from "@/lib/api/pos-order";
 import { offlineDb } from "@/lib/offline/db";
 
-/**
- * The cart, owned by the till.
- *
- * It used to be owned by the server: a real order row addressed by a cookie,
- * with the screen showing an optimistic guess at it until the response landed.
- * That works until the connection does not, and then the till has to invent a
- * second cart with invented line ids — which is where the vanishing items, the
- * lines the server had never heard of, and the carts that outlived their sale
- * all came from.
- *
- * So the cart lives here instead, and the server is told about it. Online and
- * offline are the same code path; the only difference is how long the telling
- * takes.
- */
-
-/** There is one cart being rung up at a time, so it has a fixed key. */
 export const ACTIVE_CART_ID = "active";
 
 export type LocalCartLine = {
-    /**
-     * Made here, and never changed.
-     *
-     * The whole point: a line can be edited the instant it appears, because
-     * its id belongs to this device and does not have to be waited for.
-     */
     id: string;
-    /** The server's id for this line, once it has one. */
     serverLineId: string | null;
     itemId: string;
     variantId: string | null;
@@ -41,21 +18,9 @@ export type LocalCartLine = {
     unitId: string | null;
     unitName: string | null;
     unitFactor: number | null;
-    /**
-     * The extras, with their names and prices, not just their ids.
-     *
-     * A tub of pearls empties whether it was scooped into one drink or ten, so
-     * an extra is stock like anything else — and a receipt printed with no
-     * connection has to be able to name what was charged for.
-     */
     addOns: { addOnId: string; name: string; unitPrice: number }[];
     itemName: string;
     quantity: number;
-    /**
-     * How many of `quantity` a Buy X Get Y offer gave away, as last told to
-     * this device by the server — the till has no bundle rules of its own to
-     * decide this with; it only ever learns it back from a push.
-     */
     freeQuantity: number;
     unitPrice: number;
     discountAmount: number;
@@ -64,32 +29,16 @@ export type LocalCartLine = {
 
 export type LocalCart = {
     id: string;
-    /** The order this cart has been written to, once it has been. */
     serverOrderId: string | null;
     customerId: string | null;
     discountAmount: number;
     discountId: string | null;
     discountCode: string | null;
     discountLabel: string | null;
-    /**
-     * The order's own discount total, last learned back from a push — covers
-     * a discount nobody here picked, such as a storewide Buy X Get Y whose
-     * free unit depends on everything in the basket and so is only ever
-     * decided server-side. Never pushed itself, only read: `discountAmount`
-     * above stays the till's own record of what it asked the server to
-     * apply, and this is what came back.
-     */
     autoDiscountAmount: number;
     autoDiscountLabel: string | null;
     taxRate: number | null;
     taxInclusionType: TaxInclusionType | null;
-    /**
-     * The currency this cart is priced in, once the server has said so. Null
-     * until then — meaning "whatever the business prices in today", which is
-     * what the formatter falls back to. Never guessed at a code here: a till
-     * that assumed one would label base-currency amounts with somebody else's
-     * symbol, and then convert them a second time for the secondary line.
-     */
     currency: string | null;
     note: string | null;
     lines: LocalCartLine[];
@@ -119,17 +68,12 @@ export function emptyCart(overrides: Partial<LocalCart> = {}): LocalCart {
 
 let lineSeq = 0;
 
-/**
- * Unique on this device, which is as far as it needs to be: the server issues
- * its own id and the two are kept side by side on the line.
- */
 export function newLineId() {
     lineSeq += 1;
 
     return `line-${Date.now().toString(36)}-${lineSeq.toString(36)}`;
 }
 
-/** What makes two rung-up lines the same line: the item and every choice on it. */
 export function addOnIdsOf(line: {
     addOns?: { addOnId: string }[];
 }): string[] {
@@ -150,21 +94,10 @@ export function lineKey(line: {
     ].join("|");
 }
 
-/* -------------------------------------------------------------- reading */
-
 export async function readCart(): Promise<LocalCart | undefined> {
     return offlineDb.cart.get(ACTIVE_CART_ID);
 }
 
-/* -------------------------------------------------------------- writing */
-
-/**
- * Every write is a read-modify-write inside one transaction.
- *
- * Two taps landing together is the normal case on a till, not an edge one, and
- * without the transaction the second overwrites the first with a copy of the
- * cart it read before the first had finished.
- */
 async function mutate(
     change: (cart: LocalCart) => LocalCart | void,
 ): Promise<LocalCart> {
@@ -194,7 +127,6 @@ export type AddLineInput = {
     trackInventory?: boolean | null;
 };
 
-/** Rings an item up, merging into the matching line the way a till does. */
 export async function addLine(input: AddLineInput) {
     const quantity = input.quantity ?? 1;
     const key = lineKey({
@@ -278,7 +210,6 @@ export async function setCartDiscount(input: {
     });
 }
 
-/** Whatever the shop charges, learned from the server and kept for offline. */
 export async function setCartTax(input: {
     taxRate: number | null;
     taxInclusionType: TaxInclusionType | null;
@@ -309,21 +240,6 @@ export async function attachServerLine(lineId: string, serverLineId: string) {
     });
 }
 
-/**
- * Takes the ids and the money rules back from a push, without disturbing what
- * the cashier has done in the meantime.
- *
- * Most fields the server is simply the authority on and are copied over.
- * Quantity is not one of those — a tap that landed while the request was in
- * flight is newer than the answer coming back, and the next push will carry
- * it. The one exception is `freeQuantity`: a Buy X Get Y bundle is a decision
- * the *server* makes (the till has no bundle rules of its own), so it can
- * only ever be learned back from a push, never invented locally. Applied as
- * a delta on top of whatever quantity already sits here — adding exactly
- * however many more free units the server just granted (or removing however
- * many it just took back) — rather than overwriting the total outright,
- * which would stomp a tap that landed in the same window.
- */
 export async function applyServerCart(input: {
     serverOrderId: string;
     lineIds: Record<string, string>;
@@ -368,12 +284,6 @@ export async function applyServerCart(input: {
     });
 }
 
-/**
- * Takes a parked order back onto the till.
- *
- * The server's line ids come with it, so the first push after this reconciles
- * against the order that already exists rather than building a second one.
- */
 export async function loadCartFrom(order: PosOrder) {
     return mutate(() =>
         emptyCart({
@@ -411,12 +321,9 @@ export async function loadCartFrom(order: PosOrder) {
     );
 }
 
-/** The sale is over, or abandoned. The next tap starts a fresh one. */
 export async function clearCart() {
     return mutate(() => emptyCart());
 }
-
-/* -------------------------------------------------------------- totals */
 
 function round2(value: number) {
     return Math.round(value * 100) / 100;
@@ -426,27 +333,10 @@ export function lineTotalOf(line: LocalCartLine) {
     return round2(line.quantity * line.unitPrice - line.discountAmount);
 }
 
-/**
- * The same arithmetic the backend's TaxCalculator does.
- *
- * It has to live here too: a till with no connection still has to show the
- * customer what they owe. The server's answer replaces this one the moment
- * there is a server to ask.
- */
 export function cartTotals(cart: LocalCart) {
     const subtotal = round2(
         cart.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
     );
-    // An explicit pick (a coupon, a membership, or a custom amount someone
-    // typed by hand) and the order's own auto-detected discount are
-    // alternatives, never a sum — the pick, once made, is already the whole
-    // discount for whatever it applies to, worked out server-side across
-    // every line it touches. Nothing here writes to a line's own
-    // `discountAmount` any more (a storewide or item-scoped catalog
-    // discount is carried on `autoDiscountAmount` instead, never on a
-    // line), so it is not part of this either; adding it back in used to
-    // double an item-scoped bundle's discount the moment its amount was
-    // also learned back per line.
     const hasExplicitPick = Boolean(
         cart.discountId || cart.discountCode || cart.discountAmount > 0,
     );
@@ -476,12 +366,6 @@ export function cartTotals(cart: LocalCart) {
     return { subtotal, discountAmount, taxAmount, total: round2(net + taxAmount) };
 }
 
-/**
- * The cart in the shape the rest of the terminal already reads.
- *
- * Keeping the shape means the panel, the receipt and the payment dialog did
- * not have to be rewritten to change where the cart lives.
- */
 export function toPosOrder(cart: LocalCart): PosOrder {
     const totals = cartTotals(cart);
 
@@ -504,8 +388,6 @@ export function toPosOrder(cart: LocalCart): PosOrder {
     }));
 
     return {
-        // The server's id where there is one, so a receipt and a payment name
-        // the same order the backend does.
         id: cart.serverOrderId ?? ACTIVE_CART_ID,
         businessId: "",
         customerId: cart.customerId,
@@ -530,7 +412,6 @@ export function toPosOrder(cart: LocalCart): PosOrder {
     };
 }
 
-/** Dexie throws on a store that a stale tab's schema does not know about. */
 export function isMissingCartStore(error: unknown) {
     return error instanceof Dexie.DexieError;
 }

@@ -7,19 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import type { SalesChannel } from "@/lib/api/sales-channels";
 import type { ChannelStockDraft } from "@/components/menu/useChannelStockDraft";
 
-/**
- * How much of one item's stock each channel may sell.
- *
- * There is one shelf and one balance — this does not divide the stock into
- * separate piles, it says how much of the one pile each channel is allowed to
- * reach. Off, every channel may sell everything on hand, which is what the
- * shop had before this existed and what it keeps until it switches this on.
- *
- * Laid out as a grid rather than a list of labelled boxes: an item in four
- * options on four channels is sixteen numbers, and stacked in a column they
- * cannot be read across — "did Telegram get more of the Larges than the
- * Smalls?" is the question being asked, and only a row and a column answer it.
- */
 export function ChannelStockAllocator({
     draft,
     channels,
@@ -27,7 +14,6 @@ export function ChannelStockAllocator({
 }: {
     draft: ChannelStockDraft;
     channels: SalesChannel[];
-    /** The channels this item is being published to, in the ticks above. */
     checkedChannelIds: Set<string>;
 }) {
     const selling = channels.filter((channel) => checkedChannelIds.has(channel.id));
@@ -35,10 +21,6 @@ export function ChannelStockAllocator({
     const remaining = draft.remainingFor(checkedChannelIds);
     const sellingIds = selling.map((channel) => channel.id);
 
-    // One column per channel, plus the option's name and its running total.
-    // Fixed widths so the numbers line up under their channel however long the
-    // channel is called, and the whole thing scrolls sideways rather than
-    // squeezing the boxes to nothing.
     const columns = `minmax(7rem, 1.2fr) repeat(${selling.length}, minmax(5.5rem, 1fr)) minmax(9rem, auto)`;
 
     return (
@@ -103,8 +85,6 @@ export function ChannelStockAllocator({
 
                     <div className="-mx-1 overflow-x-auto px-1 pb-1">
                         <div className="min-w-fit space-y-1.5">
-                            {/* Channel names sit above their column, once,
-                                rather than beside every box. */}
                             <div
                                 className="grid items-end gap-2"
                                 style={{ gridTemplateColumns: columns }}
@@ -172,8 +152,6 @@ export function ChannelStockAllocator({
                                             />
                                         ))}
 
-                                        {/* The shelf and what is still to give
-                                            out, on the row it belongs to. */}
                                         <span
                                             className={`text-right text-xs font-medium whitespace-nowrap ${
                                                 over

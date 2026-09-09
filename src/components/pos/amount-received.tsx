@@ -10,7 +10,6 @@ export interface AmountReceivedDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   amountDue: number;
-  /** The order's own currency, which a base-currency change must not relabel. */
   currency?: string | null;
   onValidate: (receivedAmount: number, tenderNote?: string) => void;
   isProcessing?: boolean;
@@ -54,7 +53,7 @@ export function AmountReceived({
   onValidate,
   isProcessing,
 }: AmountReceivedDialogProps) {
-  const { format, secondary, base, display } = useMoney();
+  const { format, base, display } = useMoney();
   const { data: config } = useGetBusinessCurrenciesQuery();
 
   const baseCode = (currency || base?.code || config?.baseCurrency || "USD").toUpperCase();
@@ -278,17 +277,18 @@ export function AmountReceived({
           </div>
 
           {/* 2 Input Boxes - Layered on top of each other (Stacked Vertically) */}
-          <div className="flex flex-col gap-2 sm:gap-2.5">
+          <div data-tour="pos-cash-received" className="flex flex-col gap-2 sm:gap-2.5">
             {/* Box 1: Primary Cash (Base Currency) */}
             <div
               onClick={() => {
                 setActiveField("base");
                 baseInputRef.current?.focus();
               }}
-              className={`relative flex items-center justify-between rounded-2xl border px-4 py-2.5 sm:px-5 sm:py-3 cursor-text transition-all ${activeField === "base"
+              className={`relative flex items-center justify-between rounded-2xl border px-4 py-2.5 sm:px-5 sm:py-3 cursor-text transition-all ${
+                activeField === "base"
                   ? "border-primary bg-white"
                   : "border-gray-200 bg-[#f9fafb] hover:border-gray-300 hover:bg-white"
-                }`}
+              }`}
             >
               <div className="flex flex-col shrink-0 select-none pointer-events-none">
                 <span className="text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -309,10 +309,11 @@ export function AmountReceived({
                   const next = e.target.value;
                   if (/^[0-9]*\.?[0-9]*$/.test(next)) setBaseReceived(next);
                 }}
-                className={`w-full bg-transparent text-right text-2xl sm:text-3xl font-black tabular-nums outline-none caret-primary pl-4 ${activeField === "base"
+                className={`w-full bg-transparent text-right text-2xl sm:text-3xl font-black tabular-nums outline-none caret-primary pl-4 ${
+                  activeField === "base"
                     ? "text-primary placeholder:text-primary/30"
                     : "text-gray-700 placeholder:text-gray-300"
-                  }`}
+                }`}
               />
             </div>
 
@@ -323,10 +324,11 @@ export function AmountReceived({
                   setActiveField("secondary");
                   secondaryInputRef.current?.focus();
                 }}
-                className={`relative flex items-center justify-between rounded-2xl border px-4 py-2.5 sm:px-5 sm:py-3 cursor-text transition-all ${activeField === "secondary"
+                className={`relative flex items-center justify-between rounded-2xl border px-4 py-2.5 sm:px-5 sm:py-3 cursor-text transition-all ${
+                  activeField === "secondary"
                     ? "border-primary bg-white"
                     : "border-gray-200 bg-[#f9fafb] hover:border-gray-300 hover:bg-white"
-                  }`}
+                }`}
               >
                 <div className="flex flex-col shrink-0 select-none pointer-events-none">
                   <span className="text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -351,10 +353,11 @@ export function AmountReceived({
                       if (/^[0-9]*$/.test(next)) setSecondaryReceived(next);
                     }
                   }}
-                  className={`w-full bg-transparent text-right text-2xl sm:text-3xl font-black tabular-nums outline-none caret-primary pl-4 ${activeField === "secondary"
+                  className={`w-full bg-transparent text-right text-2xl sm:text-3xl font-black tabular-nums outline-none caret-primary pl-4 ${
+                    activeField === "secondary"
                       ? "text-primary placeholder:text-primary/30"
                       : "text-gray-700 placeholder:text-gray-300"
-                    }`}
+                  }`}
                 />
               </div>
             )}

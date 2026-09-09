@@ -99,7 +99,6 @@ function getNotificationIcon(type?: string | null, title?: string | null) {
 }
 
 function getNotificationLink(notification: Notification): string {
-    // 1. Prioritize explicit deepLink if provided
     if (notification.deepLink && notification.deepLink.startsWith("/") && notification.deepLink !== "#") {
         return notification.deepLink;
     }
@@ -107,7 +106,6 @@ function getNotificationLink(notification: Notification): string {
     const type = notification.type?.toUpperCase() || "";
     const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
 
-    // 2. Specific feature fallbacks based on content / type
     if (text.includes("discount") || text.includes("coupon") || type === "PROMOTION") {
         return "/sales/discounts";
     }
@@ -255,9 +253,7 @@ export default function NotificationsApp() {
 
     return (
         <div className="flex flex-col gap-6 pb-8">
-            {/* Header & Stat Cards (sticky on desktop only) */}
             <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex flex-col gap-4">
-                {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <p className="text-sm text-muted-foreground">
@@ -282,7 +278,6 @@ export default function NotificationsApp() {
                     </div>
                 </div>
 
-                {/* Stat Cards */}
                 <div data-tour="notifications-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs flex items-center gap-3">
                         <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -326,9 +321,7 @@ export default function NotificationsApp() {
                 </div>
             </div>
 
-            {/* Main Content Area */}
             <div className="rounded-2xl border border-border bg-card shadow-xs overflow-clip flex flex-col">
-                {/* Control Bar */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-border p-4 gap-3 bg-card shrink-0">
                     <div data-tour="notifications-search" className="relative w-full sm:w-80">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -371,7 +364,6 @@ export default function NotificationsApp() {
                     </div>
                 </div>
 
-                {/* List Container */}
                 <div data-tour="notifications-list" className="overflow-y-auto max-h-[calc(100dvh-350px)] sm:max-h-[calc(100dvh-370px)] divide-y divide-border">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
@@ -485,7 +477,6 @@ export default function NotificationsApp() {
                                         )}
                                     </div>
 
-                                    {/* Action Buttons */}
                                     <div
                                         className="flex items-center gap-1.5 shrink-0 self-center"
                                         onClick={(e) => e.stopPropagation()}

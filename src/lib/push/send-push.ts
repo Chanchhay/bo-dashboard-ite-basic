@@ -35,17 +35,6 @@ function toWebPushSubscription(record: StoredPushSubscription) {
   };
 }
 
-/**
- * Wakes every device a user has installed this app on.
- *
- * Fired for a business event (a sale, a channel order) that has no bearing
- * on whether a phone is reachable — one dead registration among several
- * devices must not stop the others, so every send runs concurrently and is
- * judged on its own. A 404/410 means the push service itself has forgotten
- * that endpoint (the user uninstalled, or the browser rotated it); anything
- * else (a bad payload, an offline push service, a quota) is left for the
- * caller to see in the count rather than silently eaten.
- */
 export async function sendPushToUsers(
   userIds: string[],
   payload: PushPayload,
@@ -84,8 +73,6 @@ export async function sendPushToUsers(
   const pruning: Promise<void>[] = [];
 
   for (const outcome of outcomes) {
-    // Promise.allSettled never rejects the outer promise; the inner handlers
-    // above always resolve, so every entry lands here as "fulfilled".
     if (outcome.status !== "fulfilled") {
       failed += 1;
       continue;

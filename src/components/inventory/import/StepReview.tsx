@@ -18,7 +18,6 @@ import {
 } from "@/lib/api/data-import";
 import { cn } from "@/lib/utils";
 
-/** What one thing is called here, singular or plural, so the lines read as English. */
 function noun(targetType: ImportTargetType, count: number) {
     const singular = {
         ITEM_GROUP: "category",
@@ -68,14 +67,6 @@ function Consequence({
     );
 }
 
-/**
- * What will happen, in the shop's own terms, before it happens.
- *
- * Phrased as consequences rather than row states — "1,920 items will be
- * created" is a sentence a shopkeeper can agree or object to, where "1,920
- * rows are valid" is not. This is the last screen before anything becomes
- * real, so it also says plainly that it cannot be undone.
- */
 export function StepReview({
     preview,
     targetType,
@@ -153,12 +144,6 @@ export function StepReview({
                     </li>
                 ) : null}
 
-                {/*
-                 * Units come first in what an import actually does — every item
-                 * is counted in one, and an item whose unit cannot be resolved
-                 * never gets created. Worth seeing before agreeing, rather than
-                 * in the report afterwards.
-                 */}
                 {units.created > 0 || units.reused > 0 ? (
                     <li className="mt-1 border-t border-border pt-3">
                         <ul className="flex flex-col gap-3">

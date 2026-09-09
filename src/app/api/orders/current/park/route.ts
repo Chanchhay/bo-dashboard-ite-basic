@@ -10,7 +10,6 @@ import {
     ordersPath,
 } from "@/lib/api/pos-order-backend";
 
-/** Leaves the current order pending and releases the terminal for another cart. */
 export async function POST(request: Request) {
     try {
         const result = parkOrderSchema.safeParse(await readJsonBody(request));

@@ -4,13 +4,6 @@ import type { StockEntry } from "@/lib/api/inventory";
 
 type RouteContext = { params: Promise<{ stockEntryId: string }> };
 
-/**
- * One movement, with the batches it drew from.
- *
- * The list endpoint leaves the breakdown out — it would be a query per row to
- * answer something no row shows. It is read here, where somebody has opened a
- * single movement and is asking why it cost what it did.
- */
 export async function GET(_request: Request, context: RouteContext) {
     try {
         const [{ stockEntryId }, businessId] = await Promise.all([

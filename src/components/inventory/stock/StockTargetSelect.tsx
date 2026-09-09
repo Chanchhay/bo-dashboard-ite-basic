@@ -8,14 +8,12 @@ import { Input } from "@/components/ui/input";
 import type { AddOn, InventoryItem } from "@/lib/api/inventory";
 import { cn } from "@/lib/utils";
 
-/** What a stock movement can be recorded against. */
 export type StockTargetKind = "ITEM" | "ADDON";
 
 export type StockTargetOption = {
     kind: StockTargetKind;
     id: string;
     name: string;
-    /** SKU and barcode for an item; how much one selection uses for an add-on. */
     hint?: string;
     unitLabel?: string;
     onHand?: number;
@@ -31,7 +29,6 @@ const sections: { kind: StockTargetKind; label: string; hint: string }[] = [
     { kind: "ADDON", label: "Add-ons", hint: "Only sold with an item" },
 ];
 
-/** Builds the option list both stock forms and the stock overview share. */
 export function toStockTargets(
     items: readonly InventoryItem[],
     addOns: readonly AddOn[],
@@ -66,14 +63,6 @@ export function toStockTargets(
     ];
 }
 
-/**
- * One dropdown for everything stock can be counted against.
- *
- * Items and add-ons are stocked the same way and are searched together, but
- * they are not the same thing — an add-on is never sold on its own — so they
- * are kept in labelled sections rather than mixed into one list where
- * "Pearls" and "Pearl Milk Tea" would sit side by side.
- */
 export function StockTargetSelect({
     targets,
     selected,
@@ -101,7 +90,6 @@ export function StockTargetSelect({
             target.id === selected.id,
     );
 
-    // Closed, the field reads back what is chosen; open, it is a search box.
     const inputValue = open ? query : (selectedTarget?.name ?? "");
 
     useEffect(() => {
