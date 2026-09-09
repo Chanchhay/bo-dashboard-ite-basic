@@ -18,14 +18,6 @@ const buttonClass =
 function LoginContent() {
     const searchParams = useSearchParams();
     const wasLoggedOut = searchParams.get("loggedOut") === "1";
-    /*
-     * Sent here by the guard when it refused the account. `no-business` is a
-     * valid sign-in with nothing for this app to show, which is exactly where
-     * a platform administrator's account lands; `unavailable` means the check
-     * itself failed and the app will not guess. Either way the session is left
-     * intact, so this screen has to explain itself rather than start OAuth
-     * over: the live Keycloak session would sign the same account back in.
-     */
     const blocked = blockedReason(searchParams.get(BLOCKED_PARAM));
     const signOutForm = useRef<HTMLFormElement>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,7 +57,6 @@ function LoginContent() {
     const isSignedOut = loginState === "signed-out";
     const isNoBusiness = loginState === "no-business";
     const isUnavailable = loginState === "unavailable";
-    // Both refusals offer the same two ways out.
     const isBlocked = isNoBusiness || isUnavailable;
 
     const heading = isNoBusiness
@@ -108,12 +99,6 @@ function LoginContent() {
                 ) : null}
                 {isBlocked ? (
                     <div className="space-y-2">
-                        {/*
-                         * "Try again" is a plain sign-in: the Keycloak session
-                         * is still open, so it comes back through the gate
-                         * silently and lets in an account that has since been
-                         * given a business.
-                         */}
                         <button
                             type="button"
                             onClick={startLogin}

@@ -7,7 +7,6 @@ import type {
     TaxSettingsInput,
 } from "@/lib/api/business";
 
-/** Both pictures post the same single `file` part to their own route. */
 function uploadImage(url: string, file: File) {
     const body = new FormData();
     body.append("file", file, file.name);

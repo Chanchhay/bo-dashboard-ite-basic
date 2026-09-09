@@ -36,7 +36,6 @@ export type OptionDraft = {
     barcode: string;
     imageUrl: string;
     colorValues: string[];
-    /** Held until the item is saved — option images upload with the form. */
     file?: File;
     previewUrl?: string;
     available: boolean;
@@ -67,14 +66,10 @@ export function ItemOptionDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Bumped by the caller on every open, so each one starts on a clean form. */
     seed?: number;
-    /** Absent when adding. */
     option?: OptionDraft;
     colors: readonly { id: string; value: string; colorHex: string }[];
-    /** Lower-cased, excluding the one being edited. */
     existingNames: string[];
-    /** Owned by the form, so a preview outlives this dialog closing. */
     previewUrls: { create: (file: File) => string; release: (url?: string) => void };
     onSubmit: (option: OptionDraft) => void;
 }) {

@@ -11,11 +11,6 @@ export async function PUT(request: Request, context: ImportRouteContext) {
             return inventoryValidationError(result.error);
         }
 
-        /*
-         * A column the user cleared arrives as null. The backend reads a
-         * missing entry and a null one the same way — as a column it ignores —
-         * so the nulls are dropped rather than sent.
-         */
         const mappings = Object.fromEntries(
             Object.entries(result.data.mappings).filter(([, field]) => Boolean(field)),
         );

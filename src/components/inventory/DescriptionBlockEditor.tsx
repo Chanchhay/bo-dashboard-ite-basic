@@ -60,15 +60,10 @@ export type BlockDraft = {
   url: string;
   caption: string;
   columns: { id: string; blocks: BlockDraft[] }[];
-  /** Held until the item is saved — block images upload with the form. */
   file?: File;
   previewUrl?: string;
 };
 
-/**
- * One row of the spec grid. Stored as an attribute with placement
- * SPECIFICATION, but authored here — the caller does that translation.
- */
 export type SpecDraft = {
   id: string;
   name: string;
@@ -93,7 +88,6 @@ const allTypes = [
   { type: "COLUMNS", label: "Two columns", icon: Columns2 },
 ] as const;
 
-/** Bullets live as one textarea, so the per-line caps are applied as it is typed. */
 function clampBullets(value: string) {
   return value
     .split("\n")
@@ -127,7 +121,6 @@ export function emptyBlock(type: DescriptionBlockType): BlockDraft {
         : [],
   };
 }
-/** A block the shopper would see nothing of — dropped if it is abandoned. */
 function isBlockEmpty(block: BlockDraft, specCount: number): boolean {
   if (block.type === "SPEC_GRID") return specCount === 0;
   if (block.type === "COLUMNS") {
@@ -139,11 +132,6 @@ function isBlockEmpty(block: BlockDraft, specCount: number): boolean {
   return !block.text.trim();
 }
 
-/**
- * Drops every block a shopper would see nothing of. An empty block can never
- * be saved — the schema rejects it — so leaving one behind only produces a
- * validation error later, pointing at a block the user thought they abandoned.
- */
 function countBlocks(blocks: BlockDraft[]): number {
   return blocks.reduce(
     (total, block) =>
@@ -169,7 +157,6 @@ function pruneEmpty(blocks: BlockDraft[], specCount: number): BlockDraft[] {
     .filter((block) => !isBlockEmpty(block, specCount));
 }
 
-/** The one-line preview shown on a collapsed row. */
 function blockSummary(block: BlockDraft, specCount: number): string {
   if (block.type === "SPEC_GRID") {
     return specCount
@@ -216,10 +203,8 @@ export function DescriptionBlockEditor({
 }: {
   blocks: BlockDraft[];
   onChange: (blocks: BlockDraft[]) => void;
-  /** Shared by every spec grid block on the item. */
   specs: SpecDraft[];
   onSpecsChange: (specs: SpecDraft[]) => void;
-  /** Specs are attributes too, so the ceiling counts both. */
   specsFull: boolean;
 }) {
   const { toast } = useToast();
@@ -277,7 +262,6 @@ export function DescriptionBlockEditor({
     setOpenId(id);
   }
 
-  /** An abandoned new block would only fail validation later, so drop it. */
   function close() {
     const pruned = pruneEmpty(blocks, namedSpecs);
 
@@ -413,21 +397,11 @@ function BlockDialogBody({
   onChange: (patch: Partial<BlockDraft>) => void;
   onClose: () => void;
 }) {
-  /** Which nested block the columns view has drilled into, if any. */
   const [drill, setDrill] = useState<{
     columnIndex: number;
     blockId: string;
   } | null>(null);
-  /**
-   * Kept apart from `drill` so neither view is unmounted while it is being
-   * clicked — a detached node fails the dialog's outside-press check and
-   * dismisses the whole thing. Going back only hides the drill view.
-   */
   const [showDrill, setShowDrill] = useState(false);
-  /**
-   * A block dropped for being left empty, held only so the drill view can go
-   * on rendering it while it slides out of view.
-   */
   const [parked, setParked] = useState<{
     columnIndex: number;
     block: BlockDraft;
@@ -486,12 +460,6 @@ function BlockDialogBody({
       ? { columnIndex: drill.columnIndex, block: nested }
       : parked;
 
-  /**
-   * Leaves the nested block behind only if there is something in it. The
-   * dropped block is parked rather than forgotten, so this view stays mounted
-   * — tearing out the Back button mid-click reads to the dialog as an outside
-   * press, and would dismiss the whole thing.
-   */
   function closeDrill() {
     setShowDrill(false);
 

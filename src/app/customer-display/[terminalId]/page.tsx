@@ -23,7 +23,6 @@ interface CustomerDisplayPageProps {
   params: Promise<{ terminalId: string }>;
 }
 
-// Default fallback business cover photo if no custom thumbnail has been uploaded yet
 const DEFAULT_BUSINESS_THUMBNAIL =
   "https://zeew.eu/wp-content/uploads/2025/09/360_F_157167850_C8MN16DXyxNmJGvqlLJZm4pcO9DCwImy.jpg";
 
@@ -32,7 +31,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
   const { data: businessProfile } = useGetBusinessProfileQuery();
   const displayData = useCustomerDisplayListener(terminalId, businessProfile?.id);
   const { format, secondaryFor } = useMoney();
-  const [isDarkMode, setIsDarkMode] = useState(false); // Default clean mode like POS terminal
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const status = displayData?.status ?? "IDLE";
   const items = displayData?.items ?? [];
@@ -46,7 +45,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
   const isTaxInclusive = displayData?.taxInclusionType === "INCLUSIVE";
   const taxLabel = businessProfile?.taxLabel || "VAT";
 
-  // Real business name, logo & thumbnail from database / published state
   const storeName =
     displayData?.businessName || businessProfile?.name || "Business Store";
   const storeLogo = displayData?.businessLogo || businessProfile?.logo;
@@ -164,9 +162,7 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
       className={`flex h-screen w-screen overflow-hidden font-sans select-none transition-colors duration-300 ${isDarkMode ? "bg-slate-950 text-slate-100" : "bg-[#f4f6f9] text-slate-900"
         }`}
     >
-      {/* LEFT PANEL: Full-Bleed Business Thumbnail Cover (38% width) */}
       <div className="relative flex w-[38%] flex-col overflow-hidden border-r border-slate-200 dark:border-slate-800 bg-slate-900 text-white">
-        {/* Full-Height Business Thumbnail Image Layer */}
         {/* eslint-disable-next-html-element-suppress */}
         <Image
           src={storeThumbnail}
@@ -176,36 +172,10 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 hover:scale-105"
         />
 
-        {/* Gradient Overlay for Crisp Text & QR Code Visibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/50 to-slate-950/75 backdrop-blur-[1px]" />
 
-        {/* Left Panel Floating Overlay Content */}
         <div className="relative z-10 flex h-full flex-col justify-between p-6 lg:p-8">
-          {/* <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 rounded-2xl bg-slate-950/80 backdrop-blur-md px-4 py-2.5 border border-white/15 shadow-xl">
-              {storeLogo ? (
-                <Image
-                  src={storeLogo}
-                  alt={storeName}
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 rounded-xl object-cover border border-white/30"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white font-bold shadow-md">
-                  <Store className="h-5 w-5" />
-                </div>
-              )}
-              <span className="font-black text-base tracking-tight text-white">
-                {storeName}
-              </span>
-            </div>
-            <span className="rounded-full bg-white/15 backdrop-blur-md px-3.5 py-1 text-xs font-bold text-white border border-white/15 shadow-md">
-              Official Store
-            </span>
-          </div> */}
 
-          {/* Center Content (BIG KHQR Code during payment / Receipt Ticket on COMPLETED / Hero Welcome Card during idle) */}
           {status === "PAYMENT_PENDING" ? (
             <div className="my-auto flex flex-col items-center text-center px-2 animate-in fade-in zoom-in-95 duration-200">
               <div className="mb-2 flex items-center gap-1.5 rounded-full bg-amber-500/20 px-4 py-1.5 text-xs font-extrabold text-amber-300 border border-amber-500/30 backdrop-blur-md">
@@ -213,7 +183,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 <span>SCAN KHQR TO PAY</span>
               </div>
 
-              {/* Large Big QR Code in Center */}
               {displayData?.qrCodeUrl ? (
                 <div className="relative my-4 p-3.5 rounded-2xl bg-white border-4 border-primary/30 shadow-2xl">
                   {/* eslint-disable-next-html-element-suppress */}
@@ -232,7 +201,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 </div>
               )}
 
-              {/* Total Payment Amount Prominently Shown in Center */}
               <div className="mt-1 flex flex-col items-center rounded-2xl bg-slate-950/85 backdrop-blur-md px-6 py-3 border border-white/15 shadow-2xl">
                 <span className="text-[11px] font-bold text-white/70 uppercase tracking-wider">
                   Total Amount Due
@@ -266,7 +234,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             </div>
           ) : (
             <div className="my-auto flex flex-col items-center text-center px-4 animate-in fade-in duration-200">
-              {/* Store Logo Hero Icon */}
               <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-slate-950/80 backdrop-blur-md shadow-2xl border border-white/20 overflow-hidden">
                 {storeLogo ? (
                   /* eslint-disable-next-html-element-suppress */
@@ -294,11 +261,8 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
         </div>
       </div>
 
-      {/* RIGHT PANEL: Header, Cart Table & Totals (62% width) */}
       <div className="flex flex-1 flex-col">
-        {/* Top Primary Header Bar */}
         <div className="flex h-16 shrink-0 items-center justify-between bg-primary px-6 text-white shadow-md">
-          {/* Store Logo & Real Name */}
           <div className="flex items-center gap-3">
             {storeLogo ? (
               /* eslint-disable-next-html-element-suppress */
@@ -320,7 +284,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
             )}
           </div>
 
-          {/* Header Controls (Light/Dark mode) */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -333,7 +296,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           </div>
         </div>
 
-        {/* Item List Table / Completion Screen */}
         <div className="flex-1 overflow-y-auto p-6">
           {status === "IDLE" || items.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center p-8">
@@ -374,10 +336,8 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
               </div>
             </div>
           ) : (
-            /* Structured Table (Matching Image 2) */
             <div className="w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
               <table className="w-full text-left text-xs">
-                {/* Table Header */}
                 <thead
                   className={`border-b text-xs font-bold ${isDarkMode
                       ? "border-slate-800 bg-slate-900 text-slate-300"
@@ -393,7 +353,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                   </tr>
                 </thead>
 
-                {/* Table Body */}
                 <tbody
                   className={`divide-y text-xs font-medium ${isDarkMode
                       ? "divide-slate-800 text-slate-200"
@@ -415,9 +374,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                     >
                       <td className="py-3.5 px-4 font-bold text-sm">
                         {item.name}
-                        {/* What was picked. This screen is here to be checked
-                            against, which it cannot be if it only ever says
-                            the item's name. */}
                         {soldAsLabel(item) ? (
                           <span className="mt-0.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
                             {soldAsLabel(item)}
@@ -430,9 +386,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                               .join(", ")}
                           </span>
                         ) : null}
-                        {/* The promotion that quietly turned into extra units
-                            on this line — invisible otherwise, since the
-                            quantity column alone reads as an ordinary sale. */}
                         {item.freeQuantity ? (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">
                             {item.freeQuantity} FREE
@@ -461,7 +414,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           )}
         </div>
 
-        {/* Bottom Total Block (Hidden when COMPLETED to prevent duplicate summary bar) */}
         {status !== "COMPLETED" && (
           <div
             className={`shrink-0 border-t p-6 shadow-lg transition-colors duration-300 ${isDarkMode
@@ -470,7 +422,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
               }`}
           >
             <div className="grid grid-cols-2 gap-4">
-              {/* Left calculation summary */}
               <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex justify-between">
                   <span>ចំនួនទំនិញសរុប (Total Items):</span>
@@ -518,7 +469,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
                 )}
               </div>
 
-              {/* Right Grand Total Box */}
               <div className="flex flex-col items-end justify-center rounded-2xl bg-primary/10 dark:bg-primary/20 p-4 border border-primary/20">
                 <span className="text-xs font-bold uppercase tracking-wider text-primary dark:text-sky-300">
                   សរុបចុងក្រោយ (Grand Total)
@@ -536,11 +486,6 @@ export default function CustomerDisplayPage({ params }: CustomerDisplayPageProps
           </div>
         )}
 
-        {/* Footer info bar */}
-        {/* <div className="flex h-8 shrink-0 items-center justify-between bg-slate-900 px-6 text-[11px] font-semibold text-slate-400">
-          <span>{storeName} POS System</span>
-          <span>POWERED BY IPOS</span>
-        </div> */}
       </div>
     </div>
   );

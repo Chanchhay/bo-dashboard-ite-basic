@@ -12,18 +12,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
-/**
- * `danger` is the default: deleting, removing, anything unrecoverable. `info`
- * is for confirmations that merely want a beat before an additive action, so
- * they don't borrow the red that should mean "you cannot undo this".
- */
 type Tone = "danger" | "info";
 
-/*
- * Fills stay fixed across themes because white ink sits on them — `--brand-red`
- * and `--primary` hold one value in both. The ring and badge use the tokens
- * that lighten in dark, where they are text rather than backgrounds.
- */
 const TONES: Record<
     Tone,
     {

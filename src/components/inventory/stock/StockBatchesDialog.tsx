@@ -26,22 +26,6 @@ import { useMoney } from "@/hooks/useMoney";
 import { formatAmount } from "@/lib/inventory-config/units";
 import { useGetItemStockBatchesQuery } from "@/services/inventoryApi";
 
-/**
- * The deliveries behind one item, in the order they will be sold.
- *
- * Stock is not one number at one price. Each delivery keeps the price it
- * arrived at, and a sale eats them in date order — so an item can be sitting
- * on two batches bought months apart at different money, and what the next
- * sale costs depends which of them it comes out of.
- *
- * The order is by expiry first, and only then by age: a short-dated delivery
- * that arrived this morning leaves before stock that has sat here a fortnight
- * and keeps for another year. That is why the position is spelled out rather
- * than left to be read off the dates — the top row is not always the oldest.
- *
- * Without this the margin on a receipt is a number the shop has to take on
- * trust. With it, the next sale's cost is the top row.
- */
 export function StockBatchesDialog({
     itemId,
     itemName,
@@ -51,7 +35,6 @@ export function StockBatchesDialog({
 }: {
     itemId: string;
     itemName: string;
-    /** What one base unit is called, so quantities read as the shop says them. */
     unitName?: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -70,9 +53,6 @@ export function StockBatchesDialog({
     );
     const unitWord = (unitName || "unit").toLowerCase();
 
-    // Expired stock still sells — a till stopped mid-sale over a date nobody
-    // got round to writing off is worse than a flag. So this screen is where
-    // the shop finds out there is something to write off.
     const expiredBatches = batches.filter((batch) => batch.expired);
     const expiredQuantity = expiredBatches.reduce(
         (sum, batch) => sum + (batch.quantityRemaining ?? 0),
@@ -173,12 +153,6 @@ export function StockBatchesDialog({
                                                 <p className="mt-0.5 text-xs text-muted-foreground">
                                                     {[
                                                         batch.variantName,
-                                                        // Once a lot is named
-                                                        // it takes the line
-                                                        // above, so the date
-                                                        // it came in moves
-                                                        // down here rather
-                                                        // than disappearing.
                                                         batch.lotNumber &&
                                                         batch.receivedAt
                                                             ? `in ${new Date(

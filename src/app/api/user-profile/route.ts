@@ -80,7 +80,6 @@ export async function PATCH(request: Request) {
                 );
             }
 
-            // Upload profile picture if provided
             const pictureFormData = new FormData();
             pictureFormData.append("file", file, file.name);
             await backendRequest<void>("/api/v1/user-profiles/me/picture", {
@@ -89,7 +88,6 @@ export async function PATCH(request: Request) {
             }).catch(() => {});
         }
 
-        // Send JSON request body to Spring Boot backend as expected by backend API
         const profile = await backendRequest<UserProfile>(userProfilePath, {
             method: "PATCH",
             headers: {

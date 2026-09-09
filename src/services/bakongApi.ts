@@ -34,7 +34,6 @@ export const bakongApi = baseApi.injectEndpoints({
             invalidatesTags: ["BakongSettings"],
         }),
 
-        /** A throwaway code, to prove the configuration works. */
         previewKhqr: builder.mutation<Khqr, KhqrPreviewInput>({
             query: (body) => ({
                 url: "/payment-settings/bakong/preview-qr",

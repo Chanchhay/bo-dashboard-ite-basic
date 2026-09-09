@@ -4,16 +4,6 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 
 import { cn } from "@/lib/utils";
 
-/*
- * Dropdown built on Base UI's Menu. The popup wears the card treatment from
- * `ui-registry.md` — white surface, green-gray border, 16px radius — one step
- * lighter than a dialog, because a menu sits on the page rather than over it.
- *
- * `MenuContent` portals to the body, so anything stateful inside it is torn
- * down the moment the menu closes. Actions that must outlive that (a form
- * submit, for instance) belong outside the popup.
- */
-
 const Menu = MenuPrimitive.Root;
 const MenuTrigger = MenuPrimitive.Trigger;
 

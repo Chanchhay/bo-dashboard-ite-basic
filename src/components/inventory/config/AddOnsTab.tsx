@@ -285,13 +285,11 @@ export function AddOnsTab() {
                         />
                     ) : (
                         <div className="flex flex-col">
-                            {/* Mobile Cards Layout (md:hidden) */}
                             <div className="flex flex-col divide-y divide-border md:hidden">
                                 {addOns.map((addOn) => {
                                     const usage = usageByAddOnId.get(addOn.id) ?? 0;
                                     return (
                                         <div key={addOn.id} className="flex flex-col gap-3 p-3.5 sm:p-4 bg-card">
-                                            {/* Header: Name + Actions */}
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0 flex-1">
                                                     <p className="font-bold text-sm text-foreground truncate">
@@ -338,7 +336,6 @@ export function AddOnsTab() {
                                                 </div>
                                             </div>
 
-                                            {/* Key-Value Details Grid */}
                                             <div className="grid grid-cols-3 gap-2 bg-muted/20 dark:bg-muted/10 p-2.5 rounded-xl border border-border/50 text-xs">
                                                 <div className="flex flex-col min-w-0">
                                                     <span className="text-[11px] text-muted-foreground">Unit</span>
@@ -364,7 +361,6 @@ export function AddOnsTab() {
                                 })}
                             </div>
 
-                            {/* Desktop Table (hidden md:block) */}
                             <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full min-w-[720px] text-left text-sm">
                                     <thead className="bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">

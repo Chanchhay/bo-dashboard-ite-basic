@@ -17,12 +17,6 @@ import type {
 
 export const salesReportApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
-        /**
-         * Revenue, cost and profit per channel over a range.
-         *
-         * Both ends are optional; leaving them out asks for all time. Keyed on
-         * the range so switching back to one already read answers from cache.
-         */
         getSalesProfit: builder.query<
             SalesProfit,
             { from?: string; to?: string }
@@ -37,12 +31,6 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
-        /**
-         * The accounting statement: takings, cost and profit per period.
-         *
-         * Keyed on range and granularity together, so switching back to a
-         * view already read answers from cache rather than the database.
-         */
         getPeriodProfit: builder.query<
             PeriodProfitReport,
             { from?: string; to?: string; granularity: ReportGranularity }
@@ -58,12 +46,6 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
-        /**
-         * What each item sold over a range, and what was kept on it.
-         *
-         * What the statement cannot say: which items carried a good month,
-         * and which sold well and kept nothing.
-         */
         getItemProfit: builder.query<
             ItemProfitReport,
             { from?: string; to?: string }
@@ -78,13 +60,6 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
-        /**
-         * Revenue per channel, per day, over a range.
-         *
-         * What the dashboard's trend graph draws from — one row per day a
-         * channel had at least one sale, so a quiet day is a gap rather than a
-         * zero the caller has to know to insert.
-         */
         getDailyRevenueByChannel: builder.query<
             DailyChannelRevenue[],
             { from?: string; to?: string }
@@ -99,12 +74,6 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
-        /**
-         * What's likely to sell more, run out, or need restocking next —
-         * one item's own recent average and trend, no ML. Server-computed
-         * so the dashboard tiles and the full Prediction page never
-         * disagree on the same numbers.
-         */
         getSalesPredictions: builder.query<
             SalesPredictionsResponse,
             { window: PredictionWindow }
@@ -116,12 +85,6 @@ export const salesReportApi = baseApi.injectEndpoints({
             providesTags: ["SalesProfit"],
         }),
 
-        /**
-         * "What if I priced the catalog at this margin" — a POST because the
-         * margins are arbitrary caller input, but otherwise read-only: cost
-         * and quantity always come from a fresh read of inventory, so the
-         * result can't drift from what the last call already showed.
-         */
         calculateSaleProfit: builder.query<
             SaleProfitCalculatorResponse,
             SaleProfitCalculatorRequest
@@ -133,13 +96,11 @@ export const salesReportApi = baseApi.injectEndpoints({
             }),
         }),
 
-        /** Every sale rung up as "Pay later" that hasn't been collected yet. */
         getPayLaterSales: builder.query<PayLaterSale[], void>({
             query: () => "/sales/pay-later",
             providesTags: ["PayLaterSales"],
         }),
 
-        /** Settles a pay-later sale once the money actually comes in. */
         collectPayLaterPayment: builder.mutation<
             PayLaterSale,
             { saleId: string; body: CollectPayLaterInput }

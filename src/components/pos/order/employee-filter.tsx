@@ -15,7 +15,7 @@ export interface EmployeeOption {
 
 export interface EmployeeFilterProps {
   employees: EmployeeOption[];
-  value: string | null; // null = "All employees"
+  value: string | null;
   onChange: (employeeId: string | null) => void;
   allowAll?: boolean;
   emptyLabel?: string;

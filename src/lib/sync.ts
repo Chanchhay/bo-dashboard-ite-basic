@@ -1,8 +1,6 @@
 import { db } from './db';
 import { baseApi } from './baseApi';
 
-/** True when there is nothing to send or it was accepted; false when it failed. */
-/** The extras on a queued line, as the ids the sync speaks in. */
 function addOnIdsOf(item: { add_ons?: { addOnId?: string | null }[] }) {
   return (item.add_ons ?? [])
     .map((addOn) => addOn.addOnId)
@@ -10,10 +8,6 @@ function addOnIdsOf(item: { add_ons?: { addOnId?: string | null }[] }) {
 }
 
 export async function syncOfflineOrders(dispatch?: any): Promise<boolean> {
-  // No navigator.onLine gate. It stays true behind a captive portal and with
-  // the backend down, and it can stay false on a machine that is in fact
-  // reachable — a request that fails is the only honest test, and failing
-  // costs nothing here because the queue is left untouched.
   const allOrders = await db.offline_orders.toArray();
   const unsyncedOrders = allOrders.filter((order) => !order.is_synced);
 
@@ -44,9 +38,6 @@ export async function syncOfflineOrders(dispatch?: any): Promise<boolean> {
           taxInclusionType: order.tax_inclusion_type ?? null,
           tax_inclusion_type: order.tax_inclusion_type ?? null,
           total: order.total,
-          // What the customer handed over and what came back. The queue is
-          // the only record of either — the order itself knows what was owed,
-          // not what happened at the till.
           paidAmount: order.paid_amount ?? null,
           paid_amount: order.paid_amount ?? null,
           changeAmount: order.change_amount ?? null,
@@ -80,12 +71,11 @@ export async function syncOfflineOrders(dispatch?: any): Promise<boolean> {
 
     if (response.ok) {
       const data = await response.json();
-      
+
       const syncedUuids: string[] = data.syncedUuids && Array.isArray(data.syncedUuids)
         ? data.syncedUuids
         : unsyncedOrders.map(o => o.uuid);
 
-      // Step 3: Remove Synced Orders from Local Storage
       for (const uuid of syncedUuids) {
         const localRecord = await db.offline_orders.where('uuid').equals(uuid).first();
         if (localRecord && localRecord.id) {
@@ -93,7 +83,6 @@ export async function syncOfflineOrders(dispatch?: any): Promise<boolean> {
         }
       }
 
-      // Step 1: Refetch Orders & Sales Data After Sync
       if (dispatch) {
         dispatch(
           baseApi.util.invalidateTags([

@@ -637,9 +637,6 @@ export function OptionPresetsTab() {
                                                                   colorHex:
                                                                       patch.colorHex,
                                                               }),
-                                                        // A preset value *is* the
-                                                        // colour's name, so naming
-                                                        // it here names the choice.
                                                         ...(patch.colorName ===
                                                         undefined
                                                             ? {}

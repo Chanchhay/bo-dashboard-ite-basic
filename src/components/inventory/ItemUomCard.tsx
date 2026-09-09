@@ -61,8 +61,6 @@ export function ItemUomCard({
     options?: readonly { id: string; name: string }[];
     lowStockDefault: number;
     lowStockError?: string;
-    /** Submit-time messages from the item schema, so the card's own fields
-     * report a failed save inline like every other field on the form. */
     unitError?: string;
     conversionsError?: string;
     draft: ItemUomDraft;
@@ -142,7 +140,6 @@ export function ItemUomCard({
         }
     }
 
-
     return (
         <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_8px_30px_rgba(26,34,43,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] sm:p-7">
             <div className="flex items-start gap-4">
@@ -217,9 +214,6 @@ export function ItemUomCard({
                         >
                             Warn me below
                         </Label>
-                        {/* Whole numbers only — the threshold is an integer
-                            end to end (schema `.int()`, backend `Integer`), so
-                            a decimal typed here could only be rejected on save. */}
                         <div className="flex items-center gap-2">
                             <Input
                                 id="lowStockDefault"
@@ -254,8 +248,6 @@ export function ItemUomCard({
                                     }
                                 }}
                                 onInput={(e) => {
-                                    // Splitting on "." keeps a pasted "2.5"
-                                    // as 2 rather than 25.
                                     e.currentTarget.value = clampStockInput(
                                         e.currentTarget.value.split(".")[0] ?? "",
                                         0,

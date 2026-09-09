@@ -1,23 +1,6 @@
 import { backendRequest } from "@/lib/api/backend";
 import type { StoredPushSubscription } from "./types";
 
-/**
- * Where push registrations live.
- *
- * This used to be a JSON file mirrored to disk on this process's own
- * filesystem — workable on a single long-running server, but silently empty
- * on a serverless deployment (Vercel included): each invocation can land on
- * a different instance, each with its own disk, so a subscription written by
- * one request was invisible to the next. The backend already has a real
- * database and is already the other end of this conversation — it is the
- * one that calls `/api/push/send` in the first place — so subscriptions are
- * rows there now, reached over `/api/v1/push-subscriptions` (a signed-in
- * user registering their own device) and `/api/v1/internal/push-subscriptions`
- * (this server asking who is subscribed, with no user session in the loop —
- * gated on `PUSH_INTERNAL_SECRET` instead, the same secret the backend sends
- * the other direction to reach `/api/push/send`).
- */
-
 function internalPushHeaders(): HeadersInit {
     const secret = process.env.PUSH_INTERNAL_SECRET;
 
@@ -58,15 +41,6 @@ function toStored(record: BackendSubscription): StoredPushSubscription {
     };
 }
 
-/**
- * Registers the caller's own device.
- *
- * Goes through `backendRequest`, which resolves the signed-in user's
- * Keycloak token from the current request — the backend derives whose
- * subscription this is from that token rather than trusting a userId this
- * call might otherwise be asked to pass, so a signed-in user can only ever
- * register their own.
- */
 export async function addSubscription(subscription: {
     userId: string;
     endpoint: string;
@@ -93,13 +67,6 @@ export async function removeSubscription(
     });
 }
 
-/**
- * Drops a dead registration wherever it is — used to prune a 404/410 from
- * the push service. Called from `send-push.ts`, which runs both from a
- * signed-in Server Action and from the secret-authenticated
- * `/api/push/send` webhook with no session at all, so this always goes
- * through the internal, secret-gated door rather than the per-user one.
- */
 export async function removeByEndpoint(endpoint: string): Promise<void> {
     const response = await fetch(
         `${getApiBaseUrl()}/api/v1/internal/push-subscriptions/by-endpoint?endpoint=${encodeURIComponent(endpoint)}`,
@@ -111,12 +78,6 @@ export async function removeByEndpoint(endpoint: string): Promise<void> {
     }
 }
 
-/**
- * Looks up subscriptions for a set of recipients — the one lookup with no
- * signed-in user to scope it to (the caller is asking on someone else's
- * behalf, or is the backend's own webhook), so it goes through the same
- * secret-gated internal endpoint as `removeByEndpoint`.
- */
 export async function getSubscriptionsForUsers(
     userIds: string[],
 ): Promise<StoredPushSubscription[]> {

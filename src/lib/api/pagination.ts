@@ -104,9 +104,6 @@ export function toPageResult<T>(
   };
 }
 
-/** The largest page this app ever asks the backend for. `size` arrives from a
- * query string, so without a ceiling anyone with a session could ask the
- * backend to materialise an unbounded page. */
 const MAX_PAGE_SIZE = 1000;
 const MAX_PAGE_NUMBER = 100_000;
 
@@ -117,8 +114,6 @@ export function pageQueryParams(
   const defaultSize = defaults?.size ?? MAX_PAGE_SIZE;
   const params = new URLSearchParams();
 
-  // Both are clamped rather than rejected: a nonsense page number is a
-  // malformed link, not something worth failing a list request over.
   params.set(
     "page",
     String(

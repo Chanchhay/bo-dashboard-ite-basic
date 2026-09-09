@@ -1,40 +1,29 @@
 import { z } from "zod";
 
-
 export type PosOrderItem = {
     id: string;
     itemId: string;
     variantId: string | null;
-    
+
     variantName?: string | null;
-    
+
     unitId?: string | null;
     unitName?: string | null;
     unitFactor?: number | null;
-    
+
     addOns?: { addOnId: string | null; name: string; unitPrice: number }[];
-    
+
     selections?: { attributeName: string; value: string; label: string }[];
     itemName: string;
     quantity: number;
-    /** How many of `quantity` a Buy X Get Y offer gave away — 0 for an ordinary line. */
     freeQuantity?: number;
     unitPrice: number;
     discountAmount: number;
-    /** Name of the discount that produced discountAmount for this line, if any. */
     discountLabel?: string | null;
     lineTotal: number;
     trackInventory?: boolean | null;
 };
 
-/**
- * What a line actually takes off the shelf, in the units stock is counted in.
- *
- * A pack is its whole factor: five bags of 10.5 are 52.5 apples, not five of
- * anything. The cart's ceiling and the deduction made when a sale is settled
- * have to agree on this figure — when they disagreed, the till refused the
- * sixth bag and then handed the same stock back the moment the sale was paid.
- */
 export function baseUnitsOf(line: {
     quantity: number;
     unitFactor?: number | null;
@@ -44,41 +33,35 @@ export function baseUnitsOf(line: {
 
 export type TaxInclusionType = "INCLUSIVE" | "EXCLUSIVE";
 
-
 export type PosOrder = {
     id: string;
     businessId: string;
     customerId: string | null;
-    /** From GlobalCustomer, not the order itself — how the business can reach whoever placed it. Absent on synthetic/offline order shapes built client-side. */
     customerPhone?: string | null;
     invoiceNumber: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
-    
+
     status: "PENDING" | "CONFIRMED" | "PAID" | "FAILED" | "CANCELLED";
-    
+
     paymentMethod?: "CASH" | "DIGITAL" | "PAY_LATER" | null;
+    paidAmount?: number | null;
+    changeAmount?: number | null;
+    tenderNote?: string | null;
     subtotal: number;
     discountAmount: number;
     discountId?: string | null;
     discountCode?: string | null;
-    /** What to call it on a receipt — the coupon code, the discount's own name, or "X% OFF". */
     discountLabel?: string | null;
     taxRate?: number | null;
     taxAmount?: number | null;
     taxInclusionType?: TaxInclusionType | null;
     total: number;
-    /**
-     * What the order is priced in. Null on an order the till is still holding
-     * locally and the server has not named a currency for yet — read as the
-     * business base rather than defaulted to a code, which would mislabel the
-     * amounts and convert them twice on the secondary line.
-     */
     currency: string | null;
-    
+
     displayCurrency: string | null;
     displayExchangeRate: number | null;
     note: string | null;
-    
+
     awaitingPayLaterApproval?: boolean;
     items: PosOrderItem[];
     createdDate: string | null;
@@ -94,7 +77,6 @@ export type PosOrderPage = {
     };
 };
 
-
 export type OrderSummary = {
     totals: {
         orders: number;
@@ -102,7 +84,7 @@ export type OrderSummary = {
         paid: number;
         pending: number;
     };
-    
+
     truncated: boolean;
 };
 
@@ -112,23 +94,19 @@ export type OrderChannelFilter = PosOrder["channel"] | "ALL";
 export type OrderHistoryQuery = {
     status?: OrderStatusFilter;
     channel?: OrderChannelFilter;
-    
+
     from?: string;
     to?: string;
 };
-
 
 export type OrderPageQuery = OrderHistoryQuery & {
     page?: number;
     size?: number;
 };
 
-
 export const ORDER_PAGE_SIZES = [10, 20, 25, 50, 100] as const;
 
-
 export const DEFAULT_PAGE_SIZE: (typeof ORDER_PAGE_SIZES)[number] = 25;
-
 
 export type PosReceipt = {
     id: string;
@@ -145,7 +123,7 @@ export type PosReceipt = {
 
 export type PosReceiptDetail = {
     order: PosOrder;
-    
+
     receipt: PosReceipt | null;
 };
 
@@ -160,15 +138,14 @@ export const parkOrderSchema = z.object({
 
 export type ParkOrderInput = z.infer<typeof parkOrderSchema>;
 
-
 export const POS_ORDER_COOKIE = "pos_order_id";
 
 export const addOrderItemSchema = z.object({
     itemId: z.uuid("Select a valid item."),
     variantId: z.uuid().optional(),
-    
+
     unitId: z.uuid().optional(),
-    
+
     addOnIds: z.array(z.uuid()).optional(),
     quantity: z.coerce
         .number()
@@ -180,8 +157,8 @@ export const addOrderItemSchema = z.object({
 });
 
 export const updateOrderItemSchema = z.object({
-    
-    
+
+
     quantity: z.coerce
         .number()
         .int("Quantity must be a whole number.")
@@ -193,7 +170,7 @@ export type UpdateOrderItemInput = z.infer<typeof updateOrderItemSchema>;
 
 export const payOrderSchema = z.object({
     paymentMethod: z.enum(["CASH", "DIGITAL", "PAY_LATER"]),
-    
+
     receivedAmount: z.coerce.number().nonnegative().optional(),
     note: z.string().trim().max(200).optional(),
     isTaxActive: z.boolean().optional(),
@@ -215,24 +192,22 @@ export const setOrderDiscountSchema = z.object({
     discountAmount: z.coerce.number().min(0, "Discount amount cannot be negative."),
     discountId: z.string().nullable().optional(),
     discountCode: z.string().nullable().optional(),
-    /** More than one simultaneously-active discount, each auto-matched to its own line. */
     discountIds: z.array(z.string()).nullable().optional(),
 });
 
 export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;
 export type SetOrderDiscountInput = z.infer<typeof setOrderDiscountSchema>;
 
-
 export type Khqr = {
-    
+
     qr: string | null;
     md5: string | null;
     amount: number;
     currency: string;
     billNumber: string | null;
-    
+
     expiresAt: string | null;
-    
+
     qrImage: string | null;
 };
 
@@ -246,13 +221,12 @@ export type PaymentStatus = {
     paidAt: string | null;
 };
 
-
 export type Sale = {
     id: string;
     orderId: string;
     invoiceNumber: string | null;
     cashierId: string | null;
-    
+
     customerId: string | null;
     customerName: string | null;
     customerPhone: string | null;
@@ -260,18 +234,16 @@ export type Sale = {
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
     subtotal: number;
     discountAmount: number;
-    /** What to call it on a receipt — the coupon code, the discount's own name, or "X% OFF". */
     discountLabel?: string | null;
     taxRate?: number | null;
     taxAmount?: number | null;
     taxInclusionType?: TaxInclusionType | null;
     totalAmount: number;
     paidAmount: number;
-    
+
     changeAmount: number;
-    /** Null on a sale shaped client-side from an order the server had not named a currency for. */
     currency: string | null;
-    
+
     displayCurrency: string | null;
     displayExchangeRate: number | null;
     paymentMethod: "CASH" | "DIGITAL" | "PAY_LATER";

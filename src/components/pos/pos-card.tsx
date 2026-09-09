@@ -13,25 +13,11 @@ export interface PosCardProps {
   onSelect?: (item: Item) => void;
 }
 
-/**
- * One sellable item in the terminal grid.
- *
- * A real `<button>` rather than a clickable card: a cashier working by
- * keyboard has to be able to reach it, and the disabled state has to actually
- * refuse the press rather than only look dimmed.
- *
- * Sized by its grid cell instead of a fixed width, so the row stays even
- * however many columns the breakpoint gives it.
- */
 const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
   const { format } = useMoney();
   const isDisabled = item.is_available !== "ACTIVE" || item.price === null;
   const displayPrice = formattedPrice || format(item.price);
-  // Only worth saying while the item can still be sold: a dimmed card already
-  // carries "Out of stock", and two stock messages at once say less than one.
   const stockLeft = isDisabled ? undefined : item.lowStockLeft;
-  // Named, because the count is in the units stock is kept in and the item may
-  // well be sold in something larger.
   const stockLabel =
     stockLeft === undefined
       ? undefined
@@ -57,37 +43,29 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
       }`}
     >
       <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[25px] border border-white bg-white transition-shadow group-hover:shadow-md group-active:border-primary/40">
-        {/* Discount Badge on the card image */}
         {item.discountBadge && !isDisabled && (
           <span className="absolute top-2 right-2 z-10 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm ring-1 ring-white/50">
             {item.discountBadge}
           </span>
         )}
 
-        {/* Running out. Opposite corner from the discount badge so an item
-            that is both cheap and nearly gone says both. */}
         {stockLeft !== undefined ? (
           <span className="absolute top-2 left-2 z-10 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-background shadow-sm ring-1 ring-white/50">
             {stockLabel}
           </span>
         ) : null}
 
-        {/* Why it is dimmed. "Out of stock" needs a delivery and
-            "Unavailable" needs a switch flipped in Inventory — a cashier
-            cannot tell those apart from a faded card alone. */}
         {isDisabled && item.unavailableReason ? (
           <span className="absolute inset-x-0 bottom-0 z-10 bg-gray-900/75 px-2 py-1 text-center text-[11px] font-semibold text-white">
             {item.unavailableReason}
           </span>
         ) : null}
-        {/* Decorative — the button's aria-label already names the item. */}
         <ItemImage
           src={item.image_url}
           className="h-full w-full"
           imageClassName="opacity-95 group-active:scale-105 transition-transform duration-75"
         />
 
-        {/* Plus (+) Action Button */}
         {!isDisabled && (
           <span className="absolute bottom-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary shadow-md transition-transform duration-100 group-hover:scale-110 group-active:scale-95">
             <Plus className="h-4.5 w-4.5 stroke-[2.5]" />

@@ -14,12 +14,6 @@ import {
 
 type RouteContext = { params: Promise<{ itemId: string; addOnId: string }> };
 
-/**
- * Takes one add-on off an item's menu, or puts it back.
- *
- * Off is not detached: the item still offers it, so nothing about the setup is
- * lost while it is unavailable.
- */
 export async function PUT(request: Request, context: RouteContext) {
     try {
         const result = itemAddOnAvailabilitySchema.safeParse(

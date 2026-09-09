@@ -15,7 +15,6 @@ export interface PosTerminalProps {
   managerName: string;
   currentRegisterUser: { id: string; name: string } | null;
   registerCashSales?: number;
-  /** Currency the till was counted in, fixed when it opened. */
   registerCurrency?: string;
 }
 

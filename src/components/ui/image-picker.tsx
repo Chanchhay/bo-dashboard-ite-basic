@@ -14,17 +14,10 @@ import { ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ImageUploadRules } from "@/lib/api/image-upload";
 
-/**
- * Hands out blob URLs and revokes every one of them when the component goes
- * away. Previewing a picked file needs an object URL, and an unrevoked URL
- * pins the file in memory for the life of the tab.
- */
 export function useObjectUrls() {
     const urls = useRef<string[]>([]);
 
     useEffect(() => {
-        // The ref object is stable; its contents are read at cleanup time on
-        // purpose, so URLs created after mount are revoked too.
         const tracked = urls;
 
         return () => {
@@ -52,12 +45,6 @@ export function useObjectUrls() {
     return { create, release };
 }
 
-/**
- * A single image edited alongside a form: the pick and the "remove" intent are
- * both held until the form is saved, so cancelling never touches what is
- * stored. The preview is derived rather than copied, so a save that refreshes
- * `storedUrl` shows the new image without any syncing.
- */
 export function useStagedImage(rules: ImageUploadRules, storedUrl: string) {
     const { create, release } = useObjectUrls();
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -80,7 +67,6 @@ export function useStagedImage(rules: ImageUploadRules, storedUrl: string) {
         setError(null);
     }
 
-    /** Clears a pick, or stages the removal of what is stored. */
     function remove() {
         release(blobUrl);
         setBlobUrl(null);
@@ -89,7 +75,6 @@ export function useStagedImage(rules: ImageUploadRules, storedUrl: string) {
         setError(null);
     }
 
-    /** Drops every staged change and puts the stored image back on screen. */
     function reset() {
         release(blobUrl);
         setBlobUrl(null);
@@ -114,21 +99,12 @@ export function useStagedImage(rules: ImageUploadRules, storedUrl: string) {
 type PickerBase = {
     rules: ImageUploadRules;
     disabled?: boolean;
-    /** Shown under the control; falls back to the rules' own hint. */
     hint?: ReactNode;
     error?: string | null;
     className?: string;
-    /**
-     * Hand in a ref to let a button of your own open the file dialog — the
-     * "Change photo" links sit outside the drop target.
-     */
     inputRef?: RefObject<HTMLInputElement | null>;
 };
 
-/**
- * Runs every file past the rules so a drop of five pictures reports the first
- * real problem rather than failing later at the server.
- */
 function firstError(files: File[], rules: ImageUploadRules) {
     for (const file of files) {
         const message = rules.validate(file);
@@ -155,7 +131,6 @@ function useDropTarget({
             return;
         }
 
-        // Without this the browser navigates to the dropped file.
         event.preventDefault();
         setIsOver(true);
     }
@@ -184,10 +159,6 @@ function useDropTarget({
     return { isOver, dropProps: { onDragOver, onDragLeave, onDrop } };
 }
 
-/**
- * One image: a click-or-drop target that renders whatever preview the caller
- * gives it — an avatar circle, a logo tile, a wide cover.
- */
 export function ImagePicker({
     rules,
     disabled,
@@ -203,15 +174,10 @@ export function ImagePicker({
     onPick,
     onError,
 }: PickerBase & {
-    /** The heading inside the drop target. */
     label: ReactNode;
-    /** The image, initials or placeholder to show. */
     preview: ReactNode;
-    /** Buttons rendered under the hint, e.g. Remove or Undo. */
     actions?: ReactNode;
-    /** Renders a veil over the preview while a save is in flight. */
     busy?: boolean;
-    /** Shapes that veil to the preview it covers. */
     previewShape?: "circle" | "rect";
     onPick: (file: File) => void;
     onError: (message: string) => void;
@@ -257,7 +223,6 @@ export function ImagePicker({
                     className="sr-only"
                     onChange={(event) => {
                         const files = Array.from(event.target.files || []);
-                        // Let the same file be picked again after an undo.
                         event.target.value = "";
                         handleFiles(files);
                     }}
@@ -304,10 +269,6 @@ export function ImagePicker({
     );
 }
 
-/**
- * Many images at once: an empty drop target that turns into the caller's own
- * gallery once there is something to show.
- */
 export function ImageDropzone({
     rules,
     disabled,
@@ -322,9 +283,7 @@ export function ImageDropzone({
     onError,
 }: PickerBase & {
     label: ReactNode;
-    /** How many more files fit; a drop of more than this is refused. */
     remaining: number;
-    /** The gallery. When absent the drop target is shown instead. */
     children?: ReactNode;
     onPick: (files: File[]) => void;
     onError: (message: string) => void;

@@ -32,8 +32,6 @@ function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-/** Mirrors the backend's TaxCalculator exactly, so this preview never
- * promises a number a real checkout wouldn't also charge. */
 function computeTax(
   netAmount: number,
   rate: number,
@@ -185,8 +183,6 @@ function TaxesEditor({
     }
   };
 
-  // Real receipt preview objects — a believable two-item ticket so every
-  // part of the layout (unit price, discount, subtotal) has something to show.
   const previewRate = taxRate.trim() === "" ? 10 : Number(taxRate);
   const previewLabel = taxName.trim() || "VAT";
   const previewInclusionType: TaxInclusionType = isTaxInclusive ? "INCLUSIVE" : "EXCLUSIVE";
@@ -296,7 +292,6 @@ function TaxesEditor({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner & Header (sticky on desktop only) */}
       <div className="static lg:sticky lg:top-0 lg:z-20 -mx-5 px-5 lg:-mx-8 lg:px-8 pt-2 pb-2.5 bg-shell/95 lg:backdrop-blur-md transition-all flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -318,9 +313,7 @@ function TaxesEditor({
       )}
 
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Main Settings Form */}
         <form onSubmit={handleSave} className="lg:col-span-7 space-y-6">
-          {/* Card 1: Status Options */}
           <div data-tour="tax-status-toggle" className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
             <div className="border-b pb-4 flex items-center justify-between">
               <div>
@@ -342,7 +335,6 @@ function TaxesEditor({
             </div>
 
             <div className="space-y-6">
-              {/* Enable Tax Toggle */}
               <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="isActive" className="text-base font-medium cursor-pointer">
@@ -361,7 +353,6 @@ function TaxesEditor({
             </div>
           </div>
 
-          {/* Card 2: Basic Tax Identity & Mode (Grayed out when tax is disabled) */}
           <div
             className={cn(
               "rounded-xl border bg-card p-6 shadow-sm space-y-6 transition-all duration-200",
@@ -383,7 +374,6 @@ function TaxesEditor({
             )}
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Tax Name */}
               <div data-tour="tax-name-input" className="space-y-2 sm:col-span-2">
                 <Label htmlFor="taxName" className="font-medium text-foreground">
                   Tax Label / Name <span className="text-destructive">*</span>
@@ -402,7 +392,6 @@ function TaxesEditor({
                 </p>
               </div>
 
-              {/* Tax Rate */}
               <div data-tour="tax-rate-input" className="space-y-2 sm:col-span-2">
                 <Label htmlFor="taxRate" className="font-medium text-foreground">
                   Tax Rate Percentage (%)
@@ -426,7 +415,6 @@ function TaxesEditor({
                 </div>
               </div>
 
-              {/* Tax Pricing Mode (Exclusive vs Inclusive) */}
               <div data-tour="tax-mode-selection" className="space-y-2 sm:col-span-2 pt-2 border-t">
                 <Label className="font-medium text-foreground">Tax Pricing Mode</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -490,7 +478,6 @@ function TaxesEditor({
             </div>
           </div>
 
-          {/* Save Button Action Bar */}
           <div data-tour="tax-save-btn" className="flex justify-end pt-2">
             <Button
               type="submit"
@@ -512,7 +499,6 @@ function TaxesEditor({
           </div>
         </form>
 
-        {/* Authentic Receipt Ticket Preview Panel */}
         <div data-tour="tax-receipt-preview" className="lg:col-span-5 space-y-4">
           <div className="rounded-xl border bg-card p-5 shadow-sm sticky top-[86px]">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
@@ -521,7 +507,6 @@ function TaxesEditor({
               </h3>
             </div>
 
-            {/* Receipt Ticket Render */}
             <div className="flex justify-center py-2">
               <ReceiptTicket
                 business={previewBusiness}

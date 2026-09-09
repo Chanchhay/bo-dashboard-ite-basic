@@ -57,7 +57,6 @@ import { useGetCustomersQuery } from "@/services/customerApi";
 import { useGetInventoryItemOptionsQuery } from "@/services/inventoryApi";
 import { TourButton } from "@/components/onboarding/TourButton";
 
-
 const STATUS_FILTERS = [
     "ALL",
     "PENDING",
@@ -106,7 +105,6 @@ function rangeStart(filter: DateFilter): string | undefined {
 
     return start.toISOString();
 }
-
 
 export default function SalesOrdersPage() {
     const { format } = useMoney();
@@ -199,7 +197,6 @@ export default function SalesOrdersPage() {
     const businessQuery = useGetBusinessProfileQuery();
     const currenciesQuery = useGetBusinessCurrenciesQuery();
 
-
     const itemOptionsQuery = useGetInventoryItemOptionsQuery();
     const itemThumbnailById = useMemo(() => {
         const map = new Map<string, string | undefined>();
@@ -208,7 +205,6 @@ export default function SalesOrdersPage() {
         }
         return map;
     }, [itemOptionsQuery.data]);
-
 
     const { data: customers = [] } = useGetCustomersQuery();
     const customerNameById = useMemo(() => {
@@ -256,20 +252,10 @@ export default function SalesOrdersPage() {
     const { data, error, isLoading, isFetching, refetch } =
         useGetOrderHistoryQuery({ status, channel, from, page, size: pageSize });
     const pendingOfflineOrders = usePendingOfflineOrders();
-    // A queued sale has no server record, so the receipt reads what the
-    // till banked: the amount handed over, and the change given back.
     const pendingOfflineSales = usePendingOfflineSales();
 
-    // Cached on the filters alone, so turning a page never recounts the range.
     const summaryQuery = useGetOrderSummaryQuery({ status, channel, from });
 
-    /*
-     * Sales still waiting to reach the server.
-     *
-     * They live on this device, so the filters the server applied to its page
-     * have to be applied to them here — otherwise a Paid-only or Web-only view
-     * still lists them, and a date range excludes everything except them.
-     */
     const offlineOrders = useMemo(
         () =>
             pendingOfflineOrders.filter((order: PosOrder) => {
@@ -285,13 +271,6 @@ export default function SalesOrdersPage() {
         [pendingOfflineOrders, status, channel, from],
     );
 
-    /*
-     * Pinned to the first page, not repeated on every one.
-     *
-     * They are not part of the server's paging, so prepending them to each
-     * page it returned put the same unsynced sale on page one, page two and
-     * page nine — and made every page one row too long.
-     */
     const orders = useMemo(() => {
         const serverOrders = data?.content ?? [];
         const offlineIds = new Set(offlineOrders.map((o: PosOrder) => o.id));
@@ -306,9 +285,6 @@ export default function SalesOrdersPage() {
     const totals = summaryQuery.data?.totals;
     const metadata = data?.page;
 
-    // Only a PAID order has a receipt — the backend rejects anything else
-    // with a 409, so an order still awaiting payment renders straight from
-    // the row data it already has instead of asking for one.
     const selectedOrder = useMemo(
         () => orders.find((order) => order.id === selectedOrderId) ?? null,
         [orders, selectedOrderId],
@@ -353,14 +329,10 @@ export default function SalesOrdersPage() {
     );
 
     const pageCount = Math.max(metadata?.totalPages ?? 0, 1);
-    // The unsynced ones are real sales, so they are counted. They ride on the
-    // first page, which is why the running span is handed to the bar rather
-    // than left to page × size.
     const totalElements =
         (metadata?.totalElements ?? rows.length) + offlineOrders.length;
     const rowsBefore = page === 0 ? 0 : offlineOrders.length + page * pageSize;
 
-    /** Any filter change starts the list from the first page again. */
     function applyFilter<T>(set: (next: T) => void) {
         return (next: T) => {
             set(next);
@@ -448,12 +420,6 @@ export default function SalesOrdersPage() {
                     />
                 </section>
 
-                {/*
-                  * A dash on every card is honest but silent — it reads the
-                  * same whether the totals are still coming or never will.
-                  * The table below says when it could not load; these say so
-                  * too, rather than leaving the reader to guess which.
-                  */}
                 {summaryQuery.error ? (
                     <p role="alert" className="-mt-2 text-[13px] text-danger">
                         Totals could not be loaded.{" "}
@@ -561,15 +527,6 @@ export default function SalesOrdersPage() {
                             </div>
                         )}
 
-                        {/*
-                          * Said plainly, because the count below cannot say it.
-                          *
-                          * The search runs over the orders already loaded, so
-                          * the total beside it is the range's total and not the
-                          * number of matches — a reader comparing "3" against
-                          * "of 252" would otherwise conclude the other 249 did
-                          * not match, rather than that they were never looked at.
-                          */}
                         {search && (
                             <p className="border-t border-border bg-card px-4 py-2 text-[13px] text-muted-foreground">
                                 Showing matches from this page only. Turn the
@@ -600,7 +557,6 @@ export default function SalesOrdersPage() {
                 )}
             </section>
 
-            {/* Order Detail Modal Dialog */}
             <Dialog
                 open={Boolean(selectedOrderId)}
                 onOpenChange={(open) => !open && setSelectedOrderId(null)}
@@ -667,7 +623,6 @@ export default function SalesOrdersPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Cancel Order Confirmation Modal */}
             <CancelOrderDialog
                 open={Boolean(orderToCancel)}
                 orderName={orderToCancel?.invoiceNumber || orderToCancel?.note?.trim() || "This order"}
@@ -692,7 +647,6 @@ export default function SalesOrdersPage() {
                 }}
             />
 
-            {/* Digital Menu QR Code Modal */}
             <MenuQRModal
                 isOpen={isQrModalOpen}
                 onClose={() => setIsQrModalOpen(false)}
@@ -701,7 +655,6 @@ export default function SalesOrdersPage() {
         </div>
     );
 }
-
 
 function matchesSearch(
     order: PosOrder,
@@ -734,7 +687,6 @@ function matchesSearch(
     );
 }
 
-
 function ItemThumbnail({
     url,
     size = "size-7",
@@ -742,8 +694,6 @@ function ItemThumbnail({
     url?: string;
     size?: string;
 }) {
-    // An item with no picture, and one whose hosted picture has gone, both get
-    // the house fallback — the same one the till shows on its grid.
     return <ItemImage src={url} className={`${size} shrink-0 rounded-md`} />;
 }
 
@@ -786,8 +736,6 @@ function OrderCard({
         ? parseFloat((afterDiscount + taxAmt).toFixed(2))
         : order.total;
 
-    // Recorded the moment the customer orders — status alone can bury that
-    // among cards that already settled, so it also gets a tinted card.
     const isAwaitingPayment =
         order.status === "PENDING" ||
         order.status === "CONFIRMED" ||
@@ -900,8 +848,6 @@ function OrderCard({
                             <button
                                 type="button"
                                 onClick={(event) => {
-                                    // The card underneath opens the receipt dialog —
-                                    // this is a different action entirely.
                                     event.stopPropagation();
                                     onApprovePayLater();
                                 }}
@@ -919,7 +865,6 @@ function OrderCard({
     );
 }
 
-/** Every line on an order: thumbnail, name/variant, quantity, unit price and line total. */
 function LineItemListPanel({
     order,
     itemThumbnailById,
@@ -1007,7 +952,6 @@ const CHANNEL_LABELS: Record<PosOrder["channel"], string> = {
     WEB: "Web Store",
 };
 
-/** "Sugar Level: 50% / Grey / S" — everything that says how a line was made or chosen. */
 function lineItemSubtitle(item: PosOrder["items"][number]) {
     const parts = [
         item.variantName,
@@ -1016,7 +960,6 @@ function lineItemSubtitle(item: PosOrder["items"][number]) {
 
     return parts.join(" / ");
 }
-
 
 function formatOrderDate(value: string | null) {
     if (!value) return "—";
@@ -1041,7 +984,6 @@ function Stat({ label, value }: { label: string; value: string }) {
         </div>
     );
 }
-
 
 function FilterGroup<T extends string>({
     label,

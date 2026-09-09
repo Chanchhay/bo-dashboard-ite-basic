@@ -5,7 +5,6 @@ export default async function PosLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Same gate as the dashboard: the register is business-scoped too.
   await requireBusiness();
 
   return (

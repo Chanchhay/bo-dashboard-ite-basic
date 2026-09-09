@@ -127,7 +127,6 @@ function PriceRange({
     );
 }
 
-/** Name, SKU and whether Inventory will let it be sold at all. */
 function ItemCell({
     item,
     detail,
@@ -182,18 +181,15 @@ export function ItemPricingTable({
     onManageChannels,
 }: {
     scope: "BASE" | "CHANNEL";
-    /** Just this page of them. */
     items: InventoryItem[];
     channels: SalesChannel[];
     channelsByItem: Map<string, Set<string>>;
     format: (value: number) => string;
     unitCosts: Map<string, number>;
-    /** What one base unit of a given option of a given item cost. */
     unitCostFor: (itemId: string) => UnitCostLookup;
     addOnCosts: Map<string, number>;
     drafts: PriceDrafts;
     overrides: Record<string, DraftOverride>;
-    /** Item ids the channel sells. Ignored on base. */
     enabled: Set<string>;
     globalRule?: PriceOverride;
     channelName?: string;
@@ -208,7 +204,6 @@ export function ItemPricingTable({
         <div
             className="overflow-clip rounded-2xl border border-border bg-card shadow-xs"
         >
-            {/* Mobile Cards (< md) */}
             <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                 {items.map((item) => {
                     const sellable = item.status !== "INACTIVE";
@@ -253,7 +248,6 @@ export function ItemPricingTable({
                                 (isBase || listed) && "cursor-pointer hover:border-primary/40 active:scale-[0.99]"
                             )}
                         >
-                            {/* Card Header */}
                             <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                 <div className="flex flex-col min-w-0 pr-2">
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -290,7 +284,6 @@ export function ItemPricingTable({
                                 </Button>
                             </div>
 
-                            {/* Card Key-Value Rows */}
                             <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                 <div className="flex items-center justify-between px-3.5 py-2.5">
                                     <span className="text-muted-foreground dark:text-slate-400">Category</span>
@@ -357,7 +350,6 @@ export function ItemPricingTable({
                 })}
             </div>
 
-            {/* Desktop Table (>= md) */}
             <div className="hidden md:block overflow-x-auto">
                 <Table>
                     <TableHeader>

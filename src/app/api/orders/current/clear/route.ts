@@ -6,12 +6,6 @@ import {
     ordersPath,
 } from "@/lib/api/pos-order-backend";
 
-/**
- * Abandons the sale.
- *
- * The order is cancelled rather than emptied, so a walked-away customer leaves
- * a record instead of vanishing. The next tap opens a fresh cart.
- */
 export async function POST() {
     try {
         const order = await getCurrentOrder();

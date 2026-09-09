@@ -12,7 +12,6 @@ type NominatimReverseResult = {
     address?: Record<string, string>;
 };
 
-/** Reverse-geocodes a dropped/dragged pin into province/district/commune text. */
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const lat = searchParams.get("lat");
@@ -22,9 +21,6 @@ export async function GET(request: NextRequest) {
         return Response.json({ message: "lat and lon are required" }, { status: 400 });
     }
 
-    // Checked here rather than left to Nominatim: a garbled pin is a bad
-    // request, not a failure of theirs, and it should not cost a call against
-    // their rate limit to find that out.
     const latitude = Number(lat);
     const longitude = Number(lon);
 

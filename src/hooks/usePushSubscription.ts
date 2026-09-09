@@ -27,12 +27,6 @@ export interface PushSubscriptionState {
   unsubscribe: () => Promise<{ success: boolean; error?: string }>;
 }
 
-/**
- * The one place that knows how to turn this device's notification
- * permission into a saved subscription — shared by the full diagnostics
- * panel on `/pwa-test` and the plain toggle on Settings, so "subscribed" can
- * never mean something different depending on which screen asked.
- */
 export function usePushSubscription(): PushSubscriptionState {
   const [isSupported, setIsSupported] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);

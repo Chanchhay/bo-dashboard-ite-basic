@@ -4,7 +4,6 @@ import type { StockBatch } from "@/lib/api/inventory";
 
 type RouteContext = { params: Promise<{ itemId: string }> };
 
-/** The deliveries still on the shelf for one item, in the order they sell. */
 export async function GET(_request: Request, context: RouteContext) {
     try {
         const [{ itemId }, businessId] = await Promise.all([

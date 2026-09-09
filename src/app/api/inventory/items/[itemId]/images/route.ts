@@ -13,7 +13,6 @@ type ItemRouteContext = {
     params: Promise<{ itemId: string }>;
 };
 
-/** Adds images to an item that already exists; they append to the gallery. */
 export async function POST(
     request: Request,
     context: ItemRouteContext,
@@ -33,7 +32,6 @@ export async function POST(
             context.params,
             getInventoryBusinessId(),
         ]);
-        // Rebuilt so only the `files` parts the backend binds are forwarded.
         const upload = new FormData();
 
         for (const file of files) {

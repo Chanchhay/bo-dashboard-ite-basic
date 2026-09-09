@@ -50,7 +50,7 @@ export async function getCurrentRegisterSession(): Promise<RegisterSession | nul
             `/api/v1/sessions/${encodeURIComponent(sessionId)}/summary`,
         );
 
-        
+
         if (session.status !== "OPEN") {
             cookieStore.delete(POS_SESSION_COOKIE);
             return null;
@@ -58,7 +58,7 @@ export async function getCurrentRegisterSession(): Promise<RegisterSession | nul
 
         return normalizeRegisterSession(session);
     } catch (error) {
-        
+
         if (
             error instanceof BackendApiError &&
             (error.status === 404 || error.status === 400)

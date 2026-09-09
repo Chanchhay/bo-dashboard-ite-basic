@@ -14,13 +14,11 @@ import type {
 
 export const salesChannelApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
-        // GET /api/v1/sales-channels
         getSalesChannels: builder.query<SalesChannel[], void>({
             query: () => "/sales-channels",
             providesTags: ["SalesChannels"],
         }),
 
-        // POST /api/v1/item-channels
         createItemChannel: builder.mutation<ItemChannel, CreateItemChannelInput>({
             query: (body) => ({
                 url: "/item-channels",
@@ -30,10 +28,6 @@ export const salesChannelApi = baseApi.injectEndpoints({
             invalidatesTags: ["ItemChannels"],
         }),
 
-        // GET /api/v1/sales-channels/{channelCode}/items
-        // The items already published to a channel. Used for membership: the
-        // backend answers with items, not item-channel links, so removing one
-        // still needs its link id looked up by item.
         getChannelItems: builder.query<ChannelItem[], string>({
             query: (channelCode) => `/sales-channels/${channelCode}/items`,
             providesTags: (_result, _error, channelCode) => [
@@ -42,13 +36,6 @@ export const salesChannelApi = baseApi.injectEndpoints({
             ],
         }),
 
-        /**
-         * What this channel may still sell, across everything it sells.
-         *
-         * One read for a whole till screen. Items the shop has not split are
-         * absent — they have no ceiling, and the screen already knows what is
-         * on the shelf.
-         */
         getChannelStockAvailability: builder.query<ChannelStockAvailability[], string>({
             query: (channelCode) => `/sales-channels/${channelCode}/stock`,
             providesTags: (_result, _error, channelCode) => [
@@ -58,7 +45,6 @@ export const salesChannelApi = baseApi.injectEndpoints({
             ],
         }),
 
-        // GET /api/v1/item-channels/items/{itemId}
         getItemChannelsByItem: builder.query<ItemChannel[], string>({
             query: (itemId) => `/item-channels/items/${itemId}`,
             providesTags: (_result, _error, itemId) => [
@@ -67,7 +53,6 @@ export const salesChannelApi = baseApi.injectEndpoints({
             ],
         }),
 
-        // PATCH /api/v1/item-channels/{id}/toggle
         toggleItemChannel: builder.mutation<
             ItemChannel,
             { id: string; body: ToggleItemChannelInput }
@@ -80,7 +65,6 @@ export const salesChannelApi = baseApi.injectEndpoints({
             invalidatesTags: ["ItemChannels"],
         }),
 
-        // DELETE /api/v1/item-channels/{id}
         deleteItemChannel: builder.mutation<void, string>({
             query: (id) => ({
                 url: `/item-channels/${id}`,
@@ -89,20 +73,8 @@ export const salesChannelApi = baseApi.injectEndpoints({
             invalidatesTags: ["ItemChannels"],
         }),
 
-        /**
-         * What one channel sells, charges instead, and when it is open.
-         *
-         * One read and one write for the whole channel: the screen is edited
-         * as a piece — a rule, some exceptions, some hours — and saving half
-         * of it would leave the shop looking at something it never chose.
-         */
         getChannelListing: builder.query<ChannelListing, string>({
             query: (channelId) => `/sales-channels/${channelId}/listing`,
-            // The generic tag as well as its own: publishing or unpublishing an
-            // item is a change to what a channel lists, but those endpoints are
-            // reached by link id and cannot name the channel they touched. A
-            // listing that only answered to its own id would keep showing an
-            // item that is no longer sold there until the page was reloaded.
             providesTags: (_result, _error, channelId) => [
                 { type: "ItemChannels", id: `listing-${channelId}` },
                 "ItemChannels",

@@ -13,7 +13,6 @@ const rawBaseQuery = fetchBaseQuery({
     credentials: "same-origin",
 });
 
-/** Set by the API routes when the sign-in is over rather than the call refused. */
 function isSessionExpired(payload: unknown) {
     return (
         typeof payload === "object" &&
@@ -39,14 +38,6 @@ const baseQueryWithSessionGuard: BaseQueryFn<
             result.error?.status === 404 &&
             isNoBusinessPayload(result.error.data)
         ) {
-            /*
-             * The sign-in is fine — the account simply has no business, which
-             * is the normal state of a platform administrator's account. Post
-             * rather than navigate: the route drops this app's session before
-             * showing the login page, so the middleware does not read the
-             * session cookie and send the browser back to /dashboard. The
-             * Keycloak session itself is left alone.
-             */
             leaving = true;
 
             const form = document.createElement("form");
@@ -64,19 +55,6 @@ const baseQueryWithSessionGuard: BaseQueryFn<
 export const baseApi = createApi({
     reducerPath: "api",
     baseQuery: baseQueryWithSessionGuard,
-    /*
-     * Seconds, not `true`.
-     *
-     * `true` refetched on every mount, so the cache never once served a
-     * navigation: stepping from Inventory to Sales and back re-hit the
-     * network and put a spinner over figures already on screen. A number
-     * refetches only when the cached answer is older than that, which keeps
-     * the data honest while making the second visit to a screen instant.
-     *
-     * The two places that genuinely cannot show a stale answer — the open
-     * order list and the KHQR payment poll — pass `true` at the call site,
-     * which still overrides this.
-     */
     refetchOnMountOrArgChange: 30,
     refetchOnReconnect: true,
     tagTypes: [

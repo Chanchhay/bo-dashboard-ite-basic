@@ -17,7 +17,6 @@ type UnitRouteContext = {
     params: Promise<{ unitId: string }>;
 };
 
-/** Only a unit this business owns resolves; platform units answer 404. */
 export async function PUT(request: Request, context: UnitRouteContext) {
     try {
         const result = unitSchema.safeParse(await readJsonBody(request));

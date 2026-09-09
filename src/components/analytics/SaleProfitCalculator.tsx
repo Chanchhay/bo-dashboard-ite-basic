@@ -58,11 +58,9 @@ const modeOptions: {
     },
 ];
 
-/** Margin starts here for every item — a neutral guess, not a real number. */
 const DEFAULT_MARGIN_PERCENT = 40;
 const DEFAULT_TARGET_MARGIN_PERCENT = 50;
 const DEFAULT_OPERATING_EXPENSE = 1200;
-/** Long enough that a typed digit isn't cut off by its own request. */
 const RECOMPUTE_DEBOUNCE_MS = 350;
 
 function downloadCsvFile(filename: string, rows: (string | number | null | undefined)[][]) {
@@ -206,8 +204,6 @@ export function SaleProfitCalculator() {
     const [itemMargins, setItemMargins] = useState<Record<string, number>>({});
     const [bulkMarginPercent, setBulkMarginPercent] = useState(DEFAULT_MARGIN_PERCENT);
 
-    // Cost, quantity, price and profit are all worked out server-side against
-    // a fresh read of inventory — this only decides which margins to ask for.
     const request: SaleProfitCalculatorRequest = useMemo(
         () => ({
             mode,
@@ -222,9 +218,6 @@ export function SaleProfitCalculator() {
         [mode, defaultMarginPercent, itemMargins, targetMarginPercent, operatingExpense],
     );
 
-    // Debounced so a fast typist doesn't fire a request per keystroke — the
-    // margin inputs below stay controlled by local state either way, so
-    // nothing the user sees resets while a request is in flight.
     const [debouncedRequest, setDebouncedRequest] = useState(request);
     useEffect(() => {
         const timer = window.setTimeout(
@@ -297,7 +290,6 @@ export function SaleProfitCalculator() {
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-            {/* Mode Switcher Tabs */}
             <div
                 role="tablist"
                 aria-label="Sale profit method"
@@ -361,7 +353,6 @@ export function SaleProfitCalculator() {
                 </div>
             ) : (
                 <>
-                    {/* Mode Specific Controller */}
                     {mode === "BUSINESS_TARGET" ? (
                         <Card data-tour="calculator-target-input" className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:shadow-md">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -412,12 +403,10 @@ export function SaleProfitCalculator() {
                         </Card>
                     ) : null}
 
-                    {/* KPI Metric Cards Grid */}
                     <div data-tour="calculator-kpi-grid" className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {recomputing ? (
                             <Loader2 className="absolute -top-3 right-0 size-4 animate-spin text-muted-foreground" />
                         ) : null}
-                        {/* 1. Revenue KPI */}
                         <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:shadow-md">
                             <div className="flex items-start justify-between">
                                 <div>
@@ -434,7 +423,6 @@ export function SaleProfitCalculator() {
                             </div>
                         </Card>
 
-                        {/* 2. Cost of Goods KPI */}
                         <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:shadow-md">
                             <div className="flex items-start justify-between">
                                 <div>
@@ -451,7 +439,6 @@ export function SaleProfitCalculator() {
                             </div>
                         </Card>
 
-                        {/* 3. Gross Profit KPI */}
                         <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:shadow-md">
                             <div className="flex items-start justify-between">
                                 <div>
@@ -468,7 +455,6 @@ export function SaleProfitCalculator() {
                             </div>
                         </Card>
 
-                        {/* 4. Gross Margin KPI */}
                         <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:shadow-md">
                             <div className="flex items-start justify-between">
                                 <div>
@@ -486,7 +472,6 @@ export function SaleProfitCalculator() {
                         </Card>
                     </div>
 
-                    {/* Table View */}
                     {mode === "PER_ITEM" ? (
                         <PerItemTable
                             rows={items}
@@ -508,7 +493,6 @@ export function SaleProfitCalculator() {
                         />
                     )}
 
-                    {/* Operating Expense & Net Profit KPI Bar */}
                     <Card data-tour="calculator-operating-expenses" className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex flex-wrap items-center gap-3">
@@ -540,7 +524,6 @@ export function SaleProfitCalculator() {
                                 </div>
                             </div>
 
-                            {/* Live Net Profit Result Card */}
                             <div className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 px-4 py-2.5 sm:justify-end">
                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                     Estimated Net Profit

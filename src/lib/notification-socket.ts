@@ -10,11 +10,6 @@ export interface SocketConnectParams {
     receiverId?: string;
 }
 
-/*
- * Resolved once per connect and again on every reconnect — `force` on the
- * latter, since the whole point of re-reading is to get a token the cached
- * copy no longer has.
- */
 function fetchCredentials(force = false) {
     return fetchSessionContext(force ? { force: true } : undefined);
 }
@@ -25,31 +20,17 @@ class NotificationSocketService {
     private isConnecting = false;
     private params: SocketConnectParams = {};
     private processedIds = new Set<string>();
-    /** Live STOMP subscriptions by destination, so re-subscribing is idempotent. */
     private subscriptions = new Map<string, StompSubscription>();
-    /** Keycloak subject for the signed-in user; the backend's notion of "who". */
     private subject: string | null = null;
 
     private subscribeTopics(): void {
         if (!this.client?.connected) return;
 
-        /*
-         * `/topic/notifications` is the one that actually delivers today:
-         * NotificationWebSocketPublisher broadcasts every notification there.
-         * `/user/queue/notifications` is kept for the day the backend adds a
-         * ChannelInterceptor — it registers none, so the STOMP session has no
-         * Principal and Spring can never route a user destination.
-         */
         const topicsToSubscribe = [
             "/topic/notifications",
             "/user/queue/notifications",
         ];
 
-        /*
-         * The backend addresses users by Keycloak subject. Better Auth's local
-         * `user.id` is a different value, so subscribe to both rather than
-         * betting on which one callers passed in.
-         */
         const receivers = new Set(
             [this.subject, this.params.receiverId, this.params.userId].filter(
                 (value): value is string => Boolean(value),
@@ -90,7 +71,6 @@ class NotificationSocketService {
         }
 
         if (this.client?.active) {
-            // Already up (or coming up); just widen the subscriptions.
             if (this.client.connected) {
                 this.subscribeTopics();
             }
@@ -103,24 +83,15 @@ class NotificationSocketService {
         void this.openClient();
     }
 
-    /*
-     * Split out because the socket URL is only known after asking the server,
-     * so the client cannot be constructed synchronously.
-     */
     private async openClient(): Promise<void> {
         const credentials = await fetchCredentials();
 
-        // disconnect() may have landed while the fetch was in flight.
         if (!this.isConnecting) return;
 
         if (credentials?.subject) {
             this.subject = credentials.subject;
         }
 
-        /*
-         * No URL means the server has no API_BASE_URL configured. Opening a
-         * socket then would just retry a dead address every 5s forever.
-         */
         if (!credentials?.wsUrl) {
             this.isConnecting = false;
             console.warn(
@@ -129,13 +100,6 @@ class NotificationSocketService {
             return;
         }
 
-        /*
-         * A raw WebSocket, not SockJS. SockJS opens with an XHR to /info, which
-         * is a CORS-preflighted cross-origin request; the upgrade handshake is
-         * not preflighted, so the backend's Origin check is the only gate. It
-         * also cannot be proxied through this app — Vercel forwards neither a
-         * WebSocket upgrade nor a long-lived streaming response.
-         */
         const client = new Client({
             brokerURL: credentials.wsUrl,
             debug: (str: string) => {
@@ -148,12 +112,6 @@ class NotificationSocketService {
             heartbeatOutgoing: 4000,
         });
 
-        /*
-         * Re-runs before every reconnect, so a long-lived tab reconnects with
-         * a freshly minted token instead of the one captured at page load.
-         * The URL is deliberately not re-read here — stompjs has already built
-         * the socket factory by this point.
-         */
         client.beforeConnect = async () => {
             const fresh = await fetchCredentials(true);
             const token = fresh?.accessToken ?? this.params.token;
@@ -173,7 +131,6 @@ class NotificationSocketService {
 
         client.onConnect = () => {
             this.isConnecting = false;
-            // The old client's subscriptions died with the socket.
             this.subscriptions.clear();
             this.subscribeTopics();
         };
@@ -255,14 +212,6 @@ class NotificationSocketService {
 
         return () => {
             this.callbacks.delete(callback);
-            /*
-             * Deliberately does NOT disconnect when the last listener leaves.
-             * The two listeners are an RTK Query cache entry and the toast
-             * listener, both of which churn on navigation and (in dev) on
-             * StrictMode's double-mount — tearing the socket down there meant
-             * reconnecting constantly and dropping messages in between.
-             * Teardown is `disconnect()`, called when the session goes away.
-             */
         };
     }
 
@@ -276,8 +225,6 @@ class NotificationSocketService {
         this.subject = null;
         this.processedIds.clear();
 
-        // Async: the socket is still closing after this returns, which is why
-        // `this.client` is cleared first so a racing connect() builds a new one.
         void client.deactivate();
     }
 }

@@ -14,7 +14,6 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-
 export async function GET() {
     const orderId = await readOrderId();
 
@@ -103,7 +102,6 @@ export async function GET() {
             soldAt: paymentStatus?.paidAt || new Date().toISOString(),
         };
 
-        // Settled, so this is no longer the cart.
         await forgetOrder();
 
         return Response.json(

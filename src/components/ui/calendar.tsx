@@ -5,14 +5,6 @@ import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 
-/*
- * The shadcn calendar, dressed in this app's palette.
- *
- * `globals.css` defines its own token set, so the stock classes (`bg-accent`,
- * `text-primary-foreground`, `ring-ring`) would emit nothing here — the styles
- * below use the tokens the rest of the app is built from, the same way
- * `button.tsx` does.
- */
 function Calendar({
   className,
   classNames,
@@ -44,8 +36,6 @@ function Calendar({
           "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
           "disabled:pointer-events-none disabled:opacity-30"
         ),
-        // The chosen day carries the fill; today carries only a ring, so the
-        // two are still distinguishable when they are the same day.
         selected:
           "[&>button]:bg-primary [&>button]:text-white [&>button]:hover:bg-primary/90",
         today: "[&>button]:ring-1 [&>button]:ring-primary/40",

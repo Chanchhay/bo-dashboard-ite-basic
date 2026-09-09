@@ -2,12 +2,6 @@ import { backendErrorResponse, backendRequest } from "@/lib/api/backend";
 import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { DailyChannelRevenue } from "@/lib/api/sales-report";
 
-/**
- * Revenue for every channel, broken out per day.
- *
- * A straight pass-through, same as `/api/sales/profit` — the grouping is the
- * database's job.
- */
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);

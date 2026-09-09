@@ -4,10 +4,6 @@ import { useState, type ChangeEvent, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * Tracks a field's length for the countdown without taking the input over —
- * `maxLength` already stops the typing, this only reports what is left.
- */
 export function useCharCount(initial = "") {
     const [length, setLength] = useState(initial.length);
 
@@ -18,13 +14,9 @@ export function useCharCount(initial = "") {
     };
 }
 
-/** Room the countdown needs, so typed text never runs under it. */
 export const charCountInputClassName = "pr-14";
 export const charCountTextareaClassName = "pb-7";
 
-/**
- * Wraps a capped input and parks the remaining count inside its trailing edge.
- */
 export function CharCountField({
     length,
     max,
@@ -35,7 +27,6 @@ export function CharCountField({
     length: number;
     max: number;
     variant?: "input" | "textarea";
-    /** For when the wrapper has to carry the field's own layout, in a flex row. */
     className?: string;
     children: ReactNode;
 }) {

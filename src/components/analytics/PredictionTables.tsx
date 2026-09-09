@@ -34,16 +34,11 @@ import {
 import { cn } from "@/lib/utils";
 import { PredictionSummary } from "@/components/analytics/PredictionSummary";
 
-/** Natural phrasing for sentences — "expected to sell more ___". */
 const WINDOW_PHRASE: Record<PredictionWindowKey, string> = {
     WEEK: "this week",
     MONTH: "this month",
 };
 
-/**
- * Formats trend metrics cleanly for business owners.
- * Converts raw backend % into absolute unit growth (+X units) vs previous baseline.
- */
 function getTrendDisplay(expectedDemandWindow: number, trendPercent: number | null) {
     if (trendPercent === null || trendPercent === 0) {
         return "0 units";

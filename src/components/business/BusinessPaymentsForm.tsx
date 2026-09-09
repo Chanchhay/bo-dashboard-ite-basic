@@ -380,7 +380,6 @@ function AccountForm({
                 </div>
 
                 <div className="sticky -bottom-8 z-30 -mx-5 -mb-5 mt-6 flex flex-wrap items-center justify-end gap-2.5 rounded-b-2xl border-t border-border bg-card px-5 py-3.5 sm:gap-3 sm:py-4">
-                    {/* Proves the settings work without ringing up a sale. */}
                     <Button
                         type="button"
                         data-tour="payments-test"

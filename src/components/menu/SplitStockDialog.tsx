@@ -39,14 +39,6 @@ import {
     useSaveItemChannelStockMutation,
 } from "@/services/inventoryApi";
 
-/**
- * How a shelf gets divided.
- *
- * Four ways because shops divide stock for different reasons: an even hand
- * when no channel is favoured, a percentage when one reliably outsells the
- * rest, a flat number when the shop is holding a fixed window open on each
- * channel, and shared for undoing all of it.
- */
 const methods = ["EVEN", "PERCENT", "FIXED", "SHARED"] as const;
 
 type SplitMethod = (typeof methods)[number];
@@ -58,7 +50,6 @@ const methodLabels: Record<SplitMethod, string> = {
     SHARED: "Back to shared",
 };
 
-/** How many planned rows the preview shows before it says "and the rest". */
 const previewLimit = 40;
 
 const methodHints: Record<SplitMethod, string> = {
@@ -68,36 +59,18 @@ const methodHints: Record<SplitMethod, string> = {
     SHARED: "Clears the split. Every channel sells from the full stock again.",
 };
 
-/** One thing an item counts, and what is on the shelf for it. */
 type Target = { variantId: string | null; name: string; onHand: number };
 
-/**
- * What one rule does to one shelf, spelled out.
- *
- * The rule is the same for every item; the answer is not, because the shelves
- * are not. "Split evenly" over four channels means five each on a shelf of
- * twenty and two-and-a-spare on a shelf of eleven — so the shop is shown the
- * numbers, per item and per option, before any of them are written.
- */
 type PlannedRow = {
     key: string;
     variantId: string | null;
     itemName: string;
     optionName: string | null;
     onHand: number;
-    /** Channel id -> what it gets. Channels with nothing are left out. */
     quantities: Record<string, number>;
     given: number;
 };
 
-/**
- * Splitting many items at once.
- *
- * The item form asks for a number per channel, which is the right question for
- * one item and an impossible one for eighty. Here the shop picks a rule
- * instead and the numbers are worked out per item from what is actually on its
- * shelf — the same allocation, arrived at by arithmetic rather than by typing.
- */
 export function SplitStockDialog({
     open,
     onClose,
@@ -126,9 +99,7 @@ export function SplitStockDialog({
     const [checkedChannelIds, setCheckedChannelIds] = useState<Set<string>>(
         new Set(),
     );
-    /** Channel id -> its share, as typed. Only read under "By percentage". */
     const [percentages, setPercentages] = useState<Record<string, string>>({});
-    /** The number every channel gets, under "Fixed amount each". */
     const [fixed, setFixed] = useState("");
     const [published, setPublished] = useState<Record<string, ChannelMembership>>(
         {},
@@ -136,8 +107,6 @@ export function SplitStockDialog({
     const [isSaving, setIsSaving] = useState(false);
     const [seeded, setSeeded] = useState(false);
 
-    // Opening the form starts on every channel and no items: the channels are
-    // the rule, the items are the choice.
     if (open && !seeded) {
         setSeeded(true);
         setCheckedChannelIds(new Set(activeChannels.map((channel) => channel.id)));
@@ -156,7 +125,6 @@ export function SplitStockDialog({
         [],
     );
 
-    /** Every balance the shop holds, keyed by the thing it is a balance of. */
     const onHandByTarget = useMemo(() => {
         const balances = new Map<string, number>();
 
@@ -210,13 +178,6 @@ export function SplitStockDialog({
         );
     }, [inventoryItems, search]);
 
-    /**
-     * The channels that can actually take a share of this item.
-     *
-     * A channel that does not sell the item is skipped rather than refused:
-     * the shop picked a rule for a batch, and one unpublished item in it is
-     * not a reason to stop. The backend rejects the pair anyway.
-     */
     const channelsFor = useCallback(
         (itemId: string) =>
             activeChannels.filter(
@@ -227,12 +188,6 @@ export function SplitStockDialog({
         [activeChannels, checkedChannelIds, published],
     );
 
-    /**
-     * What one item's shelf becomes under the chosen rule.
-     *
-     * Whole units only — half a jar cannot be given to Telegram — and always
-     * rounded down, so the arithmetic can never hand out more than is there.
-     */
     const planFor = useCallback(
         (item: InventoryItem): PlannedRow[] => {
             const channels = channelsFor(item.id);
@@ -245,9 +200,6 @@ export function SplitStockDialog({
 
                 if (onHand > 0 && method === "EVEN") {
                     const base = Math.floor(onHand / channels.length);
-                    // The odd units go to the first channels rather than
-                    // nowhere: rounding down alone would strand up to one unit
-                    // per channel on every split.
                     let spare = onHand - base * channels.length;
 
                     channels.forEach((channel) => {
@@ -269,9 +221,6 @@ export function SplitStockDialog({
                 }
 
                 if (onHand > 0 && method === "FIXED") {
-                    // The same number each, until the shelf runs out. The last
-                    // channel takes what is left rather than the full amount,
-                    // which is the only honest answer when there is not enough.
                     let left = onHand;
                     const wanted = Math.max(0, Math.floor(Number(fixed || 0)));
 
@@ -316,13 +265,6 @@ export function SplitStockDialog({
         [planFor],
     );
 
-    /**
-     * Every line the rule would write, for the items that were picked.
-     *
-     * Capped for display: a shop splitting its whole catalogue wants to see
-     * that the rule does the right thing on the first few, not to scroll two
-     * hundred rows. The count below says how many there are in total.
-     */
     const plannedRows = useMemo(() => {
         const rows: PlannedRow[] = [];
 
@@ -334,7 +276,6 @@ export function SplitStockDialog({
         return rows;
     }, [checkedItemIds, inventoryItems, planFor]);
 
-    /** What the button is about to do, counted before it does it. */
     const preview = useMemo(() => {
         const items = inventoryItems.filter((item) => checkedItemIds.has(item.id));
         let allocated = 0;
@@ -352,13 +293,6 @@ export function SplitStockDialog({
         return { items: items.length, allocated, skipped };
     }, [channelsFor, checkedItemIds, inventoryItems]);
 
-    /**
-     * The columns the preview shows.
-     *
-     * Only the ticked channels: a column of dashes for a channel nobody chose
-     * is a column of noise, and the table is already as wide as the shop's
-     * channel list.
-     */
     const previewChannels = useMemo(
         () => activeChannels.filter((channel) => checkedChannelIds.has(channel.id)),
         [activeChannels, checkedChannelIds],
@@ -443,8 +377,6 @@ export function SplitStockDialog({
             const mode: ChannelStockMode =
                 method === "SHARED" ? "SHARED" : "ALLOCATED";
 
-            // Settled rather than all: one item the backend refuses should not
-            // throw away the splits that were already written.
             const results = await Promise.allSettled(
                 items.map((item) =>
                     saveSplit({
@@ -509,8 +441,6 @@ export function SplitStockDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* What each channel already sells, so items it does not
-                    stock are left out of the rule. */}
                 {activeChannels.map((channel) => (
                     <ChannelMembershipProbe
                         key={channel.id}
@@ -594,10 +524,6 @@ export function SplitStockDialog({
                                 )}
                             </div>
 
-                            {/* Chips on one line rather than a column: the
-                                channel list is short and fixed, and a stacked
-                                one pushed the items and the preview — the two
-                                things worth reading — off the screen. */}
                             <div className="flex flex-wrap items-center gap-2">
                                 {activeChannels.map((channel) => {
                                     const isChecked = checkedChannelIds.has(
@@ -757,10 +683,6 @@ export function SplitStockDialog({
                         </div>
                     </div>
 
-                    {/* What the rule actually does, before it does it.
-                        The rule is one sentence; its answer is a different
-                        number for every shelf it lands on, and a shop cannot
-                        agree to what it has not been shown. */}
                     {method !== "SHARED" && plannedRows.length > 0 && (
                         <div className="space-y-2">
                             <div className="flex items-baseline justify-between">

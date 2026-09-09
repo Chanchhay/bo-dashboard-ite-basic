@@ -1,9 +1,3 @@
-/**
- * Sample catalogue for the static Sale Management pricing screens.
- *
- * Built around the beer case so packages are visible: one item, four sellable
- * units, one stock balance behind them. Delete once the API exists.
- */
 
 import type {
     ChannelListing,
@@ -148,8 +142,6 @@ export const sampleListings: ChannelListing[] = [
         channelId: "ch-web",
         itemIds: ["i-beer", "i-coffee", "i-croissant"],
         overrides: {
-            // Delivery packaging and handling, expressed as a rule so it holds
-            // when the base moves.
             "i-beer:u-case": { kind: "MARKUP_PERCENT", percent: 8 },
             "i-coffee:u-1kg": { kind: "MARKUP_AMOUNT", amount: 1.5 },
             "i-croissant:u-box6": { kind: "MARKUP_AMOUNT", amount: 2.5 },
@@ -164,7 +156,6 @@ export const sampleListings: ChannelListing[] = [
     },
 ];
 
-/** Builds a week where every day shares the same hours. */
 function everyDay(open: string, close: string): ChannelSchedule {
     return {
         alwaysOpen: false,
@@ -178,20 +169,16 @@ function everyDay(open: string, close: string): ChannelSchedule {
 }
 
 export const sampleSchedules: Record<string, ChannelSchedule> = {
-    // The till: open late on Friday and Saturday, closed Sunday.
     "ch-pos": (() => {
         const schedule = everyDay("07:00", "20:00");
         schedule.days.FRI.windows = [{ open: "07:00", close: "23:00" }];
-        // Runs past midnight — the window belongs to the day it starts on.
         schedule.days.SAT.windows = [{ open: "08:00", close: "01:00" }];
         schedule.days.SUN.closed = true;
         return schedule;
     })(),
 
-    // The storefront never sleeps; orders queue until someone picks them up.
     "ch-web": { alwaysOpen: true, days: everyDay("00:00", "23:59").days },
 
-    // Staffed by hand, so it takes orders over lunch and again in the evening.
     "ch-telegram": (() => {
         const schedule = everyDay("11:00", "14:00");
         for (const key of dayKeys) {

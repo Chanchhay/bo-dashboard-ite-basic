@@ -9,7 +9,6 @@ export type FacebookPageSetting = {
     active: boolean;
     welcomeMessage: string | null;
     miniAppEnabled: boolean;
-    /** Where the persistent menu's "Open Shop" button points when miniAppEnabled — null otherwise. */
     miniAppUrl: string | null;
 };
 

@@ -6,17 +6,6 @@ import {
 } from "@/lib/api/pos-order";
 import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
 
-/**
- * Attaches or detaches a customer on the current order.
- *
- * Two real backend shapes are tried — the order's own `/customer` endpoint,
- * then a plain PATCH on the order itself — because either could be the one
- * this backend actually implements. What used to follow both was a silent
- * fallback to a locally-fabricated order, which meant a customer that failed
- * to attach on the server still looked attached on the till. That is worse
- * than surfacing the failure: the receipt and the customer's purchase
- * history would silently disagree about who this sale was for.
- */
 export async function PATCH(request: Request) {
     try {
         const result = setOrderCustomerSchema.safeParse(await readJsonBody(request));

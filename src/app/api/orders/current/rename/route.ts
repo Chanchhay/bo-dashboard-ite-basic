@@ -9,12 +9,6 @@ const renameSchema = z.object({
     note: z.string().trim().max(200, "Name must be 200 characters or fewer."),
 });
 
-/**
- * Names the sale — a table number, or who it is for.
- *
- * Opens a cart if there isn't one, so a cashier can name an order before
- * ringing anything into it.
- */
 export async function PATCH(request: Request) {
     try {
         const result = renameSchema.safeParse(await readJsonBody(request));

@@ -85,7 +85,6 @@ export function AddOnDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Absent when creating. */
     addOn?: AddOn;
     units: readonly Unit[];
     usedByItems?: number;

@@ -28,7 +28,6 @@ type ToastInput = {
     tone?: ToastTone;
     title: string;
     description?: string;
-    /** Milliseconds before auto-dismiss. */
     duration?: number;
     onClick?: () => void;
 };
@@ -40,14 +39,8 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 const DEFAULT_TOAST_DURATION = 3500;
-/** Horizontal travel, in px, past which releasing the pointer dismisses. */
 const SWIPE_DISMISS_DISTANCE = 80;
 
-/*
- * The light values are the original ones — a white card whose only tone signal
- * is the icon and a 1px tinted ring. Dark just re-points those two at brighter
- * variants that survive the #1a1e29 surface; the shape stays identical.
- */
 const TONES: Record<
     ToastTone,
     { icon: typeof CircleCheck; iconClass: string; ring: string }
@@ -79,8 +72,6 @@ function ToastItem({
     const [dragOffset, setDragOffset] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const pointerStart = useRef<number | null>(null);
-    /* Mirrors dragOffset so finishSwipe reads the latest value without waiting
-       for a re-render. */
     const dragOffsetRef = useRef(0);
     const { icon: Icon, iconClass, ring } = TONES[item.tone];
 
@@ -121,8 +112,6 @@ function ToastItem({
         setDragOffset(0);
     }
 
-    /* A swipe ends in a click event too, so only treat it as an activation if
-       the pointer barely moved. */
     function handleClick() {
         if (!item.onClick || Math.abs(dragOffsetRef.current) > 4) {
             return;
@@ -133,8 +122,6 @@ function ToastItem({
     }
 
     return (
-        /* The entry animation lives on this wrapper and the swipe transform on
-           the child, so the two never write to the same `transform`. */
         <div className="pointer-events-auto w-full max-w-sm animate-in fade-in slide-in-from-right-4 duration-200 motion-reduce:animate-none">
             <div
                 role={item.tone === "error" ? "alert" : "status"}
@@ -235,10 +222,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <ToastContext.Provider value={value}>
             {children}
 
-            {/*
-             * `polite` so a success announcement waits its turn, and the region
-             * stays mounted so screen readers pick up later insertions.
-             */}
             <div
                 aria-live="polite"
                 aria-atomic="false"

@@ -79,7 +79,6 @@ export function Navbar({
 
   return (
     <nav className="scrollbar-hide sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#d9d9d9] bg-white/90 dark:bg-[#0f1219]/90 px-3 sm:px-4 lg:px-6">
-      {/* Left section: Hamburger (mobile) + Brand Logo */}
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <MobileMenu
           router={router}
@@ -90,15 +89,6 @@ export function Navbar({
           isOnline={isOnline}
         />
 
-        {/*
-          * The way out is shut while the connection is.
-          *
-          * The terminal is the only screen kept on the device; the dashboard
-          * behind this is fetched, so leaving mid-outage lands the cashier on
-          * a page that cannot load and no obvious way back to the till they
-          * were serving from. The cart survives — it is a row in IndexedDB —
-          * but the till is what they need, not a reload.
-          */}
         <button
           type="button"
           disabled={!isOnline}
@@ -119,7 +109,6 @@ export function Navbar({
         </button>
       </div>
 
-      {/* Center section: Search Bar + Category Selector (1025px+) */}
       <div className="hidden min-w-0 flex-1 items-center justify-center gap-2.5 px-3 min-[1025px]:flex">
         <div className="flex h-9 flex-1 min-w-[160px] max-w-[320px] items-center gap-2 rounded-full border border-brand-yellow bg-white/90 dark:bg-[#1a1e29] px-3 shadow-sm">
           <Search className="h-4 w-4 shrink-0 text-brand-yellow" />
@@ -141,7 +130,6 @@ export function Navbar({
         <MonitorToggle />
       </div>
 
-      {/* Right section: Controls, Avatar, Bell, Online Badge */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 lg:gap-3.5">
         <MobileSearchTrigger
           searchQuery={searchQuery}
@@ -481,9 +469,6 @@ function MobileSearchTrigger({
   }, [isOpen]);
 
   return (
-    /* Through 1024px: the inline search in the centre block only appears at
-       1025px, so anything narrower — iPad landscape included — has no other
-       way to search. */
     <div className="flex items-center min-[1025px]:hidden">
       <button
         type="button"
@@ -526,15 +511,6 @@ function MobileSearchTrigger({
   );
 }
 
-/**
- * Silences the till.
- *
- * Read through `useSyncExternalStore` rather than mirrored into state, so the
- * button and the sound module cannot disagree about whether sound is on. The
- * server snapshot is always "audible": the stored preference lives in
- * `localStorage`, which the server cannot see, and claiming muted before
- * hydration would flash the wrong icon.
- */
 function SoundToggle() {
   const muted = useSyncExternalStore(
     subscribeMuted,

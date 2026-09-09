@@ -42,10 +42,10 @@ export default async function OpenRegisterPage({
       closedChannel={
         channel.known && !channel.open
           ? {
-              channelName: channel.channelName,
-              todayHours: channel.todayHours,
-              summary: channel.summary,
-            }
+            channelName: channel.channelName,
+            todayHours: channel.todayHours,
+            summary: channel.summary,
+          }
           : null
       }
     />

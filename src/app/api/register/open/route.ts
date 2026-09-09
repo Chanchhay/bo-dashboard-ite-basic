@@ -9,16 +9,6 @@ import {
     type RegisterSession,
 } from "@/lib/api/pos-session";
 
-/**
- * Opens the shift.
- *
- * Each business has exactly one register, provisioned with the account, so the
- * backend resolves it from the caller — no register id to pass.
- *
- * The returned session id is also stored in an httpOnly cookie: closing the
- * register later needs it, and a cashier who reloads mid-shift must not be
- * locked out of their own drawer.
- */
 export async function POST(request: Request) {
     try {
         const result = openSessionSchema.safeParse(await readJsonBody(request));
@@ -30,12 +20,6 @@ export async function POST(request: Request) {
             );
         }
 
-        // A till may not open while the channel it sells through is shut.
-        // Enforced here rather than only on the button: the rule has to hold
-        // for any caller, not just the one that renders our UI.
-        //
-        // An unknown answer permits opening — a backend blip is not the shop
-        // being closed, and failing shut would stop trading over a hiccup.
         const channel = await getPosChannelState();
 
         if (channel.known && !channel.open) {
@@ -65,8 +49,6 @@ export async function POST(request: Request) {
             sameSite: "lax",
             secure: process.env.NODE_ENV === "production",
             path: "/",
-            // A shift is a working day at most. A cookie outliving the session
-            // would strand the terminal on an id the backend already closed.
             maxAge: 60 * 60 * 16,
         });
 

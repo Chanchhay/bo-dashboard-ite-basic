@@ -18,15 +18,6 @@ export async function processOfflineCheckout(params: {
   const uuid = `offline-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const createdAt = new Date().toISOString();
 
-  /*
-   * One queue.
-   *
-   * This used to write the sale to a second table as well, whose copy of each
-   * line dropped the option and the pack it was sold as. Whichever landed
-   * first won, and the backend then skipped the other as a duplicate — so a
-   * sale of a variant could reconcile against the item's own stock instead of
-   * the option's, and nothing downstream could tell.
-   */
   await db.offline_orders.add({
     uuid,
     channel: 'POS',
@@ -47,7 +38,6 @@ export async function processOfflineCheckout(params: {
     is_synced: false
   });
 
-  // Try syncing immediately; a failure just leaves it queued.
   if (typeof window !== "undefined" && navigator.onLine) {
     void syncOfflineOrders();
   }

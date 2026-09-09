@@ -7,12 +7,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
-/*
- * Modal surface for the app, built on Base UI's Dialog. Radius, border and
- * shadow follow the card treatment in `ui-registry.md` so a dialog reads as the
- * same material as the surfaces behind it, lifted.
- */
-
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogClose = DialogPrimitive.Close;
