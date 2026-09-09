@@ -282,6 +282,19 @@ export function CloseRegister({
   const totalExpected = openingAmount + revenue;
   const totalDifferent = totalCounted - totalExpected;
 
+  const formattedCountedBreakdown =
+    hasSecondary && (numBase > 0 || numSecondary > 0) && activeSecondaryCurrency
+      ? `${baseSymbol}${
+          baseDecimals > 0
+            ? numBase.toFixed(baseDecimals)
+            : Math.round(numBase).toLocaleString()
+        } ${baseCode} + ${secondarySymbol}${
+          secondaryDecimals > 0
+            ? numSecondary.toFixed(secondaryDecimals)
+            : Math.round(numSecondary).toLocaleString()
+        } ${activeSecondaryCurrency.code}`
+      : null;
+
   const handleDigit = useCallback(
     (digit: string) => {
       if (activeField === "base") {
@@ -689,10 +702,20 @@ export function CloseRegister({
                 <span className="text-xs font-semibold text-gray-500">
                   Total Counted Cash
                 </span>
-                <span className="text-base font-bold text-primary tabular-nums">
-                  {baseSymbol}
-                  {totalCounted.toFixed(baseDecimals)} {baseCode}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className="text-base font-bold text-primary tabular-nums">
+                    {baseSymbol}
+                    {baseDecimals > 0
+                      ? totalCounted.toFixed(baseDecimals)
+                      : Math.round(totalCounted).toLocaleString()}{" "}
+                    {baseCode}
+                  </span>
+                  {formattedCountedBreakdown && (
+                    <span className="text-[11px] font-medium text-gray-400 tabular-nums">
+                      {formattedCountedBreakdown}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs">
                 <span className="text-gray-500 font-medium">Difference</span>
@@ -790,7 +813,11 @@ export function CloseRegister({
             <Calculator className="h-4 w-4" />
             {isProcessing
               ? "Closing Register..."
-              : `Close Register (${baseSymbol}${totalCounted.toFixed(baseDecimals)})`}
+              : `Close Register (${baseSymbol}${
+                  baseDecimals > 0
+                    ? totalCounted.toFixed(baseDecimals)
+                    : Math.round(totalCounted).toLocaleString()
+                })`}
           </button>
         </div>
       </div>

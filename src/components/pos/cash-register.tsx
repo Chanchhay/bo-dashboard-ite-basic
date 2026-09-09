@@ -172,6 +172,19 @@ export function CashRegister({
 
   const totalOpeningBalance = numBase + convertedSecondaryToBase;
 
+  const formattedStartingBreakdown =
+    hasSecondary && (numBase > 0 || numSecondary > 0) && activeSecondaryCurrency
+      ? `${baseSymbol}${
+          baseDecimals > 0
+            ? numBase.toFixed(baseDecimals)
+            : Math.round(numBase).toLocaleString()
+        } ${baseCode} + ${secondarySymbol}${
+          secondaryDecimals > 0
+            ? numSecondary.toFixed(secondaryDecimals)
+            : Math.round(numSecondary).toLocaleString()
+        } ${activeSecondaryCurrency.code}`
+      : null;
+
   const handleDigit = useCallback(
     (digit: string) => {
       if (activeField === "base") {
@@ -366,7 +379,7 @@ export function CashRegister({
 
   return (
     <div data-tour="pos-open-register" className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-3 sm:p-6">
-      <div className="w-full max-w-[440px] rounded-[24px] sm:rounded-3xl bg-white shadow-sm overflow-hidden border border-gray-100">
+      <div className="w-full max-w-[460px] rounded-[24px] sm:rounded-3xl bg-white shadow-sm overflow-hidden border border-gray-100">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 bg-[#eff1f3]/90 px-4 sm:px-6 py-3.5 sm:py-4">
           <div className="flex items-center gap-2.5">
@@ -573,13 +586,26 @@ export function CashRegister({
 
             {/* Total Combined Starting Float Banner */}
             {hasSecondary && (
-              <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-gray-800">
-                <span className="text-xs font-semibold text-gray-500">
-                  Total Starting Cash
-                </span>
-                <span className="text-base font-bold text-primary tabular-nums">
-                  {baseSymbol}{totalOpeningBalance.toFixed(baseDecimals)} {baseCode}
-                </span>
+              <div className="flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-gray-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500">
+                    Total Starting Cash
+                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-base font-bold text-primary tabular-nums">
+                      {baseSymbol}
+                      {baseDecimals > 0
+                        ? totalOpeningBalance.toFixed(baseDecimals)
+                        : Math.round(totalOpeningBalance).toLocaleString()}{" "}
+                      {baseCode}
+                    </span>
+                    {formattedStartingBreakdown && (
+                      <span className="text-[11px] font-medium text-gray-400 tabular-nums">
+                        {formattedStartingBreakdown}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -653,7 +679,11 @@ export function CashRegister({
             <Calculator className="h-4 w-4" />
             {isLoading
               ? "Opening..."
-              : `Open Register (${baseSymbol}${totalOpeningBalance.toFixed(baseDecimals)})`}
+              : `Open Register (${baseSymbol}${
+                  baseDecimals > 0
+                    ? totalOpeningBalance.toFixed(baseDecimals)
+                    : Math.round(totalOpeningBalance).toLocaleString()
+                })`}
           </button>
         </form>
       </div>
