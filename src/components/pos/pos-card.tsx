@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { Plus } from "lucide-react";
 
 import { ItemImage } from "@/components/item/item-image";
 import { useMoney } from "@/hooks/useMoney";
@@ -85,6 +86,13 @@ const PosCardComponent = ({ item, formattedPrice, onSelect }: PosCardProps) => {
           className="h-full w-full"
           imageClassName="opacity-95 group-active:scale-105 transition-transform duration-75"
         />
+
+        {/* Plus (+) Action Button */}
+        {!isDisabled && (
+          <span className="absolute bottom-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary shadow-md transition-transform duration-100 group-hover:scale-110 group-active:scale-95">
+            <Plus className="h-4.5 w-4.5 stroke-[2.5]" />
+          </span>
+        )}
       </span>
 
       <span className="flex w-full flex-col">
