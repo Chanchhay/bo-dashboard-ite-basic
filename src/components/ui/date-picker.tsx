@@ -12,27 +12,12 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
-/**
- * A calendar date, held as `YYYY-MM-DD`.
- *
- * The same shape `<input type="date">` used, so the forms around it did not
- * have to learn a new one: an empty string still means "not set", and the
- * value still travels to the API as the day it names with no timezone on it.
- */
 export type DateValue = string
 
-/** `YYYY-MM-DD` in local time. Never `toISOString`, which shifts the day. */
 function toDateValue(date: Date): DateValue {
   return date.toLocaleDateString("en-CA")
 }
 
-/**
- * Midday rather than midnight.
- *
- * A date parsed at midnight and then shifted by a DST change lands on the
- * previous day; midday has twelve hours of slack in either direction, so the
- * calendar highlights the day the string actually names.
- */
 function parseDateValue(value: DateValue | undefined): Date | undefined {
   if (!value) return undefined
 
@@ -55,9 +40,7 @@ function DatePicker({
   id?: string
   value: DateValue
   onValueChange: (value: DateValue) => void
-  /** Earliest selectable day, as `YYYY-MM-DD`. */
   min?: DateValue
-  /** Latest selectable day, as `YYYY-MM-DD`. */
   max?: DateValue
   disabled?: boolean
   placeholder?: string
@@ -70,8 +53,6 @@ function DatePicker({
   const lower = parseDateValue(min)
   const upper = parseDateValue(max)
 
-  // Days outside the allowed span are shown but not selectable, so the reader
-  // can see where the limit falls rather than finding months simply missing.
   const outOfRange = [
     ...(lower ? [{ before: lower }] : []),
     ...(upper ? [{ after: upper }] : []),
@@ -108,16 +89,12 @@ function DatePicker({
             : placeholder}
         </span>
 
-        {/* Every date this app asks for is optional, so clearing one has to be
-            possible without emptying the field by hand. Rendered inside the
-            trigger as a span: a button inside a button is invalid markup. */}
         {selected && !disabled ? (
           <span
             role="button"
             tabIndex={-1}
             aria-label="Clear date"
             onClick={(event) => {
-              // The trigger would otherwise open the calendar it just cleared.
               event.stopPropagation()
               onValueChange("")
             }}
@@ -133,16 +110,11 @@ function DatePicker({
           mode="single"
           autoFocus
           selected={selected}
-          // Opens on the chosen month, or on the nearest allowed one when
-          // nothing is chosen yet — an expiry limited to next year should not
-          // open on a month every day of which is refused.
           defaultMonth={selected ?? lower ?? upper ?? new Date()}
           startMonth={lower}
           endMonth={upper}
           {...(outOfRange.length > 0 ? { disabled: outOfRange } : {})}
           onSelect={(date) => {
-            // Undefined means the chosen day was clicked again. The field is
-            // optional, so that clears it rather than being ignored.
             onValueChange(date ? toDateValue(date) : "")
             setOpen(false)
           }}
@@ -152,16 +124,8 @@ function DatePicker({
   )
 }
 
-/**
- * A date and a time together, held as `YYYY-MM-DDTHH:mm`.
- *
- * The shape `<input type="datetime-local">` used, and the shape
- * `new Date(value)` reads back as local time — so the scheduling this drives
- * still means the hour the shop typed rather than the same hour in UTC.
- */
 export type DateTimeValue = string
 
-/** A calendar and a clock are two questions; the value is one string. */
 function splitDateTime(value: DateTimeValue) {
   const [datePart = "", timePart = ""] = value ? value.split("T") : []
 
@@ -182,9 +146,7 @@ function DateTimePicker({
   id?: string
   value: DateTimeValue
   onValueChange: (value: DateTimeValue) => void
-  /** Earliest selectable day, as `YYYY-MM-DD`. */
   min?: DateValue
-  /** Latest selectable day, as `YYYY-MM-DD`. */
   max?: DateValue
   disabled?: boolean
   placeholder?: string
@@ -203,13 +165,6 @@ function DateTimePicker({
     ...(upper ? [{ after: upper }] : []),
   ]
 
-  /*
-   * Neither half is meaningful alone, so each fills in for the other.
-   *
-   * A day chosen before a time starts at midnight, and a time typed before a
-   * day is taken to mean today — otherwise the first thing the operator does
-   * is silently discarded.
-   */
   function commit(nextDate: DateValue, nextTime: string) {
     if (!nextDate && !nextTime) {
       onValueChange("")
@@ -277,8 +232,6 @@ function DateTimePicker({
           startMonth={lower}
           endMonth={upper}
           {...(outOfRange.length > 0 ? { disabled: outOfRange } : {})}
-          // Deliberately does not close: the time still has to be set, and a
-          // popover that shuts on the first click would hide the other half.
           onSelect={(date) => commit(date ? toDateValue(date) : "", timePart)}
         />
 

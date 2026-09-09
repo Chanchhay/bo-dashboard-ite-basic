@@ -6,19 +6,6 @@ const PRECACHE_ASSETS = [
 
 const POS_SHELL_URL = "/pos";
 
-/*
- * Development is served by the Next dev server, which owns the page lifecycle:
- * chunks are unhashed and change on every recompile, and the dev client falls
- * back to a full `location.reload()` whenever it cannot reconcile a build.
- * A worker sitting in front of that turns one reload into a permanent loop —
- * the page reloading itself every few hundred milliseconds.
- *
- * So the worker stays installed here (push, notifications and the install
- * prompt still work) but hands every request straight to the network. Offline
- * behaviour is unchanged in production; to exercise it locally, run a
- * production build — `npm run build && npm start` — which is the only way to
- * test it against the hashed assets it actually ships with.
- */
 const IS_DEV = new URL(self.location.href).searchParams.get("mode") === "dev";
 
 self.addEventListener("push", function (event) {
@@ -91,19 +78,6 @@ self.addEventListener("activate", (event) => {
   );
   self.clients.claim();
 });
-
-/*
- * The POS shell is not pre-warmed.
- *
- * A background `fetch("/pos")` used to run whenever the page asked for one,
- * and nothing bounded it: /pos is dynamic and per-session, so a response that
- * redirected or errored was never cached, every retry paid a full server
- * render, and the worker hammered the page in a loop.
- *
- * The offline copy comes from real visits instead — the fetch handler below
- * caches /pos on the way through, which is where this cache was populated in
- * practice anyway.
- */
 
 async function clearPosShell() {
   try {

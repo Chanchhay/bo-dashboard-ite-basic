@@ -15,17 +15,10 @@ import {
 } from "@/lib/sale-pricing/schedule";
 
 export type PosChannelState = {
-    /**
-     * False when the answer could not be established. Callers must not treat
-     * that as closed — a backend blip is not the shop being shut, and failing
-     * closed would stop trading over a network hiccup.
-     */
     known: boolean;
     open: boolean;
     channelName: string;
-    /** Today's hours, for telling a cashier when they can open. */
     todayHours?: string;
-    /** The week at a glance, when today alone does not explain it. */
     summary?: string;
 };
 
@@ -35,14 +28,6 @@ const UNKNOWN: PosChannelState = {
     channelName: "Point of Sale",
 };
 
-/**
- * Whether the POS channel is taking orders right now.
- *
- * The listing is addressed by channel id, so the channel is resolved by code
- * first. A channel with no schedule counts as open: that is what an unset
- * schedule means everywhere else, and it keeps a shop that never configured
- * hours trading normally.
- */
 export async function getPosChannelState(): Promise<PosChannelState> {
     try {
         const channels =
@@ -67,8 +52,6 @@ export async function getPosChannelState(): Promise<PosChannelState> {
         }
 
         const now = new Date();
-        // The backend's own verdict wins when it offers one: the shop's clock
-        // is authoritative, not whatever the till's device thinks the time is.
         const open =
             typeof listing?.openNow === "boolean"
                 ? listing.openNow

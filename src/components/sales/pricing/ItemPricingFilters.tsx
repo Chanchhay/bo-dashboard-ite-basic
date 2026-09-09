@@ -18,15 +18,6 @@ import { itemTypeLabels, itemTypes, type InventoryItem } from "@/lib/api/invento
 import { linesOf } from "@/components/sales/pricing/channel-lines";
 import { useMoney } from "@/hooks/useMoney";
 
-/**
- * Finding one item to reprice, said once.
- *
- * Set Price and Channel Pricing each grew a search bar of their own, and the
- * two drifted — one grew filters, the other did not, and neither could be
- * fixed without fixing both. The combined tab asks the catalogue the same
- * questions whichever scope it is showing, so the asking lives here.
- */
-
 export interface AdvancedFilterState {
     category: string;
     unit: string;
@@ -49,7 +40,6 @@ export const initialFilters: AdvancedFilterState = {
     barcode: "",
 };
 
-/** How many of the advanced fields are actually narrowing anything. */
 export function countActiveFilters(filters: AdvancedFilterState) {
     let count = 0;
 
@@ -64,13 +54,6 @@ export function countActiveFilters(filters: AdvancedFilterState) {
     return count;
 }
 
-/**
- * The catalogue, narrowed and ordered.
- *
- * Prices are read off the sold-as lines rather than off `item.price`, because
- * an item sold only in options has no price of its own and would otherwise
- * fall out of every price filter as if it were free.
- */
 export function filterAndSortItems(
     items: InventoryItem[],
     searchQuery: string,
@@ -177,12 +160,6 @@ export function filterAndSortItems(
     });
 }
 
-/**
- * The search row, and the panel it opens.
- *
- * `extra` is where a scope hangs the controls only it has — the collapse-all
- * button when base prices are showing, the override filter when a channel is.
- */
 export function ItemPricingFilters({
     items,
     searchQuery,
@@ -222,12 +199,6 @@ export function ItemPricingFilters({
         return [...byId.entries()].map(([id, name]) => ({ id, name }));
     }, [items]);
 
-    /**
-     * Every unit anything is sold by, base units and packs alike.
-     *
-     * A shop filtering by "Case" means "show me what I sell by the case", and
-     * a case is only ever a conversion.
-     */
     const unitOptions = useMemo(() => {
         const byId = new Map<string, string>();
 
@@ -435,7 +406,6 @@ export function ItemPricingFilters({
     return (
         <div className="flex flex-col gap-2.5 sm:gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
-                {/* Search input */}
                 <div className="relative w-full sm:flex-1 min-w-0">
                     <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -458,7 +428,6 @@ export function ItemPricingFilters({
                     ) : null}
                 </div>
 
-                {/* Actions: 2-column grid on mobile, flex on desktop */}
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
                     <Button
                         type="button"
@@ -476,8 +445,6 @@ export function ItemPricingFilters({
                         ) : null}
                     </Button>
 
-                    {/* Straight to the one item in your hand, which is the whole
-                        point of a barcode on a pricing screen. */}
                     <Button
                         type="button"
                         variant="outline"

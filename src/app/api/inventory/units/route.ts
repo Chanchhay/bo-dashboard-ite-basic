@@ -6,12 +6,6 @@ import {
 } from "@/lib/api/inventory-backend";
 import { toUnitRequest, unitSchema, type Unit } from "@/lib/api/inventory";
 
-/**
- * The business-scoped list: the platform's units plus this business's own.
- *
- * The global `/api/v1/units` would hide the units an owner defined, which are
- * the ones that make their conversions readable.
- */
 export async function GET() {
   try {
     const businessId = await getInventoryBusinessId();

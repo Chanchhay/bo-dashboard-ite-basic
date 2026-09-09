@@ -41,44 +41,24 @@ const pageSizes = [10, 20, 25, 50, 100];
 
 type MovementKind = "ALL" | "IN" | "OUT" | "ADJUST";
 
-/** What the movements tab needs to know about a target to read accurately. */
 export type MovementTargetInfo = {
     name: string;
     unitLabel: string;
-    /** On hand after every recorded entry. */
     onHand: number;
 };
 
-/** The table and the detail dialog read the same record. */
 type LedgerRow = MovementDetail;
 
 function targetKey(kind: "ITEM" | "ADDON", id: string, variantId?: string) {
     return variantId ? `${kind}:${id}:${variantId}` : `${kind}:${id}`;
 }
 
-/**
- * What an entry was written against.
- *
- * Exactly one of `itemId` / `addOnId` is set — an add-on holds stock of its
- * own — so an entry that carries an add-on must be looked up under the add-on
- * key. Reading every entry as an item is what left add-on movements nameless.
- *
- * An option narrows it further: each keeps its own running balance, so two
- * entries on the same item belong to different chains when they name
- * different options.
- */
 function entryTargetKey(entry: StockEntry) {
     return entry.addOnId
         ? targetKey("ADDON", entry.addOnId)
         : targetKey("ITEM", entry.itemId || "", entry.variantId);
 }
 
-/**
- * How the entry got written, for the rows that carry no linked record.
- *
- * `referenceType` is the only trace of where an entry came from once it is
- * saved, so it is worth reading out rather than printing the raw enum.
- */
 const referenceTypeLabels: Record<string, string> = {
     ADJUSTMENT_FORM: "Manual adjustment"
 };
@@ -95,35 +75,16 @@ const kindLabels: Record<LedgerRow["kind"], string> = {
     ADJUST: "Adjustment",
 };
 
-/**
- * The ledger, drafts first with filter controls.
- *
- * Every row is read as a step in a running balance rather than as a standalone
- * number: it shows what the target stood at before the movement and what it
- * left behind. Adjustments are the reason this matters — an adjustment only
- * means something against the stock in and out around it, and a bare "-3" says
- * nothing about whether the count is now right.
- */
 export function StockMovementsTab({
     entries,
     targets,
 }: {
     entries: readonly StockEntry[];
-    /** Keyed by `ITEM:<id>` / `ADDON:<id>` — see {@link targetKey}. */
     targets: Map<string, MovementTargetInfo>;
 }) {
-    // Entries carry only the id of whoever wrote them, so names are looked up.
     const staffQuery = useGetStaffQuery();
     const profileQuery = useGetUserProfileQuery();
 
-    /**
-     * Everything an entry might be signed with, pointing at a person's name.
-     *
-     * The backend signs an entry with the username on the token, not with an
-     * id, so ids alone never matched and every row read "Unknown user". Each
-     * account is filed under all three — id, username, email — so whichever
-     * one an entry carries finds its way to a name.
-     */
     const actorNames = useMemo(() => {
         const names = new Map<string, string>();
 
@@ -173,11 +134,6 @@ export function StockMovementsTab({
     const [pageSize, setPageSize] = useState(10);
     const [openedRow, setOpenedRow] = useState<LedgerRow | null>(null);
 
-    /**
-     * Narrowing the list must not leave you stranded on a page past the end, so
-     * everything that changes what is in the list goes through here and starts
-     * again from the first page.
-     */
     function applyFilter(change: () => void) {
         change();
         setPage(1);
@@ -206,14 +162,7 @@ export function StockMovementsTab({
         }
     }
 
-    /**
-     * Recorded balances come from the entry itself when the backend sent them.
-     * When it did not, they are reconstructed by walking each item's ledger
-     * backwards from the quantity it holds today — the only anchor that is
-     * certain — so the column is never a guess built forward from zero.
-     */
     const recordedRows: LedgerRow[] = useMemo(() => {
-        // Each target keeps its own running balance, add-ons included.
         const byTarget = new Map<string, StockEntry[]>();
 
         for (const entry of entries) {
@@ -255,14 +204,6 @@ export function StockMovementsTab({
 
         const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
-        /**
-         * Who recorded the entry, and the account they signed it with.
-         *
-         * An account that matches nobody on staff — an owner, or someone since
-         * removed — is still shown by the name it signed with. It is a real
-         * account, and printing "Unknown user" over it hid the one clue the
-         * row had about where the movement came from.
-         */
         function describeActor(entry: StockEntry) {
             const signature = entry.createdBy?.trim();
             if (!signature) return undefined;
@@ -272,11 +213,6 @@ export function StockMovementsTab({
             return { name: name || signature, account: signature };
         }
 
-        /**
-         * What an adjustment was made against. An adjustment on its own says
-         * nothing — "-3" is only meaningful once you can see it corrects a
-         * stock in of 20 from Tuesday.
-         */
         function describeLinkedRecord(entry: StockEntry) {
             const linked = entry.referenceId
                 ? byId.get(entry.referenceId)
@@ -327,16 +263,12 @@ export function StockMovementsTab({
 
                 const isAddOn = Boolean(entry.addOnId);
                 const target = targets.get(entryTargetKey(entry));
-                // The entry carries the option's name, so a movement still
-                // reads correctly after that option is renamed or removed.
                 const optionName = entry.variantName;
                 const unitLabel = target?.unitLabel || "";
                 const balance = balances.get(entry.id);
 
                 return {
                     id: entry.id,
-                    // Named after what it actually moved. Only a target that no
-                    // longer exists falls back, and it says which kind it was.
                     name:
                         target?.name ||
                         (isAddOn ? "Deleted add-on" : "Deleted item"),
@@ -349,8 +281,6 @@ export function StockMovementsTab({
                         entry.unitCost !== undefined
                             ? `${formatAmount(entry.unitCost)} / ${unitLabel || "unit"}`
                             : "",
-                        // Movements recorded before lot became a column of its
-                        // own still carry it in the batch blob.
                         entryLotNumber(entry)
                             ? `Lot ${entryLotNumber(entry)}`
                             : "",
@@ -377,7 +307,6 @@ export function StockMovementsTab({
         [recordedRows],
     );
 
-    // Filtered rows matching search text and date range (before kind filter)
     const baseFilteredRows = useMemo(() => {
         return allRows.filter((row) => {
             if (searchQuery.trim()) {
@@ -387,7 +316,6 @@ export function StockMovementsTab({
                     row.optionName,
                     row.typeLabel,
                     row.note,
-                    // Searchable by either, since the row shows both.
                     row.actor?.name,
                     row.actor?.account,
                     row.linkedRecord,
@@ -415,7 +343,6 @@ export function StockMovementsTab({
         });
     }, [allRows, searchQuery, startDate, endDate]);
 
-    // Final filtered rows based on selected movement kind
     const filteredRows = useMemo(() => {
         return baseFilteredRows.filter((row) => {
             if (kindFilter !== "ALL" && row.kind !== kindFilter) {
@@ -425,7 +352,6 @@ export function StockMovementsTab({
         });
     }, [baseFilteredRows, kindFilter]);
 
-    /** Counts drive the filter chips; they describe movements matching active date and search filters. */
     const kindCounts = useMemo(
         () => ({
             ALL: baseFilteredRows.length,
@@ -483,10 +409,8 @@ export function StockMovementsTab({
 
     return (
         <div className="flex flex-col">
-            {/* Filter Toolbar */}
             <div className="flex flex-col gap-3 sm:gap-4 p-3.5 sm:p-5 border-b border-border bg-card">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3">
-                    {/* Movement Filter Buttons */}
                     <div data-tour="movements-filter-chips" className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl border border-border bg-muted/30 overflow-x-auto no-scrollbar w-full lg:w-auto">
                         {filterChips.map((chip) => (
                             <button
@@ -522,7 +446,6 @@ export function StockMovementsTab({
                         ))}
                     </div>
 
-                    {/* Search Bar */}
                     <div data-tour="movements-search" className="relative w-full sm:w-80 lg:w-96 flex-1 sm:flex-initial">
                         <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
@@ -539,9 +462,7 @@ export function StockMovementsTab({
                     </div>
                 </div>
 
-                {/* Styled Date Filter Bar */}
                 <div data-tour="movements-date-filter" className="flex flex-col gap-3 pt-3 border-t border-border/60 text-sm lg:flex-row lg:items-center lg:justify-between">
-                    {/* Date Presets */}
                     <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full lg:w-auto py-0.5">
                         <span className="font-semibold text-foreground mr-1 flex items-center gap-1.5 shrink-0 text-xs sm:text-sm">
                             <Calendar className="size-4 text-primary" />
@@ -571,7 +492,6 @@ export function StockMovementsTab({
                         ))}
                     </div>
 
-                    {/* Clean Custom Calendar Inputs */}
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3 w-full lg:w-auto">
                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                             <span className="text-xs sm:text-sm font-medium text-muted-foreground shrink-0">From:</span>
@@ -634,7 +554,6 @@ export function StockMovementsTab({
                 </div>
             ) : (
                 <>
-                    {/* Mobile Cards View (< md) */}
                     <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                         {pageRows.map((row) => (
                             <div
@@ -642,7 +561,6 @@ export function StockMovementsTab({
                                 onClick={() => setOpenedRow(row)}
                                 className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all cursor-pointer hover:border-primary/40 active:scale-[0.99]"
                             >
-                                {/* Card Header */}
                                 <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                     <div className="flex flex-col min-w-0 pr-2">
                                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -679,7 +597,6 @@ export function StockMovementsTab({
                                     </div>
                                 </div>
 
-                                {/* Card Key-Value Rows */}
                                 <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                     <div className="flex items-center justify-between px-3.5 py-2.5">
                                         <span className="text-muted-foreground dark:text-slate-400">Date & Time</span>
@@ -745,7 +662,6 @@ export function StockMovementsTab({
                         ))}
                     </div>
 
-                    {/* Desktop Table (>= md) */}
                     <div className="hidden md:block overflow-auto max-h-[calc(100dvh-340px)] sm:max-h-[calc(100dvh-360px)]">
                         <table className="w-full min-w-[980px] text-left text-sm">
                             <thead className="sticky top-0 z-10 bg-card border-b border-border text-xs font-semibold tracking-wide text-muted-foreground uppercase shadow-xs">
@@ -770,7 +686,6 @@ export function StockMovementsTab({
                                     onClick={() => setOpenedRow(row)}
                                     className="cursor-pointer align-top text-foreground transition-colors hover:bg-muted/40"
                                 >
-                                    {/* Date over time, so a column of dates lines up */}
                                     <td className="px-5 py-4 whitespace-nowrap">
                                         {row.at ? (
                                             <>
@@ -793,9 +708,6 @@ export function StockMovementsTab({
                                     </td>
 
                                     <td className="px-5 py-4">
-                                        {/* Also the keyboard way into the
-                                            details, since the row click is
-                                            only reachable with a pointer. */}
                                         <div className="flex flex-wrap items-center gap-2">
                                             <button
                                                 type="button"
@@ -806,16 +718,11 @@ export function StockMovementsTab({
                                             >
                                                 {row.name}
                                             </button>
-                                            {/* An add-on and an item can share
-                                                a name, so the row says which
-                                                one moved. */}
                                             {row.isAddOn ? (
                                                 <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                                     Add-on
                                                 </span>
                                             ) : null}
-                                            {/* Which option moved — its own
-                                                balance, not the item's. */}
                                             {row.optionName ? (
                                                 <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                                                     {row.optionName}
@@ -844,7 +751,6 @@ export function StockMovementsTab({
                                             </span>
                                         </div>
 
-                                        {/* The record this movement acts on */}
                                         {row.linkedRecord ? (
                                             <p
                                                 className={cn(
@@ -916,10 +822,6 @@ export function StockMovementsTab({
                                                 <p className="font-medium">
                                                     {row.actor.name}
                                                 </p>
-                                                {/* The account behind the
-                                                    name, so two people who
-                                                    share one are still told
-                                                    apart. */}
                                                 {row.actor.account !==
                                                 row.actor.name ? (
                                                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -970,7 +872,6 @@ export function StockMovementsTab({
                 </>
             )}
 
-            {/* Pagination */}
             {filteredRows.length ? (
                 <PaginationBar
                     page={currentPage - 1}

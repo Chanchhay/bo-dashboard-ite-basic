@@ -14,7 +14,6 @@ export function useNetworkStatus() {
     isCheckingRef.current = true;
     setIsChecking(true);
     try {
-      // 1. Check browser network connection
       if (typeof window !== "undefined" && !navigator.onLine) {
         setStatus("offline");
         isCheckingRef.current = false;
@@ -22,7 +21,6 @@ export function useNetworkStatus() {
         return "offline";
       }
 
-      // 2. Ping backend server
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
@@ -54,15 +52,10 @@ export function useNetworkStatus() {
   }, [status]);
 
   useEffect(() => {
-    // Schedule initial check asynchronously to avoid setState in effect warning
     const timer = setTimeout(() => {
       checkStatus();
     }, 0);
 
-    // Check every 15 seconds, but only while someone is actually looking.
-    // A background tab pinging the server four times a minute for hours told
-    // nobody anything — and the focus handler below re-checks the moment the
-    // tab is looked at again, which is the only point the answer matters.
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       checkStatus();

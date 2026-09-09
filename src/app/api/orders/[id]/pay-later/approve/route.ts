@@ -5,10 +5,6 @@ import { ordersPath } from "@/lib/api/pos-order-backend";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/**
- * Owner-only: approves a storefront Pay Later order, taking its stock off
- * the shelf now. Only an order still awaiting that approval can be approved.
- */
 export async function POST(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params;

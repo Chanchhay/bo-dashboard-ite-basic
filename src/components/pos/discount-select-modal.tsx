@@ -76,15 +76,12 @@ export function DiscountSelectModal({
         }
     }, [mode, open]);
 
-    // Queries
     const { data: discounts = [] } = useGetDiscountsQuery();
     const { data: coupons = [] } = useGetCouponsQuery();
 
-    // Custom discount state
     const [customType, setCustomType] = useState<"PERCENTAGE" | "FIXED" | "FINAL_PRICE">("PERCENTAGE");
     const [customValue, setCustomValue] = useState<string>("");
 
-    // Coupon code state
     const [couponCodeInput, setCouponCodeInput] = useState<string>("");
     const [couponError, setCouponError] = useState<string>("");
 
@@ -288,7 +285,6 @@ export function DiscountSelectModal({
                 </DialogHeader>
 
                 <div className="p-5">
-                    {/* Active Applied Discount Banner */}
                     {(currentDiscountAmount > 0 || activeRule) && (
                         <div className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
                             <div>
@@ -317,8 +313,6 @@ export function DiscountSelectModal({
                             </Button>
                         </div>
                     )}
-
-
 
                     {tab === "CUSTOM" && (
                         <form onSubmit={handleApplyCustom} className="space-y-4">
@@ -375,7 +369,6 @@ export function DiscountSelectModal({
                                 />
                             </div>
 
-                            {/* Live Calculation Breakdown */}
                             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
                                 <div className="flex items-center justify-between text-xs text-gray-500">
                                     <span>Price before discount:</span>

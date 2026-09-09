@@ -21,7 +21,6 @@ export function ChoiceImageField({
     onChangeUrl,
     onChangeFile,
     label = "Photo",
-    /** A small click-to-browse thumbnail instead of the full drop zone, for forms where every row already has one of these. */
     compact = false,
 }: {
     value?: string;

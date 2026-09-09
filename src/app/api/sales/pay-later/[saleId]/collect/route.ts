@@ -5,7 +5,6 @@ import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import { collectPayLaterSchema } from "@/lib/api/pay-later";
 import type { PayLaterSale } from "@/lib/api/pay-later";
 
-/** Settles a pay-later sale once the money actually comes in. */
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ saleId: string }> },

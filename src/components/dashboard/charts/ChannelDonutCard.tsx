@@ -12,7 +12,6 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-/** One channel's slice: its share, what it earned, and the colour it is drawn in. */
 export type ChannelSlice = {
     name: string;
     value: number;
@@ -20,14 +19,6 @@ export type ChannelSlice = {
     color: string;
 };
 
-/**
- * Revenue share by channel, as a donut.
- *
- * Split out of the dashboard so the chart library it needs is fetched only
- * when this card is actually rendered — see the dynamic import in
- * OverviewDashboard. The dashboard still works out the figures; this only
- * draws them.
- */
 export function ChannelDonutCard({ data }: { data: ChannelSlice[] }) {
     const { format } = useMoney();
 
@@ -44,7 +35,6 @@ export function ChannelDonutCard({ data }: { data: ChannelSlice[] }) {
             </CardHeader>
 
             <CardContent className="p-0">
-                {/* Donut Chart Container */}
                 <div className="relative flex items-center justify-center h-64 sm:h-72 w-full my-2">
                     {data.length === 0 ? (
                         <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
@@ -93,7 +83,6 @@ export function ChannelDonutCard({ data }: { data: ChannelSlice[] }) {
                     )}
                 </div>
 
-                {/* Bottom Legend Dots for POS, MESSENGER, TELEGRAM, WEB */}
                 <div className="flex flex-wrap items-center justify-center gap-x-5.5 gap-y-2 pt-2.5 border-t border-border/40 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
                     {data.map((c) => (
                         <span key={c.name} className="flex items-center gap-1.5">

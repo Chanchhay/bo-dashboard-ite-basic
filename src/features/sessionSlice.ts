@@ -1,9 +1,9 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 type SessionState = {
-  cashierId: string | null;         // set once PIN is verified
-  businessOwnerId: string | null;   // which business this cashier belongs to — required for every API call
-  registerSessionId: string | null; // set once register is opened
+  cashierId: string | null;
+  businessOwnerId: string | null;
+  registerSessionId: string | null;
 };
 
 const initialState: SessionState = {
@@ -16,8 +16,6 @@ const sessionSlice = createSlice({
   name: "session",
   initialState,
   reducers: {
-    // Set together — a cashier is always tied to exactly one business,
-    // so there's no valid state where one exists without the other.
     setCashier: (
       state,
       action: PayloadAction<{ cashierId: string; businessOwnerId: string }>
@@ -28,7 +26,7 @@ const sessionSlice = createSlice({
     setRegisterSession: (state, action: PayloadAction<string>) => {
       state.registerSessionId = action.payload;
     },
-    clearSession: () => initialState, // logout / close register
+    clearSession: () => initialState,
   },
 });
 

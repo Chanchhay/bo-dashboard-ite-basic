@@ -6,13 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 
-/**
- * Settings' plain answer to "will my phone tell me when a sale happens".
- *
- * Deliberately without the raw test-message box `PushNotificationManager`
- * shows on `/pwa-test` — that one is a diagnostics panel for whoever is
- * debugging the feature, not something a cashier should be offered.
- */
 export function NotificationSettingsCard() {
   const { toast } = useToast();
   const { isSupported, subscription, permission, isBusy, subscribe, unsubscribe } =

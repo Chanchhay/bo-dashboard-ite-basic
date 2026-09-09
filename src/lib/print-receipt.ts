@@ -13,7 +13,6 @@ export function printReceipt() {
   const heightInPixels = receipt.getBoundingClientRect().height;
   receipt.classList.remove("receipt-ticket--measuring");
 
-  // Round upward so fractional layout pixels never clip the final receipt row.
   const heightInMillimeters =
     Math.ceil((heightInPixels / CSS_PIXELS_PER_MM) * 100) / 100;
   const existingStyle = document.getElementById(PRINT_PAGE_STYLE_ID);

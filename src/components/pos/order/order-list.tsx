@@ -57,8 +57,6 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
 
   async function handleEdit(orderId: string) {
     try {
-      // Onto the till, not just into a cache: the cart is a row on this
-      // device now, and a parked order that is not put there would open empty.
       const order = await loadOrderForEdit(orderId).unwrap();
       await loadCartFrom(order);
       onEdit?.(orderId);
@@ -221,7 +219,6 @@ export function OrdersList({ onEdit, onCancel }: OrdersListProps) {
                   </div>
                 </button>
 
-                {/* Consistent 1-Row Action Buttons */}
                 <div className="absolute right-4 top-4 sm:right-5 sm:top-5 flex items-center gap-1.5 z-10">
                   <button
                     type="button"

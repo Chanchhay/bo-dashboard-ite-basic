@@ -4,16 +4,9 @@ import { isRealOrder, orderFiltersFromQuery } from "@/lib/api/order-filters";
 import type { OrderSummary, PosOrder } from "@/lib/api/pos-order";
 import { filterOrders, type OrderFilter } from "@/lib/api/pos-order-backend";
 
-/**
- * Revenue is a sum, and the backend exposes no aggregate for it, so the range
- * is read through to total it. Ranges are small for a single store, but "All
- * time" is not bounded by anything — the read stops here and says so rather
- * than paging forever.
- */
 const PAGE_SIZE = 200;
 const MAX_ORDERS = 1000;
 
-/** Every order matching the filters, newest first, up to `MAX_ORDERS`. */
 async function loadOrders(businessId: string, filters: OrderFilter[]) {
     const orders: PosOrder[] = [];
     let pageNumber = 0;
@@ -44,23 +37,16 @@ async function loadOrders(businessId: string, filters: OrderFilter[]) {
     return { orders: orders.filter(isRealOrder), truncated };
 }
 
-
-/** Range-wide totals for Sale Management's stat cards. */
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
         const businessId = await getCurrentBusinessId();
 
-        // Reported rather than hidden, for the same reason as the list these
-        // totals sit above: zero revenue and a failed request look identical
-        // on a stat card, and only one of them is worth acting on.
         const { orders: allOrders, truncated } = await loadOrders(
             businessId,
             orderFiltersFromQuery(url),
         );
 
-        // Revenue counts paid orders only — a pending or cancelled total is
-        // money nobody has taken.
         const paid = allOrders.filter((order) => order.status === "PAID");
 
         return Response.json({

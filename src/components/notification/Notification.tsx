@@ -109,7 +109,6 @@ function getNotificationIcon(type?: string | null, title?: string | null) {
 }
 
 function getNotificationLink(notification: Notification): string {
-    // 1. Prioritize explicit deepLink if provided
     if (notification.deepLink && notification.deepLink.startsWith("/") && notification.deepLink !== "#") {
         return notification.deepLink;
     }
@@ -117,7 +116,6 @@ function getNotificationLink(notification: Notification): string {
     const type = notification.type?.toUpperCase() || "";
     const text = `${notification.title || ""} ${notification.content || ""}`.toLowerCase();
 
-    // 2. Specific feature fallbacks based on content / type
     if (text.includes("discount") || text.includes("coupon") || type === "PROMOTION") {
         return "/sales/discounts";
     }
@@ -295,7 +293,6 @@ export function NotificationMenu({ className }: { className?: string }) {
                 collisionPadding={8}
                 className="w-[calc(100vw-16px)] sm:w-[480px] max-w-[480px] p-0 rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-[#16181c] dark:text-[#f8fafc] shadow-[0_20px_50px_rgba(15,26,18,0.14)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
             >
-                {/* Header */}
                 <div className="flex items-center justify-between px-3.5 sm:px-5 pt-3.5 pb-3 sm:pt-4.5 sm:pb-4 border-b border-[#edf0ec] dark:border-[#242937]">
                     <div className="flex items-center gap-2 sm:gap-3">
                         <h3 className="text-base sm:text-lg font-bold text-[#161d16] dark:text-[#f8fafc]">Notifications</h3>
@@ -318,7 +315,6 @@ export function NotificationMenu({ className }: { className?: string }) {
                     )}
                 </div>
 
-                {/* Filter Tabs */}
                 <div className="flex items-center gap-2 sm:gap-2.5 px-3.5 sm:px-5 py-2 sm:py-3 border-b border-[#edf0ec]/80 dark:border-[#242937] bg-[#fafbfa] dark:bg-[#151821]">
                     <button
                         type="button"
@@ -344,7 +340,6 @@ export function NotificationMenu({ className }: { className?: string }) {
                     </button>
                 </div>
 
-                {/* Body Content */}
                 <div ref={scrollContainerRef} className="max-h-[min(65vh,460px)] overflow-y-auto overscroll-contain">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-12 gap-3 text-[#657064] dark:text-[#94a3b8]">
@@ -422,7 +417,6 @@ export function NotificationMenu({ className }: { className?: string }) {
                     )}
                 </div>
 
-                {/* Footer */}
                 {notifications.length > 0 && unreadCount === 0 && (
                     <div className="flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 border-t border-[#edf0ec] dark:border-[#242937] bg-[#fafbfa] dark:bg-[#151821] text-xs sm:text-sm font-bold">
                         <span className="flex items-center gap-1.5 sm:gap-2 text-emerald-600 dark:text-emerald-400">

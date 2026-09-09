@@ -58,12 +58,9 @@ import {
 } from "@/services/inventoryApi";
 import { useMoney } from "@/hooks/useMoney";
 
-
 const noRecordValue = "NONE";
 
-/** Same trick for "no particular option" — see {@link noRecordValue}. */
 const noOptionValue = "WHOLE_ITEM";
-
 
 const quantityDecimals = 3;
 const unitCostDecimals = 2;

@@ -12,13 +12,6 @@ import type {
     ImportTargetType,
 } from "@/lib/api/data-import";
 
-/**
- * What a change to one import invalidates.
- *
- * Everything about an import hangs off its status, and the status changes on
- * its own while the server works. Rather than name each read here, the whole
- * import is invalidated by id and the screen re-reads what it is showing.
- */
 const importTags = (importId: string) =>
     [
         { type: "DataImports" as const, id: importId },
@@ -129,20 +122,6 @@ export const dataImportApi = baseApi.injectEndpoints({
             invalidatesTags: (_result, _error, importId) => [...importTags(importId)],
         }),
 
-        /**
-         * The one call that changes the catalogue.
-         *
-         * Everything an import touched is invalidated with it: the items and
-         * categories it created, and the stock it opened. A shop that lands
-         * back on its item list after an import must see what just arrived,
-         * not a cached list from before it.
-         */
-        /**
-         * The starting files on offer for one kind of import.
-         *
-         * Untagged: the samples are the same for every shop and change only
-         * when we ship a new one, so there is nothing here to go stale.
-         */
         getImportSamples: builder.query<ImportSample[], ImportTargetType>({
             query: (targetType) =>
                 `/inventory/imports/samples?targetType=${encodeURIComponent(targetType)}`,
@@ -163,14 +142,6 @@ export const dataImportApi = baseApi.injectEndpoints({
             ],
         }),
 
-        /**
-         * Undoes a committed import.
-         *
-         * Invalidates exactly what committing does, and for the same reason
-         * read backwards: items, categories and stock have just disappeared,
-         * and a cached list showing them would offer the shop things that are
-         * no longer there.
-         */
         revertImport: builder.mutation<ImportJob, string>({
             query: (importId) => ({
                 url: `/inventory/imports/${encodeURIComponent(importId)}/revert`,

@@ -7,7 +7,6 @@ import {
 } from "@/lib/api/data-import-backend";
 import { type ImportRow } from "@/lib/api/data-import";
 
-/** The rows that went wrong, whether refused at checking or at import. */
 export async function GET(request: Request, context: ImportRouteContext) {
     try {
         const url = new URL(request.url);

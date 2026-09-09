@@ -1,37 +1,7 @@
-/**
- * The permission vocabulary, mirrored from the Keycloak client-role export in
- * `api-docs/keycloak-client-role.json` (client `fluxipos-backend`) and from
- * `PermissionCode` in the API, which is where the two assignability flags come
- * from. Keycloak remains the source of truth; this file gives the same names
- * human labels, a grouping, and — through the `Permission` union below —
- * compile-time checking wherever the app names one.
- *
- * There is only one permission vocabulary in this app. A business role is a
- * composite of these names, the access token carries the ones a user was
- * granted, and the navigation gates on them directly. Nothing translates
- * between two sets of names, so a permission added in Keycloak reaches the UI
- * by being added to this list and nowhere else.
- *
- * **Groups are for the reader, not the API.** They follow the job someone is
- * hired to do, the way the admin console groups platform permissions — not the
- * resource prefix of the underlying role. Grouping by prefix produced twelve
- * boxes, several holding a single checkbox, and labels like "View" that meant
- * nothing away from their heading. A label here reads on its own.
- */
 export type PermissionOption = {
     readonly value: string;
     readonly label: string;
-    /** One line, in the reader's terms, on what ticking this lets someone do. */
     readonly hint: string;
-    /**
-     * Mirrors `businessStaffAssignable` / `platformStaffAssignable` on the
-     * backend's `PermissionCode` enum. `KeycloakRoleAdapter` rejects anything
-     * a role editor is not allowed to grant with a 403, and rolls the whole
-     * role back, so offering one of these in the picker produces a role that
-     * cannot be saved. Some permissions are assignable to neither: they reach
-     * a user through a built-in realm role instead — `profile:*` through
-     * `USER`, `business:create` / `business:delete` through `BUSINESS`.
-     */
     readonly businessAssignable: boolean;
     readonly platformAssignable: boolean;
 };
@@ -39,16 +9,10 @@ export type PermissionOption = {
 export type PermissionGroup = {
     readonly id: string;
     readonly label: string;
-    /** Which editor the group belongs in; assignability is per permission. */
     readonly scope: "business" | "platform";
     readonly permissions: readonly PermissionOption[];
 };
 
-/**
- * `as const satisfies` is load-bearing: it keeps every `value` a string
- * literal so `Permission` below is a union of the real names, which is what
- * turns a typo in a navigation gate into a build error.
- */
 export const PERMISSION_GROUPS = [
     {
         id: "shop",
@@ -549,22 +513,9 @@ export const PERMISSION_GROUPS = [
     },
 ] as const satisfies readonly PermissionGroup[];
 
-/**
- * Every permission Keycloak can grant, as a union. Anything that names a
- * permission — a navigation gate, a page guard — should use this type rather
- * than `string`, so a rename in Keycloak surfaces here as a type error instead
- * of as a menu that silently stops appearing.
- */
 export type Permission =
     (typeof PERMISSION_GROUPS)[number]["permissions"][number]["value"];
 
-/**
- * What the business role editor may offer: business-scoped groups, minus the
- * individual permissions the backend refuses to assign to business staff.
- * Filtering per permission rather than per group matters — `business:read` is
- * assignable while `business:create` in the same group is not, and the whole
- * "Your own account" group falls away because everyone already has it.
- */
 export const BUSINESS_PERMISSION_GROUPS: readonly PermissionGroup[] =
     PERMISSION_GROUPS.filter((group) => group.scope === "business")
         .map((group) => ({
@@ -583,12 +534,6 @@ const PERMISSION_LABELS = new Map<string, string>(
     ),
 );
 
-/**
- * The reader-facing name for a permission. Labels read on their own, so this
- * is "Take payment" rather than "Orders · Take payment". Falls back to the raw
- * value so a permission added in Keycloak still renders, and still matches a
- * search for its code.
- */
 export function permissionLabel(value: string) {
     return PERMISSION_LABELS.get(value) ?? value;
 }

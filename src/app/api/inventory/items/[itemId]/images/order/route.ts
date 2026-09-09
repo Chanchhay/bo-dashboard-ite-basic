@@ -15,8 +15,6 @@ const reorderSchema = z.object({
     imageIds: z
         .array(z.string().trim().min(1))
         .min(1, "Send the images in their new order.")
-        // An item never holds more than this, so a longer list is malformed
-        // rather than something to pass on to the backend.
         .max(maxItemImages, `An item can have at most ${maxItemImages} images.`),
 });
 
@@ -24,7 +22,6 @@ type ItemRouteContext = {
     params: Promise<{ itemId: string }>;
 };
 
-/** Position is server-assigned, so the whole order is sent at once. */
 export async function PUT(request: Request, context: ItemRouteContext) {
     try {
         const result = reorderSchema.safeParse(await readJsonBody(request));

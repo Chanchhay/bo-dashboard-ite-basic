@@ -20,13 +20,6 @@ export type MatchState = {
     defaultUnitId: string | null;
 };
 
-/**
- * Everything wrong with a matching, said before the file is checked.
- *
- * Worked out on every keystroke so the Check button can simply be disabled
- * while something is missing — a shop should not press it, wait, and then be
- * told a required column was never matched.
- */
 export function matchProblems(columns: ImportColumns, state: MatchState) {
     const matched = new Set(Object.values(state.mappings).filter(Boolean));
     const problems: string[] = [];
@@ -57,7 +50,6 @@ export function matchProblems(columns: ImportColumns, state: MatchState) {
         );
     }
 
-    // Two columns feeding one field is the user's to resolve; we cannot pick.
     const counts = new Map<string, string[]>();
 
     for (const [column, field] of Object.entries(state.mappings)) {
@@ -102,12 +94,6 @@ export function StepMatchColumns({
         [columns.targetFields],
     );
 
-    /*
-     * Whether the file itself says what each item is counted in. It changes
-     * the question below from "what unit is everything" — which is not a
-     * question a real shop can answer — to "what should we use where your file
-     * is silent", which is.
-     */
     const unitColumnMatched = Object.values(state.mappings).includes("UNIT");
 
     const duplicateFields = useMemo(() => {

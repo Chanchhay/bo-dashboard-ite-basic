@@ -23,44 +23,21 @@ const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
     timeStyle: "short",
 });
 
-/**
- * One movement, as the ledger reads it.
- *
- * The table and the detail dialog show the same record at two levels of
- * detail, so they share one shape rather than deriving it twice.
- */
 export type MovementDetail = {
     id: string;
-    /** The item or add-on this movement was recorded against, by name. */
     name: string;
-    /** Set when the movement is against an add-on rather than an item. */
     isAddOn?: boolean;
-    /** The option that moved, when the item is sold in options. */
     optionName?: string;
-    /** "Stock in", "Adjustment", … — the movement's own name. */
     typeLabel: string;
-    /** Reason, cost, reference number: everything the operator typed. */
     note: string;
     kind: "IN" | "OUT" | "ADJUST";
     change: number;
     unitLabel: string;
-    /** Balance the movement started from, once it can be established. */
     before?: number;
-    /** Balance it left behind. */
     after?: number;
-    /**
-     * Who recorded it: the person's name, and the account the entry was
-     * signed with. Undefined only when the entry carries no signature at all.
-     */
     actor?: { name: string; account: string };
-    /**
-     * The record this movement acts on — for an adjustment, the stock in or
-     * stock out it corrects. Undefined when nothing was linked.
-     */
     linkedRecord?: string;
     at?: string;
-    /** Draft rows can still be taken back; recorded ones never can. */
-    /** The entry as it came back from the backend, for the fields only it has. */
     entry?: StockEntry;
 };
 
@@ -87,7 +64,6 @@ function Row({
     );
 }
 
-/** Batch details are a free-form map, so only the keys we know are read out. */
 const batchFieldLabels: Record<string, string> = {
     lot: "Batch / lot number",
     lotNumber: "Batch / lot number",
@@ -95,15 +71,6 @@ const batchFieldLabels: Record<string, string> = {
     expiresAt: "Expires",
 };
 
-/**
- * The batch this movement recorded, however it was stored.
- *
- * Lot and dates are columns on the movement now, because the expiry is what
- * orders the sell queue and a free-form blob cannot be sorted on. They used to
- * live in `batchData`, so movements recorded before that change still carry
- * them there and are read back from it — the ledger is never rewritten, so
- * both shapes are on screen for as long as the old entries are.
- */
 function batchRows(entry?: StockEntry) {
     if (!entry) return [];
 
@@ -113,8 +80,6 @@ function batchRows(entry?: StockEntry) {
         ["manufacturedAt", entry.manufacturedAt],
     ];
     const stored = Object.entries(entry.batchData || {}).filter(
-        // Whatever the blob knows that the columns do not. A key present in
-        // both would otherwise print the same fact twice.
         ([key]) =>
             !named.some(
                 ([namedKey, value]) =>
@@ -140,13 +105,6 @@ export function StockMovementDetailDialog({
     movement: MovementDetail | null;
 }) {
     const { format: formatMoney } = useMoney();
-    /*
-     * The movement again, on its own, for the batches it drew from.
-     *
-     * The list this dialog opens from does not carry them — reading them per
-     * row would be a query per row to answer something only the opened
-     * movement is asking. So it is asked for here, and only while open.
-     */
     const entryId = movement?.entry?.id;
     const detailQuery = useGetStockEntryQuery(entryId ?? "", {
         skip: !open || !entryId,
@@ -156,22 +114,10 @@ export function StockMovementDetailDialog({
 
     const entry = movement.entry;
     const unitCost = entry?.unitCost;
-    /*
-     * What this movement was worth.
-     *
-     * On the way out that is `costOfGoods`, summed from the batches actually
-     * emptied — never the unit cost multiplied back up. An outgoing movement's
-     * unit cost is already an average rounded to the penny, so re-multiplying
-     * it disagrees with the real total: six units drawn from a $1.00 batch and
-     * a $2.00 one cost $7.00, but the $1.17 average times six reads $7.02. Two
-     * numbers for one fact, and the wrong one is the bigger.
-     */
     const costOfGoods = entry?.costOfGoods ?? undefined;
     const movementValue =
         costOfGoods ??
         (unitCost == null ? undefined : unitCost * Math.abs(movement.change));
-    // The row's own copy renders immediately; the fetched one is the same
-    // movement with the breakdown on it.
     const consumedBatches = detailQuery.data?.consumedBatches ?? [];
     const batchEntries = batchRows(entry);
 
@@ -208,7 +154,6 @@ export function StockMovementDetailDialog({
                 </DialogHeader>
 
                 <div className="mt-4 max-h-[60vh] overflow-y-auto">
-                    {/* The movement's effect on the count */}
                     <div className="rounded-xl border border-border bg-muted/30 p-4">
                         <div className="flex items-center justify-between gap-4">
                             <div>
@@ -270,8 +215,6 @@ export function StockMovementDetailDialog({
                             {movement.actor ? (
                                 <>
                                     {movement.actor.name}
-                                    {/* The account it was signed with, when
-                                        that is not already the name shown. */}
                                     {movement.actor.account !==
                                     movement.actor.name ? (
                                         <span className="ml-1.5 font-normal text-muted-foreground">
@@ -331,7 +274,6 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
 
-                        {/* What the operator counted, before conversion. */}
                         {entry?.enteredQuantity !== undefined &&
                         entry?.enteredUnit ? (
                             <Row label="Entered as">
@@ -340,11 +282,6 @@ export function StockMovementDetailDialog({
                             </Row>
                         ) : null}
 
-                        {/* Only a stock-out sold away from the till carries a
-                            sale price. A sale rung up at the till keeps what
-                            the customer paid on the order, not here, so this
-                            row would otherwise sit on every receipt showing a
-                            dash. */}
                         {entry?.unitSalePrice != null ? (
                             <Row label="Sold at">
                                 {formatMoney(entry.unitSalePrice)} per unit
@@ -383,15 +320,6 @@ export function StockMovementDetailDialog({
                         ) : null}
                     </dl>
 
-                    {/*
-                      * The working behind the cost.
-                      *
-                      * A movement's cost is one number, and on its own it is
-                      * not explicable: a sale spanning two deliveries is
-                      * costed at neither price paid, and dividing by the
-                      * quantity gives an average matching no batch on the
-                      * shelf. These are the rows it was actually summed from.
-                      */}
                     {consumedBatches.length > 0 ? (
                         <div className="mt-4 rounded-xl border border-border">
                             <p className="border-b border-border px-4 py-2.5 text-xs font-semibold text-foreground">

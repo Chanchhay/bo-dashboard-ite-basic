@@ -2,13 +2,6 @@ import { backendErrorResponse, backendRequest, readJsonBody } from "@/lib/api/ba
 import { khqrPreviewSchema } from "@/lib/api/bakong";
 import type { Khqr } from "@/lib/api/pos-order";
 
-/**
- * Produces a throwaway code from the saved settings.
- *
- * Lets a merchant prove the configuration works without ringing up a real
- * sale — and separates "Bakong is misconfigured" from "the order is wrong",
- * which are otherwise indistinguishable at the till.
- */
 export async function POST(request: Request) {
     try {
         const result = khqrPreviewSchema.safeParse(await readJsonBody(request));

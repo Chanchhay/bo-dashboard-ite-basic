@@ -46,14 +46,6 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
     );
 }
 
-/**
- * One import, opened again later.
- *
- * The question this screen answers is "what did that file actually do", asked
- * weeks after the fact when something in the catalogue looks wrong. So it
- * leads with the counts, then the reasons rows were refused, then the rows
- * themselves.
- */
 export function ImportReportView({ importId }: { importId: string }) {
     const [page, setPage] = useState(0);
     const [size, setSize] = useState(25);

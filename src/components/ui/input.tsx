@@ -22,7 +22,6 @@ function Input({
         const start = input.selectionStart ?? 0;
         const val = input.value;
 
-        // Prevent leading space or consecutive multiple spaces
         if (start === 0 || val.slice(start - 1, start) === " ") {
           e.preventDefault();
           onKeyDown?.(e);

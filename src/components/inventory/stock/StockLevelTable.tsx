@@ -23,31 +23,15 @@ const stateClassName: Record<StockState, string> = {
 
 export type StockLevelRow = {
     id: string;
-    /**
-     * The heading this row is filed under, when the table is grouped.
-     *
-     * Add-ons are listed under the item that offers them, and one add-on can
-     * be offered by several items, so the same add-on appears once per group —
-     * which is why the group id, not the row id, makes a row unique.
-     */
     group?: { id: string; label: string; hint?: string };
     name: string;
-    /** SKU for an item; "N more orders" for an add-on. */
     subtitle: string;
     onHand: number;
     unitLabel: string;
     threshold: number;
     state: StockState;
-    /** Undefined when no cost has ever been recorded against it. */
     valueAtCost?: number;
-    /** Non-zero when unsaved movements are sitting on this row. */
     pendingChange: number;
-    /**
-     * The item's options, each counting its own stock.
-     *
-     * `unassigned` on the row is what is still held against the item itself —
-     * only ever non-zero where stock was recorded before the item had options.
-     */
     options?: {
         id: string;
         name: string;
@@ -57,7 +41,6 @@ export type StockLevelRow = {
         state: StockState;
     }[];
     unassigned?: number;
-    /** Extras attached to this item, each counted on its own. */
     addOns?: {
         id: string;
         name: string;
@@ -67,14 +50,6 @@ export type StockLevelRow = {
     }[];
 };
 
-/**
- * The extras attached to this item, each with the stock it holds.
- *
- * An add-on is counted in its own right — a tub of pearls runs out whether it
- * was scooped into one drink or ten — so it carries a balance here rather than
- * borrowing the item's. It is never sold alone, which is why it appears under
- * the item that offers it as well as in its own tab.
- */
 function StockItemAddOnsTreeRow({
     row,
     onStockIn,
@@ -101,9 +76,6 @@ function StockItemAddOnsTreeRow({
                         <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 -translate-y-1/2 bg-primary/30 dark:bg-primary/40" />
 
                         <div className="flex min-w-0 items-center gap-3">
-                            {/* <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
-                                <FolderPlus className="size-4" />
-                            </span> */}
                             <div className="min-w-0">
                                 <p className="truncate text-sm font-semibold text-foreground">
                                     {addOn.name}
@@ -124,8 +96,6 @@ function StockItemAddOnsTreeRow({
                                 </span>
                             </span>
 
-                            {/* An add-on is shared, so this is the same stock
-                                wherever it is stocked from. */}
                             {onStockIn ? (
                                 <Button
                                     type="button"
@@ -164,13 +134,6 @@ function StockItemAddOnsTreeRow({
     );
 }
 
-/**
- * The item's options, each with the stock it holds.
- *
- * An option is counted in its own right — running out of Large is not running
- * out of the item — so each carries its own balance and is stocked on its own.
- * The item's figure above is their sum.
- */
 function StockItemOptionsRow({
     row,
     onStockIn,
@@ -261,7 +224,6 @@ function StockItemOptionsRow({
                 ))}
             </div>
 
-            {/* Only ever non-zero on an item stocked before it had options. */}
             {row.unassigned ? (
                 <p className="text-xs text-muted-foreground">
                     {formatAmount(row.unassigned)} {row.unitLabel} is still
@@ -297,37 +259,22 @@ export function StockLevelTable({
     onStockIn?: (id: string) => void;
     onStockOut?: (id: string) => void;
     onAdjust?: (id: string) => void;
-    /** Moving one option of an item, which counts its own stock. */
     onStockInOption?: (id: string, variantId: string) => void;
     onStockOutOption?: (id: string, variantId: string) => void;
-    /**
-     * Moving an add-on the item offers. It is shared, so this is the same
-     * stock wherever it is reached from — the add-on's id is all it takes.
-     */
-    /** Opens the deliveries behind one item, oldest first. */
     onViewBatches?: (id: string) => void;
     onStockInAddOn?: (addOnId: string) => void;
     onStockOutAddOn?: (addOnId: string) => void;
-    /** What a page is counted in, for the footer: "items", "add-ons", … */
     pageUnitNoun?: string;
 }) {
     const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(
         new Set(),
     );
-    // Groups start open; collapsing is the exception, so only those are held.
     const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
         new Set(),
     );
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
 
-    /**
-     * A search that narrows the list must not leave you on a page past the
-     * end, so any change to what is being listed starts again from the first.
-     *
-     * The caller rebuilds `rows` on every render, so what is being listed is
-     * compared by the ids it contains rather than by the array's identity.
-     */
     const rowsSignature = rows
         .map((row) => `${row.group?.id ?? ""}:${row.id}`)
         .join("|");
@@ -359,10 +306,6 @@ export function StockLevelTable({
     const hasActions = Boolean(onStockIn || onStockOut || onAdjust);
     const columnCount = hasActions ? 6 : 5;
 
-    /**
-     * Rows in the order given, with a heading started whenever the group
-     * changes. The caller decides the order; the table only marks the seams.
-     */
     const sections = rows.reduce<
         { group?: StockLevelRow["group"]; rows: StockLevelRow[] }[]
     >((built, row) => {
@@ -377,11 +320,6 @@ export function StockLevelTable({
         return built;
     }, []);
 
-    /**
-     * A page holds whole sections when the table is grouped, so an item's
-     * add-ons are never split across two pages, and a collapsed group still
-     * takes its place in the list rather than vanishing from it.
-     */
     const isGrouped = sections.some((section) => section.group);
     const pageUnits = isGrouped
         ? sections
@@ -437,7 +375,6 @@ export function StockLevelTable({
                     </Button>
                 </div>
             ) : null}
-            {/* Mobile Cards View (< md) */}
             <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                 {visibleUnits.map((section) => {
                     const group = section.group;
@@ -486,7 +423,6 @@ export function StockLevelTable({
                                                 key={`mob-row-${rowKey}`}
                                                 className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
                                             >
-                                                {/* Card Header */}
                                                 <div className="flex items-start justify-between gap-2.5 p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                                     <div className="flex flex-col min-w-0 flex-1">
                                                         <span className="font-bold text-sm text-foreground dark:text-white break-words">
@@ -506,7 +442,6 @@ export function StockLevelTable({
                                                     </span>
                                                 </div>
 
-                                                {/* Card Key-Value Rows */}
                                                 <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                                     <div className="flex items-center justify-between px-3.5 py-2.5">
                                                         <span className="text-muted-foreground dark:text-slate-400">On Hand</span>
@@ -581,7 +516,6 @@ export function StockLevelTable({
                                                     )}
                                                 </div>
 
-                                                {/* Card Action Row */}
                                                 {hasActions && (
                                                     <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 bg-muted/10 dark:bg-slate-900/30 border-t border-border/70 dark:border-slate-800/80">
                                                         {onStockIn && !row.options?.length && (
@@ -634,7 +568,6 @@ export function StockLevelTable({
                 })}
             </div>
 
-            {/* Desktop Table (>= md) */}
             <div data-tour="stock-table-container" className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-md text-xs font-semibold tracking-wide text-muted-foreground uppercase border-b border-border">
@@ -695,7 +628,6 @@ export function StockLevelTable({
 
                         const sectionRows = section.rows.flatMap((row) => {
                             const rowKey = `${section.group?.id ?? ""}:${row.id}`;
-                            // Only a row with something under it can be opened.
                             const expandable = Boolean(
                                 row.options?.length || row.addOns?.length,
                             );
@@ -782,11 +714,6 @@ export function StockLevelTable({
                                     {hasActions ? (
                                         <td className="px-5 py-4">
                                             <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                                                {/* An item sold in options is
-                                                    stocked through them: its
-                                                    own figure is their sum, so
-                                                    moving "the item" would
-                                                    belong to no option. */}
                                                 {row.options?.length ? (
                                                     <Button
                                                         type="button"

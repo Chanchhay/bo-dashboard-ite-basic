@@ -22,14 +22,12 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-/** One item's two measures, side by side: what it earned and how many sold. */
 export type ItemTypePoint = {
     name: string;
     itemCount: number;
     totalAmount: number;
 };
 
-/** Revenue and units sold for the best-earning items, as paired bars. */
 export function ItemTypeBarCard({
     data,
     isError,

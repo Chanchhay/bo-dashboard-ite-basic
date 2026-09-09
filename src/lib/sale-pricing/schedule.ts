@@ -1,16 +1,3 @@
-/**
- * When a channel accepts orders.
- *
- * A schedule is per weekday, because "we close early on Sunday" is the rule
- * rather than the exception, and each day holds *windows* rather than one
- * open/close pair — a kitchen that serves lunch and dinner with a gap between
- * cannot be expressed any other way.
- *
- * A window whose close time is at or before its open time runs **overnight**:
- * `22:00 – 02:00` on Friday means Friday night into Saturday morning. The
- * window belongs to the day it starts on, which is how a person describes it,
- * so Saturday's own hours are untouched by Friday's late night.
- */
 
 export const dayKeys = [
     "MON",
@@ -44,7 +31,6 @@ export const dayShortLabels: Record<DayKey, string> = {
     SUN: "Sun",
 };
 
-/** `HH:MM`, 24-hour. */
 export type TimeWindow = { open: string; close: string };
 
 export type DaySchedule = {
@@ -53,7 +39,6 @@ export type DaySchedule = {
 };
 
 export type ChannelSchedule = {
-    /** Skips the whole weekly grid — a storefront that never sleeps. */
     alwaysOpen: boolean;
     days: Record<DayKey, DaySchedule>;
 };
@@ -68,8 +53,6 @@ export function isOvernight(window: TimeWindow) {
     return minutesOf(window.close) <= minutesOf(window.open);
 }
 
-/** Monday-first index, unlike `Date.getDay()` which starts on Sunday. */
-/** Monday-first index, matching `dayKeys`. */
 export function dayIndex(date: Date) {
     return (date.getDay() + 6) % 7;
 }
@@ -87,8 +70,6 @@ export function isOpenAt(schedule: ChannelSchedule, at: Date) {
             const open = minutesOf(window.open);
             const close = minutesOf(window.close);
 
-            // A normal window closes the same day; an overnight one runs to
-            // midnight and is picked up again below as yesterday's spill.
             return isOvernight(window) ? now >= open : now >= open && now < close;
         })
     ) {
@@ -113,7 +94,6 @@ export function describeDay(day: DaySchedule) {
         .join(", ");
 }
 
-/** "Every day 07:00 – 20:00" when nothing differs, otherwise a count. */
 export function describeSchedule(schedule: ChannelSchedule) {
     if (schedule.alwaysOpen) return "Open 24/7";
 
@@ -141,11 +121,6 @@ export function emptySchedule(): ChannelSchedule {
     };
 }
 
-/**
- * Rejects the two mistakes that make a schedule unreadable: a window with the
- * same open and close time (is that zero hours or twenty-four?), and two
- * windows on one day that overlap.
- */
 export function validateDay(day: DaySchedule) {
     if (day.closed || day.windows.length === 0) return "";
 

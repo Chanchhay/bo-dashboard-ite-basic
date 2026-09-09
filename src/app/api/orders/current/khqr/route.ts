@@ -3,12 +3,6 @@ import { getCurrentBusinessId } from "@/lib/api/business-backend";
 import type { Khqr } from "@/lib/api/pos-order";
 import { getCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
 
-/**
- * Produces the code the customer scans.
- *
- * The order is left `PENDING`: a generated code is only an offer to pay, and
- * the sale is not settled until Bakong confirms it.
- */
 export async function POST() {
     try {
         const order = await getCurrentOrder();

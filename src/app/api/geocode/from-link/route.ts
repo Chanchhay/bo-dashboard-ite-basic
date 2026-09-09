@@ -10,13 +10,11 @@ import {
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 const USER_AGENT = "ipos-business-dashboard/1.0";
 
-/** Short links carry no coordinates themselves — only the page they redirect to does. Resolved server-side; browsers can't follow cross-origin redirects for this and read the final URL. */
 async function resolveShortLink(url: string): Promise<string> {
     try {
         const response = await fetch(url, { method: "HEAD", redirect: "follow" });
         if (response.url) return response.url;
     } catch {
-        // Some redirectors don't answer HEAD — fall through to GET.
     }
     try {
         const response = await fetch(url, { method: "GET", redirect: "follow" });
@@ -26,7 +24,6 @@ async function resolveShortLink(url: string): Promise<string> {
     }
 }
 
-/** Parses the coordinates out of a pasted Google Maps link/text and reverse-geocodes them. */
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const link = searchParams.get("url")?.trim();
@@ -68,9 +65,6 @@ export async function GET(request: NextRequest) {
             };
 
             return Response.json({
-                // The full resolved address, same as /reverse and /search
-                // return it — not the Google Maps URL, which isn't a label
-                // for a place.
                 label: data.display_name ?? resolvedUrl,
                 lat: coords.lat,
                 lon: coords.lng,
@@ -78,7 +72,6 @@ export async function GET(request: NextRequest) {
             } satisfies GeocodeResult);
         }
     } catch {
-        // Reverse geocoding failed — fall through with coordinates alone.
     }
 
     return Response.json({

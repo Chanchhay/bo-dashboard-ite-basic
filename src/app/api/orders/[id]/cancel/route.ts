@@ -9,7 +9,6 @@ import {
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Cancels one pending order after the cashier confirms the destructive action. */
 export async function POST(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params;

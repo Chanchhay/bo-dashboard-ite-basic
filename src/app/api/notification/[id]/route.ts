@@ -15,12 +15,10 @@ export async function DELETE(
         const permanent = searchParams.get("permanent") === "true";
 
         if (permanent) {
-            // Hard delete
             await backendRequest(`/api/v1/notifications/received/${id}/permanent`, {
                 method: "DELETE",
             });
         } else {
-            // Soft delete (PUT endpoint in backend)
             await backendRequest(`/api/v1/notifications/received/${id}`, {
                 method: "PUT",
             });

@@ -10,29 +10,14 @@ import { db } from "@/lib/db";
 import { syncOfflineOrders as syncOfflineDbOrders } from "@/lib/sync";
 import { pushCart, resetCartPushBackoff } from "@/lib/pos/cart-sync";
 
-/** How often a queued sale tries again while the till thinks it is connected. */
 const RESYNC_INTERVAL_MS = 30_000;
 
-/** Longest wait between attempts once the server keeps refusing. */
 const MAX_RESYNC_BACKOFF_MS = 15 * 60_000;
 
-/*
- * One till, one sync.
- *
- * This hook is mounted four times over on the terminal — the item grid, the
- * screen, the navbar and the app-wide banner — and every copy has its own
- * timer. Left to themselves they each run the whole thing, so a queue the
- * server keeps refusing becomes a steady drum of requests for as long as the
- * page is open, doubled again by StrictMode in development.
- *
- * Module scope because that is the scope the truth lives at: there is one
- * queue on this device, not one per component.
- */
 let syncInFlight: Promise<boolean> | null = null;
 let nextSyncAllowedAt = 0;
 let syncBackoffMs = RESYNC_INTERVAL_MS;
 
-/** A real reconnection earns a fresh attempt rather than serving out a backoff. */
 function resetSyncBackoff() {
     nextSyncAllowedAt = 0;
     syncBackoffMs = RESYNC_INTERVAL_MS;
@@ -50,9 +35,6 @@ export function usePosOffline() {
     if (typeof window !== "undefined") {
       const handleOnline = () => {
         resetSyncBackoff();
-        // A cart built during the outage has been waiting to be told to the
-        // server. It is safe on the device, but the sooner it lands the sooner
-        // payment can go through the normal path.
         resetCartPushBackoff();
         void pushCart({ force: true });
         setIsOnline(true);
@@ -95,10 +77,6 @@ export function usePosOffline() {
       await offlineDb.channelItems.bulkPut(items);
       console.log(`[Offline POS] Cached ${items.length} catalog items.`);
 
-      // The pictures follow the catalogue, in the background: a cashier picks
-      // by sight, and a grid of items that have all fallen back to the brand
-      // mark is forty identical tiles. Not awaited — the catalogue is usable
-      // the moment it lands, and the pictures arrive behind it.
       void cacheImages(items.map((entry) => itemThumbnail(entry.item)));
     } catch (err) {
       console.error("[Offline POS] Failed to cache catalog items:", err);
@@ -165,10 +143,6 @@ export function usePosOffline() {
     }
   }, [dispatch, refreshPendingCount]);
 
-  /**
-   * Attempts a sync, unless one is already running or the last one failed
-   * recently enough that trying again would only be noise.
-   */
   const syncOfflineOrders = useCallback(async () => {
     if (syncInFlight) return syncInFlight;
     if (Date.now() < nextSyncAllowedAt) return false;
@@ -181,8 +155,6 @@ export function usePosOffline() {
       if (ok) {
         resetSyncBackoff();
       } else {
-        // Doubling, because a server that has refused twice will most likely
-        // refuse the third time too, and the queue loses nothing by waiting.
         nextSyncAllowedAt = Date.now() + syncBackoffMs;
         syncBackoffMs = Math.min(syncBackoffMs * 2, MAX_RESYNC_BACKOFF_MS);
       }
@@ -199,15 +171,6 @@ export function usePosOffline() {
     }
   }, [isOnline, syncOfflineOrders]);
 
-  /**
-   * Keeps trying while anything is still queued.
-   *
-   * The `online` event is the fast path, not the only one: it does not fire
-   * when the connection was never lost as far as the browser is concerned —
-   * a backend that was down, a portal that was in the way, a request blocked
-   * by the developer tools — and without a retry those sales sit in the queue
-   * until someone reloads the till. An attempt that fails changes nothing.
-   */
   useEffect(() => {
     if (pendingSyncCount === 0) return;
 

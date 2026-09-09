@@ -15,13 +15,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useGetImportSamplesQuery } from "@/services/dataImportApi";
 
-/**
- * Picking the file, with the limits said up front rather than discovered.
- *
- * The file is checked here before it is sent: a shop that picked a .pdf or a
- * 40 MB export should be told so in the moment, not after waiting for an
- * upload that was never going to be accepted.
- */
 export function StepUploadFile({
     targetType,
     file,
@@ -69,12 +62,6 @@ export function StepUploadFile({
                 </p>
             </div>
 
-            {/*
-             * The way out for anyone unsure what we expect. The template's
-             * headings are the ones the next step matches automatically, so a
-             * file built from it arrives already matched — which is a far
-             * better first attempt than guessing at our column names.
-             */}
             <div className="rounded-2xl border border-border bg-muted/30 p-4">
                 <p className="text-sm font-medium text-foreground">
                     Not sure what your file should look like?
@@ -119,7 +106,6 @@ export function StepUploadFile({
                         <p className="text-xs text-muted-foreground">Loading samples…</p>
                     ) : null}
 
-                    {/* A list we could not load is no reason to block an upload. */}
                     {samples.error ? (
                         <a
                             href={`/api/inventory/imports/template?targetType=${targetType}`}

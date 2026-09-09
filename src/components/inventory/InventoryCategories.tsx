@@ -97,9 +97,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
     const rows = categoryRows(groups);
     const isSaving = createState.isLoading || updateState.isLoading;
 
-    // A category whose own name matches keeps every subcategory under it; one
-    // that matches only through a subcategory keeps just the subcategories
-    // that matched, so the parent still gives them somewhere to sit.
     const filteredGroups = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return groups;
@@ -325,7 +322,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                         />
                     ) : (
                         <div>
-                            {/* Mobile Table Cards View (< md) */}
                             <div className="flex flex-col gap-3 p-3 bg-[#f8faf8] dark:bg-[#111622] rounded-b-2xl w-full min-w-0 md:hidden">
                                 {filteredGroups.map((group) => {
                                     const subGroups = group.subGroups || [];
@@ -337,7 +333,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                             key={group.id}
                                             className="rounded-2xl border border-gray-200/90 dark:border-slate-800 bg-white dark:bg-[#151c28] shadow-xs overflow-hidden w-full min-w-0"
                                         >
-                                            {/* Card Header (Title & Action Buttons) */}
                                             <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-muted/25 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800 w-full min-w-0">
                                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                                     <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -378,7 +373,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                 </div>
                                             </div>
 
-                                            {/* Card Key-Value Rows */}
                                             <div className="divide-y divide-gray-100 dark:divide-slate-800/70 text-xs w-full min-w-0">
                                                 <div className="flex items-center justify-between gap-2 px-3.5 py-2">
                                                     <span className="text-muted-foreground dark:text-slate-400 shrink-0">Category Name</span>
@@ -420,7 +414,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                     </div>
                                                 </div>
 
-                                                {/* Nested Subcategories Section */}
                                                 {hasSubGroups && !isCollapsed && (
                                                     <div className="bg-muted/15 dark:bg-[#0d121c] p-2.5 space-y-1.5 border-t border-gray-100 dark:border-slate-800 w-full min-w-0">
                                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
@@ -477,7 +470,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                 })}
                             </div>
 
-                            {/* Desktop Tree View (>= md) */}
                             <div className="hidden md:block divide-y divide-[#edf0ec] dark:divide-[#242937]">
                                 {filteredGroups.map((group) => {
                                     const subGroups = group.subGroups || [];
@@ -556,7 +548,6 @@ export function InventoryCategories({ embedded = false }: { embedded?: boolean }
                                                             key={subGroup.id}
                                                             className="relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                                                         >
-                                                            {/* Horizontal branch indicator line */}
                                                             <span className="absolute -left-4 top-1/2 h-0.5 w-3.5 bg-primary/30 dark:bg-primary/40 -translate-y-1/2" />
 
                                                             <div className="min-w-0 flex-1">

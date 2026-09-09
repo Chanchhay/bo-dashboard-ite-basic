@@ -9,17 +9,10 @@ import { POS_ROUTES } from "@/lib/pos-routes";
 
 export interface CloseRegisterProps {
   cashierName: string;
-  /**
-   * Anyone who joined the drawer after it was opened.
-   *
-   * Their sales are in the expected total, so the person counting the cash has
-   * to be told the money is not only the opener's.
-   */
   joinedCashiers?: string[];
-  openedAt: string; // e.g. "24/07/2026 - 08:12"
+  openedAt: string;
   openingAmount: number;
   revenue: number;
-  /** The currency this till is counted in, fixed when it opened. */
   currency?: string;
   orderCount: number;
   onConfirm: (totalCounted: number) => void;
@@ -47,7 +40,6 @@ export function CloseRegister({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto focus & select input on mount
   useEffect(() => {
     const timer = setTimeout(() => {
       if (inputRef.current) {
@@ -133,7 +125,6 @@ export function CloseRegister({
     }
   }, [isProcessing, counted, onConfirm, totalCounted]);
 
-  // Physical Keyboard Listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Enter") {
@@ -152,7 +143,6 @@ export function CloseRegister({
   return (
     <div data-tour="pos-close-register" className="flex h-screen w-screen items-center justify-center overflow-clip p-4">
       <div className="flex w-full max-w-md max-h-full flex-col rounded-3xl bg-white shadow-sm overflow-hidden border border-gray-100">
-        {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-2">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
@@ -160,9 +150,6 @@ export function CloseRegister({
             </div>
             <h1 className="text-sm font-bold tracking-wide">CASH REGISTER</h1>
           </div>
-          {/* Explicit destination, not `back()` — arriving here by redirect
-              would otherwise send the cashier somewhere unrelated. Backing out
-              of a count returns to the till with the shift still open. */}
           <button
             type="button"
             onClick={() => router.replace(POS_ROUTES.terminal)}
@@ -173,7 +160,6 @@ export function CloseRegister({
           </button>
         </div>
 
-        {/* Content — no scroll, sized to fit */}
         <div className="flex-1 px-6 min-h-0">
           <p className="pt-3 text-center text-sm text-gray-500">
             Close the current cash register session
@@ -275,7 +261,6 @@ export function CloseRegister({
           </div>
         </div>
 
-        {/* Action */}
         <div className="shrink-0 px-6 pb-4 pt-1">
           <button
             type="button"

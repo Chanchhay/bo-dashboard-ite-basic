@@ -4,7 +4,6 @@ import { boundedInteger, orderFiltersFromQuery } from "@/lib/api/order-filters";
 import type { PosOrderPage } from "@/lib/api/pos-order";
 import { filterOrders } from "@/lib/api/pos-order-backend";
 
-/** Lists persisted paid orders; historical sale projections are not yet exposed. */
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
@@ -16,8 +15,6 @@ export async function GET(request: Request) {
             max: 50,
         });
         const businessId = await getCurrentBusinessId();
-        // Status is fixed here — receipts are paid orders, whatever the caller
-        // asks for — so only the date range comes from the query string.
         url.searchParams.delete("status");
         const result = await filterOrders(
             businessId,

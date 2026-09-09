@@ -37,10 +37,6 @@ import {
 } from "@/services/inventoryApi";
 import { cn } from "@/lib/utils";
 
-/**
- * 1. គណនា Net Selling Price (មិនទាន់រួមបញ្ចូល Tax) តាម Target Margin
- * Formula: Net Price = Cost / (1 - Target Margin)
- */
 export function calculateNetSellingPrice(cost: number, targetMarginPercent: number): number {
     if (cost <= 0) return 0;
     if (targetMarginPercent >= 100 || targetMarginPercent < 0) {
@@ -51,9 +47,6 @@ export function calculateNetSellingPrice(cost: number, targetMarginPercent: numb
     return cost / (1 - marginDecimal);
 }
 
-/**
- * 2. គណនា Tax និង Final Customer Price (Gross Price)
- */
 export function calculateCustomerPrice(netPrice: number, taxRatePercent: number = 0): {
     netPrice: number;
     taxAmount: number;
@@ -69,42 +62,23 @@ export function calculateCustomerPrice(netPrice: number, taxRatePercent: number 
     };
 }
 
-/**
- * 3. គណនា Gross Margin % ត្រឹមត្រូវ (គណនាលើ Net Price មិនគិត Tax)
- * Formula: Gross Margin % = ((Net Price - Cost) / Net Price) * 100
- */
 export function calculateGrossMargin(netPrice: number, cost: number): number {
     if (netPrice <= 0) return 0;
     return ((netPrice - cost) / netPrice) * 100;
 }
 
-/**
- * Said in the shop's words, not the system's.
- *
- * A standalone item has one line and no need of a heading over it — being
- * told it is "sold by the can" above a row called "Can" is the kind of label
- * that only makes sense to whoever built the thing.
- */
 const sectionTitles: Record<SoldAsRow["kind"], string> = {
     BASE: "On its own",
     OPTION: "Sizes and options",
     PACK: "Packs and cases",
 };
 
-/** A line under each heading, so the heading does not have to explain itself. */
 const sectionBlurbs: Record<SoldAsRow["kind"], string> = {
     BASE: "What a customer pays for one.",
     OPTION: "A customer picks one of these. Each is priced on its own.",
     PACK: "Sold by the pack or case. Priced against what the whole pack cost.",
 };
 
-/**
- * What is left over at the typed price, as one thing to read.
- *
- * Cost and margin were two lines of small grey text, which reads as a footnote
- * to the price rather than as the reason for it. The margin is the answer the
- * shop is actually looking for, so it is the one that carries colour.
- */
 function MarginCell({
     cost,
     price,
@@ -160,7 +134,6 @@ function MarginCell({
     );
 }
 
-/** The column headings, said once per card rather than once per row. */
 function PriceColumns({ isUntracked = false }: { isUntracked?: boolean }) {
     return (
         <div className="flex items-center gap-4 border-b border-border bg-muted/20 px-4 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -172,7 +145,6 @@ function PriceColumns({ isUntracked = false }: { isUntracked?: boolean }) {
     );
 }
 
-/** One priced line: what it is, what it sells for, what that leaves. */
 function PriceRow({
     label,
     description,
@@ -239,19 +211,6 @@ function PriceRow({
     );
 }
 
-/**
- * One item's master prices: every way it is sold, and every extra on it.
- *
- * Two sections because they are two different things. The first is what the
- * item itself sells for — as a single, as an option, or by the pack — and each
- * is priced in its own right against what its stock cost. The second is the
- * extras, which are priced once for the whole business: the same shot costs
- * the same wherever it is added, so editing it here changes it everywhere.
- *
- * It is a form on its own rather than a card in a list because an item can
- * carry a dozen of these lines: opened one at a time, the prices being set are
- * the only prices on screen.
- */
 export function SetPriceDialog({
     item,
     unitCostFor,
@@ -262,9 +221,7 @@ export function SetPriceDialog({
     onDraftChange,
 }: {
     item: InventoryItem;
-    /** What one base unit of a given option cost, from the batch it comes out of. */
     unitCostFor: UnitCostLookup;
-    /** The same, per add-on. An add-on is stocked and costed in its own right. */
     addOnCosts: Map<string, number>;
     drafts: PriceDrafts;
     open: boolean;
@@ -285,14 +242,6 @@ export function SetPriceDialog({
     const addOns = item.addOns || [];
     const soldAs = soldAsRowsOf(item, unitCostFor);
 
-    /**
-     * Nothing is priced before its stock cost is known.
-     *
-     * A selling price is set against what the stock cost — that is the whole
-     * point of the cost column beside it. Until the item has been received
-     * with a unit cost there is nothing to price against, and a number typed
-     * here would be a guess dressed up as a decision.
-     */
     const isUntracked = item.trackInventory === false;
     const canPrice = isUntracked || soldAs.some((row) => row.unitCost !== undefined);
     const blockedHint =
@@ -327,7 +276,6 @@ export function SetPriceDialog({
 
     const kindCount = new Set(soldAs.map((row) => row.kind)).size;
 
-    /** The lines grouped under their heading, in the order they are sold. */
     const sections = (["BASE", "OPTION", "PACK"] as const)
         .map((kind) => ({
             kind,
@@ -346,7 +294,6 @@ export function SetPriceDialog({
             );
         });
     const changedAddOns = addOns.filter((addOn) => {
-        // An add-on is costed on its own, so it is gated on its own stock.
         if (!addOnCosts.has(addOn.id)) return false;
 
         const draft = drafts[addOnKey(addOn.id)];
@@ -376,7 +323,6 @@ export function SetPriceDialog({
         return saved == null ? "" : String(saved);
     }
 
-    /** An add-on is shared, so its price is saved on its own record. */
     async function saveAddOnPrice(addOn: AddOn) {
         const price = draftAmount(drafts[addOnKey(addOn.id)], addOn.price);
 
@@ -405,24 +351,14 @@ export function SetPriceDialog({
         );
 
         const pricing: ItemPricingInput = {
-            // Sent only when there is one: the API keeps what it has when a
-            // field is absent, so a price can be set but not cleared here.
             ...(basePrice === undefined ? {} : { price: basePrice }),
             ...(options.length
                 ? {
-                    // Saving variants replaces the list, so what this screen
-                    // never edits goes back exactly as it came.
                     variants: options.map((option) => ({
                         name: option.name || "",
                         sku: option.sku || "",
                         barcode: option.barcode || "",
-                        // The option's own picture is one of those things:
-                        // left out, pricing an item would strip every
-                        // picture its options carry.
                         imageUrl: option.imageUrl || "",
-                        // So is the pair it stands for: pricing an item must
-                        // not turn Large/Red back into a loose "Large" and
-                        // merge two shelves into one.
                         optionName: option.optionName || option.name || "",
                         colorValue: option.colorValue || "",
                         available: option.available !== false,
@@ -450,8 +386,6 @@ export function SetPriceDialog({
 
                         return {
                             unitId: conversion.unit?.id || "",
-                            // Which option it is for is part of what the
-                            // conversion is; sent back or it would be lost.
                             ...(conversion.variantId
                                 ? { variantId: conversion.variantId }
                                 : {}),
@@ -492,8 +426,6 @@ export function SetPriceDialog({
                     : {}),
             });
 
-            // Closed on success only: a save that failed leaves the form open
-            // with the typed prices still in it, ready to try again.
             onOpenChange(false);
         } catch (error) {
             toast({
@@ -562,18 +494,11 @@ export function SetPriceDialog({
                     </div>
                 )}
 
-                {/* What the item itself sells as, one card per kind. Each is a
-                    different question — which size, or how big a pack — and a
-                    single run of rows made the reader work out where one ended
-                    and the next began. */}
                 {sections.map((section) => (
                     <section
                         key={section.kind}
                         className="overflow-hidden rounded-xl border border-border"
                     >
-                        {/* Only worth heading when there is more than one kind
-                            of line to tell apart. A single item priced on its
-                            own needs no label. */}
                         {kindCount < 2 ? null : (
                             <div className="border-b border-border bg-muted/40 px-4 py-2.5">
                                 <p className="text-sm font-semibold text-foreground">
@@ -624,7 +549,6 @@ export function SetPriceDialog({
                     </section>
                 ))}
 
-                {/* The extras on it. Shared, so a price here applies everywhere. */}
                 {addOns.length ? (
                     <section className="overflow-hidden rounded-xl border border-border">
                         <div className="border-b border-border bg-muted/40 px-4 py-2.5">

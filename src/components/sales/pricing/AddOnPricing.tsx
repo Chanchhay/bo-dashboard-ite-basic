@@ -53,14 +53,10 @@ function AddOnRow({ addOn }: { addOn: AddOn }) {
         const price = toAmount(draft, addOn.price);
 
         try {
-            // The update applies each field it is given and the rest of the
-            // add-on is not this screen's to change, so everything else goes
-            // back exactly as it came.
             await save({
                 addOnId: addOn.id,
                 body: {
                     name: addOn.name || "",
-                    // Required by the schema; an add-on always has one.
                     baseUnitId: addOn.baseUnit?.id || "",
                     usePerOrder: addOn.usePerOrder ?? 1,
                     ...(price === undefined ? {} : { price }),
@@ -149,14 +145,6 @@ function AddOnRow({ addOn }: { addOn: AddOn }) {
     );
 }
 
-/**
- * What each add-on costs, across the whole business.
- *
- * One price per add-on rather than one per item: "Extra shot" costs the same
- * wherever it is offered, which is the standard a shop advertises. It lives in
- * the library beside the add-on itself, so pricing it once prices it on every
- * item that offers it.
- */
 export function AddOnPricing() {
     const addOnsQuery = useGetAddOnsQuery();
 

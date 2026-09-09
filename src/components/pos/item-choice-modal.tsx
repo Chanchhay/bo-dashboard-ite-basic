@@ -17,30 +17,18 @@ import { itemThumbnail } from "@/lib/api/inventory";
 import type { ChannelItem } from "@/lib/api/sales-channels";
 import { cn } from "@/lib/utils";
 
-/** What the cashier picked, ready to be added to the order. */
 export type ItemChoice = {
     variantId?: string;
     unitId?: string;
-    /**
-     * The names and the factor travel with the choice.
-     *
-     * The cart is written on the device and has to read back correctly with no
-     * server to ask, so the line has to carry what it is — "Bag · 10.5 per
-     * pack" — rather than an id it would have to resolve later.
-     */
     variantName?: string;
     unitName?: string;
     unitFactor?: number;
-    /** Extras ticked on this line. */
     addOnIds?: string[];
-    /** The same extras with what they are called and cost, for a cart that has to read back offline. */
     addOns?: { addOnId: string; name: string; unitPrice: number }[];
-    /** For the optimistic line, before the order comes back. */
     label: string;
     unitPrice: number;
 };
 
-/** The base unit is a choice like any other, and always the first one. */
 const baseUnitValue = "__base";
 
 type Choice = {
@@ -49,11 +37,6 @@ type Choice = {
     hint?: string;
     price?: number | null;
     disabled?: boolean;
-    /**
-     * The option's own picture, where it has one. A cashier picking between
-     * two things that look different should be able to see them, not read
-     * them — which is the whole reason an option carries an image.
-     */
     imageUrl?: string;
 };
 
@@ -95,8 +78,6 @@ function ChoiceRow({
                             )}
                         >
                             {choice.imageUrl ? (
-                                // Decorative — the label beside it names the
-                                // option already.
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                     src={choice.imageUrl}
@@ -126,14 +107,6 @@ function ChoiceRow({
     );
 }
 
-/**
- * Which option and which unit, before a line is rung up.
- *
- * An item sold in Small and Large, or by the can and by the case, cannot be
- * added with one tap: each carries its own price and takes its own amount off
- * the shelf. The till asks once, here, rather than guessing and being wrong on
- * both counts.
- */
 export function ItemChoiceModal({
     channelItem,
     open,
@@ -145,7 +118,6 @@ export function ItemChoiceModal({
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onConfirm: (choice: ItemChoice) => void;
-    /** On hand for an item, or one option of it, in base units. */
     stockFor: (itemId: string, variantId?: string) => number | undefined;
 }) {
     const item = channelItem?.item;
@@ -159,18 +131,10 @@ export function ItemChoiceModal({
     const [addOnIds, setAddOnIds] = useState<string[]>([]);
     const [openedFor, setOpenedFor] = useState(item?.id);
 
-    /**
-     * The extras this item sells right now.
-     *
-     * An add-on switched off for this item is not offered at the till at all:
-     * taking it off the menu in the back office has to mean something on the
-     * floor. One with no price is not sellable either.
-     */
     const addOns = (item?.addOns || []).filter(
         (addOn) => addOn.available !== false && addOn.price != null,
     );
 
-    // Each item opens on its own defaults rather than the last one's.
     if (item && openedFor !== item.id) {
         setOpenedFor(item.id);
         setVariantValue(options[0]?.id || baseUnitValue);
@@ -180,7 +144,6 @@ export function ItemChoiceModal({
 
     const onChooseOption = (value: string) => {
         setVariantValue(value);
-        // The pack it was on may not be sold in this option at all.
         setUnitValue(baseUnitValue);
     };
 
@@ -188,18 +151,9 @@ export function ItemChoiceModal({
 
     const chosenOption = options.find((option) => option.id === variantValue);
 
-    /**
-     * The packs this option is actually sold in.
-     *
-     * A six-pack of Large does not mean a six-pack of Small exists — each
-     * pairing is offered and priced on its own, so the till only shows what
-     * the chosen option can be bought as.
-     */
     const packs = allPacks.filter(
         (conversion) =>
             conversion.price != null &&
-            // A larger unit belongs to one option; the till only offers the
-            // ones defined for whichever option is chosen.
             (conversion.variantId || undefined) ===
                 (chosenOption?.id || undefined),
     );
@@ -208,17 +162,10 @@ export function ItemChoiceModal({
         (conversion) => conversion.unit?.id === unitValue,
     );
 
-    /**
-     * What the line will cost.
-     *
-     * A pack is priced in its own right — a case is not twenty-four times a
-     * can — so its price wins outright when one is chosen.
-     */
     const basePrice = chosenPack
         ? (chosenPack.price ?? undefined)
         : (chosenOption?.price ?? item.price ?? undefined);
 
-    // Each extra is charged per unit of the line, so it adds to the price.
     const extras = addOns.filter((addOn) => addOnIds.includes(addOn.id));
     const extrasTotal = extras.reduce(
         (total, addOn) => total + (addOn.price ?? 0),
@@ -229,22 +176,9 @@ export function ItemChoiceModal({
 
     const onHand = stockFor(item.id, chosenOption?.id);
     const needed = chosenPack?.factor ?? 1;
-    /**
-     * A service or a download has no shelf, so a missing count is not a
-     * shortage. Anything else with no count has simply never been received,
-     * which is a shortage of everything.
-     */
     const counted = item.trackInventory !== false && item.itemType !== "SERVICE" && item.itemType !== "DIGITAL";
     const shortOfStock = counted && (onHand ?? 0) < needed;
 
-    /**
-     * What the line being rung up looks like.
-     *
-     * The chosen option's own picture where it has one, so the till shows the
-     * black phone once Black is picked rather than whatever the item's gallery
-     * happens to lead with. Otherwise the item's thumbnail, which is what the
-     * card on the grid showed a moment ago.
-     */
     const lineImage = chosenOption?.imageUrl || itemThumbnail(item);
 
     const label = [
@@ -289,9 +223,6 @@ export function ItemChoiceModal({
                                     hint: !counted
                                         ? undefined
                                         : `${optionStock ?? 0} left`,
-                                    // An option with none on hand cannot be
-                                    // picked, the same as one taken off sale:
-                                    // both are things the till cannot ring up.
                                     disabled:
                                         option.available === false ||
                                         (counted && (optionStock ?? 0) <= 0),
@@ -367,7 +298,6 @@ export function ItemChoiceModal({
 
                     <div className="rounded-xl border border-border bg-muted/30 p-4">
                         <div className="flex items-center justify-between gap-4">
-                            {/* Decorative — the line is named right beside it. */}
                             <ItemImage
                                 src={lineImage}
                                 className="size-12 shrink-0 rounded-lg"
@@ -377,10 +307,6 @@ export function ItemChoiceModal({
                                     {label}
                                 </p>
                                 <p className="mt-0.5 text-xs text-muted-foreground">
-                                    {/* "Available" rather than "on hand":
-                                        where the shop has given the counter a
-                                        share of the shelf, this is that share
-                                        and not what is in the stockroom. */}
                                     {!counted
                                         ? "No stock to count"
                                         : onHand === undefined

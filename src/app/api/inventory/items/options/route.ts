@@ -4,7 +4,6 @@ import {
     getInventoryBusinessId,
 } from "@/lib/api/inventory-backend";
 
-/** Full item options for stock screens that must resolve every item ID. */
 export async function GET() {
     try {
         const businessId = await getInventoryBusinessId();

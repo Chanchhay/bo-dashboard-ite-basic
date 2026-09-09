@@ -11,7 +11,6 @@ export type TelegramBotSetting = {
     webhookUrl: string;
     notificationChatId: string | null;
     miniAppEnabled: boolean;
-    /** Where the bot's menu button points when miniAppEnabled — null otherwise. */
     miniAppUrl: string | null;
 };
 

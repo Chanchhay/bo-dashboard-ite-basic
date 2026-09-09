@@ -6,12 +6,6 @@ import {
     type ImportTargetType,
 } from "@/lib/api/data-import";
 
-/**
- * The starting files on offer for one kind of import.
- *
- * A static segment, so Next.js matches it ahead of `[importId]` rather than
- * treating "samples" as an import to look up.
- */
 export async function GET(request: Request) {
     try {
         const targetType = new URL(request.url).searchParams.get(

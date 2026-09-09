@@ -29,9 +29,6 @@ export const currencyApi = baseApi.injectEndpoints({
                 method: "PUT",
                 body,
             }),
-            // Changing the base currency restates every stored price, so the
-            // cached catalogue and pricing rules are stale the moment this
-            // returns — not just the currency configuration itself.
             invalidatesTags: [
                 "Business",
                 "BusinessCurrencies",

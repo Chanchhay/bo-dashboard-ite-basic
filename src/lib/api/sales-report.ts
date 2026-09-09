@@ -25,7 +25,6 @@ export type SalesProfit = {
     total: ChannelProfit;
 };
 
-
 export const reportGranularities = {
     DAY: "Daily",
     WEEK: "Weekly",
@@ -34,7 +33,6 @@ export const reportGranularities = {
 } as const;
 
 export type ReportGranularity = keyof typeof reportGranularities;
-
 
 export type PeriodProfit = {
     
@@ -62,7 +60,6 @@ export type PeriodProfitReport = {
     total: PeriodProfit;
 };
 
-
 export function periodLabel(
     periodStart: string,
     granularity: ReportGranularity,
@@ -88,7 +85,6 @@ export function periodLabel(
     return granularity === "WEEK" ? `Week of ${day}` : day;
 }
 
-
 export type ItemProfit = {
     
     itemId: string | null;
@@ -113,29 +109,15 @@ export type ItemProfitReport = {
     total: ItemProfit;
 };
 
-/**
- * How far back a prediction looks. Deliberately just these two — a single
- * day is too small a sample to trend on, and a year-long window would have
- * "recommended restock" suggest buying a year's stock at once. Week and
- * month are the two horizons an owner can actually act on.
- */
 export type PredictionWindow = "WEEK" | "MONTH";
 
-/**
- * One item's forecast for the selected window — no ML, just this item's own
- * recent average and trend. Server-computed so the dashboard tiles and the
- * full Prediction page always agree on the same numbers.
- */
 export type PredictionItem = {
     itemId: string;
     name: string;
     currentStock: number;
     avgDailyDemand: number;
-    /** Naive forecast: next window assumed roughly equal to the last one. */
     expectedDemandWindow: number;
-    /** Null when there's no prior-window baseline to compare against. */
     trendPercent: number | null;
-    /** Null when nothing has sold recently, so a rate can't be worked out. */
     estimatedStockoutDays: number | null;
     recommendedRestock: number;
     qtySold30d: number;
@@ -151,13 +133,11 @@ export type SalesPredictionsResponse = {
     items: PredictionItem[];
 };
 
-/** What one channel took on one day. Absent for a day it sold nothing. */
 export type DailyChannelRevenue = {
     date: string;
     channel: OrderChannelCode;
     revenue: number;
 };
-
 
 export const profitRanges = {
     TODAY: "Today",
@@ -168,7 +148,6 @@ export const profitRanges = {
 } as const;
 
 export type ProfitRange = keyof typeof profitRanges;
-
 
 export function profitRangeStart(range: ProfitRange, now = new Date()) {
     if (range === "ALL") return null;
@@ -183,20 +162,11 @@ export function profitRangeStart(range: ProfitRange, now = new Date()) {
     return start;
 }
 
-
-/**
- * A margin experiment against the current catalog.
- *
- * Priced entirely server-side: cost and quantity are read fresh from
- * inventory on every call, so the numbers this feeds can't drift from a
- * stock delivery that landed mid-session.
- */
 export const saleProfitCalculatorModes = ["PER_ITEM", "BUSINESS_TARGET"] as const;
 export type SaleProfitCalculatorMode = (typeof saleProfitCalculatorModes)[number];
 
 export const saleProfitCalculatorRequestSchema = z.object({
     mode: z.enum(saleProfitCalculatorModes),
-    /** Margin applied to any item without its own entry in itemMargins. */
     defaultMarginPercent: z.coerce.number().min(0),
     itemMargins: z.array(
         z.object({
@@ -204,7 +174,6 @@ export const saleProfitCalculatorRequestSchema = z.object({
             marginPercent: z.coerce.number().min(0),
         }),
     ),
-    /** Required only in BUSINESS_TARGET mode. */
     targetMarginPercent: z.coerce.number().min(0).nullable(),
     operatingExpense: z.coerce.number().min(0),
 });
@@ -216,15 +185,12 @@ export type SaleProfitCalculatorRequest = z.infer<
 export type SaleProfitCalculatorItem = {
     itemId: string;
     name: string;
-    /** Weighted average of what's still on the shelf, not the last delivery price. */
     cost: number;
     qty: number;
     marginPercent: number;
-    /** Null when the margin is 100% or more — no price can reach it. */
     price: number | null;
     revenue: number;
     profit: number;
-    /** Set only in BUSINESS_TARGET mode: this item's price scaled to hit the target. */
     newPrice: number | null;
     newMarginPercent: number | null;
 };
@@ -232,7 +198,6 @@ export type SaleProfitCalculatorItem = {
 export type SaleProfitCalculatorResponse = {
     mode: SaleProfitCalculatorMode;
     operatingExpense: number;
-    /** Echoed back only in BUSINESS_TARGET mode. */
     targetMarginPercent: number | null;
     revenue: number;
     cost: number;

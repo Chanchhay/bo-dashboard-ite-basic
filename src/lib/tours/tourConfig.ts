@@ -20,12 +20,6 @@ function waitForElement(selector: string, timeout = 2000): Promise<void> {
   });
 }
 
-/**
- * For a step that highlights a "New X" button: keep the button on screen,
- * untouched, until the visitor actually clicks Next — then open the modal
- * and only advance once its first field has mounted, so the following step
- * never races the dialog's render.
- */
 function openModalOnNext(buttonSelector: string, firstFieldSelector: string): DriverHook {
   return (_element, _step, opts) => {
     (document.querySelector(buttonSelector) as HTMLButtonElement | null)?.click();
@@ -54,10 +48,6 @@ function clickScopeAndRefresh(chipSelector: string): DriverHook {
   };
 }
 
-/**
- * Route-based step configuration for the FluxiBiz Multi-Page Tour System.
- * Keys match exact pathnames or prefix routes.
- */
 export const routeTourConfig: Record<string, DriveStep[]> = {
  "/apps": [
  {
@@ -2185,7 +2175,6 @@ export const routeTourConfig: Record<string, DriveStep[]> = {
       },
     },
   ],
-
 
   "/prediction": [
     {
