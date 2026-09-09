@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck } from "lucide-react";
 
-import { CloseRegister } from "@/components/pos/close-register";
+import { CloseRegister, type CloseRegisterData } from "@/components/pos/close-register";
 import { useToast } from "@/components/ui/toast";
 import type { RegisterSession } from "@/lib/api/pos-session";
 import { useMoney } from "@/hooks/useMoney";
@@ -45,14 +45,16 @@ export default function PosCloseRegisterPage() {
     };
   }, [router]);
 
-  async function handleConfirm(totalCounted: number) {
+  async function handleConfirm(data: number | CloseRegisterData) {
     setIsClosing(true);
+
+    const body = typeof data === "number" ? { actualAmount: data } : data;
 
     try {
       const response = await fetch("/api/register/close", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualAmount: totalCounted }),
+        body: JSON.stringify(body),
       });
 
       const payload = await response.json().catch(() => null);
@@ -98,6 +100,11 @@ export default function PosCloseRegisterPage() {
       joinedCashiers={(session!.cashierNames ?? []).slice(1)}
       openedAt={formatOpenedAt(session!.openedAt)}
       openingAmount={session!.openingBalance}
+      baseOpeningAmount={session!.baseOpeningBalance}
+      secondaryCurrency={session!.secondaryCurrency}
+      secondaryOpeningAmount={session!.secondaryOpeningBalance}
+      secondaryExchangeRate={session!.secondaryExchangeRate}
+      note={session!.note}
       revenue={session!.totalCashSales}
       currency={session!.currency ?? undefined}
       orderCount={session!.orderCount ?? 0}
@@ -135,13 +142,27 @@ function Reconciliation({ session }: { session: RegisterSession }) {
         </div>
 
         <dl className="flex flex-col gap-2 border-t border-gray-100 pt-4 text-sm">
-          <Row label="Opening amount" value={format(session.openingBalance, session.currency ?? undefined)} />
+          <Row
+            label="Opening amount"
+            value={
+              session.secondaryOpeningBalance && session.secondaryOpeningBalance > 0 && session.secondaryCurrency
+                ? `${format(session.openingBalance, session.currency ?? undefined)} (inc. ${format(session.secondaryOpeningBalance, session.secondaryCurrency)})`
+                : format(session.openingBalance, session.currency ?? undefined)
+            }
+          />
           <Row label="Orders" value={String(session.orderCount ?? 0)} />
           <Row label="Cash sales" value={format(session.totalCashSales, session.currency ?? undefined)} />
           <Row label="Paid in" value={format(session.totalPaidIn, session.currency ?? undefined)} />
           <Row label="Paid out" value={format(session.totalPaidOut, session.currency ?? undefined)} />
           <Row label="Expected" value={format(session.expectedAmount, session.currency ?? undefined)} />
-          <Row label="Counted" value={format(session.actualAmount, session.currency ?? undefined)} />
+          <Row
+            label="Counted"
+            value={
+              session.secondaryActualAmount && session.secondaryActualAmount > 0 && session.secondaryCurrency
+                ? `${format(session.actualAmount, session.currency ?? undefined)} (inc. ${format(session.secondaryActualAmount, session.secondaryCurrency)})`
+                : format(session.actualAmount, session.currency ?? undefined)
+            }
+          />
         </dl>
 
         <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
@@ -187,10 +208,10 @@ function formatOpenedAt(value: string | null) {
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleString(undefined, {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 }

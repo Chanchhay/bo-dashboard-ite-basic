@@ -15,6 +15,9 @@ import {
     Calendar,
     Phone,
     ChevronDown,
+    Eye,
+    Info,
+    Lock,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -75,6 +78,24 @@ const formatLocalPhone = (phoneStr?: string | null): string => {
     return digits || cleaned;
 };
 
+export const isBoOrCashierCustomer = (c?: CustomerResponse | null): boolean => {
+    if (!c) return true;
+    if (!c.salesChannel) return true;
+    const code = (c.salesChannel.code || "").toUpperCase();
+    const name = (c.salesChannel.name || "").toUpperCase();
+    return (
+        code === "POS" ||
+        code === "DIRECT" ||
+        code === "BO" ||
+        name.includes("POS") ||
+        name.includes("POINT OF SALE") ||
+        name.includes("DIRECT") ||
+        name.includes("IN-STORE") ||
+        name.includes("BACK OFFICE") ||
+        name.includes("CASHIER")
+    );
+};
+
 export default function CustomerManagement() {
     const [searchQuery, setSearchQuery] = useState("");
     // Total spend is recorded in the business base currency.
@@ -133,6 +154,8 @@ export default function CustomerManagement() {
     const [editingCustomer, setEditingCustomer] =
         useState<CustomerResponse | null>(null);
     const [formError, setFormError] = useState("");
+
+    const isViewOnly = Boolean(editingCustomer && !isBoOrCashierCustomer(editingCustomer));
 
     // Form inputs
     const [fullName, setFullName] = useState("");
@@ -626,44 +649,61 @@ export default function CustomerManagement() {
                                             </div>
 
                                             <div className="flex items-center gap-1.5 shrink-0">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleToggleStatus(c);
-                                                    }}
-                                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${
-                                                        c.active
-                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                                    }`}
-                                                >
-                                                    {c.active ? "Active" : "Inactive"}
-                                                </button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        openEditDialog(c);
-                                                    }}
-                                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-lg"
-                                                    title="Edit Customer"
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDeletingCustomer(c);
-                                                    }}
-                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
-                                                    title="Delete Customer"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
+                                                {(() => {
+                                                    const isExternal = !isBoOrCashierCustomer(c);
+                                                    return (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                disabled={isExternal}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (isExternal) return;
+                                                                    handleToggleStatus(c);
+                                                                }}
+                                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold transition-colors ${
+                                                                    isExternal ? "cursor-default opacity-80" : "cursor-pointer"
+                                                                } ${
+                                                                    c.active
+                                                                        ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                                                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                                }`}
+                                                            >
+                                                                {c.active ? "Active" : "Inactive"}
+                                                            </button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openEditDialog(c);
+                                                                }}
+                                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+                                                                title={isExternal ? "View Customer Details (External Channel - View Only)" : "Edit Customer"}
+                                                            >
+                                                                {isExternal ? (
+                                                                    <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                                                ) : (
+                                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                                )}
+                                                            </Button>
+                                                            {!isExternal && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setDeletingCustomer(c);
+                                                                    }}
+                                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                                                    title="Delete Customer"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
 
@@ -834,44 +874,68 @@ export default function CustomerManagement() {
                                                 )}
                                                 {isColVisible("status") && (
                                                     <TableCell>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleToggleStatus(c);
-                                                            }}
-                                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
-                                                                c.active
-                                                                    ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                                                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                                            }`}
-                                                        >
-                                                            {c.active ? "Active" : "Inactive"}
-                                                        </button>
+                                                        {(() => {
+                                                            const isExternal = !isBoOrCashierCustomer(c);
+                                                            return (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (isExternal) return;
+                                                                        handleToggleStatus(c);
+                                                                    }}
+                                                                    disabled={isExternal}
+                                                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                                                        isExternal ? "cursor-default opacity-80" : "cursor-pointer"
+                                                                    } ${
+                                                                        c.active
+                                                                            ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                                                    }`}
+                                                                >
+                                                                    {c.active ? "Active" : "Inactive"}
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </TableCell>
                                                 )}
                                                 <TableCell className="text-right space-x-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openEditDialog(c);
-                                                        }}
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setDeletingCustomer(c);
-                                                        }}
-                                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    {(() => {
+                                                        const isExternal = !isBoOrCashierCustomer(c);
+                                                        return (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        openEditDialog(c);
+                                                                    }}
+                                                                    className="h-8 w-8 p-0"
+                                                                    title={isExternal ? "View Customer Details (External Channel - View Only)" : "Edit Customer"}
+                                                                >
+                                                                    {isExternal ? (
+                                                                        <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                                    ) : (
+                                                                        <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                                                    )}
+                                                                </Button>
+                                                                {!isExternal && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setDeletingCustomer(c);
+                                                                        }}
+                                                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                                        title="Delete Customer"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -897,14 +961,40 @@ export default function CustomerManagement() {
         />
       )}
 
-            {/* --- CREATE / EDIT CUSTOMER DIALOG --- */}
+                  {/* --- CREATE / EDIT / VIEW CUSTOMER DIALOG --- */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="text-lg font-bold">
-                            {editingCustomer ? "Edit Customer" : "Add Customer"}
+                            {isViewOnly ? (
+                                <div className="flex items-center justify-between w-full pr-6">
+                                    <span className="flex items-center gap-2">
+                                        <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                        Customer Details
+                                    </span>
+                                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 dark:text-blue-400">
+                                        {editingCustomer?.salesChannel?.name || "External Channel"} · View Only
+                                    </span>
+                                </div>
+                            ) : editingCustomer ? (
+                                "Edit Customer"
+                            ) : (
+                                "Add Customer"
+                            )}
                         </DialogTitle>
                     </DialogHeader>
+
+                    {isViewOnly && (
+                        <div className="p-3 text-xs bg-blue-500/10 border border-blue-500/20 text-blue-800 dark:text-blue-300 rounded-xl flex items-start gap-2.5">
+                            <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                            <div className="space-y-0.5">
+                                <p className="font-bold">External Channel Profile (View Only)</p>
+                                <p className="text-blue-700 dark:text-blue-300/90 leading-relaxed">
+                                    This customer registered through <span className="font-semibold">{editingCustomer?.salesChannel?.name || "an external channel"}</span>. Membership types and profile editing are only available for customers created by Back Office (BO) or Cashier (POS).
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {formError && (
                         <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
@@ -920,6 +1010,8 @@ export default function CustomerManagement() {
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 placeholder="e.g. John Doe"
+                                disabled={isViewOnly}
+                                className={isViewOnly ? "bg-muted/50 cursor-not-allowed" : ""}
                             />
                         </div>
 
@@ -930,35 +1022,60 @@ export default function CustomerManagement() {
                                 value={phoneNumber}
                                 onChange={(e) => setPhoneNumber(e.target.value)}
                                 placeholder="012 345 678"
+                                disabled={isViewOnly}
+                                className={isViewOnly ? "bg-muted/50 cursor-not-allowed" : ""}
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label htmlFor="membershipType">Membership Type</Label>
-                                <Select
-                                    value={membershipTypeId || "NONE"}
-                                    onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
-                                >
-                                    <SelectTrigger id="membershipType" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                                        <SelectValue placeholder="Select type...">
-                                            {selectedMembershipTypeLabel}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="NONE">None (Regular)</SelectItem>
-                                        {membershipTypes.map((t) => (
-                                            <SelectItem key={t.id} value={t.id}>
-                                                {t.typeName}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="membershipType" className="flex items-center gap-1.5">
+                                    <Crown className="h-3.5 w-3.5 text-amber-500" />
+                                    Membership Type
+                                    {isViewOnly && <Lock className="h-3 w-3 text-muted-foreground" />}
+                                </Label>
+                                {isViewOnly ? (
+                                    <div className="space-y-1">
+                                        <div className="h-10 rounded-md border border-input bg-muted/60 px-3 flex items-center justify-between text-sm text-muted-foreground font-medium cursor-not-allowed">
+                                            <span className="truncate">{selectedMembershipTypeLabel}</span>
+                                            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Locked</span>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground italic">
+                                            Applies to BO / POS only
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <Select
+                                        value={membershipTypeId || "NONE"}
+                                        onValueChange={(val: string | null) => setMembershipTypeId(val && val !== "NONE" ? val : "")}
+                                    >
+                                        <SelectTrigger id="membershipType" size="sm" className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                                            <SelectValue placeholder="Select type...">
+                                                {selectedMembershipTypeLabel}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="NONE">None (Regular)</SelectItem>
+                                            {membershipTypes.map((t) => (
+                                                <SelectItem key={t.id} value={t.id}>
+                                                    {t.typeName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="salesChannel">Sales Channel</Label>
-                                {posSalesChannels.length <= 1 ? (
+                                {isViewOnly ? (
+                                    <Input
+                                        readOnly
+                                        disabled
+                                        value={editingCustomer?.salesChannel?.name || "External Channel"}
+                                        className="h-10 rounded-md border border-input bg-muted/60 px-3 text-sm text-muted-foreground font-medium cursor-not-allowed"
+                                    />
+                                ) : posSalesChannels.length <= 1 ? (
                                     <Input
                                         readOnly
                                         disabled
@@ -997,10 +1114,12 @@ export default function CustomerManagement() {
                                 value={totalSpend}
                                 onChange={(e) =>
                                     setTotalSpend(
-                    e.target.value === "" ? "" : parseFloat(e.target.value),
+                                        e.target.value === "" ? "" : parseFloat(e.target.value),
                                     )
                                 }
                                 placeholder="0.00"
+                                disabled={isViewOnly}
+                                className={isViewOnly ? "bg-muted/50 cursor-not-allowed" : ""}
                             />
                         </div>
 
@@ -1010,31 +1129,46 @@ export default function CustomerManagement() {
                                 id="active"
                                 checked={active}
                                 onChange={(e) => setActive(e.target.checked)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                disabled={isViewOnly}
+                                className={`h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ${
+                                    isViewOnly ? "cursor-not-allowed opacity-60" : ""
+                                }`}
                             />
-              <Label
-                htmlFor="active"
-                className="cursor-pointer text-sm font-medium"
-              >
+                            <Label
+                                htmlFor="active"
+                                className={`text-sm font-medium ${isViewOnly ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
+                            >
                                 Active Customer
                             </Label>
                         </div>
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSave}
-                            disabled={isCreating || isUpdating}
-                            className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                            {(isCreating || isUpdating) && (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            )}
-                            Save Customer
-                        </Button>
+                        {isViewOnly ? (
+                            <Button
+                                type="button"
+                                onClick={() => setIsDialogOpen(false)}
+                                className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white"
+                            >
+                                Close
+                            </Button>
+                        ) : (
+                            <>
+                                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={isCreating || isUpdating}
+                                    className="bg-primary hover:bg-primary/90 text-white"
+                                >
+                                    {(isCreating || isUpdating) && (
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    )}
+                                    Save Customer
+                                </Button>
+                            </>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

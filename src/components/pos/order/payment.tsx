@@ -24,7 +24,7 @@ export interface PaymentProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order;
-  onValidate: (method: "CASH" | "DIGITAL" | "PAY_LATER", receivedAmount?: number) => void;
+  onValidate: (method: "CASH" | "DIGITAL" | "PAY_LATER", receivedAmount?: number, tenderNote?: string) => void;
   /** Called when a KHQR settles — the sale already exists by then. */
   onDigitalPaid?: (sale: Sale) => void;
   isProcessing?: boolean;
@@ -54,7 +54,7 @@ export function Payment({
   const [khqr, setKhqr] = useState<Khqr | null>(null);
 
   const { toast } = useToast();
- 
+
   const { data: bakong } = useGetBakongStatusQuery();
   const { data: customers = [] } = useGetCustomersQuery();
   const { data: business } = useGetBusinessProfileQuery();
@@ -101,7 +101,7 @@ export function Payment({
     try {
       const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
       if (raw) return JSON.parse(raw);
-    } catch {}
+    } catch { }
     return null;
   }, [order.id]);
 
@@ -173,8 +173,8 @@ export function Payment({
     void showKhqr();
   }
 
-  function handleAmountReceivedValidate(receivedAmount: number) {
-    onValidate("CASH", receivedAmount);
+  function handleAmountReceivedValidate(receivedAmount: number, tenderNote?: string) {
+    onValidate("CASH", receivedAmount, tenderNote);
     setAmountReceivedOpen(false);
   }
 
@@ -319,11 +319,10 @@ export function Payment({
                         type="button"
                         onClick={() => setMethod("CASH")}
                         aria-pressed={method === "CASH"}
-                        className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#feb90d]/35 sm:h-[58px] sm:gap-3 sm:text-base ${
-                          method === "CASH"
+                        className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#feb90d]/35 sm:h-[58px] sm:gap-3 sm:text-base ${method === "CASH"
                             ? "border-[#feb90d] bg-[#feb90d]/5 text-[#feb90d]"
                             : "border-[#d9d9d9] text-[#6b7280] hover:bg-[#f5f5f5]"
-                        }`}
+                          }`}
                       >
                         <Banknote className="size-5 shrink-0 sm:size-6" aria-hidden="true" />
                         Cash
@@ -339,11 +338,10 @@ export function Payment({
                           type="button"
                           onClick={() => setMethod("DIGITAL")}
                           aria-pressed={method === "DIGITAL"}
-                          className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-[58px] sm:gap-3 sm:text-base ${
-                            method === "DIGITAL"
+                          className={`flex h-14 items-center justify-center gap-2 rounded-[15px] border text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/30 sm:h-[58px] sm:gap-3 sm:text-base ${method === "DIGITAL"
                               ? "border-primary bg-primary/5 text-primary"
                               : "border-[#d9d9d9] text-[#6b7280] hover:bg-[#f5f5f5]"
-                          }`}
+                            }`}
                         >
                           <CreditCard className="size-5 shrink-0 sm:size-6" aria-hidden="true" />
                           KHQR

@@ -80,7 +80,7 @@ export async function syncOfflineOrders(dispatch?: any): Promise<boolean> {
 
     if (response.ok) {
       const data = await response.json();
-      
+
       const syncedUuids: string[] = data.syncedUuids && Array.isArray(data.syncedUuids)
         ? data.syncedUuids
         : unsyncedOrders.map(o => o.uuid);

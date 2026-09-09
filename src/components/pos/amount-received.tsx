@@ -1,9 +1,10 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Banknote, X, Delete } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/useMoney";
+import { useGetBusinessCurrenciesQuery } from "@/services/currencyApi";
 
 export interface AmountReceivedDialogProps {
   open: boolean;
@@ -11,7 +12,7 @@ export interface AmountReceivedDialogProps {
   amountDue: number;
   /** The order's own currency, which a base-currency change must not relabel. */
   currency?: string | null;
-  onValidate: (receivedAmount: number) => void;
+  onValidate: (receivedAmount: number, tenderNote?: string) => void;
   isProcessing?: boolean;
 }
 
@@ -20,21 +21,27 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
 const KeypadButton = memo(function KeypadButton({
   label,
   onPress,
+  disabled,
 }: {
   label: string;
   onPress: (key: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={() => onPress(label)}
+      disabled={disabled}
       style={{ touchAction: "manipulation" }}
       aria-label={label === "back" ? "Delete last digit" : undefined}
-      className={`flex h-12 items-center justify-center rounded-lg bg-[#f2f4f6] text-xl font-semibold text-[#191c1e] shadow-[0_1px_1px_rgba(0,0,0,0.05)] outline-none transition-transform duration-75 hover:bg-[#e9ecef] active:scale-[0.96] active:bg-[#e2e6e9] min-[400px]:h-14 sm:h-16 sm:text-2xl ${
-        label === "back" ? "text-brand-red" : ""
-      }`}
+      className="flex h-12 sm:h-13.5 items-center justify-center rounded-2xl bg-gray-100/90 text-xl sm:text-2xl font-bold text-gray-800 outline-none transition-all duration-75 hover:bg-gray-200/80 active:scale-[0.96] active:bg-gray-300 disabled:opacity-30 disabled:pointer-events-none cursor-pointer select-none"
     >
-      {label === "back" ? <Delete className="size-5" aria-hidden="true" /> : label}
+      {label === "back" ? (
+        <Delete className="size-5 sm:size-6 text-brand-red" aria-hidden="true" />
+      ) : (
+        label
+      )}
     </button>
   );
 });
@@ -47,97 +54,161 @@ export function AmountReceived({
   onValidate,
   isProcessing,
 }: AmountReceivedDialogProps) {
-  const { format, secondary } = useMoney();
-  const [received, setReceived] = useState("");
-  const receivedRef = useRef(received);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { format, secondary, base, display } = useMoney();
+  const { data: config } = useGetBusinessCurrenciesQuery();
+
+  const baseCode = (currency || base?.code || config?.baseCurrency || "USD").toUpperCase();
+  const baseCurrency =
+    base || config?.currencies?.find((c) => c.code.toUpperCase() === baseCode);
+  const baseSymbol = baseCurrency?.symbol || "$";
+  const baseDecimals = baseCurrency?.decimalPlaces ?? 2;
+
+  // Currencies configured in BO that are not the base currency
+  const nonBaseCurrencies = useMemo(
+    () => (config?.currencies || []).filter((c) => c.code.toUpperCase() !== baseCode),
+    [config, baseCode]
+  );
+
+  const defaultSecondaryCode =
+    config?.displayCurrency && config.displayCurrency.toUpperCase() !== baseCode
+      ? config.displayCurrency.toUpperCase()
+      : nonBaseCurrencies[0]?.code?.toUpperCase() || "";
+
+  const [selectedSecondaryCode, setSelectedSecondaryCode] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedSecondaryCode && defaultSecondaryCode) {
+      setSelectedSecondaryCode(defaultSecondaryCode);
+    }
+  }, [defaultSecondaryCode, selectedSecondaryCode]);
+
+  const activeSecondary =
+    nonBaseCurrencies.find(
+      (c) => c.code.toUpperCase() === (selectedSecondaryCode || defaultSecondaryCode).toUpperCase()
+    ) || (display && display.code.toUpperCase() !== baseCode ? display : null);
+
+  const hasSecondary = Boolean(activeSecondary);
+  const secondaryRate = Number(activeSecondary?.exchangeRate) || 1;
+  const secondarySymbol = activeSecondary?.symbol || activeSecondary?.code || "";
+  const secondaryDecimals = activeSecondary?.decimalPlaces ?? 0;
+
+  const [activeField, setActiveField] = useState<"base" | "secondary">("base");
+  const [baseReceived, setBaseReceived] = useState("");
+  const [secondaryReceived, setSecondaryReceived] = useState("");
+
+  const baseInputRef = useRef<HTMLInputElement>(null);
+  const secondaryInputRef = useRef<HTMLInputElement>(null);
+
   const [prevOpen, setPrevOpen] = useState(open);
 
-  useEffect(() => {
-    receivedRef.current = received;
-  }, [received]);
-
-  // Reset while rendering rather than in an effect: the cleared field is what
-  // the freshly opened dialog should paint, not a second render after it.
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) setReceived("");
+    if (open) {
+      setBaseReceived("");
+      setSecondaryReceived("");
+      setActiveField("base");
+    }
   }
 
-  // Put the caret in the field so the cashier can type straight away without
-  // reaching for the mouse.
+  // Focus caret into the active field on mount
   useEffect(() => {
     if (!open) return;
-
     const timer = setTimeout(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }, 50);
+      baseInputRef.current?.focus();
+      baseInputRef.current?.select();
+    }, 60);
     return () => clearTimeout(timer);
   }, [open]);
 
-  // Where the caret belongs once React has re-rendered the input with the
-  // new value — restored in a layout effect (before the browser paints)
-  // rather than a `setTimeout`, which used to leave a visible flash on
-  // every keypress: the browser moves a controlled input's caret to the end
-  // the instant its value changes, and a macrotask timeout doesn't correct
-  // it until well after that has already painted. A cashier typing a whole
-  // amount digit by digit saw every one of those as the caret jumping to
-  // the end and snapping back, which read as the keypad lagging behind the
-  // taps rather than the display just catching up a frame late.
-  const pendingCaretRef = useRef<number | null>(null);
+  // Caret restore handling
+  const pendingCaretRef = useRef<{ field: "base" | "secondary"; pos: number } | null>(null);
 
   useLayoutEffect(() => {
-    if (pendingCaretRef.current === null) return;
-    const caret = pendingCaretRef.current;
+    if (!pendingCaretRef.current) return;
+    const { field, pos } = pendingCaretRef.current;
     pendingCaretRef.current = null;
-    const input = inputRef.current;
+    const input = field === "base" ? baseInputRef.current : secondaryInputRef.current;
     input?.focus();
-    input?.setSelectionRange(caret, caret);
-  }, [received]);
+    input?.setSelectionRange(pos, pos);
+  }, [baseReceived, secondaryReceived]);
 
-  // Keypad presses insert at the caret rather than always appending, so a
-  // mistyped digit in the middle can be fixed without clearing the field.
-  const handleKey = useCallback((key: string) => {
-    const input = inputRef.current;
-    const value = receivedRef.current;
-    const start = input?.selectionStart ?? value.length;
-    const end = input?.selectionEnd ?? value.length;
+  const hasInput = Boolean(baseReceived || secondaryReceived);
+  const numBase = parseFloat(baseReceived || "0");
+  const numSecondary = parseFloat(secondaryReceived || "0");
 
-    const commit = (next: string, caret: number) => {
-      setReceived(next);
-      receivedRef.current = next;
-      pendingCaretRef.current = caret;
-    };
+  const convertedSecondary =
+    hasSecondary && secondaryRate > 0 ? numSecondary / secondaryRate : 0;
 
-    if (key === "back") {
-      if (start !== end) {
-        commit(value.slice(0, start) + value.slice(end), start);
-      } else if (start > 0) {
-        commit(value.slice(0, start - 1) + value.slice(start), start - 1);
+  const totalReceived = numBase + convertedSecondary;
+  const changeToGive = totalReceived - amountDue;
+
+  // Change in secondary currency
+  const changeDueSecondary =
+    hasSecondary && secondaryRate > 0 ? Math.max(changeToGive, 0) * secondaryRate : 0;
+
+  const handleKey = useCallback(
+    (key: string) => {
+      const isBase = activeField === "base";
+      const input = isBase ? baseInputRef.current : secondaryInputRef.current;
+      const currentVal = isBase ? baseReceived : secondaryReceived;
+      const decimals = isBase ? baseDecimals : secondaryDecimals;
+
+      const start = input?.selectionStart ?? currentVal.length;
+      const end = input?.selectionEnd ?? currentVal.length;
+
+      const commit = (next: string, caret: number) => {
+        if (isBase) setBaseReceived(next);
+        else setSecondaryReceived(next);
+        pendingCaretRef.current = { field: activeField, pos: caret };
+      };
+
+      if (key === "back") {
+        if (start !== end) {
+          commit(currentVal.slice(0, start) + currentVal.slice(end), start);
+        } else if (start > 0) {
+          commit(currentVal.slice(0, start - 1) + currentVal.slice(start), start - 1);
+        }
+        return;
       }
-      return;
+
+      if (key === "." && decimals === 0) return;
+
+      const selectionCoversDot =
+        currentVal.includes(".") &&
+        start <= currentVal.indexOf(".") &&
+        end > currentVal.indexOf(".");
+      if (key === "." && currentVal.includes(".") && !selectionCoversDot) return;
+
+      if (start === end && currentVal.replace(".", "").length >= 12) return;
+
+      commit(currentVal.slice(0, start) + key + currentVal.slice(end), start + key.length);
+    },
+    [activeField, baseReceived, secondaryReceived, baseDecimals, secondaryDecimals]
+  );
+
+  const getTenderNote = useCallback(() => {
+    if (hasSecondary && activeSecondary) {
+      if (numBase > 0 && numSecondary > 0) {
+        return `Tendered: ${baseSymbol}${numBase.toFixed(baseDecimals)} ${baseCode} + ${numSecondary.toLocaleString()} ${activeSecondary.code}`;
+      }
+      if (numBase === 0 && numSecondary > 0) {
+        return `Tendered: ${numSecondary.toLocaleString()} ${activeSecondary.code}`;
+      }
+      if (numBase > 0) {
+        return `Tendered: ${baseSymbol}${numBase.toFixed(baseDecimals)} ${baseCode}`;
+      }
+    } else if (numBase > 0) {
+      return `Tendered: ${baseSymbol}${numBase.toFixed(baseDecimals)} ${baseCode}`;
     }
+    return undefined;
+  }, [hasSecondary, activeSecondary, numBase, numSecondary, baseSymbol, baseDecimals, baseCode]);
 
-    const selectionCoversDot =
-      value.includes(".") &&
-      start <= value.indexOf(".") &&
-      end > value.indexOf(".");
-    if (key === "." && value.includes(".") && !selectionCoversDot) return;
+  const handleValidate = useCallback(() => {
+    if (isProcessing || totalReceived < amountDue) return;
+    onValidate(Number(totalReceived.toFixed(baseDecimals)), getTenderNote());
+  }, [isProcessing, totalReceived, amountDue, onValidate, baseDecimals, getTenderNote]);
 
-    if (start === end && value.replace(".", "").length >= 9) return;
-
-    commit(value.slice(0, start) + key + value.slice(end), start + key.length);
-  }, []);
-
-  const receivedAmount = parseFloat(received || "0");
-  const changeToGive = receivedAmount - amountDue;
-  const dueSecondary = secondary(amountDue, currency);
-  // Change is handed over in cash, so the second currency matters most here.
-  const changeSecondary = secondary(Math.max(changeToGive, 0), currency);
-
-  // Digits, the separator and backspace are the input's own job now. Only the
-  // two keys that act on the dialog rather than the field are caught here.
+  // Keyboard shortcuts (Enter to validate, Escape to close, digits & backspace)
   useEffect(() => {
     if (!open) return;
 
@@ -146,35 +217,36 @@ export function AmountReceived({
 
       if (e.key === "Enter") {
         e.preventDefault();
-        const currentVal = parseFloat(receivedRef.current || "0");
-        if (!isProcessing && currentVal >= amountDue) {
-          onValidate(currentVal);
-        }
+        handleValidate();
       } else if (e.key === "Escape") {
         e.preventDefault();
         onOpenChange(false);
+      } else if (/^[0-9.]$/.test(e.key)) {
+        e.preventDefault();
+        handleKey(e.key);
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        handleKey("back");
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, amountDue, isProcessing, onValidate, onOpenChange]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, handleValidate, onOpenChange, handleKey]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[480px] flex-col gap-0 overflow-hidden rounded-[30px] border border-[#bbcabf] bg-white p-0 shadow-[0_20px_45px_rgba(15,23,42,0.24)]"
+        className="top-[44%] -translate-y-[46%] max-h-[96vh] overflow-y-auto overflow-x-hidden w-[calc(100vw-2rem)] max-w-[480px] sm:max-w-[490px] rounded-[28px] sm:rounded-[32px] border border-gray-200 bg-white p-0 shadow-[0_25px_70px_rgba(15,23,42,0.28)]"
         showCloseButton={false}
       >
         {/* Header */}
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-[#bbcabf] bg-[#eff1f3] px-4 sm:h-[70px] sm:px-6">
-          <div className="flex items-center gap-3">
-            <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary">
-              <Banknote className="size-[18px]" aria-hidden="true" />
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-100 bg-[#f8f9fa] px-6">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 sm:size-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Banknote className="size-5" aria-hidden="true" />
             </span>
-            <h2 className="text-lg font-semibold text-primary sm:text-xl">
+            <h2 className="text-lg sm:text-xl font-bold text-primary">
               Amount received
             </h2>
           </div>
@@ -182,85 +254,168 @@ export function AmountReceived({
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label="Close amount received"
-            className="grid size-9 place-items-center rounded-full text-[#3c4a42] outline-none transition-colors hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="grid size-8 sm:size-9 place-items-center rounded-xl text-gray-400 outline-none transition-colors hover:bg-gray-200/60 hover:text-gray-700 cursor-pointer"
           >
-            <X className="size-[18px]" aria-hidden="true" />
+            <X className="size-4 sm:size-5" aria-hidden="true" />
           </button>
         </div>
 
-        {/* Scrollable middle content */}
-        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth px-4 py-3 sm:px-6 sm:py-5">
-          {/* To pay */}
-          <div className="flex items-center justify-between text-base sm:text-lg">
-            <span className="font-semibold text-[#3c4a42]">To pay</span>
-            <span className="flex flex-col items-end">
-              <span className="text-xl font-bold text-primary sm:text-[25px]">
+        {/* Content Body */}
+        <div className="px-6 pt-3.5 pb-5 flex flex-col gap-2.5 sm:gap-3">
+          {/* To pay row */}
+          <div className="flex items-center justify-between">
+            <span className="text-base sm:text-lg font-semibold text-gray-700">To pay</span>
+            <div className="text-right">
+              <span className="text-2xl sm:text-3xl font-black text-primary tabular-nums">
                 {format(amountDue, currency)}
               </span>
-              {dueSecondary && (
-                <span className="text-sm font-medium text-[#3c4a42]">
-                  {format(dueSecondary.amount, dueSecondary.currency.code)}
+              {hasSecondary && activeSecondary && (
+                <span className="block text-xs font-semibold text-gray-400 tabular-nums mt-0.5">
+                  ≈ {format(amountDue * secondaryRate, activeSecondary.code)}
                 </span>
               )}
-            </span>
+            </div>
           </div>
 
-          {/* Amount entered — a real input, so the caret can be moved and the
-              value pasted, not just appended to. */}
-          <div data-tour="pos-cash-received" className="mt-3 flex min-h-16 items-center justify-center rounded-xl border border-[#bbcabf] bg-[#f2f4f6] px-5 py-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] min-[400px]:min-h-[82px] sm:min-h-[94px] sm:py-5">
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode="decimal"
-              aria-label="Amount received"
-              value={received}
-              onChange={(e) => {
-                const next = e.target.value;
-                if (/^[0-9]*\.?[0-9]*$/.test(next)) setReceived(next);
+          {/* 2 Input Boxes - Layered on top of each other (Stacked Vertically) */}
+          <div className="flex flex-col gap-2 sm:gap-2.5">
+            {/* Box 1: Primary Cash (Base Currency) */}
+            <div
+              onClick={() => {
+                setActiveField("base");
+                baseInputRef.current?.focus();
               }}
-              placeholder="0.00"
-              className="w-full bg-transparent text-center text-3xl font-bold tabular-nums tracking-[-0.02em] text-primary outline-none placeholder:text-gray-300 sm:text-[40px]"
-            />
-          </div>
+              className={`relative flex items-center justify-between rounded-2xl border px-4 py-2.5 sm:px-5 sm:py-3 cursor-text transition-all ${activeField === "base"
+                  ? "border-primary bg-white"
+                  : "border-gray-200 bg-[#f9fafb] hover:border-gray-300 hover:bg-white"
+                }`}
+            >
+              <div className="flex flex-col shrink-0 select-none pointer-events-none">
+                <span className="text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  {baseCode} ({baseSymbol})
+                </span>
+                <span className="text-[10px] sm:text-[11px] font-medium text-gray-400">
+                  Primary Cash
+                </span>
+              </div>
+              <input
+                ref={baseInputRef}
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={baseReceived}
+                onFocus={() => setActiveField("base")}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (/^[0-9]*\.?[0-9]*$/.test(next)) setBaseReceived(next);
+                }}
+                className={`w-full bg-transparent text-right text-2xl sm:text-3xl font-black tabular-nums outline-none caret-primary pl-4 ${activeField === "base"
+                    ? "text-primary placeholder:text-primary/30"
+                    : "text-gray-700 placeholder:text-gray-300"
+                  }`}
+              />
+            </div>
 
-          {/* Change to give */}
-          <div className="mt-3 flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-[#006c49]/10 bg-[#006c49]/5 px-5 py-3 min-[400px]:min-h-[96px] sm:min-h-[109px] sm:gap-3">
-            <span className="text-base text-[#3c4a42] sm:text-lg">Change to give</span>
-            <span className="text-3xl font-black text-brand-red sm:text-[40px]">
-              {format(Math.max(changeToGive, 0), currency)}
-            </span>
-            {changeSecondary && (
-              <span className="text-lg font-bold text-[#3c4a42]">
-                {format(changeSecondary.amount, changeSecondary.currency.code)}
-              </span>
+            {/* Box 2: Secondary Cash (Layered below Box 1) */}
+            {hasSecondary && activeSecondary && (
+              <div
+                onClick={() => {
+                  setActiveField("secondary");
+                  secondaryInputRef.current?.focus();
+                }}
+                className={`relative flex items-center justify-between rounded-2xl border px-4 py-2.5 sm:px-5 sm:py-3 cursor-text transition-all ${activeField === "secondary"
+                    ? "border-primary bg-white"
+                    : "border-gray-200 bg-[#f9fafb] hover:border-gray-300 hover:bg-white"
+                  }`}
+              >
+                <div className="flex flex-col shrink-0 select-none pointer-events-none">
+                  <span className="text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    {activeSecondary.code} ({secondarySymbol})
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-medium text-gray-400">
+                    Rate: 1 {baseCode} = {secondaryRate.toLocaleString()} {activeSecondary.code}
+                  </span>
+                </div>
+                <input
+                  ref={secondaryInputRef}
+                  type="text"
+                  inputMode={secondaryDecimals > 0 ? "decimal" : "numeric"}
+                  placeholder="0"
+                  value={secondaryReceived}
+                  onFocus={() => setActiveField("secondary")}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (secondaryDecimals > 0) {
+                      if (/^[0-9]*\.?[0-9]*$/.test(next)) setSecondaryReceived(next);
+                    } else {
+                      if (/^[0-9]*$/.test(next)) setSecondaryReceived(next);
+                    }
+                  }}
+                  className={`w-full bg-transparent text-right text-2xl sm:text-3xl font-black tabular-nums outline-none caret-primary pl-4 ${activeField === "secondary"
+                      ? "text-primary placeholder:text-primary/30"
+                      : "text-gray-700 placeholder:text-gray-300"
+                    }`}
+                />
+              </div>
             )}
           </div>
 
-          {/* Keypad */}
-          <div className="mt-3 grid grid-cols-3 gap-2.5 sm:gap-3">
+          {/* Change to give box */}
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-[#f8faf8] py-2 sm:py-2.5 text-center">
+            <span className="text-xs sm:text-sm font-medium text-gray-600">
+              {!hasInput || changeToGive >= 0 ? "Change to give" : "Remaining due"}
+            </span>
+            <span className="text-2xl sm:text-3xl font-black text-brand-red tabular-nums">
+              {!hasInput
+                ? format(0, currency)
+                : format(Math.abs(changeToGive), currency)}
+            </span>
+            {hasSecondary && activeSecondary && (
+              <>
+                {hasInput && changeToGive > 0 && (
+                  <span className="text-xs font-semibold text-gray-500 mt-0.5 tabular-nums">
+                    ≈ {format(changeDueSecondary, activeSecondary.code)}
+                  </span>
+                )}
+                {hasInput && changeToGive < 0 && (
+                  <span className="text-xs font-semibold text-gray-500 mt-0.5 tabular-nums">
+                    ≈ {format(Math.abs(changeToGive) * secondaryRate, activeSecondary.code)}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Keypad 3x4 */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-0.5">
             {KEYS.map((key) => (
-              <KeypadButton key={key} label={key} onPress={handleKey} />
+              <KeypadButton
+                key={key}
+                label={key}
+                onPress={handleKey}
+                disabled={key === "." && activeField === "secondary" && secondaryDecimals === 0}
+              />
             ))}
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="grid shrink-0 grid-cols-1 gap-2 border-t border-[#bbcabf]/50 px-4 pb-4 pt-3 min-[360px]:grid-cols-2 min-[360px]:gap-3 sm:gap-4 sm:px-8 sm:pb-4">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="h-14 rounded-[20px] border border-brand-red text-base font-semibold text-brand-red outline-none transition-colors hover:bg-brand-red/5 focus-visible:ring-2 focus-visible:ring-brand-red/30 sm:text-lg"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => onValidate(receivedAmount)}
-            disabled={isProcessing || receivedAmount < amountDue}
-            className="h-14 rounded-[20px] border border-primary bg-primary text-base font-semibold text-white outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary/30 disabled:border-primary/30 disabled:bg-primary/30 sm:text-lg"
-          >
-            {isProcessing ? "Processing..." : "Validate"}
-          </button>
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-12 sm:h-13 rounded-2xl border border-brand-red bg-white text-base sm:text-lg font-bold text-brand-red outline-none transition-all hover:bg-red-50/60 active:scale-[0.98] cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleValidate}
+              disabled={isProcessing || totalReceived < amountDue}
+              className="h-12 sm:h-13 rounded-2xl bg-primary text-base sm:text-lg font-bold text-primary-foreground outline-none transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none cursor-pointer shadow-sm flex items-center justify-center"
+            >
+              {isProcessing ? "Processing..." : "Validate"}
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

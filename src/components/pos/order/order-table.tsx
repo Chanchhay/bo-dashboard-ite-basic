@@ -251,8 +251,8 @@ function computeItemDiscount(
       ?? (effectiveRule.discountCode
         ? `Code: ${effectiveRule.discountCode}`
         : effectiveRule.type === "PERCENTAGE"
-        ? `${effectiveRule.value}% OFF`
-        : undefined),
+          ? `${effectiveRule.value}% OFF`
+          : undefined),
   };
 }
 
@@ -268,7 +268,7 @@ function legacyOrderShape(
     try {
       const raw = localStorage.getItem(`pos_cart_discount_${order.id}`);
       if (raw) storedRule = JSON.parse(raw);
-    } catch {}
+    } catch { }
   }
 
   let calculatedItemsDiscount = 0;
@@ -673,7 +673,7 @@ export function OrderTable({
   // No connection: the cart is this till's own, and so are its line ids.
   const isOffline = typeof window !== "undefined" && !navigator.onLine;
 
- 
+
   async function runLineChange(change: () => Promise<unknown>) {
     playTick();
     await change();
@@ -766,7 +766,7 @@ export function OrderTable({
           }
           return parsed;
         }
-      } catch {}
+      } catch { }
       return null;
     });
 
@@ -941,11 +941,11 @@ export function OrderTable({
     const isExplicitRule = (candidate: unknown): candidate is AppliedDiscountRule =>
       Boolean(
         candidate &&
-          typeof candidate === "object" &&
-          ((candidate as AppliedDiscountRule).isCoupon ||
-            (candidate as AppliedDiscountRule).discountCode ||
-            isMembershipDiscount(candidate as AppliedDiscountRule) ||
-            !(candidate as AppliedDiscountRule).discountId),
+        typeof candidate === "object" &&
+        ((candidate as AppliedDiscountRule).isCoupon ||
+          (candidate as AppliedDiscountRule).discountCode ||
+          isMembershipDiscount(candidate as AppliedDiscountRule) ||
+          !(candidate as AppliedDiscountRule).discountId),
       );
 
     if (order?.id) {
@@ -961,7 +961,7 @@ export function OrderTable({
           } else {
             localStorage.removeItem(cartKey);
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -975,13 +975,13 @@ export function OrderTable({
           } else {
             localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
           }
-        } catch {}
+        } catch { }
       }
 
       if (rule && order?.id) {
         try {
           localStorage.setItem(`pos_cart_discount_${order.id}`, JSON.stringify(rule));
-        } catch {}
+        } catch { }
       }
     }
 
@@ -997,7 +997,7 @@ export function OrderTable({
           // the sync failed; this second handler just keeps that rejection
           // from also surfacing as an unhandled-rejection console warning
           // for the common case where no payment ever awaits it at all.
-          .catch(() => {})
+          .catch(() => { })
           .finally(() => {
             if (pendingDiscountSyncRef.current === promise) {
               pendingDiscountSyncRef.current = null;
@@ -1019,7 +1019,7 @@ export function OrderTable({
     if (typeof window !== "undefined") {
       try {
         return localStorage.getItem("pos_active_customer_id") || null;
-      } catch {}
+      } catch { }
     }
     return null;
   });
@@ -1029,7 +1029,7 @@ export function OrderTable({
       setAttachedCustomerId(order.customerId);
       try {
         localStorage.setItem("pos_active_customer_id", order.customerId);
-      } catch {}
+      } catch { }
     }
   }, [order?.customerId]);
 
@@ -1046,11 +1046,11 @@ export function OrderTable({
       if (customerId) {
         try {
           localStorage.setItem("pos_active_customer_id", customerId);
-        } catch {}
+        } catch { }
       } else {
         try {
           localStorage.removeItem("pos_active_customer_id");
-        } catch {}
+        } catch { }
       }
 
       await setOrderCustomer({ customerId }).unwrap();
@@ -1245,7 +1245,7 @@ export function OrderTable({
       setAttachedCustomerId(null);
       try {
         localStorage.removeItem("pos_active_customer_id");
-      } catch {}
+      } catch { }
       await parkOrder({ note: data.name.trim() }).unwrap();
       await clearLocalCart();
 
@@ -1265,7 +1265,7 @@ export function OrderTable({
       setAttachedCustomerId(null);
       try {
         localStorage.removeItem("pos_active_customer_id");
-      } catch {}
+      } catch { }
       await parkOrder({}).unwrap();
       await clearLocalCart();
       onOrderCreated?.();
@@ -1281,6 +1281,7 @@ export function OrderTable({
   const handleValidatePayment = async (
     method: "CASH" | "DIGITAL" | "PAY_LATER",
     receivedAmount?: number,
+    tenderNote?: string,
   ) => {
     if (!order) return;
 
@@ -1341,10 +1342,10 @@ export function OrderTable({
             add_ons: (i.addOns ?? []).flatMap((addOn) =>
               addOn.addOnId
                 ? [{
-                    addOnId: addOn.addOnId,
-                    name: addOn.name,
-                    unitPrice: addOn.unitPrice,
-                  }]
+                  addOnId: addOn.addOnId,
+                  name: addOn.name,
+                  unitPrice: addOn.unitPrice,
+                }]
                 : [],
             ),
             unit_factor: i.unitFactor ?? null,
@@ -1423,7 +1424,7 @@ export function OrderTable({
             (count, line) => count + line.quantity,
             0,
           ),
-          note: order.note,
+          note: tenderNote || order.note,
           soldAt: new Date().toISOString(),
         };
 
@@ -1449,6 +1450,7 @@ export function OrderTable({
         sale = await payOrder({
           paymentMethod: method,
           receivedAmount,
+          note: tenderNote || order.note || undefined,
           isTaxActive,
           isTaxInclusive,
           taxInclusionType,
@@ -1468,7 +1470,7 @@ export function OrderTable({
             if (sale?.id) {
               localStorage.setItem(`pos_order_discount_rule_${sale.id}`, JSON.stringify(activeDiscountRule));
             }
-          } catch {}
+          } catch { }
         }
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
       }
@@ -1489,7 +1491,7 @@ export function OrderTable({
           } else {
             localStorage.removeItem(STORE_DEFAULT_DISCOUNT_KEY);
           }
-        } catch {}
+        } catch { }
       }
       setActiveDiscountRule(defaultRule);
 
@@ -1497,7 +1499,7 @@ export function OrderTable({
       setAttachedCustomerId(null);
       try {
         localStorage.removeItem("pos_active_customer_id");
-      } catch {}
+      } catch { }
       void setOrderCustomer({ customerId: null });
 
       const itemsWithDiscounts = (sold.items || []).map((item) => {
@@ -1823,7 +1825,7 @@ export function OrderTable({
                   ) {
                     defaultRule = parsed;
                   }
-                } catch {}
+                } catch { }
               }
               setActiveDiscountRule(defaultRule);
             }
