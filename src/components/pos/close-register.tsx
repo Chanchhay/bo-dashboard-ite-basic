@@ -482,9 +482,6 @@ export function CloseRegister({
                     {baseCode} ({baseSymbol})
                   </span>
                 </div>
-                <span className="text-[11px] font-medium text-gray-400">
-                  Primary Cash
-                </span>
               </div>
 
               <div className="mt-1 flex items-center justify-between gap-2">
@@ -586,10 +583,6 @@ export function CloseRegister({
                       </span>
                     </div>
                   )}
-
-                  <span className="text-[11px] font-medium text-gray-400">
-                    Secondary Cash
-                  </span>
                 </div>
 
                 <div className="mt-1 flex items-center justify-between gap-2">
