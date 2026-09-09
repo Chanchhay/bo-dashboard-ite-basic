@@ -13,11 +13,9 @@ import { cn } from "@/lib/utils";
 
 interface PredictionSummaryProps {
     windowKey: PredictionWindowKey;
-    /** e.g. "this week", "this month" — used in the tile copy. */
     windowPhrase: string;
 }
 
-/** The 4 headline numbers — the tables below spell out exactly which products. */
 export function PredictionSummary({
     windowKey,
     windowPhrase,

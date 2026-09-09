@@ -5,17 +5,9 @@ import { useMemo } from "react";
 import type { PredictionWindow } from "@/lib/api/sales-report";
 import { useGetSalesPredictionsQuery } from "@/services/salesReportApi";
 
-/**
- * Thresholds used to sort the backend's per-item numbers into the 4 buckets
- * this page cares about. The averages, trend and restock math themselves are
- * computed server-side (`GET /sales/predictions`) — this file just groups
- * the results the same way everywhere they're shown, so the dashboard tiles
- * and the full Prediction page never disagree.
- */
 export const GROWTH_THRESHOLD_PERCENT = 10;
 export const SLOW_MOVER_MAX_UNITS_30D = 3;
 
-/** The date-range choices the Prediction page's filter offers. */
 export const PREDICTION_WINDOWS: Record<PredictionWindow, { label: string }> = {
     WEEK: { label: "Week" },
     MONTH: { label: "Month" },
@@ -84,8 +76,6 @@ export function useItemForecasts(window: PredictionWindowKey) {
     return {
         loading: query.isLoading,
         hasError: query.isError,
-        // The backend returns one row per catalog item, sale or no sale — so
-        // forecasts.length alone can't tell "no sales" from "no items."
         hasAnySales: forecasts.some((f) => f.expectedDemandWindow > 0),
         forecasts,
         rising,

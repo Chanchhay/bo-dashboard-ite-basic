@@ -15,13 +15,6 @@ import { cn } from "@/lib/utils";
 
 type Filter = "ALL" | Extract<ImportRowStatus, "VALID" | "DUPLICATE" | "INVALID">;
 
-/**
- * The three numbers a shop needs before deciding, and the rows behind them.
- *
- * Duplicates are counted apart from errors on purpose. A duplicate is not a
- * mistake — it is a row that matches something already here — and lumping the
- * two together would make a perfectly good re-import look broken.
- */
 function Counter({
     label,
     value,
@@ -80,12 +73,6 @@ export function StepCheckData({ job, stalled }: { job: ImportJob; stalled?: bool
     }
 
     if (checking && stalled) {
-        /*
-         * The job still claims to be checking long after it should have
-         * finished, which in practice means the server was restarted while it
-         * ran. It will be released on the next sweep; saying so beats a
-         * spinner that never stops.
-         */
         return (
             <div className="rounded-2xl border border-border bg-card px-6 py-10 text-center">
                 <p className="text-sm font-medium text-[var(--warning)]">
@@ -177,11 +164,6 @@ export function StepCheckData({ job, stalled }: { job: ImportJob; stalled?: bool
                 />
             </div>
 
-            {/*
-             * A way out for the one error the shop cannot fix in the file: a
-             * unit we have never heard of and the workbook never described.
-             * Either they add it to the Units sheet, or they add it here.
-             */}
             {job.invalidRows > 0 ? (
                 <p className="text-xs text-muted-foreground">
                     Rows refused for a unit we do not recognise can be fixed by adding it to

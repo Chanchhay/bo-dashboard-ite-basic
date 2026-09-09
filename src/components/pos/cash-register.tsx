@@ -10,17 +10,14 @@ import { POS_ROUTES, SALES_HOME } from "@/lib/pos-routes";
 function sanitizeAmount(raw: string): string {
   if (!raw) return "0";
 
-  // Keep only digits and decimal dot
   let val = raw.replace(/[^0-9.]/g, "");
 
-  // Keep only the first decimal point
   const parts = val.split(".");
   if (parts.length > 2) {
     val = parts[0] + "." + parts.slice(1).join("");
   }
 
   const [intPart, decPart] = val.split(".");
-  // Strip leading zeros before digits e.g. "03233" -> "3233"
   let cleanInt = intPart.replace(/^0+(?=\d)/, "");
   if (cleanInt === "") cleanInt = "0";
 
@@ -41,11 +38,6 @@ export function CashRegister({
   closedChannel,
 }: {
   onClose?: () => void;
-  /**
-   * Set when the POS channel is shut. The drawer cannot be opened while the
-   * channel it sells through is closed, so the keypad is inert rather than
-   * inviting a count that the server will refuse.
-   */
   closedChannel?: ClosedChannel | null;
 }) {
   const router = useRouter();
@@ -127,7 +119,6 @@ export function CashRegister({
   };
 
   const handleBlur = () => {
-    // Format nicely with 2 decimal places on blur e.g. "3233" -> "3233.00"
     const num = Number.parseFloat(amount);
     if (!Number.isNaN(num) && num >= 0) {
       setAmount(num.toFixed(2));
@@ -224,7 +215,6 @@ export function CashRegister({
   return (
     <div data-tour="pos-open-register" className="flex items-center justify-center min-h-screen bg-[#f4f4f5] p-6">
       <div className="w-full max-w-95 rounded-3xl bg-white shadow-sm overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
@@ -271,7 +261,6 @@ export function CashRegister({
             </p>
           )}
 
-          {/* Starting cash */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium tracking-wide text-gray-500">
               STARTING CASH
@@ -290,7 +279,6 @@ export function CashRegister({
             </div>
           </div>
 
-          {/* Keypad */}
           <div className="grid grid-cols-3 gap-2.5">
             {keys.map((key) => (
               <button
@@ -332,7 +320,6 @@ export function CashRegister({
             </button>
           </div>
 
-          {/* Notes */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-gray-500">
               Notes (Optional)
@@ -346,7 +333,6 @@ export function CashRegister({
             />
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={isLoading || Boolean(closedChannel)}

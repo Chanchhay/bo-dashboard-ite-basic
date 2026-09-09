@@ -27,39 +27,25 @@ import {
 } from "@/components/ui/select";
 import { formatAmount } from "@/lib/inventory-config/units";
 
-/** One way of entering a quantity: the base unit, or a conversion off it. */
 export type EntryUnit = {
     id: string;
     label: string;
-    /** How many base units one of these is worth. The base unit itself is 1. */
     factor: number;
 };
 
-/** What the caller sends to the API once the dialog is done. */
 export type RecordedMovement = {
     targetKind: StockTargetKind;
     targetId: string;
-    /** Set when the movement is against one option of the item. */
     targetVariantId?: string;
     direction: "IN" | "OUT";
-    /** As typed, in the unit chosen. */
     enteredQuantity: number;
     enteredUnitId: string;
-    /** The same amount in base units — what the balance moves by. */
     baseQuantity: number;
-    /** Cost on the way in, sale price on the way out. Never both. */
     unitCost?: number;
     unitSalePrice?: number;
-    /**
-     * The batch this delivery is, when the shop keeps track of it. Only ever
-     * set on the way in — which batch stock left by is worked out from the
-     * queue, never typed.
-     */
     lotNumber?: string;
     manufacturedAt?: string;
-    /** When it goes off. This is what the queue is ordered by. */
     expiresAt?: string;
-    /** When it arrived, if the delivery is being recorded late. */
     receivedAt?: string;
     reason: string;
 };
@@ -67,15 +53,10 @@ export type RecordedMovement = {
 export type MovementTarget = {
     kind: StockTargetKind;
     id: string;
-    /**
-     * The option being counted, when the item is sold in options. The item's
-     * own conversions still apply — an option is measured the same way.
-     */
     variantId?: string;
     name: string;
     onHand: number;
     baseUnitLabel: string;
-    /** Base unit first, then any conversions the target declares. */
     entryUnits: EntryUnit[];
 };
 
@@ -104,8 +85,6 @@ export function StockMovementDialog({
     const [reason, setReason] = useState("");
     const [error, setError] = useState("");
 
-    // Reseeded on the way in rather than in an effect, so a cancelled entry
-    // cannot leak into the next one.
     const [seededFor, setSeededFor] = useState<string | null>(null);
     const seedKey = open && target ? `${target.id}-${direction}` : null;
 
@@ -133,28 +112,11 @@ export function StockMovementDialog({
         target.entryUnits[0];
     const typed = Number(quantity);
     const valid = quantity.trim() !== "" && Number.isFinite(typed) && typed > 0;
-    // Everything is stored in base units; the chosen unit is only how it was
-    // typed. This is where a conversion earns its keep.
     const baseQuantity = valid ? typed * (unit?.factor ?? 1) : 0;
     const resulting = target.onHand + (isIn ? baseQuantity : -baseQuantity);
     const showsConversion = valid && (unit?.factor ?? 1) !== 1;
-    // Stock cannot have arrived in the future, and nothing is made after it
-    // expires — the pickers say so rather than leaving the API to.
     const todayIso = new Date().toLocaleDateString("en-CA");
-    // Worth flagging while it can still be corrected: a delivery keyed in with
-    // a date already gone is almost always a typo, and it would otherwise go
-    // straight to the front of the queue and be sold first.
     const alreadyExpired = Boolean(expiresAt) && expiresAt < todayIso;
-    /*
-     * The earliest day an expiry may name.
-     *
-     * Never in the past: stock being put on the shelf today cannot already
-     * have gone off, and a date behind us is a typo every time — one that
-     * would send the batch straight to the front of the queue and out the
-     * door first. Never before it was made either, so whichever of the two is
-     * later wins. Both are `YYYY-MM-DD`, which compares as a string exactly
-     * as it does as a date.
-     */
     const earliestExpiry =
         manufacturedAt && manufacturedAt > todayIso ? manufacturedAt : todayIso;
 
@@ -173,9 +135,6 @@ export function StockMovementDialog({
 
         const money = unitCost.trim() === "" ? undefined : Number(unitCost);
 
-        // Stock arriving has to say what it cost: the shelf's value, every
-        // sale's cost and every selling price are set against it. Zero is a
-        // fine answer for free stock — saying nothing is not.
         if (isIn && money === undefined) {
             setError("Enter what one unit cost. Put 0 if this stock was free.");
             return;
@@ -190,8 +149,6 @@ export function StockMovementDialog({
             return;
         }
 
-        // The API refuses this too, but a round trip to be told the dates are
-        // the wrong way round is a poor way to find out.
         if (manufacturedAt && expiresAt && expiresAt < manufacturedAt) {
             setError("This batch expires before it was made — check the dates.");
             return;
@@ -205,15 +162,11 @@ export function StockMovementDialog({
             enteredQuantity: typed,
             enteredUnitId: unit?.id ?? "",
             baseQuantity,
-            // Cost belongs to stock arriving, sale price to stock leaving.
             ...(money === undefined
                 ? {}
                 : isIn
                   ? { unitCost: money }
                   : { unitSalePrice: money }),
-            // Batch details describe stock arriving. Empty fields are left off
-            // rather than sent blank, so an untracked delivery stays untracked
-            // instead of arriving with a lot number of "".
             ...(isIn && lotNumber.trim()
                 ? { lotNumber: lotNumber.trim() }
                 : {}),

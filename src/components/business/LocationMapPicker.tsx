@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import type { GeocodeResult } from "@/lib/api/geocode";
 
-
 const PIN_ICON = L.divIcon({
     className: "",
     html: `<svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg">
@@ -30,7 +29,7 @@ const PIN_ICON = L.divIcon({
     iconAnchor: [15, 42],
 });
 
-const DEFAULT_CENTER: [number, number] = [11.5564, 104.9282]; // Phnom Penh
+const DEFAULT_CENTER: [number, number] = [11.5564, 104.9282];
 const DEFAULT_ZOOM = 12;
 const PIN_ZOOM = 16;
 
@@ -43,7 +42,6 @@ export interface LocationValue {
     address?: string;
 }
 
-/** MapContainer only sets its center once on mount — this re-centers it whenever a search result moves the pin. */
 function RecenterOnChange({ center, zoom }: { center: [number, number]; zoom: number }) {
     const map = useMap();
     useEffect(() => {
@@ -61,8 +59,6 @@ function MapClickHandler({ onLocationSelect }: { onLocationSelect: (lat: number,
     return null;
 }
 
-/** Submit-time messages from the profile form's schema. `coordinates` covers
- * latitude and longitude together, since the pin is their only input. */
 export interface LocationErrors {
     provinceName?: string;
     districtName?: string;
@@ -103,7 +99,6 @@ export function LocationMapPicker({
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
 
-
     const [mapInstanceKey, setMapInstanceKey] = useState(0);
     useLayoutEffect(() => {
         return () => setMapInstanceKey((key) => key + 1);
@@ -120,8 +115,6 @@ export function LocationMapPicker({
         });
     }
 
-    /** Fired by Enter or the search button, never per keystroke — Nominatim's
-     * usage policy rules out autocomplete against the public instance. */
     async function runSearch() {
         const q = query.trim();
 
@@ -159,8 +152,6 @@ export function LocationMapPicker({
         setSearchError(null);
     }
 
-    /** Same shape as a reverse-geocode hit, so the pin, the three name fields
-     * and the form's Physical Address all update exactly as a pin drag does. */
     function selectResult(result: GeocodeResult) {
         const matched = matchCambodiaProvince(result.address.provinceName);
         update({
@@ -204,8 +195,6 @@ export function LocationMapPicker({
     return (
         <div className="flex flex-col gap-3">
             <div className="relative">
-                {/* Enter is the only trigger — Nominatim's usage policy rules
-                    out searching as the merchant types. */}
                 {searching ? (
                     <LoaderCircle className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
                 ) : (
@@ -218,8 +207,6 @@ export function LocationMapPicker({
                     aria-label="Search for your business location"
                     onChange={(event) => setQuery(event.target.value)}
                     onKeyDown={(event) => {
-                        // The picker lives inside the profile form, so Enter
-                        // here must search, not save the profile.
                         if (event.key === "Enter") {
                             event.preventDefault();
                             void runSearch();
@@ -380,7 +367,6 @@ export function LocationMapPicker({
                 </p>
             )}
 
-            {/* No visible field for these — the pin itself is the input. */}
             <input type="hidden" name="latitude" value={value.lat ?? ""} readOnly />
             <input type="hidden" name="longitude" value={value.lng ?? ""} readOnly />
         </div>

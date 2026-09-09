@@ -40,16 +40,6 @@ export async function unsubscribeUser(endpoint: string) {
   return { success: true };
 }
 
-/**
- * Pushes to a set of recipients' phones for an event this dashboard's own
- * client code just triggered (a sale, a parked order).
- *
- * Every call site pairs this with the existing `createNotification` mutation
- * so the bell and the phone always agree — see `useNotifyWithPush`. Requires
- * only that *someone* is signed in, the same as `createNotification` itself;
- * which receivers are legitimate for that user to notify is the backend's
- * call to make on that request, not this one's.
- */
 export async function notifyUsersPush(
   receiverIds: string[],
   payload: PushPayload,
@@ -69,7 +59,6 @@ export async function notifyUsersPush(
   }
 }
 
-/** Rings the current user's own devices — the PWA settings page's "Send test" button. */
 export async function sendTestNotification(message: string) {
   const userId = await getCurrentSubject();
 

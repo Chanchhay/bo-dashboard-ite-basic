@@ -14,7 +14,6 @@ function channelStockPath(businessId: string, itemId: string) {
     return `/api/v1/businesses/${businessId}/items/${encodeURIComponent(itemId)}/channel-stock`;
 }
 
-/** How this item's one balance is shared out between the channels selling it. */
 export async function GET(_request: Request, context: RouteContext) {
     try {
         const [{ itemId }, businessId] = await Promise.all([
@@ -32,13 +31,6 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 }
 
-/**
- * Replaces the split whole.
- *
- * Sent as one piece because it is decided as one: a mode and the shares that
- * go with it. Saving a share without the mode it belongs to could leave an
- * item allocated to one channel and open to the rest.
- */
 export async function PUT(request: Request, context: RouteContext) {
     try {
         const result = saveItemChannelStockSchema.safeParse(await readJsonBody(request));

@@ -15,11 +15,6 @@ type SpringPage<T> = {
     totalPages: number;
 };
 
-/**
- * The `PageResponse` envelope the backend uses puts the page index on `page`,
- * where Spring's own `Page` puts it on `number`. Everything on this side reads
- * the latter, so it is renamed on the way through.
- */
 function toPage<T>(response: SpringPage<T>) {
     return toPageResult({
         content: response.content,
@@ -51,13 +46,6 @@ export async function GET(request: Request) {
     }
 }
 
-/**
- * Takes the file and asks the backend to read its headings.
- *
- * The file is forwarded as a stream rather than buffered here — this hop
- * exists to attach the shop's identity and the access token, not to inspect a
- * spreadsheet.
- */
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();

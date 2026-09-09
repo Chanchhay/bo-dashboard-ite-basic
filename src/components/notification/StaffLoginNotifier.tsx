@@ -16,10 +16,8 @@ export function StaffLoginNotifier() {
     useEffect(() => {
         if (!userId) return;
 
-        // Prevent firing twice in the same React mount cycle
         if (notifiedRef.current === userId) return;
 
-        // Check if already notified for this user in the current browser session
         if (typeof window !== "undefined") {
             try {
                 const storedUserId = window.sessionStorage.getItem(STORAGE_KEY);
@@ -28,7 +26,6 @@ export function StaffLoginNotifier() {
                     return;
                 }
             } catch {
-                // Ignore storage errors
             }
         }
 
@@ -37,15 +34,12 @@ export function StaffLoginNotifier() {
             try {
                 window.sessionStorage.setItem(STORAGE_KEY, userId);
             } catch {
-                // Ignore storage errors
             }
         }
 
-        // Fire login notification to backend (if staff member, BO receives alert)
         notifyStaffLogin()
             .unwrap()
             .catch(() => {
-                // Ignore network errors silently so it never affects user UX
             });
     }, [userId, notifyStaffLogin]);
 

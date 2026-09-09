@@ -8,13 +8,6 @@ import {
     type RegisterSession,
 } from "@/lib/api/pos-session";
 
-/**
- * Ends the shift.
- *
- * The expected total and the difference are the backend's to decide — it owns
- * the sales that ran through the drawer. The terminal only reports what was
- * counted, and shows back whatever reconciliation the backend returns.
- */
 export async function POST(request: Request) {
     const cookieStore = await cookies();
     const sessionId = cookieStore.get(POS_SESSION_COOKIE)?.value;
@@ -44,8 +37,6 @@ export async function POST(request: Request) {
             },
         );
 
-        // The shift is over either way — holding the id would only let the
-        // terminal act on a session the backend has already closed.
         cookieStore.delete(POS_SESSION_COOKIE);
 
         return Response.json(normalizeRegisterSession(session));

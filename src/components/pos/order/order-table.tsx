@@ -52,7 +52,6 @@ import {
 
 export interface OrderTableProps {
   onPaymentSuccess?: (paidOrder: PosOrder, sale: Sale) => void;
-  /** Selects the Order tab after the current order is parked. */
   onOrderCreated?: () => void;
   isEditingOrder?: boolean;
   discountModalOpen?: boolean;
@@ -60,21 +59,8 @@ export interface OrderTableProps {
   discountModalMode?: "COUPON" | "CUSTOM";
   customerModalOpen?: boolean;
   onCustomerModalOpenChange?: (open: boolean) => void;
-  /**
-   * How many more of an item the till may still sell, the cart's own claim
-   * already taken off.
-   *
-   * Passed in rather than worked out here: the terminal already answers this
-   * for the grid, the option picker and the scanner, and a second answer that
-   * forgot the channel's share of the stock would let the cart sell past a
-   * ceiling the cards respect. Absent means nobody counts this item.
-   */
   stockFor?: (itemId: string, variantId?: string) => number | undefined;
 }
-
-/**
- * The payment dialog still speaks the older snake_case `Order`.
- */
 
 const formatLocalPhone = (phoneStr?: string | null): string => {
   if (!phoneStr) return "";
@@ -98,14 +84,12 @@ const isMembershipDiscount = (r: AppliedDiscountRule | null): boolean => {
 function isRuleConditionMet(orderVal: PosOrder | null, rule: AppliedDiscountRule | null): boolean {
   if (!rule || !orderVal) return true;
 
-  // 1. Minimum Purchase Order Subtotal condition
   if (rule.minOrderAmount && rule.minOrderAmount > 0) {
     if ((orderVal.subtotal ?? 0) < rule.minOrderAmount) {
       return false;
     }
   }
 
-  // 2. Minimum Item Quantity condition
   if (rule.minQuantity && rule.minQuantity > 0) {
     const totalQty = (orderVal.items || []).reduce((sum, item) => sum + item.quantity, 0);
     if (totalQty < rule.minQuantity) {
@@ -113,7 +97,6 @@ function isRuleConditionMet(orderVal: PosOrder | null, rule: AppliedDiscountRule
     }
   }
 
-  // 3. Buy X Get Y condition
   if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
     let targetIds: Set<string> | null = null;
     if (rule.scope === "SPECIFIC_ITEMS" || rule.scope === "ITEM") {
@@ -141,19 +124,6 @@ function computeItemDiscount(
 ): { discountAmount: number; label?: string } {
   const effectiveRule = rule;
 
-  // With no rule the cashier actually chose, guessing one for this one item
-  // from the active discount list used to mean matching whichever discount
-  // came first for THIS item alone — never checking whether another item in
-  // the same cart had already used up the very units a storewide bundle
-  // needed, or whether the backend's own per-item and order-level discounts
-  // (gated so only one of the two ever fires — see `syncOrderDiscount`)
-  // agreed with a guess made one line at a time. Two items each getting
-  // matched independently was how a storewide Buy X Get Y ended up giving
-  // Hamberger its own "free" unit on top of Matcha latte's, something the
-  // backend's real total never charged for. `item.discountAmount` (and
-  // `item.freeQuantity` for the free-unit badge) are never a guess — the
-  // backend already decided correctly and this device learned the real
-  // numbers back from it — so they are trusted outright instead.
   if (!effectiveRule || !orderVal) {
     return { discountAmount: item.discountAmount ?? 0, label: item.discountLabel ?? undefined };
   }
@@ -181,7 +151,6 @@ function computeItemDiscount(
     ? new Set(effectiveRule.targetItemIds || [])
     : null;
 
-  // Handle Buy X Get Y discount scope calculation (cheapest eligible items become FREE)
   if (effectiveRule.buyQuantity && effectiveRule.getQuantity && effectiveRule.buyQuantity > 0 && effectiveRule.getQuantity > 0) {
     const eligibleUnits: { itemId: string; unitPrice: number }[] = [];
     for (const orderItem of orderVal.items || []) {
@@ -332,18 +301,13 @@ function legacyOrderShape(
   };
 }
 
-/* ---------------------------------- row ---------------------------------- */
-
 interface ItemRowProps {
   item: PosOrderItem;
-  /** The order's own currency — an order opened before a base change keeps it. */
   currency?: string | null;
   onIncrease: (item: PosOrderItem) => void;
   onDecrease: (item: PosOrderItem) => void;
   onRemove: (orderItemId: string) => void;
-  /** Quantity buttons are held while the line is being written. */
   busy?: boolean;
-  /** Nothing left on the shelf for one more of this line. */
   atStockLimit?: boolean;
   discountInfo?: { discountAmount: number; label?: string };
 }
@@ -367,27 +331,21 @@ const ItemRow = memo(function ItemRow({
     <tr className="align-middle border-b border-gray-100">
       <td className="break-words px-2 py-2.5 text-xs text-gray-800 sm:px-4 sm:text-sm">
         <span className="font-semibold text-gray-900">{item.itemName}</span>
-        {/* Which option was picked. Two sizes at two prices are otherwise the
-            same line twice, and the cashier cannot tell which is which. */}
         {item.variantName ? (
           <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
             {item.variantName}
           </span>
         ) : null}
-        {/* Sold by the pack: what one of them holds, so a case of twenty-four
-            never reads as a single can. */}
         {item.unitName && (item.unitFactor ?? 1) > 1 ? (
           <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
             {item.unitName} · {item.unitFactor} per pack
           </span>
         ) : null}
-        {/* The extras ride along with the line and are charged per unit. */}
         {item.addOns?.length ? (
           <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
             {item.addOns.map((addOn) => `+ ${addOn.name}`).join(", ")}
           </span>
         ) : null}
-        {/* How it has to be made. Free, but the line is wrong without it. */}
         {item.selections?.length ? (
           <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
             {item.selections
@@ -395,17 +353,11 @@ const ItemRow = memo(function ItemRow({
               .join(" · ")}
           </span>
         ) : null}
-        {/* Which promo cut this line's price, so the cashier (and the
-            receipt) can say why it's discounted, not just by how much. */}
         {lineDiscount > 0 && discountInfo?.label ? (
           <span className="mt-0.5 block text-[11px] font-semibold text-primary">
             {discountInfo.label}
           </span>
         ) : null}
-        {/* How many of this line's units the backend's Buy X Get Y engine
-            granted on its own — the whole point of the offer is invisible
-            to the cashier without this, since the total quantity alone
-            reads as an ordinary sale. */}
         {item.freeQuantity ? (
           <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary dark:bg-primary/20 dark:text-primary">
             {item.freeQuantity} FREE
@@ -482,8 +434,6 @@ const ItemRow = memo(function ItemRow({
   );
 });
 
-/* --------------------------------- table --------------------------------- */
-
 export function OrderTable({
   onPaymentSuccess,
   onOrderCreated,
@@ -498,8 +448,6 @@ export function OrderTable({
   const { format, secondaryFor } = useMoney();
   const { toast } = useToast();
 
-  // The cart comes off the device, not the network. Nothing here can be in a
-  // loading or failed state for long enough to need a screen of its own.
   const { cart, order, isLoading } = useCurrentCart();
   const {
     setQuantity,
@@ -512,15 +460,6 @@ export function OrderTable({
   const { data: discounts = [] } = useGetDiscountsQuery();
   const { data: business } = useGetBusinessProfileQuery();
 
-  /*
-   * A cart opened with no connection has never been priced by the server, so
-   * it starts with no tax rule of its own. The shop's own setting fills that
-   * in — otherwise a VAT-charging shop rings up an untaxed total offline and
-   * only finds out when the sale reconciles at a different figure.
-   *
-   * Only when the cart has none: once the server has answered, its rate is
-   * the one that was actually charged.
-   */
   useEffect(() => {
     if (!cart || cart.taxRate !== null || !business) return;
     if (business.taxRate == null) return;
@@ -535,22 +474,9 @@ export function OrderTable({
   const [payOrder, { isLoading: isPaying }] = usePayOrderMutation();
   const [setCustomerOnServer] = useSetOrderCustomerMutation();
   const [setDiscountOnServer] = useSetOrderDiscountMutation();
-  // Covers the stretch `isPaying` (payOrder's own loading flag) does not:
-  // the discount-sync wait and flushCart()'s round trip, both of which
-  // happen before payOrder is ever called.
   const isSubmittingPaymentRef = useRef(false);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
-  /*
-   * The customer and the discount land on the cart first, and the server is
-   * told after.
-   *
-   * Same rule as the lines: what the panel shows is what is saved on this
-   * device. Callers still get something with `unwrap()` on it so they read
-   * unchanged, but a request that never reached a server is not an error to
-   * them — the cart already holds the discount, and letting the rejection
-   * through meant a discounted sale could not be taken offline at all.
-   */
   const tolerateOffline = useCallback(
     <T,>(pending: { unwrap: () => Promise<T> }) => ({
       unwrap: async (): Promise<T | undefined> => {
@@ -610,11 +536,8 @@ export function OrderTable({
     onDiscountModalOpenChange?.(open);
   };
 
-
   const lineQuantityRef = useRef<Map<string, number>>(new Map());
 
-  // Holds the in-flight discount PATCH so a payment attempt can await the
-  // exact same promise instead of racing the optimistic cache update.
   const pendingDiscountSyncRef = useRef<Promise<unknown> | null>(null);
 
   useEffect(() => {
@@ -625,10 +548,6 @@ export function OrderTable({
     }
   }, [order?.items]);
 
-  // A background push (not the payment-time one, which already surfaces its
-  // own failure) is otherwise silent — the cashier taps, the screen updates
-  // optimistically, and a refused bundle (stock too short to cover it) would
-  // never be seen until checkout. This is what tells them right away.
   useEffect(() => {
     return onCartPushFailed((message) => {
       toast({
@@ -639,7 +558,6 @@ export function OrderTable({
     });
   }, [toast]);
 
-  /** How many free units each line carried as of the last render — so a bundle completing can be told apart from one already sitting there on load. */
   const freeQuantityRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -661,16 +579,12 @@ export function OrderTable({
       freeQuantityRef.current.set(item.id, current);
     }
 
-    // A line that left the cart entirely has nothing left to compare next
-    // time it's used for a different item.
     const stillPresent = new Set(order.items.map((item) => item.id));
     for (const id of freeQuantityRef.current.keys()) {
       if (!stillPresent.has(id)) freeQuantityRef.current.delete(id);
     }
   }, [order?.items, toast]);
 
-  /** Runs one line change, reporting rather than silently swallowing failure. */
-  // No connection: the cart is this till's own, and so are its line ids.
   const isOffline = typeof window !== "undefined" && !navigator.onLine;
 
  
@@ -679,14 +593,12 @@ export function OrderTable({
     await change();
   }
 
-
   const atStockLimit = useCallback(
     (item: PosOrderItem) => {
       if (!stockFor || item.trackInventory === false) return false;
 
       const left = stockFor(item.itemId, item.variantId ?? undefined);
 
-      // Undefined is an item nobody counts, not an item at zero.
       if (left === undefined) return false;
 
       return left < baseUnitsOf({ quantity: 1, unitFactor: item.unitFactor });
@@ -696,9 +608,6 @@ export function OrderTable({
 
   const handleIncrease = useCallback(
     (item: PosOrderItem) => {
-      // The button is disabled too, but that is the look. A line can hit the
-      // limit between the row rendering and the press landing — and the same
-      // press arrives from the keyboard, where nothing is dimmed.
       if (atStockLimit(item)) {
         toast({
           tone: "error",
@@ -713,10 +622,6 @@ export function OrderTable({
       const nextPaid = currentPaid + 1;
       lineQuantityRef.current.set(item.id, nextPaid);
 
-      // The freebie count is only ever learned back from the server (see
-      // local-cart.ts's applyServerCart), so the optimistic total keeps
-      // whatever it last confirmed rather than guessing whether this tap
-      // just completed a fresh bundle — the push settles that shortly.
       void runLineChange(() => setQuantity(item.id, nextPaid + currentFree));
     },
     [atStockLimit, setQuantity, toast],
@@ -729,9 +634,6 @@ export function OrderTable({
       const nextPaid = Math.max(0, currentPaid - 1);
       lineQuantityRef.current.set(item.id, nextPaid);
 
-      // Zero paid units removes the line outright — a leftover free unit
-      // with nothing paid backing it is not a sellable state, so it goes
-      // with it rather than being sent through as a lone quantity.
       if (nextPaid <= 0) {
         lineQuantityRef.current.delete(item.id);
         void runLineChange(() => removeItem(item.id));
@@ -770,9 +672,6 @@ export function OrderTable({
       return null;
     });
 
-  // Same window the backend checks at `PATCH /orders/{id}/discount`
-  // (`OrderServiceImpl.validateDiscountForOrder`) — see pos-screen.tsx's
-  // identical filter for why the schedule and day-of-week matter here too.
   const activePosDiscounts = useMemo(() => {
     const now = new Date();
     const today = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][
@@ -810,7 +709,6 @@ export function OrderTable({
         return 0;
       }
 
-      // Handle Buy X Get Y promotion discount calculation independently of rule.value or percentage
       if (rule.buyQuantity && rule.getQuantity && rule.buyQuantity > 0 && rule.getQuantity > 0) {
         const totalBuyXGetYDisc = (orderVal.items || []).reduce((sum, item) => {
           const itemDisc = computeItemDiscount(item, orderVal, rule, activePosDiscounts);
@@ -853,42 +751,10 @@ export function OrderTable({
       );
     }
 
-    // With no rule chosen, there is nothing to preview here — every caller
-    // falls back to the order's own `discountAmount`, already correct and
-    // already learned back from the backend's own `pickBest` selection.
-    // Guessing one item at a time (as this used to, matching whichever
-    // discount `findMatchingPosDiscount` happened to find for each item
-    // independently) could match a storewide bundle against one item
-    // without knowing another item in the same cart had already used up
-    // the units it needed, giving a second item its own "free" unit the
-    // backend's real total never charged for.
     return 0;
   };
 
   const resolveDiscountSync = (orderVal: PosOrder, rule: AppliedDiscountRule | null) => {
-    // The backend already re-derives the order's own discount from the cart
-    // on every line change — any catalog rule included, storewide or
-    // item-scoped, breaking ties between several active discounts by scope
-    // specificity and value (`pickBest` in DiscountApplicationServiceImpl)
-    // — with no selection from here needed at all. A coupon code the
-    // cashier actually typed, or a membership tied to the customer just
-    // attached, is the one thing the backend has no way to guess on its
-    // own, so that is the only case this still pushes.
-    //
-    // Trying to also push a *catalog* pick used to mean recomputing that
-    // discount's amount here first — client-side, from whichever rule
-    // `findMatchingPosDiscount`/a cached "store default" happened to match,
-    // not necessarily the one the backend's own `pickBest` would land on —
-    // and PATCHing the result over whatever the backend had just correctly
-    // computed on its own. Every disagreement (a stale cached rule matching
-    // a smaller cart than it was picked against, two active discounts
-    // resolved differently, ordinary rounding) either fed a self-sustaining
-    // loop of PATCH /api/orders/current/discount requests, or quietly
-    // overwrote a correct figure with a wrong one that then stuck until the
-    // next mutation. Restricting this to real coupons, memberships, and a
-    // custom amount someone typed by hand (recognisable by carrying no
-    // `discountId` — it is not a reference to any catalog discount at all)
-    // is what stops both.
     if (!rule || !(rule.isCoupon || rule.discountCode || rule.isMembership || !rule.discountId)) {
       return {
         needsSync: false,
@@ -923,21 +789,6 @@ export function OrderTable({
     let rule: AppliedDiscountRule | null = null;
     let explicitlyDisabled = false;
 
-    // Only something this device actually decided is worth loading back as
-    // `rule`: a coupon, a membership, or a custom amount someone typed by
-    // hand (recognisable by having no `discountId` — a custom rule is not a
-    // reference to any catalog discount at all). A catalog discount an
-    // item-scoped or storewide promo) is none of those — it is the
-    // backend's own `pickBest` choice, recomputed fresh from the cart on
-    // every line change — and recomputing it again here from a rule cached
-    // at whatever cart size it was picked against was the root of a whole
-    // run of bugs: a stale rule matching a smaller cart than it was cached
-    // for, disagreeing with the server enough to loop PATCH
-    // /api/orders/current/discount, or once, simply producing a number the
-    // cart's own contents could not justify. `item.freeQuantity`,
-    // `item.discountLabel` and `order.discountAmount` already carry
-    // everything a catalog discount needs to show or charge correctly —
-    // nothing here has to re-decide any of it.
     const isExplicitRule = (candidate: unknown): candidate is AppliedDiscountRule =>
       Boolean(
         candidate &&
@@ -993,10 +844,6 @@ export function OrderTable({
         const promise = setOrderDiscount(payload).unwrap();
         pendingDiscountSyncRef.current = promise;
         promise
-          // A payment attempt awaits this exact promise to find out whether
-          // the sync failed; this second handler just keeps that rejection
-          // from also surfacing as an unhandled-rejection console warning
-          // for the common case where no payment ever awaits it at all.
           .catch(() => {})
           .finally(() => {
             if (pendingDiscountSyncRef.current === promise) {
@@ -1164,21 +1011,10 @@ export function OrderTable({
     }
   };
 
-  /*
-   * No snapshot, no restore, no "could not load".
-   *
-   * The cart is a row on this device; a refresh reads it back and an outage
-   * never touched it. What used to be here — a JSON copy in localStorage and
-   * an effect that pushed it into the query cache when a request failed — was
-   * a second cart standing in for the first, and it outlived its own sale.
-   */
   if (isLoading) {
     return <div className="p-6 text-sm text-gray-400">Loading order…</div>;
   }
 
-  // An empty cart, for the panel to draw before anything has been rung up.
-  // It names no business: nothing is sent from it, and a made-up id here is a
-  // number that could be somebody else's.
   const fallbackOrder: PosOrder = {
     id: "offline-current",
     businessId: "",
@@ -1190,8 +1026,6 @@ export function OrderTable({
     discountAmount: 0,
     taxAmount: 0,
     total: 0,
-    // Nothing here is priced yet, so nothing here names a currency: an empty
-    // cart renders its zeroes in whatever the business prices in today.
     currency: null,
     displayCurrency: null,
     displayExchangeRate: null,
@@ -1207,9 +1041,6 @@ export function OrderTable({
   const discountNum = autoTotalDiscount > 0 ? autoTotalDiscount : (effectiveOrder.discountAmount ?? 0);
   const afterDiscount = Math.max(0, subtotalNum - discountNum);
 
-  // Tax was already computed server-side against this order's own items and
-  // the business's configured rate — read directly rather than re-derived,
-  // so the cart summary never disagrees with what payment will actually charge.
   const taxAmount = order?.taxAmount ?? 0;
   const isTaxActive = taxAmount > 0;
   const isTaxInclusive = order?.taxInclusionType === "INCLUSIVE";
@@ -1223,16 +1054,6 @@ export function OrderTable({
     taxAmount: taxAmount,
     isTaxActive,
     isTaxInclusive,
-    // Worked out from the same `subtotalNum`/`discountNum` the two rows
-    // above already show, not read separately off `order.total` — that
-    // figure comes from the cart's own, differently-timed reckoning of the
-    // discount (learned back from whichever push last landed) and could
-    // disagree with what this render just decided the discount actually is,
-    // showing a Total that does not match Subtotal minus Discount right
-    // above it. Tax is the one figure still read straight from the order:
-    // it is computed server-side and inclusive tax is already folded into
-    // `subtotalNum`, so exclusive tax is the only case with anything left
-    // to add on top.
     total: isTaxActive && !isTaxInclusive ? afterDiscount + taxAmount : afterDiscount,
   };
   const totalSecondary = secondaryFor(summary.total, order);
@@ -1284,14 +1105,6 @@ export function OrderTable({
   ) => {
     if (!order) return;
 
-    // The "Validate" button's own disabled state only ever watched
-    // `isPaying`, which is `usePayOrderMutation`'s loading flag — true only
-    // once `payOrder` itself is in flight. Everything before that (waiting
-    // on the discount sync, then `flushCart()`'s own round trip) is a
-    // second, earlier stretch the button stayed clickable through, so a
-    // cashier tapping it again while it looked stuck fired this whole
-    // function a second time — a second flush, a second `payOrder`, the
-    // till doing the actual work twice for one tap that just felt slow.
     if (isSubmittingPaymentRef.current) return;
     isSubmittingPaymentRef.current = true;
     setIsSubmittingPayment(true);
@@ -1299,24 +1112,10 @@ export function OrderTable({
     const sold = order;
 
     try {
-      // The auto-discount effect above patches the on-screen total the
-      // instant a promotion's condition is met (e.g. the 3rd Coca-Cola
-      // completing a Buy 2 Get 1 bundle) but fires the PATCH that actually
-      // persists it fire-and-forget, for a snappy preview. Paying before
-      // that PATCH lands would validate `receivedAmount` against the
-      // backend's still-stale, pre-discount `order.total` and reject a
-      // correct payment. Waiting on the in-flight promise itself (rather
-      // than re-checking the cache, which the optimistic update already
-      // made look "in sync" before the server ever confirmed it) is what
-      // actually closes this race.
       if (pendingDiscountSyncRef.current) {
         await pendingDiscountSyncRef.current;
       }
 
-      // Belt and braces: nothing was in flight, but this payment attempt is
-      // itself the first thing to notice the order's stored discount is
-      // out of date (e.g. the modal was opened before the effect above ever
-      // ran) — sync it for real here too.
       const { needsSync, payload } = resolveDiscountSync(order, activeDiscountRule);
       if (needsSync) {
         await setOrderDiscount(payload).unwrap();
@@ -1365,10 +1164,6 @@ export function OrderTable({
           paymentMethod: method === "CASH" ? "CASH" : "CARD",
         });
 
-        // Take the sale off the cached balances, which are what the ceiling is
-        // measured against until the connection is back. In the units stock is
-        // counted in, not in packs: deducting the pack count left almost all of
-        // the shelf behind and the same stock could be sold over and over.
         for (const item of order.items || []) {
           if (item.itemId) {
             const key = item.variantId ? `${item.itemId}:${item.variantId}` : item.itemId;
@@ -1383,19 +1178,6 @@ export function OrderTable({
           }
         }
 
-        /*
-         * A real Sale, not a cast over a few fields.
-         *
-         * The receipt reads paidAmount, soldAt, subtotal, the tax and the
-         * invoice number off this. What used to be built here named two of
-         * them differently — receivedAmount, createdAt — and simply omitted
-         * the rest, so an offline receipt printed a blank number, no tax line
-         * and no cash tendered, and the cast hid all of it from the compiler.
-         *
-         * The invoice number is the id the sale is queued under, which is what
-         * the backend records it as when it syncs — so the slip in the
-         * customer's hand names the same sale the shop will see later.
-         */
         sale = {
           id: offline.uuid,
           orderId: order.id,
@@ -1429,9 +1211,6 @@ export function OrderTable({
 
         await clearLocalCart();
       } else {
-        // The backend prices the sale from its own order, so everything the
-        // till is holding has to be on it before the money is taken. This is
-        // the one moment a push cannot be left to the background.
         const pushed = await flushCart();
 
         if (!pushed) {
@@ -1473,12 +1252,6 @@ export function OrderTable({
         localStorage.removeItem(`pos_cart_discount_${sold.id}`);
       }
 
-      // Carries a coupon, a membership, or a hand-typed custom amount over
-      // to the next order — never a catalog discount, which is not
-      // something this device decided in the first place (see the
-      // `isExplicitRule` guard in the effect above) and is recomputed by
-      // the backend on its own for whatever the next order turns out to
-      // hold, not whatever this one just sold.
       const storeDefaultRaw = localStorage.getItem(STORE_DEFAULT_DISCOUNT_KEY);
       let defaultRule: AppliedDiscountRule | null = null;
       if (storeDefaultRaw) {
@@ -1493,7 +1266,6 @@ export function OrderTable({
       }
       setActiveDiscountRule(defaultRule);
 
-      // Reset attached customer so next order starts fresh
       setAttachedCustomerId(null);
       try {
         localStorage.removeItem("pos_active_customer_id");
@@ -1556,7 +1328,6 @@ export function OrderTable({
 
   return (
     <div className="flex h-full flex-col bg-white/90">
-      {/* Active Shop Discount Banner */}
       {activeDiscountRule && (
         <div className="flex items-center justify-between gap-2 border-b border-primary/20 bg-primary/10 px-4 py-2 text-xs text-primary shrink-0">
           <div className="flex items-center gap-1.5 font-medium truncate">
@@ -1574,7 +1345,6 @@ export function OrderTable({
         </div>
       )}
 
-      {/* Customer Bar at top of POS cart */}
       <div className="border-b border-[#d9d9d9] bg-gray-50/80 px-4 py-2.5">
         {selectedCustomer ? (
           <div className="flex items-center justify-between">
@@ -1638,7 +1408,6 @@ export function OrderTable({
         )}
       </div>
 
-      {/* items — scrolls, header stays visible */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <table data-tour="pos-cart-qty" className="w-full table-fixed text-sm">
           <thead className="sticky top-0 z-10 bg-[#f5f5f5] text-left">
@@ -1669,7 +1438,6 @@ export function OrderTable({
         </table>
       </div>
 
-      {/* summary — pinned to the bottom */}
       <div className="px-4 py-3 text-sm min-[1025px]:pb-4 min-[1025px]:pt-2">
         <div className="flex justify-between py-1">
           <span className="text-gray-600 min-[1025px]:text-[22px] min-[1025px]:font-medium min-[1025px]:leading-7">Subtotal</span>
@@ -1777,7 +1545,6 @@ export function OrderTable({
         />
       )}
 
-      {/* Customer select modal */}
       <CustomerSelectModal
         open={isCustomerModalOpen}
         onOpenChange={setCustomerModalOpen}
@@ -1785,7 +1552,6 @@ export function OrderTable({
         onSelectCustomer={handleSelectCustomer}
       />
 
-      {/* Discount select modal */}
       <DiscountSelectModal
         open={isDiscountModalOpen}
         onOpenChange={setDiscountModalOpen}
@@ -1853,15 +1619,6 @@ export function OrderTable({
               totalAmount: summary.total,
             };
 
-            /*
-             * The sale is over, so the cart is too.
-             *
-             * A KHQR sale settles at the bank and reaches us through the
-             * payment poller, not through the Pay button — so it never passed
-             * the place where cash and pay-later clear the till, and the lines
-             * sat there to be sold a second time. Cleared here from the copy
-             * already captured above, which is what the receipt renders.
-             */
             await clearLocalCart();
 
             setPaymentOpen(false);

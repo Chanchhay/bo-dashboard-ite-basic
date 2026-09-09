@@ -244,7 +244,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 "Enter what one unit cost. Put 0 if this stock was free.";
         }
 
-
         if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
             toast({
@@ -345,7 +344,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                 />
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
-                    {/* Main Form Section */}
                     <section data-tour={isStockIn ? "stock-in-form" : "stock-out-form"} className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7 flex flex-col gap-6">
                         <div className="flex items-center gap-3.5 border-b border-border pb-5">
                             <span
@@ -454,7 +452,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                     </div>
                                 ) : null}
 
-                                {/* Quantity Input */}
                                 <div data-tour="stock-quantity-input">
                                     <FormField
                                         label="Quantity"
@@ -799,8 +796,6 @@ export function StockMovementForm({ mode }: { mode: MovementMode }) {
                                 )}
                                 <span>{isStockIn ? "Save Stock In" : "Save Stock Out"}</span>
                             </Button>
-
-
 
                             <Button
                                 type="button"

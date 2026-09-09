@@ -61,7 +61,6 @@ export default function CurrencyHeaderWidget() {
 
                 <MenuSeparator />
 
-                {/* Quick Convert Tool */}
                 <div className="my-3 rounded-lg border border-border/60 bg-muted/30 p-2.5">
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase mb-1.5">
                         Quick Live Converter
@@ -107,7 +106,6 @@ export default function CurrencyHeaderWidget() {
                     </div>
                 </div>
 
-                {/* Ticker list */}
                 <div className="my-2">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase mb-1.5">
                         <span>Live Rates (1 {baseCurrency})</span>

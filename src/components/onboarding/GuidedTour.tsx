@@ -17,7 +17,6 @@ export function startGuidedTour() {
 
 export default function GuidedTour() {
   const startTour = useCallback(() => {
-    // Filter steps to elements currently visible in the DOM
     const availableSteps = dashboardTourSteps.filter((step) => {
       if (typeof step.element === "string") {
         return !!document.querySelector(step.element);
@@ -40,7 +39,6 @@ export default function GuidedTour() {
         try {
           localStorage.setItem("fluxibiz_tour_completed", "true");
         } catch {
-          // Ignore localStorage errors (e.g. incognito mode restrictions)
         }
       },
     });
@@ -49,11 +47,9 @@ export default function GuidedTour() {
   }, []);
 
   useEffect(() => {
-    // 1. Listen for manual tour launch trigger from UserMenu / Help actions
     const handleStartEvent = () => startTour();
     window.addEventListener(START_TOUR_EVENT, handleStartEvent);
 
-    // 2. Auto-launch for first-time visitors
     let autoTimer: NodeJS.Timeout | null = null;
     try {
       const isCompleted = localStorage.getItem("fluxibiz_tour_completed");
@@ -63,7 +59,6 @@ export default function GuidedTour() {
         }, 1200);
       }
     } catch {
-      // Fallback
     }
 
     return () => {

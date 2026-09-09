@@ -1,8 +1,6 @@
 import { baseApi } from "@/lib/baseApi";
 import type { UploadedAsset } from "@/lib/api/inventory";
 
-// An asset belongs to whatever embeds its URL, so there is nothing to
-// invalidate here — the form holding the URL owns it from now on.
 export const assetApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         uploadAsset: builder.mutation<UploadedAsset, File>({

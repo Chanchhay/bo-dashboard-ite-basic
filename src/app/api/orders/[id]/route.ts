@@ -8,7 +8,6 @@ import {
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Deletes one order completely from the backend. */
 export async function DELETE(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params;

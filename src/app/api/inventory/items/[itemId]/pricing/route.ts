@@ -15,13 +15,6 @@ import {
 
 type ItemRouteContext = { params: Promise<{ itemId: string }> };
 
-/**
- * Prices an item and its options.
- *
- * The item update takes each field only when it is sent, so this writes the
- * amounts and leaves the rest of the item — images, description, attributes —
- * exactly as it found them.
- */
 export async function PUT(request: Request, context: ItemRouteContext) {
     try {
         const result = itemPricingSchema.safeParse(await readJsonBody(request));

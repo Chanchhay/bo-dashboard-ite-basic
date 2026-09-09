@@ -20,13 +20,11 @@ const TABS: { id: TabId; label: string; icon: typeof Users }[] = [
 export default function UserManagement({
     canReadAudits,
 }: {
-    /** `audit:read`, or being the owner — see the employees page for why both. */
     canReadAudits: boolean;
 }) {
     const [active, setActive] = useState<TabId>("users");
     const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-    // Arrow keys move between tabs, as expected of a tablist.
     const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
         if (!keys.includes(event.key)) return;

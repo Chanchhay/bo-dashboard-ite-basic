@@ -180,13 +180,6 @@ function DayRow({
     );
 }
 
-/**
- * Opening hours for one channel.
- *
- * Channel-level rather than per item: the till closes, not the coffee. Hours
- * for an individual item — a breakfast menu that stops at 11 — would be a
- * separate, narrower thing layered on top.
- */
 export function ChannelScheduleCard({
     channelName,
     schedule,
@@ -197,8 +190,6 @@ export function ChannelScheduleCard({
     onChange: (next: ChannelSchedule) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
-    // Evaluated on render rather than on a timer: this is a settings screen, so
-    // a badge that is a minute stale is not worth an interval.
     const openNow = isOpenAt(schedule, new Date());
 
     function setDay(dayKey: DayKey, next: DaySchedule) {

@@ -307,7 +307,6 @@ export function ColorPicker({
                     onPickName?.(getClosestColorName(hex));
                 }
             } catch {
-                // EyeDropper cancelled
             }
         }
     };
@@ -318,7 +317,6 @@ export function ColorPicker({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <div className={cn("flex items-center gap-2", className)}>
-                {/* Single color preview square trigger without text */}
                 <PopoverTrigger
                     disabled={disabled}
                     className="group flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-1.5 transition-all hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
@@ -340,19 +338,15 @@ export function ColorPicker({
             </div>
 
             <PopoverContent align="start" className="w-[280px] p-3 flex flex-col gap-3 rounded-2xl shadow-xl">
-                {/* 2D Saturation/Value Canvas */}
                 <div
                     ref={canvasRef}
                     className="relative h-40 w-full cursor-crosshair overflow-hidden rounded-xl select-none"
                     style={{ backgroundColor: pureHueHex }}
                     onPointerDown={handleCanvasPointerDown}
                 >
-                    {/* Horizontal Saturation: White to Transparent */}
                     <div className="absolute inset-0 bg-gradient-to-r from-white to-transparent" />
-                    {/* Vertical Brightness: Transparent to Black */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
 
-                    {/* Circular Selector Ring */}
                     <div
                         className="pointer-events-none absolute size-4.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_4px_rgba(0,0,0,0.6)]"
                         style={{
@@ -362,7 +356,6 @@ export function ColorPicker({
                     />
                 </div>
 
-                {/* Hue Slider */}
                 <div className="relative flex items-center">
                     <input
                         type="range"
@@ -382,7 +375,6 @@ export function ColorPicker({
                     />
                 </div>
 
-                {/* Alpha Slider */}
                 <div className="relative flex items-center">
                     <input
                         type="range"
@@ -397,9 +389,7 @@ export function ColorPicker({
                     />
                 </div>
 
-                {/* Controls Bar */}
                 <div className="flex items-center gap-1.5 pt-1">
-                    {/* Eyedropper Button */}
                     <Button
                         type="button"
                         variant="outline"
@@ -411,7 +401,6 @@ export function ColorPicker({
                         <Pipette className="size-4 text-muted-foreground" />
                     </Button>
 
-                    {/* Format Select */}
                     <div className="relative">
                         <select
                             value={format}
@@ -424,7 +413,6 @@ export function ColorPicker({
                         <ChevronDown className="pointer-events-none absolute right-1.5 top-2.5 size-3.5 text-muted-foreground" />
                     </div>
 
-                    {/* Value Input */}
                     <Input
                         value={format === "HEX" ? hexInput : rgbInput}
                         onChange={(e) => handleTextInputChange(e.target.value)}
@@ -432,7 +420,6 @@ export function ColorPicker({
                         className="h-9 flex-1 font-mono text-xs uppercase px-2"
                     />
 
-                    {/* Alpha % Input */}
                     <div className="relative w-12 shrink-0">
                         <Input
                             value={`${alpha}%`}

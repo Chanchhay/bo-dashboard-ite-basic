@@ -64,7 +64,6 @@ export default function CategoryFilter({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
-  // Close search modal on Esc key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -76,7 +75,6 @@ export default function CategoryFilter({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Take Item Groups created by Business Owner in Inventory Config
   const categoryList: string[] = useMemo(() => {
     const list = categories.filter((c) => c !== "All" && c !== "All Dishes");
     if (mainCategories && mainCategories.length > 0) {
@@ -89,13 +87,11 @@ export default function CategoryFilter({
     return ["All", ...list];
   }, [categories, mainCategories]);
 
-  // Take Subcategories created under Item Groups by Business Owner
   const subcategoryList: string[] = useMemo(() => {
     const list = subCategories.filter((s) => s !== "All" && s !== "All Subcategories");
     return ["All", ...list];
   }, [subCategories]);
 
-  // Live search results matching query
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
@@ -127,7 +123,6 @@ export default function CategoryFilter({
 
   const FilterMarkup = (
     <div className="w-full text-gray-900 dark:text-gray-100 font-sans space-y-5">
-      {/* 🔍 Circular Search Button above Filters */}
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -152,7 +147,6 @@ export default function CategoryFilter({
         )}
       </div>
 
-      {/* Sidebar Heading */}
       <div className="flex items-baseline justify-between border-b border-gray-200 dark:border-gray-800/80 pb-3">
         <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
           Filters
@@ -342,7 +336,6 @@ export default function CategoryFilter({
                 )}
               </div>
 
-              {/* Cancel Button */}
               <button
                 type="button"
                 onClick={() => setSearchModalOpen(false)}
@@ -352,7 +345,6 @@ export default function CategoryFilter({
               </button>
             </div>
 
-            {/* RESULTS Header & Responsive Grid */}
             {searchQuery.trim().length > 0 && (
               <div className="space-y-3 pt-1">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 px-1">
@@ -398,11 +390,6 @@ export default function CategoryFilter({
   );
 }
 
-/**
- * Search results share the menu's rule: an item with no picture (or one whose
- * URL fails to load) gets a neutral placeholder, never a stock photo of some
- * other shop's product.
- */
 function SearchResultThumbnail({ image, name }: { image?: string; name: string }) {
   const [broken, setBroken] = useState(false);
 

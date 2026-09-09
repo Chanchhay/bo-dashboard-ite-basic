@@ -5,11 +5,6 @@ import {
     type SaleProfitCalculatorResponse,
 } from "@/lib/api/sales-report";
 
-/**
- * "What if I priced the catalog at this margin" — priced against a fresh
- * read of inventory on the backend rather than whatever the browser has
- * cached, so a stock delivery mid-session can't leave the prediction stale.
- */
 export async function POST(request: Request) {
     try {
         const result = saleProfitCalculatorRequestSchema.safeParse(

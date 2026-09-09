@@ -1,13 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-/**
- * Holds a chart card's shape while its chart library is being fetched.
- *
- * The height matches the card it stands in for, so the dashboard does not
- * jump when the real chart arrives — the whole point of loading them late is
- * lost if the page reflows underneath the reader.
- */
 export function ChartCardSkeleton({ className }: { className?: string }) {
     return (
         <Card

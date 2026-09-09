@@ -47,7 +47,6 @@ export function SearchableCurrencySelect({
     const activeCode = value ? value.toUpperCase() : "USD";
     const { name: activeName } = getCurrencyNameAndCountry(activeCode);
 
-    // Focus search input when popover opens
     useEffect(() => {
         if (open) {
             const timer = setTimeout(() => {
@@ -59,7 +58,6 @@ export function SearchableCurrencySelect({
         }
     }, [open]);
 
-    // Close popover on outside click
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (
@@ -75,7 +73,6 @@ export function SearchableCurrencySelect({
         };
     }, []);
 
-    // Filter currencies based on search query
     const filteredCodes = availableCodes.filter((code) => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return true;
@@ -89,7 +86,6 @@ export function SearchableCurrencySelect({
 
     return (
         <div ref={containerRef} className={cn("relative w-full", className)}>
-            {/* Trigger Button */}
             <button
                 id={id}
                 type="button"
@@ -111,10 +107,8 @@ export function SearchableCurrencySelect({
                 <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
             </button>
 
-            {/* Suggestions Popover */}
             {open && (
                 <div className="absolute left-0 top-full z-50 mt-1.5 flex w-full min-w-[260px] flex-col rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 overflow-hidden">
-                    {/* Search Input Header */}
                     <div className="relative flex items-center border-b border-border/80 p-2 bg-muted/30">
                         <Search className="absolute left-4 size-4 text-muted-foreground" />
                         <input
@@ -136,7 +130,6 @@ export function SearchableCurrencySelect({
                         ) : null}
                     </div>
 
-                    {/* Suggestions List */}
                     <ul className="max-h-64 overflow-y-auto p-1.5 flex flex-col gap-0.5">
                         {filteredCodes.length === 0 ? (
                             <li className="p-4 text-center text-xs text-muted-foreground">

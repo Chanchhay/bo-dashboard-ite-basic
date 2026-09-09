@@ -24,7 +24,6 @@ import {
 } from "@/lib/api/user-management";
 import { useGetAuditLogsQuery } from "@/services/userManagementApi";
 
-/** A select can't carry an empty value, so "no filter" needs a sentinel. */
 const ALL = "__all";
 
 function formatTimestamp(value: string | undefined) {
@@ -39,31 +38,16 @@ function formatTimestamp(value: string | undefined) {
     }).format(date);
 }
 
-/**
- * A sign-in describes a person arriving; everything else describes a change.
- *
- * The two want different columns — a change has a target and a before/after, a
- * sign-in has an address and a device — so the last column switches on this
- * rather than showing every row a half-empty pair of both.
- */
 function isSignIn(actionType: string | undefined) {
     return actionType !== undefined && signInActions.includes(actionType);
 }
 
-/** Where a sign-in came from, as much of it as is worth a table cell. */
 function signInOrigin(ipAddress?: string, userAgent?: string) {
     const device = describeDevice(userAgent);
 
     return [ipAddress, device].filter(Boolean).join(" · ") || "—";
 }
 
-/**
- * A user agent as a person would name it.
- *
- * Deliberately coarse. The full string is kept on the row's `title` for anyone
- * who needs it; what a table cell is being scanned for is "was that their
- * phone or the shop's till", and browser minor versions answer no question.
- */
 function describeDevice(userAgent?: string) {
     if (!userAgent) return "";
 
@@ -79,8 +63,6 @@ function describeDevice(userAgent?: string) {
                 ? "Linux"
                 : "";
 
-    // Order matters: Edge and Chrome both claim to be Safari, and Chrome
-    // claims to be Safari too, so the most specific name has to win.
     const browser = /edg\//i.test(userAgent)
         ? "Edge"
         : /opr\/|opera/i.test(userAgent)
@@ -112,7 +94,6 @@ export default function AuditsTab({
         { skip: !canReadAudits },
     );
 
-    // The log lives behind `audit:read`; saying so beats a 403.
     if (!canReadAudits) {
         return (
             <Panel>
@@ -233,14 +214,12 @@ export default function AuditsTab({
                 />
             ) : (
                 <>
-                    {/* Mobile Cards View (< md) */}
                     <div className="flex flex-col gap-3 pt-3 md:hidden">
                         {logs.map((log) => (
                             <div
                                 key={log.id}
                                 className="rounded-2xl border border-border bg-card dark:bg-[#151c28] shadow-xs overflow-hidden transition-all"
                             >
-                                {/* Card Header */}
                                 <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                     <div className="flex flex-col min-w-0 pr-2">
                                         <span className="font-bold text-sm text-foreground dark:text-white truncate">
@@ -255,7 +234,6 @@ export default function AuditsTab({
                                     </span>
                                 </div>
 
-                                {/* Card Key-Value Rows */}
                                 <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                     {isSignIn(log.actionType) ? (
                                         <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
@@ -294,7 +272,6 @@ export default function AuditsTab({
                         ))}
                     </div>
 
-                    {/* Desktop Table (>= md) */}
                     <div
                         className={cn(
                             "hidden md:block mt-5 overflow-x-auto transition-opacity duration-200 ease-in-out",
@@ -340,9 +317,6 @@ export default function AuditsTab({
                                             {humanizeEnum(log.actionType)}
                                         </td>
                                         <td className="py-4 pr-4 text-[14px] text-muted-foreground">
-                                            {/* A sign-in's target is the person who signed
-                                                in, already named in Actor. Repeating it here
-                                                would fill the column with the previous one. */}
                                             {isSignIn(log.actionType) ? (
                                                 "—"
                                             ) : (

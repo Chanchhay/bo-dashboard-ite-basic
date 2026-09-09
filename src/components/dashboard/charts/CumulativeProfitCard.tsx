@@ -23,20 +23,12 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-/** One point on the running total: the period, and profit up to and including it. */
 export type CumulativeProfitPoint = {
-    /** The period this point covers, already named by the server. */
     label: string;
     profit: number;
     cumulative: number;
 };
 
-/**
- * Profit accumulating over time, with the period selector that drives it.
- *
- * The granularity lives on the dashboard rather than here, because it is what
- * the query is keyed on — this card only says when it has been changed.
- */
 export function CumulativeProfitCard({
     data,
     granularity,
@@ -61,7 +53,6 @@ export function CumulativeProfitCard({
                     <CardDescription className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5">USD by Date</CardDescription>
                 </div>
 
-                {/* Time Range Granularity Selector */}
                 <div className="flex items-center gap-1 bg-[var(--primary)]/10 p-1 rounded-xl border border-[var(--primary)]/20 text-xs font-bold">
                     {(["DAY", "WEEK", "MONTH", "YEAR"] as const).map((g) => {
                         const labels: Record<typeof g, string> = {

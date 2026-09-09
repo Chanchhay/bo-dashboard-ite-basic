@@ -67,7 +67,6 @@ export function CustomerSelectModal({
     const [searchQuery, setSearchQuery] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Queries
     const { data: customers = [], isLoading: isCustomersLoading, refetch } =
         useGetCustomersQuery();
     const { data: membershipTypes = [] } = useGetMembershipTypesQuery();
@@ -75,7 +74,6 @@ export function CustomerSelectModal({
     const [createCustomer, { isLoading: isCreating }] =
         useCreateCustomerMutation();
 
-    // Create form states
     const [fullName, setFullName] = useState("");
     const [phone, setPhone] = useState("");
     const [membershipTypeId, setMembershipTypeId] = useState("");
@@ -91,7 +89,6 @@ export function CustomerSelectModal({
             const formattedPhone = formatLocalPhone(rawPhone).toLowerCase();
             const rawPhoneLower = rawPhone.toLowerCase();
 
-            // Phone search match starting from 0 (e.g. 092...) or containing query
             const isPhoneMatch =
                 formattedPhone.startsWith(q) ||
                 formattedPhone.includes(q) ||
@@ -161,9 +158,7 @@ export function CustomerSelectModal({
             });
 
             refetch();
-            // Automatically select the newly created customer for this sale!
             await handlePick(newCust.id);
-            // Reset form
             setFullName("");
             setPhone("");
             setMembershipTypeId("");
@@ -224,7 +219,6 @@ export function CustomerSelectModal({
                         </DialogTitle>
                     </div>
 
-                    {/* Mode Tabs */}
                     <div className="flex gap-2 pt-3">
                         <button
                             type="button"
@@ -253,7 +247,6 @@ export function CustomerSelectModal({
 
                 {tab === "SELECT" ? (
                     <div className="p-5 space-y-4">
-                        {/* Search & Actions */}
                         <div className="flex items-center gap-2">
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -277,7 +270,6 @@ export function CustomerSelectModal({
                             )}
                         </div>
 
-                        {/* Customer List */}
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
                             {isCustomersLoading ? (
                                 <div className="py-12 text-center text-sm text-gray-400 flex items-center justify-center gap-2">
@@ -367,7 +359,6 @@ export function CustomerSelectModal({
                         </div>
                     </div>
                 ) : (
-                    /* Quick Add Customer Form */
                     <form onSubmit={handleQuickCreate} className="p-5 space-y-4">
                         {formError && (
                             <div className="p-3 text-xs bg-red-50 text-red-600 border border-red-200 rounded-xl">

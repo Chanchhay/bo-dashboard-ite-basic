@@ -13,7 +13,6 @@ import { ordersPath } from "@/lib/api/pos-order-backend";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Returns the paid order and any receipt metadata already issued for it. */
 export async function GET(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params;
@@ -37,8 +36,6 @@ export async function GET(_request: Request, context: RouteContext) {
                 ordersPath(businessId, `/${encodedId}/receipt`),
             );
         } catch (error) {
-            // Some payment methods issue metadata asynchronously. The paid
-            // order is still a valid, printable receipt source in that window.
             if (!(error instanceof BackendApiError && error.status === 404)) {
                 throw error;
             }

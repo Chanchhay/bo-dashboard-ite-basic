@@ -70,7 +70,6 @@ const channelNames: Record<string, string> = {
 const PAGE_SIZES = [10, 20, 25, 50, 100];
 const DEFAULT_PAGE_SIZE = 10;
 
-/** A sale sitting unpaid longer than this is flagged "Overdue" instead of "Pending". */
 const OVERDUE_DAYS = 7;
 
 const CHANNEL_FILTERS = ["ALL", "POS", "WEB", "TELEGRAM", "MESSENGER"] as const;
@@ -191,8 +190,6 @@ export function PayLaterList() {
         if (sortMode === "owed") {
             sorted.sort((a, b) => (b.totalAmount - b.paidAmount) - (a.totalAmount - a.paidAmount));
         } else {
-            // Sales with no soldAt timestamp sink to the bottom either way —
-            // there's nothing to prioritize them by.
             sorted.sort((a, b) => {
                 if (!a.soldAt && !b.soldAt) return 0;
                 if (!a.soldAt) return 1;
@@ -244,9 +241,6 @@ export function PayLaterList() {
             }
 
             setCollecting(null);
-            // Confirms to the cashier, in the same document the customer
-            // gets, that this is no longer owed — not just a toast that
-            // scrolls away.
             setPaidReceiptOrderId(sale.orderId);
         } catch (cause) {
             toast({
@@ -438,7 +432,6 @@ export function PayLaterList() {
                 data-tour="pay-later-list"
                 className="overflow-clip rounded-2xl border border-border bg-card shadow-xs"
             >
-                {/* Mobile Cards View (< md) */}
                 <div className="flex flex-col gap-3 p-3 sm:p-4 md:hidden">
                     {pagedSales.length === 0 ? (
                         <div className="py-6 text-center text-sm text-muted-foreground">
@@ -467,7 +460,6 @@ export function PayLaterList() {
                                         isOverdue && "border-danger/30 bg-danger/[0.02]"
                                     )}
                                 >
-                                    {/* Card Header */}
                                     <div className="flex items-center justify-between p-3.5 bg-muted/20 dark:bg-[#0e1420] border-b border-border/70 dark:border-slate-800/80">
                                         <div className="flex items-center gap-2.5">
                                             <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -502,7 +494,6 @@ export function PayLaterList() {
                                         </div>
                                     </div>
 
-                                    {/* Card Key-Value Rows */}
                                     <div className="divide-y divide-border/60 dark:divide-slate-800/60 text-xs">
                                         <div className="flex items-center justify-between px-3.5 py-2.5">
                                             <span className="text-muted-foreground dark:text-slate-400">Customer</span>
@@ -550,7 +541,6 @@ export function PayLaterList() {
                     )}
                 </div>
 
-                {/* Desktop Table (>= md) */}
                 <div className="hidden md:block overflow-x-auto">
                     <Table>
                         <TableHeader>

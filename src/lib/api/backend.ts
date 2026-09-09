@@ -22,13 +22,6 @@ type ApiErrorResponse = {
     errorDetail?: ApiErrorDetail[];
 };
 
-/**
- * A request body that is not valid JSON. Distinct from every other failure
- * these routes can hit: `backendRequest` also parses JSON — the backend's
- * response, at the bottom of this file — so a bare `SyntaxError` cannot say
- * which side sent the bad bytes. Naming this one at the point it is read
- * keeps a malformed request from being reported as a backend fault.
- */
 export class RequestBodyError extends Error {
     constructor(message = "The request body is not valid JSON.") {
         super(message);
@@ -36,11 +29,6 @@ export class RequestBodyError extends Error {
     }
 }
 
-/**
- * Reads and parses a route's JSON body. Use instead of `request.json()` so a
- * malformed body surfaces as a 400 naming the request, not a 500 blaming the
- * backend.
- */
 export async function readJsonBody(request: Request): Promise<unknown> {
     try {
         return await request.json();
@@ -133,22 +121,6 @@ async function readErrorMessage(response: Response) {
     }
 }
 
-/**
- * Tells the backend who is really calling.
- *
- * Every request from this app reaches the API through this server, so the
- * connection the backend sees is always ours and never the person using the
- * browser. Anything that records or counts by caller — the audit log's "signed
- * in from", the rate limiter's buckets — would otherwise describe this process
- * and put every member of staff in one bucket.
- *
- * `X-Client-IP` is the header the backend already reads first for exactly this
- * reason. The user agent travels under its own name rather than overwriting
- * `User-Agent`, which belongs to the hop that is actually being made.
- *
- * Neither is proof of anything: this is the honest answer to "who was this
- * on behalf of", not an identity claim.
- */
 async function forwardCallerHeaders(requestHeaders: Headers) {
     try {
         const incoming = await headers();
@@ -166,8 +138,6 @@ async function forwardCallerHeaders(requestHeaders: Headers) {
             requestHeaders.set("X-Client-User-Agent", userAgent);
         }
     } catch {
-        // Outside a request — a build-time render, say. There is no caller to
-        // describe, and failing the call over it would be absurd.
     }
 }
 
@@ -244,8 +214,6 @@ export function backendErrorResponse(error: unknown) {
             );
         }
 
-        // An account with no business has nothing this app can show; the
-        // browser turns this flag into a trip back to the login screen.
         if (isNoBusinessError(error.status, error.message)) {
             return Response.json(
                 { message: error.message, [NO_BUSINESS_FLAG]: true },

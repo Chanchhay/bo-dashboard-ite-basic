@@ -42,18 +42,6 @@ const CHECK = 3;
 const REVIEW = 4;
 const IMPORT = 5;
 
-/**
- * The guided migration: choose, upload, match, check, review, import.
- *
- * One page rather than six routes. Every step needs what the one before it
- * produced, and a shop that lost its place by refreshing would have to start
- * from the file again — so the import's id is the only thing that identifies
- * where they are, and the server holds everything else.
- *
- * The last step is the only one that changes anything. Up to that point the
- * uploaded rows sit apart from the catalogue, which is what lets the shop go
- * back and re-match a column without consequence.
- */
 export function ImportWizard() {
     const { toast } = useToast();
 
@@ -64,13 +52,6 @@ export function ImportWizard() {
     const [importId, setImportId] = useState<string>();
     const [confirmed, setConfirmed] = useState(false);
 
-    /*
-     * Null until the user touches a dropdown, so the suggestions the backend
-     * worked out from their column names can simply be what the screen shows.
-     * Seeding state from them instead would mean choosing a moment to do it,
-     * and every candidate moment either runs before the suggestions arrive or
-     * runs again later and throws the user's own choices away.
-     */
     const [mappingEdits, setMappingEdits] = useState<Record<string, string> | null>(null);
     const [duplicateStrategy, setDuplicateStrategy] =
         useState<ImportDuplicateStrategy>("SKIP");
@@ -119,19 +100,12 @@ export function ImportWizard() {
         [columns.data, match],
     );
 
-    // --- actions -------------------------------------------------------------------
-
     async function handleUpload() {
         if (!file || !targetType) return;
 
         try {
             const created = await upload({ targetType, file }).unwrap();
 
-            /*
-             * A different file has different columns, so anything matched
-             * against the last one is meaningless now. Cleared back to null so
-             * the new file's own suggestions are what the next step shows.
-             */
             setMappingEdits(null);
             setConfirmed(false);
             setImportId(created.id);
@@ -185,8 +159,6 @@ export function ImportWizard() {
         }
     }
 
-    // --- what the footer offers ----------------------------------------------------
-
     const busy =
         uploadState.isLoading ||
         mappingState.isLoading ||
@@ -211,11 +183,6 @@ export function ImportWizard() {
                 };
             case MATCH:
                 return {
-                    /*
-                     * Not while a run is already in flight. The server refuses
-                     * a second one anyway, but a shop should never have to
-                     * learn that from a conflict message.
-                     */
                     label: job.running ? "Checking…" : "Check my data",
                     disabled: problems.length > 0 || busy || job.running,
                     onClick: handleCheck,

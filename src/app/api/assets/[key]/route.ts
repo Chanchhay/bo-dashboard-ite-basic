@@ -8,10 +8,6 @@ type AssetRouteContext = {
     params: Promise<{ key: string }>;
 };
 
-/**
- * Drops a stored image. The editor calls this when a block image is replaced or
- * removed before the item is saved, so an abandoned pick does not linger.
- */
 export async function DELETE(
     _request: Request,
     context: AssetRouteContext,

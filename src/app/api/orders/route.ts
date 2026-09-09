@@ -24,18 +24,6 @@ export async function GET(request: Request) {
         );
         const businessId = await getCurrentBusinessId();
 
-        /*
-         * A backend that cannot answer is reported, not hidden.
-         *
-         * This used to swallow the failure and return an empty page, which
-         * reads as "no sales today" — the one answer a shop must never be
-         * given wrongly. It was survivable only while a fallback list was
-         * merged in below it; there is none now, so the empty page would be
-         * all there was.
-         *
-         * Offline sales need no special case here: they appear as the orders
-         * the backend recorded when they synced.
-         */
         const result = await filterOrders(
             businessId,
             orderFiltersFromQuery(url),

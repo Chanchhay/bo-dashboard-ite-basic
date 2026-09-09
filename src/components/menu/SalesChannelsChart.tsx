@@ -123,7 +123,6 @@ function dateKey(d: Date) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** Splits a chronological list into up to `numChunks` contiguous, near-equal groups. */
 function chunkInto<T>(items: T[], numChunks: number): T[][] {
     if (items.length === 0) return [];
     const size = Math.ceil(items.length / numChunks);
@@ -138,11 +137,6 @@ function sumChannel(points: Record<ChannelKey, number>[], key: ChannelKey) {
     return points.reduce((total, point) => total + point[key], 0);
 }
 
-/**
- * Change against the period immediately before it, in words as well as a
- * sign — a channel with nothing to compare against is "New", not a
- * meaningless percentage of zero.
- */
 function growthFor(current: number, previous: number): { label: string; up: boolean | null } {
     if (previous <= 0) {
         if (current <= 0) return { label: "—", up: null };
@@ -166,12 +160,8 @@ export function SalesChannelsChart() {
 
     const rangeDays = timeRange === "7D" ? 7 : 30;
 
-    // A day for both period boundaries, fixed at mount so the query key stays
-    // stable across re-renders instead of drifting with `new Date()`.
     const [referenceDate] = useState(() => new Date());
 
-    // Both the period shown and the one before it, in one request: a channel
-    // with no history yet still needs "New" rather than a division by zero.
     const from = useMemo(
         () => toLocalDateTime(startOfDay(addDays(referenceDate, -(rangeDays * 2 - 1)))),
         [referenceDate, rangeDays],
@@ -225,8 +215,6 @@ export function SalesChannelsChart() {
         [previousDays, byDate],
     );
 
-    // 7 days plots one point per day; 30 days groups into ~weekly buckets so
-    // the x-axis stays readable instead of thirty crowded ticks.
     const rawData: ChannelSalesPoint[] = useMemo(() => {
         if (timeRange === "7D") {
             return currentPoints.map((point) => ({
@@ -249,7 +237,6 @@ export function SalesChannelsChart() {
         }));
     }, [timeRange, currentPoints]);
 
-    // Filtered data based on active channel toggles
     const data = useMemo(() => {
         return rawData.map((d) => ({
             ...d,
@@ -260,8 +247,6 @@ export function SalesChannelsChart() {
         }));
     }, [rawData, activeChannels]);
 
-    // Calculate totals over the period shown, and growth against the period
-    // right before it — real trend, not a hardcoded badge.
     const totals = useMemo(() => {
         const result = {
             POS: 0,
@@ -298,13 +283,11 @@ export function SalesChannelsChart() {
     function toggleChannel(key: ChannelKey) {
         setActiveChannels((prev) => {
             const next = { ...prev, [key]: !prev[key] };
-            // Ensure at least one channel remains active
             if (!Object.values(next).some(Boolean)) return prev;
             return next;
         });
     }
 
-    // Chart Dimensions for SVG rendering
     const svgWidth = 800;
     const svgHeight = 240;
     const padding = { top: 20, right: 30, bottom: 40, left: 40 };
@@ -315,12 +298,9 @@ export function SalesChannelsChart() {
         const highestPoint = Math.max(
             ...data.map((d) => Math.max(d.POS, d.WEB, d.TELEGRAM, d.MESSENGER)),
         );
-        // A real quiet period has nothing to scale against — fall back to 1
-        // rather than 0, which would divide every height into NaN.
-        return (highestPoint > 0 ? highestPoint : 1) * 1.15; // 15% headroom
+        return (highestPoint > 0 ? highestPoint : 1) * 1.15;
     }, [data]);
 
-    // Generate SVG path for a given channel key
     function getChannelAreaPoints(key: ChannelKey) {
         if (!data || data.length === 0) return { pathD: "", areaD: "", coords: [] };
 
@@ -332,7 +312,6 @@ export function SalesChannelsChart() {
             return { x, y, val, date: point.date };
         });
 
-        // Smooth Bezier Curve path construction
         let pathD = `M ${coords[0].x} ${coords[0].y}`;
         for (let i = 0; i < coords.length - 1; i++) {
             const current = coords[i];
@@ -374,7 +353,6 @@ export function SalesChannelsChart() {
 
     return (
         <div data-tour="dashboard-sales-chart" className="rounded-2xl border border-border/80 bg-card p-5 sm:p-7 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] transition-all space-y-6">
-            {/* Top Bar Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2.5">
@@ -394,7 +372,6 @@ export function SalesChannelsChart() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* View Mode Toggle: Area Curve vs Bar */}
                     <div className="inline-flex rounded-xl border border-border/70 bg-muted/30 p-1">
                         <button
                             type="button"
@@ -420,7 +397,6 @@ export function SalesChannelsChart() {
                         </button>
                     </div>
 
-                    {/* Time Range Selector */}
                     <div className="inline-flex rounded-xl border border-border/70 bg-muted/30 p-1">
                         <button
                             type="button"
@@ -455,7 +431,6 @@ export function SalesChannelsChart() {
                 />
             ) : (
                 <>
-                    {/* KPI Metric Cards */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         {CHANNELS_CONFIG.map((channel) => {
                             const totalVal = totals[channel.key];
@@ -522,7 +497,6 @@ export function SalesChannelsChart() {
                         })}
                     </div>
 
-                    {/* Main Interactive Graph Display */}
                     <div className="space-y-3 pt-1">
                         <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
                             <span className="flex items-center gap-1.5">
@@ -534,7 +508,6 @@ export function SalesChannelsChart() {
                         </div>
 
                         <div className="relative rounded-2xl border border-border/70 bg-gradient-to-b from-muted/30 to-muted/10 p-4 sm:p-6 overflow-hidden">
-                            {/* Floating Tooltip Box when hovering over data point */}
                             {hoveredIdx !== null && hoveredData && (
                                 <div
                                     className="absolute top-4 right-4 z-20 rounded-xl border border-border bg-popover/95 p-3.5 text-xs shadow-xl backdrop-blur-md transition-all animate-in fade-in-50 duration-150 min-w-[180px]"
@@ -582,7 +555,6 @@ export function SalesChannelsChart() {
                             )}
 
                             {chartMode === "area" ? (
-                                /* Smooth Area SVG Curve Chart */
                                 <div className="relative w-full overflow-x-auto">
                                     <svg
                                         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -604,7 +576,6 @@ export function SalesChannelsChart() {
                                             ))}
                                         </defs>
 
-                                        {/* Horizontal Grid Lines */}
                                         {[0.2, 0.4, 0.6, 0.8].map((ratio, idx) => {
                                             const y = padding.top + innerHeight * ratio;
                                             return (
@@ -621,7 +592,6 @@ export function SalesChannelsChart() {
                                             );
                                         })}
 
-                                        {/* Hover Vertical Highlight Guide Line */}
                                         {hoveredIdx !== null && (
                                             <line
                                                 x1={
@@ -641,7 +611,6 @@ export function SalesChannelsChart() {
                                             />
                                         )}
 
-                                        {/* Render Area Curves for each channel */}
                                         {CHANNELS_CONFIG.map((channel) => {
                                             if (!activeChannels[channel.key]) return null;
                                             const { pathD, areaD, coords } = getChannelAreaPoints(channel.key);
@@ -649,13 +618,11 @@ export function SalesChannelsChart() {
 
                                             return (
                                                 <g key={channel.key}>
-                                                    {/* Filled Area below curve */}
                                                     <path
                                                         d={areaD}
                                                         fill={`url(#${channel.fillGradientId})`}
                                                         className="transition-all duration-300"
                                                     />
-                                                    {/* Smooth Curved Line */}
                                                     <path
                                                         d={pathD}
                                                         fill="none"
@@ -664,7 +631,6 @@ export function SalesChannelsChart() {
                                                         strokeLinecap="round"
                                                         className="transition-all duration-300"
                                                     />
-                                                    {/* Data points */}
                                                     {coords.map((pt, idx) => (
                                                         <circle
                                                             key={idx}
@@ -681,7 +647,6 @@ export function SalesChannelsChart() {
                                             );
                                         })}
 
-                                        {/* X-Axis Date Labels & Hover Overlay Trigger Columns */}
                                         {data.map((pt, idx) => {
                                             const stepX = innerWidth / (data.length - 1 || 1);
                                             const x = padding.left + idx * stepX;
@@ -693,7 +658,6 @@ export function SalesChannelsChart() {
                                                     onMouseLeave={() => setHoveredIdx(null)}
                                                     className="cursor-pointer"
                                                 >
-                                                    {/* Transparent Overlay Box for Mouse Hover Target */}
                                                     <rect
                                                         x={x - stepX / 2}
                                                         y={padding.top}
@@ -719,7 +683,6 @@ export function SalesChannelsChart() {
                                     </svg>
                                 </div>
                             ) : (
-                                /* Modern Gradient Rounded Bar Chart */
                                 <div className="h-64 w-full flex items-end justify-between gap-3 pt-6 pb-2">
                                     {data.map((point, idx) => {
                                         const isHovered = hoveredIdx === idx;
@@ -731,7 +694,6 @@ export function SalesChannelsChart() {
                                                 onMouseLeave={() => setHoveredIdx(null)}
                                                 className="relative flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
                                             >
-                                                {/* Grouped Bar Columns */}
                                                 <div className="flex items-end justify-center gap-1.5 w-full h-[85%]">
                                                     {CHANNELS_CONFIG.map((channel) => {
                                                         if (!activeChannels[channel.key]) return null;
@@ -748,7 +710,6 @@ export function SalesChannelsChart() {
                                                     })}
                                                 </div>
 
-                                                {/* X-Axis Date Label */}
                                                 <span
                                                     className={`mt-2 text-xs font-bold transition-colors ${
                                                         isHovered ? "text-primary" : "text-muted-foreground"
@@ -764,7 +725,6 @@ export function SalesChannelsChart() {
                         </div>
                     </div>
 
-                    {/* Interactive Channel Filter Legend Pills */}
                     <div className="flex flex-wrap items-center justify-center gap-3 pt-2 border-t border-border/60">
                         <span className="text-xs font-semibold text-muted-foreground">Filter Channels:</span>
                         {CHANNELS_CONFIG.map((c) => {

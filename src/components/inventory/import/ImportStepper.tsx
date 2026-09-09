@@ -13,13 +13,6 @@ export const IMPORT_STEPS = [
     "Import",
 ] as const;
 
-/**
- * Where the shop is in the migration, and how much is left.
- *
- * Steps already done are clickable so a mistaken column match can be gone back
- * to; steps ahead are not, because each one needs what the one before it
- * produced.
- */
 export function ImportStepper({
     current,
     furthest,

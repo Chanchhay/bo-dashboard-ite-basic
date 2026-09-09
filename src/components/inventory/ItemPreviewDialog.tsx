@@ -120,9 +120,6 @@ function foldSizes(variants: NonNullable<InventoryItem["variants"]>) {
 }
 
 export function toPreviewItem(item: InventoryItem): PreviewItem {
-    // The item's own picture first — for an imported item it is the only one,
-    // since `images` holds files uploaded into our asset store and an imported
-    // item has never been near it.
     const gallery = [
         item.imageUrl || "",
         ...[...(item.images || [])]
@@ -794,7 +791,6 @@ function SpecGrid({ specs }: { specs: PreviewAttribute[] }) {
     );
 }
 
-/** The card shown when there is nothing to show. */
 function NoImage() {
     return (
         <div className="flex aspect-square items-center justify-center rounded-2xl border border-[#e4eae2] dark:border-[#242937] bg-white dark:bg-[#1a1e29] text-center shadow-xs">
@@ -822,23 +818,6 @@ function Gallery({
     index: number;
     onSelect: (index: number) => void;
 }) {
-    /*
-     * An address is not a picture. Items brought in from another system carry
-     * links to that system's images, and those are as likely as not to be
-     * unreachable from here — a private CDN, a host that has moved on, a URL
-     * that was only ever a placeholder.
-     *
-     * The trick is what happens *before* the browser knows. An <img> with a
-     * dead source renders as an empty frame with its alt text sitting in it,
-     * and only afterwards does onError fire and let us swap in the fallback —
-     * so a broken picture announced itself twice, first as a hollow box and
-     * then as a card, which read as the page glitching.
-     *
-     * So a picture is not shown until it has actually loaded. Until then the
-     * frame is simply empty, which is also what a slow but perfectly good
-     * image looks like — and the "no image" card appears only once the browser
-     * has told us there is none, never on the way to one that works.
-     */
     const [status, setStatus] = useState<Record<string, "ok" | "broken">>({});
 
     function record(image: string, next: "ok" | "broken") {
@@ -889,11 +868,6 @@ function Gallery({
                 <img
                     key={active}
                     src={active}
-                    /*
-                     * No alt text until it loads. The alt is what the browser
-                     * paints inside the empty frame of a picture that is not
-                     * there, and that text was half of the flash.
-                     */
                     alt={status[active] === "ok" ? name || "Item image" : ""}
                     className={cn(
                         "size-full object-cover transition-opacity duration-300",
@@ -915,7 +889,6 @@ function OptionRow({
 }: {
     label: string;
     value: string;
-    /** Keep the chips on one line and scroll sideways instead of wrapping. */
     scroll?: boolean;
     children: React.ReactNode;
 }) {

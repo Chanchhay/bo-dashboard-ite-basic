@@ -6,17 +6,6 @@ import {
 } from "@/lib/api/pos-order";
 import { ensureCurrentOrder, ordersPath } from "@/lib/api/pos-order-backend";
 
-/**
- * Sets or updates the discount amount on the current POS order.
- *
- * This used to fall back to a locally-fabricated order whenever the backend
- * call failed, so a rejected discount still came back as a 200 with the
- * numbers the till expected. That is worse than an error: the till believed
- * the discount had been saved, charged the customer the discounted amount,
- * and the order sitting on the server — the one Sale Management reads and
- * the one `/orders/current/pay` prices the payment against — never moved off
- * the full price. A real failure here has to come back as one.
- */
 export async function PATCH(request: Request) {
     try {
         const result = setOrderDiscountSchema.safeParse(await readJsonBody(request));

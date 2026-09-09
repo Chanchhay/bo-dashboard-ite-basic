@@ -7,26 +7,17 @@ import { useMoney } from "@/hooks/useMoney";
 import type { Khqr, Sale } from "@/lib/api/pos-order";
 import { useGetPaymentStatusQuery } from "@/services/posOrderApi";
 
-/** How often to ask whether the customer has paid. */
 const POLL_MS = 2000;
 
 export interface KhqrViewProps {
     khqr: Khqr;
-    /** Whose till this is, shown on the card the way every KHQR card shows it. */
     merchantName?: string | null;
-    /** Called once, when Bakong confirms and the sale exists. */
     onPaid: (sale: Sale) => void;
     onCancel: () => void;
     onRegenerate: () => void;
     isRegenerating?: boolean;
 }
 
-/**
- * The code the customer scans, and the wait for Bakong to confirm.
- *
- * Polling stops the moment the code is settled or expires — a terminal left on
- * this screen must not keep asking about a sale that has already ended.
- */
 export function KhqrView({
     khqr,
     merchantName,
@@ -39,13 +30,6 @@ export function KhqrView({
     const secondsLeft = useCountdown(khqr.expiresAt);
     const expired = secondsLeft === 0;
 
-    // RTK Query's own pollingInterval is the only poller here. There used to
-    // also be a manual setInterval calling refetch() on the same cadence,
-    // which meant two /payment-status requests could land on the backend
-    // almost together — the backend isn't (wasn't) safe against settling the
-    // same order twice from that, so the second request could fail and the
-    // failure was swallowed as "still pending", leaving the QR stuck on
-    // screen after the customer had already paid.
     const { data } = useGetPaymentStatusQuery(undefined, {
         pollingInterval: POLL_MS,
         refetchOnMountOrArgChange: true,
@@ -85,8 +69,6 @@ export function KhqrView({
     } : null);
     const settled = Boolean(paidSale);
 
-    // Reporting the sale is a one-shot handoff; a ref keeps a second poll from
-    // announcing the same payment twice.
     const reported = useRef(false);
 
     useEffect(() => {
@@ -98,18 +80,6 @@ export function KhqrView({
 
     return (
         <div className="flex flex-col items-center gap-4 py-2">
-            {/*
-              * Laid out the way every other KHQR terminal in the country lays
-              * it out — the scheme's band, then who is being paid, then how
-              * much, then the code. A customer holding their phone up should
-              * recognise what they are looking at before they read a word of
-              * it, and ours was a bare square that could have been anything.
-              *
-              * The scheme's own red, and a white card in both themes, on
-              * purpose: a payment mark is not ours to re-tint, and a QR has to
-              * stay dark-on-light or half the phones in the queue will not
-              * read it.
-              */}
             <div className="w-full max-w-[300px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex items-center justify-center bg-[#e21b23] py-2.5">
                     <span className="text-[22px] font-extrabold leading-none tracking-[0.1em] text-white">
@@ -132,7 +102,6 @@ export function KhqrView({
 
                 <div className="relative flex items-center justify-center px-5 py-5">
                     {khqr.qrImage ? (
-                        /* A data URI from the backend — not an external fetch. */
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={khqr.qrImage}
@@ -165,7 +134,6 @@ export function KhqrView({
                 </p>
             )}
 
-            {/* One live line: what the terminal is doing right now. */}
             <div
                 role="status"
                 aria-live="polite"
@@ -225,18 +193,7 @@ export function KhqrView({
     );
 }
 
-/**
- * Seconds until the code expires, or `null` when it never does.
- *
- * The remaining time is computed while rendering rather than mirrored into
- * state — the tick only exists to schedule the next render, so the number on
- * screen is always derived from the clock rather than from a stale copy.
- */
 function useCountdown(expiresAt: string | null) {
-    // `tick` carries no meaning of its own — bumping it is just how the
-    // interval callback (a legitimate external-system event, unlike a
-    // synchronous setState in the effect body) asks React to re-render so
-    // `remaining(expiresAt)` gets recomputed against the current clock.
     const [, setTick] = useState(0);
 
     useEffect(() => {
@@ -248,7 +205,7 @@ function useCountdown(expiresAt: string | null) {
     }, []);
 
     if (!expiresAt) {
-        return 180; // 3 minutes default Bakong KHQR TTL fallback
+        return 180;
     }
 
     return remaining(expiresAt);
@@ -257,14 +214,6 @@ function useCountdown(expiresAt: string | null) {
 function remaining(expiresAt: string | null) {
     if (!expiresAt) return null;
 
-    // The backend's timestamps are LocalDateTime — a bare string with no
-    // timezone marker, captured in the server's own local wall-clock time
-    // (Asia/Phnom_Penh, see the api container's TZ setting). Appending "Z"
-    // here used to be correct back when the server ran in UTC, but now it
-    // makes the browser (also Phnom Penh time) misread the value as UTC and
-    // add a further 7 hours on top, turning a ~2 minute countdown into
-    // ~422 minutes. Parsing the bare string directly lets `Date` read it as
-    // local time, which is what it already is.
     const end = new Date(expiresAt.trim()).getTime();
 
     if (Number.isNaN(end)) return null;

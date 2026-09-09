@@ -73,19 +73,9 @@ export type ImportJob = {
     failureMessage: string | null;
     committable: boolean;
 
-    /**
-     * Whether this import can still be taken back out. False once it has been,
-     * and false for one that created nothing — there is nothing to undo.
-     */
     revertable: boolean;
 };
 
-/**
- * One starting file a shop can download.
- *
- * Served by the backend rather than written out here, so the words describing
- * a sample and the columns inside it cannot drift apart.
- */
 export type ImportSample = {
     sample: string;
     label: string;
@@ -116,10 +106,6 @@ export type ImportIssue = {
     field: string | null;
     code: string;
     message: string;
-    /**
-     * INFO is what the import will do — a category or unit it will create.
-     * WARNING is worth a look but still imports. ERROR stops the row.
-     */
     severity: "INFO" | "WARNING" | "ERROR";
 };
 
@@ -154,7 +140,6 @@ export type ImportPreview = {
     committable: boolean;
 };
 
-/** What the import will do about the units its rows are counted in. */
 export type ImportUnitSummary = {
     reused: number;
     created: number;

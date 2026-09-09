@@ -151,7 +151,6 @@ type FieldProps = {
     children: ReactNode;
 };
 
-/** The line under an "Add" button once the list is full. */
 function CapNote({
     count,
     max,
@@ -344,7 +343,6 @@ function toBlockDrafts(blocks: DescriptionBlock[] | undefined): BlockDraft[] {
     }));
 }
 
-
 type BlockPayload = {
     type: BlockDraft["type"];
     text: string;
@@ -437,7 +435,6 @@ const fieldLabels: Record<string, string> = {
     status: "Status",
 };
 
-/** "Colours" plus a row number, so a nested issue says which row it is. */
 const rowNouns: Record<string, string> = {
     colors: "Colour",
     variants: "Option",
@@ -725,7 +722,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             current.map((row) => (row.id === draft.id ? draft : row)),
         );
 
-        // An option's ticks hold colour names, so a rename has to follow them over.
         if (before && before !== after) {
             setOptions((current) =>
                 current.map((row) => ({
@@ -900,7 +896,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
                 description: "Loaded your previously saved item draft.",
             });
         } catch {
-            // Ignore parse errors
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isEditing]);
@@ -1033,7 +1028,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             };
             localStorage.setItem(CREATE_DRAFT_KEY, JSON.stringify(draft));
         } catch {
-            // Ignore quota errors
         }
     }, [
         isEditing,
@@ -1083,7 +1077,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             };
             localStorage.setItem(CREATE_DRAFT_KEY, JSON.stringify(draft));
         } catch {
-            // Ignore quota errors
         }
     }, [
         isEditing,
@@ -1226,7 +1219,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
         setPickedImages((current) => [...current, ...newItems]);
 
-        // When user uploads an image, auto-open the cropper for instant adjustment on the original image
         if (newItems.length === 1) {
             const first = newItems[0];
             setCropTarget({
@@ -1334,7 +1326,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         [groups],
     );
 
-    /** Flat, for the trigger's own label and for the preview. */
     const categoryOptions = useMemo(
         () =>
             categoryGroups.flatMap((group) =>
@@ -1348,7 +1339,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         [categoryGroups],
     );
 
-    /** Specs live as attributes, but are authored in the spec grid block. */
     const specs = useMemo<SpecDraft[]>(
         () =>
             attributes
@@ -1703,8 +1693,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
             }
         }
 
-        // Block images are held as files while editing, so they go up before the
-    // blocks are validated — an unsaved pick has no URL for the schema to see.
     let readyBlocks = blocks;
 
     try {
@@ -1754,7 +1742,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
 
       readyBlocks = await send(blocks);
 
-      // Kept even if the save then fails, so a retry does not upload twice.
       if (uploaded.size) setBlocks(readyBlocks);
     } catch (error) {
       toast({
@@ -1858,8 +1845,6 @@ function ProductEditor({ initialItem }: { initialItem?: InventoryItem }) {
         let variants = result.data.variants;
 
         try {
-            // A row with colours becomes one variant per colour, so the files have
-            // to be spread the same way `toVariantRows` spreads the rows themselves.
             const rowFiles = namedRows.flatMap((row) =>
                 row.colorValues.length
                     ? row.colorValues.map(() => row.file)

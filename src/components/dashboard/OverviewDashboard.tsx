@@ -57,7 +57,6 @@ import { Input } from "@/components/ui/input";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ChartCardSkeleton } from "@/components/dashboard/charts/ChartCardSkeleton";
 
-
 const ChannelDonutCard = dynamic(
     () => import("@/components/dashboard/charts/ChannelDonutCard").then((mod) => mod.ChannelDonutCard),
     { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-4" /> },
@@ -73,14 +72,12 @@ const ItemTypeBarCard = dynamic(
     { ssr: false, loading: () => <ChartCardSkeleton className="lg:col-span-7" /> },
 );
 
-// Color Palette for Channels matching system theme tokens
 const CHANNEL_COLORS: Record<string, string> = {
-    POS: "#00932a",       // Green (swapped with Telegram)
-    WEB: "#eda100",       // Yellow (swapped with Messenger)
-    TELEGRAM: "#d14341",  // Red (swapped with POS)
-    MESSENGER: "#2a78d6", // Blue (swapped with Web)
+    POS: "#00932a",
+    WEB: "#eda100",
+    TELEGRAM: "#d14341",
+    MESSENGER: "#2a78d6",
 };
-/** The four cards an export photographs, in the order a report shows them. */
 const CHART_SELECTORS = [
     "[data-tour='dashboard-channel-cards']",
     "[data-tour='dashboard-cumulative-profit']",
@@ -89,7 +86,6 @@ const CHART_SELECTORS = [
 ];
 
 type CapturedChart = { dataUrl: string; width: number; height: number };
-
 
 async function captureChartImage(selector: string): Promise<CapturedChart | null> {
     const el = document.querySelector(selector);
@@ -107,7 +103,6 @@ async function captureChartImage(selector: string): Promise<CapturedChart | null
     return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
 }
 
-
 function chartImgTag(chart: CapturedChart | null, filename: string, displayWidth: number, style = ""): string {
     if (!chart) return "";
     const displayHeight = Math.round((chart.height / chart.width) * displayWidth);
@@ -124,7 +119,6 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 
 const DOC_BORDER_LIGHT = { style: BorderStyle.SINGLE, size: 2, color: "E0E0E0" } as const;
 const DOC_BORDER_HEADER = { style: BorderStyle.SINGLE, size: 4, color: "B4C6E7" } as const;
-
 
 function chartImageParagraph(chart: CapturedChart | null, displayWidth: number): Paragraph | null {
     if (!chart) return null;
@@ -291,7 +285,6 @@ export function OverviewDashboard() {
     const bestSellingTotalPages = bestSellingQuery.data?.totalPages ?? 0;
     const bestSellingTotal = bestSellingQuery.data?.totalElements ?? 0;
 
-
     const handleExportRecentOrders = async () => {
         const all = await fetchAllRecentOrders({
             search: recentOrderFilter.trim() || undefined,
@@ -368,7 +361,6 @@ export function OverviewDashboard() {
     const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const handleExportPDF = async () => {
-        // The PDF photographs the whole page, charts included.
         await waitForCharts(CHART_SELECTORS);
 
         const dashboardEl = document.getElementById("dashboard-container");
@@ -379,12 +371,11 @@ export function OverviewDashboard() {
             await new Promise((r) => setTimeout(r, 150));
 
             const canvas = await html2canvas(dashboardEl, {
-                scale: 3, // Ultra-high resolution 3x rendering for crisp text & sharp charts
+                scale: 3,
                 useCORS: true,
                 logging: false,
-                backgroundColor: "#ffffff", // Print report on a clean white page, not the app's gray shell backdrop
+                backgroundColor: "#ffffff",
                 onclone: (clonedDoc) => {
-                    // 1. Hide export action toolbar from PDF report printout
                     const toolbar = clonedDoc.querySelector("[data-pdf-ignore='true']");
                     if (toolbar) {
                         (toolbar as HTMLElement).style.display = "none";
@@ -396,7 +387,6 @@ export function OverviewDashboard() {
                         dashboardClone.style.backgroundColor = "#ffffff";
                     }
 
-                    // 2. Inject Executive PDF Header into cloned document
                     const container = clonedDoc.getElementById("dashboard-container");
                     if (container) {
                         const dateStr = new Date().toLocaleDateString("en-US", {
@@ -436,8 +426,8 @@ export function OverviewDashboard() {
 
             const imgData = canvas.toDataURL("image/png");
 
-            const margin = 6; // Tight 6mm margins for full-width presentation
-            const pageWidth = 210; // A4 width in mm
+            const margin = 6;
+            const pageWidth = 210;
             const imgWidth = pageWidth - margin * 2;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             const pageHeight = imgHeight + margin * 2;
@@ -782,7 +772,6 @@ export function OverviewDashboard() {
               </html>
             `;
 
-
             
             const boundary = "----=ExcelReportBoundary";
             const mhtmlParts: string[] = [
@@ -839,7 +828,6 @@ export function OverviewDashboard() {
 
     return (
         <div id="dashboard-container" data-tour="dashboard-overview" className="flex flex-col gap-6 pb-6 animate-in fade-in duration-300">
-            {/* Dashboard Actions Bar: Export PDF, Export Excel Report, Export Docs */}
             <div data-pdf-ignore="true" data-tour="dashboard-reports-export" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
                 <div>
                     <h3 className="text-sm font-bold text-foreground">Dashboard Export & Reports</h3>
@@ -892,9 +880,7 @@ export function OverviewDashboard() {
                     </Button>
                 </div>
             </div>
-            {/* KPI Metric Cards Row (Top 3) */}
             <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
-                {/* 1. TOTAL REVENUE */}
                 <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
@@ -911,7 +897,6 @@ export function OverviewDashboard() {
                     </CardHeader>
                 </Card>
 
-                {/* 2. TOTAL ITEM */}
                 <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
@@ -928,7 +913,6 @@ export function OverviewDashboard() {
                     </CardHeader>
                 </Card>
 
-                {/* 3. TOTAL CATEGORY */}
                 <Card className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
                     <CardHeader className="p-0 space-y-0 flex flex-row items-start justify-between">
                         <div>
@@ -946,13 +930,10 @@ export function OverviewDashboard() {
                 </Card>
             </div>
 
-            {/* Main Grid Layout for Charts (Top: 6/6 split, Bottom: 4/8 split) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                {/* 1. TOP-LEFT: `channels` (Percentage of Channel — Donut Chart) */}
                 <ChannelDonutCard data={channelPercentageData} />
 
-                {/* 2. TOP-RIGHT: `profit` (Cumulative Profit — USD by Date) */}
                 <CumulativeProfitCard
                     data={cumulativeProfitData}
                     granularity={granularity}
@@ -960,10 +941,8 @@ export function OverviewDashboard() {
                     isError={overviewQuery.isError}
                 />
 
-                {/* 3. BOTTOM-LEFT: `trending_items` (Total Amount of Item Type — Vertical Bar Chart) */}
                 <ItemTypeBarCard data={itemVectorData} isError={overviewQuery.isError} />
 
-                {/* 4. BOTTOM-RIGHT: `stock_inventory` (Stock Inventory — Horizontal Bar Chart) */}
                 <Card data-tour="dashboard-stock-on-hand" className="flex flex-col rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all hover:shadow-md lg:col-span-5">
                     <CardHeader className="p-0 flex items-center justify-between border-b border-border/60 pb-4 mb-4">
                         <div>
@@ -987,12 +966,10 @@ export function OverviewDashboard() {
                             <div className="flex flex-col justify-between h-full pt-1 pb-1">
                                 <div className="space-y-2">
                                     {stockInventoryData.map((item) => {
-                                        // Floored at 3% so a real but tiny row is still a visible bar.
                                         const revPct = Math.min(100, Math.max(3, item.revenuePercent));
                                         const countPct = Math.min(100, Math.max(3, item.countPercent));
                                         return (
                                             <div key={item.name} className="relative group flex flex-col gap-1.5 p-1.5 px-2.5 rounded-xl transition-all duration-200 hover:bg-muted/40 cursor-pointer">
-                                                {/* Hover Tooltip (Picture 2 format) */}
                                                 <div className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 hidden -translate-x-1/2 group-hover:flex flex-col gap-2 rounded-xl border border-border/80 bg-popover p-3 shadow-xl backdrop-blur-xs min-w-48 text-xs">
                                                     <div className="font-bold text-foreground pb-1.5 border-b border-border/40 text-sm">{item.name}</div>
                                                     <div className="flex items-center justify-between gap-4">
@@ -1011,12 +988,10 @@ export function OverviewDashboard() {
                                                     </div>
                                                 </div>
 
-                                                {/* Text Directly Above Bar (Product Name Only) */}
                                                 <div className="flex items-center text-xs sm:text-sm font-bold text-foreground">
                                                     <span className="truncate">{item.name}</span>
                                                 </div>
 
-                                                {/* Horizontal Bars */}
                                                 <div className="space-y-1">
                                                     <div className="h-2 w-full">
                                                         <div
@@ -1036,7 +1011,6 @@ export function OverviewDashboard() {
                                     })}
                                 </div>
 
-                                {/* Polished Bottom Legend Pill Badges */}
                                 <div className="flex items-center justify-center gap-3 pt-3 pb-1 mt-2 text-xs font-bold">
                                     <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/40 border border-border/60 text-foreground font-semibold shadow-2xs">
                                         <span className="size-2.5 rounded-full bg-[var(--primary)] shrink-0" />
@@ -1054,9 +1028,7 @@ export function OverviewDashboard() {
 
             </div>
 
-            {/* Recent Orders & Best Selling Products Tables Row */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
-                {/* LEFT TABLE: Recent Orders */}
                 <Card data-tour="dashboard-recent-orders" className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-7">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
@@ -1070,7 +1042,6 @@ export function OverviewDashboard() {
                         </CardHeader>
 
                         <CardContent className="p-0 flex flex-col gap-3">
-                            {/* Search Filter */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                                 <Input
@@ -1084,7 +1055,6 @@ export function OverviewDashboard() {
                                 />
                             </div>
 
-                            {/* Orders Table */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs text-left">
                                     <thead>
@@ -1161,7 +1131,6 @@ export function OverviewDashboard() {
                         </CardContent>
                     </div>
 
-                    {/* Pagination Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 text-xs text-muted-foreground font-medium">
                         <span>
                             Showing {recentOrderTotal > 0 ? (recentOrderPage - 1) * ITEMS_PER_PAGE + 1 : 0}-
@@ -1193,7 +1162,6 @@ export function OverviewDashboard() {
                     </div>
                 </Card>
 
-                {/* RIGHT TABLE: Best Selling Products */}
                 <Card data-tour="dashboard-best-selling" className="h-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all hover:shadow-md flex flex-col justify-between lg:col-span-5">
                     <div>
                         <CardHeader className="p-0 flex flex-row items-center justify-between border-b border-border/60 pb-3 mb-3">
@@ -1207,7 +1175,6 @@ export function OverviewDashboard() {
                         </CardHeader>
 
                         <CardContent className="p-0 flex flex-col gap-3">
-                            {/* Search Filter */}
                             <div className="relative">
                                 <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                                 <Input
@@ -1221,7 +1188,6 @@ export function OverviewDashboard() {
                                 />
                             </div>
 
-                            {/* Best Selling Products Table */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs text-left">
                                     <thead>
@@ -1280,7 +1246,6 @@ export function OverviewDashboard() {
                         </CardContent>
                     </div>
 
-                    {/* Pagination Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-3 text-xs text-muted-foreground font-medium">
                         <span>
                             Showing {bestSellingTotal > 0 ? (bestSellingPage - 1) * ITEMS_PER_PAGE + 1 : 0}-

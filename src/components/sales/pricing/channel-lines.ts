@@ -5,25 +5,14 @@ import {
     type PriceOverride,
 } from "@/lib/sale-pricing/pricing";
 
-/**
- * The lines a channel can make an exception on.
- *
- * Kept apart from any one screen because both the table and the form it opens
- * have to agree line for line — an exception set against something the shop
- * does not actually sell would never be charged.
- */
-
-/** One exception being typed, with the ids that say what it applies to. */
 export type DraftOverride = {
     itemId: string;
     variantId?: string;
     unitId?: string;
     kind: OverrideKind;
-    /** Text while it is being typed, like every other price on these screens. */
     value: string;
 };
 
-/** One thing this item is sold as, and what the business charges for it. */
 export type SoldLine = {
     key: string;
     label: string;
@@ -32,12 +21,6 @@ export type SoldLine = {
     base?: number;
 };
 
-/**
- * Every way an item can be sold, exactly as Set Price lists them.
- *
- * The two screens have to agree line for line, or an exception would be set
- * against something the shop does not actually sell.
- */
 export function linesOf(item: InventoryItem): SoldLine[] {
     const unitWord = (item.unit?.name || "unit").toLowerCase();
     const options = (item.variants || []).filter(
@@ -48,8 +31,6 @@ export function linesOf(item: InventoryItem): SoldLine[] {
     );
 
     return [
-        // An item sold in options is always sold as one of them, so it has no
-        // price of its own to mark up.
         ...(options.length
             ? []
             : [

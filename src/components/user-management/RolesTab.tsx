@@ -104,9 +104,6 @@ export default function RolesTab() {
         if (!term) return roles;
         return roles.filter((role: BusinessRole) => {
             const nameMatch = (role.name || role.id)?.toLowerCase().includes(term);
-            // Both the label and the raw code: "payment" should find
-            // `order:pay` through "Take payment", and someone who knows the
-            // code should still be able to type it.
             const permMatch = role.permissions?.some(
                 (p: string) =>
                     p.toLowerCase().includes(term) ||
@@ -116,7 +113,6 @@ export default function RolesTab() {
         });
     }, [roles, search]);
 
-    // How many people each role touches — deleting one is not reversible.
     const assignedCounts = useMemo(() => {
         const counts = new Map<string, number>();
         for (const member of staffQuery.data || []) {
@@ -464,7 +460,6 @@ export default function RolesTab() {
                                         </p>
                                     ) : (
                                         <div className="mt-4">
-                                            {/* Clean module category chips */}
                                             <div className="flex flex-wrap items-center gap-2">
                                                 {categories.map((cat) => (
                                                     <span
@@ -477,7 +472,6 @@ export default function RolesTab() {
                                                 ))}
                                             </div>
 
-                                            {/* Expand/collapse button */}
                                             <button
                                                 type="button"
                                                 onClick={toggleExpand}
@@ -496,7 +490,6 @@ export default function RolesTab() {
                                                 )}
                                             </button>
 
-                                            {/* Structured category breakdown */}
                                             {isExpanded && (
                                                 <div className="mt-3.5 pt-3.5 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 animate-in fade-in-0 duration-150">
                                                     {categories.map((cat) => (

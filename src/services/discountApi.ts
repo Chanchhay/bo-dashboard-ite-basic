@@ -11,14 +11,11 @@ import type {
 
 export const discountApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Discounts
-    /** Every discount, unpaged — for dropdowns/lookups (POS, membership types). */
     getDiscounts: builder.query<DiscountResponse[], void>({
       query: () => "/discounts",
       transformResponse: (response: DiscountPage) => response.content ?? [],
       providesTags: ["Discounts"],
     }),
-    /** One page of discounts, for the Discounts management list. */
     getDiscountsPage: builder.query<
       DiscountPage,
       { page: number; size: number }
@@ -77,7 +74,6 @@ export const discountApi = baseApi.injectEndpoints({
       invalidatesTags: ["Discounts"],
     }),
 
-    // Coupons
     getCoupons: builder.query<CouponResponse[], string | void>({
       query: (discountId) =>
         discountId ? `/coupons?discountId=${discountId}` : "/coupons",

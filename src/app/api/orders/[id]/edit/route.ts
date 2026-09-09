@@ -5,7 +5,6 @@ import { ordersPath, rememberOrder } from "@/lib/api/pos-order-backend";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Makes an existing pending order the cart this terminal is editing. */
 export async function POST(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params;
