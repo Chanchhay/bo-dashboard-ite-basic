@@ -126,6 +126,24 @@ function Reconciliation({ session }: { session: RegisterSession }) {
         ? "text-brand-red"
         : "text-primary";
 
+  const formatSecondaryBreakdown = (
+    baseVal: number | null | undefined,
+    secondaryVal: number | null | undefined,
+    secondaryCurr: string | null | undefined
+  ) => {
+    if (!secondaryVal || secondaryVal <= 0 || !secondaryCurr) return null;
+    const secSymbol = secondaryCurr.toUpperCase() === "KHR" ? "៛" : secondaryCurr;
+    const secFormatted =
+      secondaryCurr.toUpperCase() === "KHR"
+        ? Math.round(secondaryVal).toLocaleString()
+        : Number(secondaryVal).toLocaleString();
+    const baseFormatted =
+      baseVal != null
+        ? `${format(baseVal, session.currency ?? undefined)} + `
+        : "";
+    return `(${baseFormatted}${secSymbol}${secFormatted} ${secondaryCurr})`;
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f4f4f5] p-6">
       <div className="w-full max-w-95 rounded-3xl bg-white p-6 shadow-sm">
@@ -146,7 +164,11 @@ function Reconciliation({ session }: { session: RegisterSession }) {
             label="Opening amount"
             value={
               session.secondaryOpeningBalance && session.secondaryOpeningBalance > 0 && session.secondaryCurrency
-                ? `${format(session.openingBalance, session.currency ?? undefined)} (inc. ${format(session.secondaryOpeningBalance, session.secondaryCurrency)})`
+                ? `${format(session.openingBalance, session.currency ?? undefined)} ${formatSecondaryBreakdown(
+                    session.baseOpeningBalance,
+                    session.secondaryOpeningBalance,
+                    session.secondaryCurrency
+                  ) ?? ""}`.trim()
                 : format(session.openingBalance, session.currency ?? undefined)
             }
           />
@@ -159,7 +181,11 @@ function Reconciliation({ session }: { session: RegisterSession }) {
             label="Counted"
             value={
               session.secondaryActualAmount && session.secondaryActualAmount > 0 && session.secondaryCurrency
-                ? `${format(session.actualAmount, session.currency ?? undefined)} (inc. ${format(session.secondaryActualAmount, session.secondaryCurrency)})`
+                ? `${format(session.actualAmount, session.currency ?? undefined)} ${formatSecondaryBreakdown(
+                    session.baseActualAmount,
+                    session.secondaryActualAmount,
+                    session.secondaryCurrency
+                  ) ?? ""}`.trim()
                 : format(session.actualAmount, session.currency ?? undefined)
             }
           />

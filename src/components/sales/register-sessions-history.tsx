@@ -634,7 +634,8 @@ export function RegisterSessionsHistory() {
                           session.secondaryOpeningBalance > 0 &&
                           session.secondaryCurrency && (
                             <span className="text-[11px] text-muted-foreground/80 dark:text-slate-500 font-medium">
-                              inc. {format(session.secondaryOpeningBalance, session.secondaryCurrency)}
+                              {session.baseOpeningBalance != null ? `${format(session.baseOpeningBalance, session.currency ?? undefined)} + ` : ""}
+                              {session.secondaryCurrency === "KHR" ? `៛${Math.round(session.secondaryOpeningBalance).toLocaleString()}` : format(session.secondaryOpeningBalance, session.secondaryCurrency)}
                             </span>
                           )}
                       </div>
@@ -876,7 +877,8 @@ export function RegisterSessionsHistory() {
                               session.secondaryOpeningBalance > 0 &&
                               session.secondaryCurrency && (
                                 <span className="text-[11px] text-muted-foreground/80 dark:text-slate-500 font-medium">
-                                  inc. {format(session.secondaryOpeningBalance, session.secondaryCurrency)}
+                                  {session.baseOpeningBalance != null ? `${format(session.baseOpeningBalance, session.currency ?? undefined)} + ` : ""}
+                                  {session.secondaryCurrency === "KHR" ? `៛${Math.round(session.secondaryOpeningBalance).toLocaleString()}` : format(session.secondaryOpeningBalance, session.secondaryCurrency)}
                                 </span>
                               )}
                           </div>
@@ -903,7 +905,8 @@ export function RegisterSessionsHistory() {
                                 session.secondaryActualAmount > 0 &&
                                 session.secondaryCurrency && (
                                   <span className="text-[11px] text-muted-foreground/80 dark:text-slate-500 font-medium">
-                                    inc. {format(session.secondaryActualAmount, session.secondaryCurrency)}
+                                    {session.baseActualAmount != null ? `${format(session.baseActualAmount, session.currency ?? undefined)} + ` : ""}
+                                    {session.secondaryCurrency === "KHR" ? `៛${Math.round(session.secondaryActualAmount).toLocaleString()}` : format(session.secondaryActualAmount, session.secondaryCurrency)}
                                   </span>
                                 )}
                             </div>
@@ -1076,10 +1079,12 @@ export function RegisterSessionsHistory() {
                           {selectedSession.baseOpeningBalance != null
                             ? `${format(selectedSession.baseOpeningBalance, selectedSession.currency ?? undefined)} + `
                             : ""}
-                          {format(
-                            selectedSession.secondaryOpeningBalance,
-                            selectedSession.secondaryCurrency
-                          )}
+                          {selectedSession.secondaryCurrency === "KHR"
+                            ? `៛${Math.round(selectedSession.secondaryOpeningBalance).toLocaleString()}`
+                            : format(
+                                selectedSession.secondaryOpeningBalance,
+                                selectedSession.secondaryCurrency
+                              )}
                           {selectedSession.secondaryExchangeRate != null &&
                             ` (@ ${selectedSession.secondaryExchangeRate.toLocaleString()})`}
                         </span>

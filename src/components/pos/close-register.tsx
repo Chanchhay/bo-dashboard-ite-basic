@@ -143,6 +143,46 @@ export function CloseRegister({
   const secondaryExchangeRate = boRate && boRate > 0 ? boRate : (secondaryExchangeRateProp || 1);
   const secondaryDecimals = activeSecondaryCurrency?.decimalPlaces ?? 0;
 
+  const hasSecondaryOpening = Boolean(
+    secondaryOpeningAmount != null &&
+      secondaryOpeningAmount > 0 &&
+      (secondaryCurrencyProp || activeSecondaryCurrency)
+  );
+
+  const resolvedBaseOpening =
+    baseOpeningAmount != null
+      ? baseOpeningAmount
+      : hasSecondaryOpening && secondaryExchangeRate > 0
+      ? Math.max(
+          0,
+          openingAmount -
+            Number(secondaryOpeningAmount) / secondaryExchangeRate
+        )
+      : openingAmount;
+
+  const openingSecondaryCode =
+    secondaryCurrencyProp?.toUpperCase() ||
+    activeSecondaryCurrency?.code ||
+    "";
+  const openingSecondarySymbol =
+    openingSecondaryCode === "KHR"
+      ? "៛"
+      : activeSecondaryCurrency?.symbol || openingSecondaryCode;
+  const openingSecondaryDecimals =
+    openingSecondaryCode === "KHR"
+      ? 0
+      : activeSecondaryCurrency?.decimalPlaces ?? 2;
+
+  const formattedOpeningBreakdown = hasSecondaryOpening
+    ? `${baseSymbol}${Number(resolvedBaseOpening).toFixed(
+        baseDecimals
+      )} ${baseCode} + ${openingSecondarySymbol}${
+        openingSecondaryDecimals > 0
+          ? Number(secondaryOpeningAmount).toFixed(openingSecondaryDecimals)
+          : Math.round(Number(secondaryOpeningAmount)).toLocaleString()
+      } ${openingSecondaryCode}`
+    : null;
+
   const [activeField, setActiveField] = useState<"base" | "secondary">("base");
   const [baseAmount, setBaseAmount] = useState("");
   const [secondaryAmount, setSecondaryAmount] = useState("");
@@ -394,13 +434,11 @@ export function CloseRegister({
             <div className="flex justify-between items-start text-gray-600">
               <div className="flex flex-col">
                 <span>Opening Cash</span>
-                {secondaryOpeningAmount != null &&
-                  secondaryOpeningAmount > 0 &&
-                  secondaryCurrencyProp && (
-                    <span className="text-[10px] text-gray-400">
-                      inc. {format(secondaryOpeningAmount, secondaryCurrencyProp)}
-                    </span>
-                  )}
+                {formattedOpeningBreakdown && (
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {formattedOpeningBreakdown}
+                  </span>
+                )}
               </div>
               <span className="font-semibold text-gray-900">
                 {format(openingAmount, currency)}
