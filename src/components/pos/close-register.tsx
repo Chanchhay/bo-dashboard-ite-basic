@@ -237,23 +237,27 @@ export function CloseRegister({
   const handleBlur = (field: "base" | "secondary") => {
     if (field === "base") {
       if (!baseAmount) return;
-      const num = Number.parseFloat(baseAmount);
-      if (!Number.isNaN(num) && num > 0) {
-        setBaseAmount(num.toFixed(baseDecimals));
-      } else {
+      let clean = baseAmount.trim();
+      if (clean.endsWith(".")) {
+        clean = clean.slice(0, -1);
+      }
+      const num = Number.parseFloat(clean);
+      if (Number.isNaN(num) || num < 0) {
         setBaseAmount("");
+      } else {
+        setBaseAmount(clean);
       }
     } else {
       if (!secondaryAmount) return;
-      const num = Number.parseFloat(secondaryAmount);
-      if (!Number.isNaN(num) && num > 0) {
-        setSecondaryAmount(
-          secondaryDecimals > 0
-            ? num.toFixed(secondaryDecimals)
-            : String(Math.floor(num))
-        );
-      } else {
+      let clean = secondaryAmount.trim();
+      if (clean.endsWith(".")) {
+        clean = clean.slice(0, -1);
+      }
+      const num = Number.parseFloat(clean);
+      if (Number.isNaN(num) || num < 0) {
         setSecondaryAmount("");
+      } else {
+        setSecondaryAmount(clean);
       }
     }
   };
@@ -454,7 +458,7 @@ export function CloseRegister({
                   type="text"
                   inputMode="decimal"
                   value={baseAmount}
-                  placeholder={baseDecimals > 0 ? "0.00" : "0"}
+                  placeholder="0"
                   onFocus={() => setActiveField("base")}
                   onChange={(e) =>
                     setBaseAmount(sanitizeAmount(e.target.value, baseDecimals))
@@ -559,7 +563,7 @@ export function CloseRegister({
                     type="text"
                     inputMode={secondaryDecimals > 0 ? "decimal" : "numeric"}
                     value={secondaryAmount}
-                    placeholder={secondaryDecimals > 0 ? "0.00" : "0"}
+                    placeholder="0"
                     onFocus={() => setActiveField("secondary")}
                     onChange={(e) =>
                       setSecondaryAmount(
