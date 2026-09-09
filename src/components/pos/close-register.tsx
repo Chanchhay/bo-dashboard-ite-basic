@@ -139,10 +139,8 @@ export function CloseRegister({
 
   const hasSecondary = Boolean(activeSecondaryCurrency);
   const secondarySymbol = activeSecondaryCurrency?.symbol || "";
-  const secondaryExchangeRate =
-    secondaryExchangeRateProp ||
-    Number(activeSecondaryCurrency?.exchangeRate) ||
-    1;
+  const boRate = Number(activeSecondaryCurrency?.exchangeRate);
+  const secondaryExchangeRate = boRate && boRate > 0 ? boRate : (secondaryExchangeRateProp || 1);
   const secondaryDecimals = activeSecondaryCurrency?.decimalPlaces ?? 0;
 
   const [activeField, setActiveField] = useState<"base" | "secondary">("base");
