@@ -70,6 +70,57 @@ export interface CloseRegisterProps {
   isProcessing?: boolean;
 }
 
+function getExchangeRateText(
+  baseCode: string,
+  secondaryCode: string,
+  rate: number
+): string {
+  if (!rate || rate <= 0) return "";
+
+  if (rate < 1) {
+    const inverse = 1 / rate;
+    const invFormatted =
+      inverse >= 100
+        ? Math.round(inverse).toLocaleString()
+        : inverse.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    const directFormatted = rate.toLocaleString(undefined, {
+      maximumFractionDigits: 6,
+    });
+    return `1 ${secondaryCode} = ${invFormatted} ${baseCode} (1 ${baseCode} = ${directFormatted} ${secondaryCode})`;
+  }
+
+  const rateFormatted =
+    rate >= 100
+      ? Math.round(rate).toLocaleString()
+      : rate.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  const inverse = 1 / rate;
+  const invFormatted = inverse.toLocaleString(undefined, {
+    maximumFractionDigits: 6,
+  });
+  return `1 ${baseCode} = ${rateFormatted} ${secondaryCode} (1 ${secondaryCode} = ${invFormatted} ${baseCode})`;
+}
+
+function getExchangeRateSummary(
+  baseCode: string,
+  secondaryCode: string,
+  rate: number
+): string {
+  if (!rate || rate <= 0) return "";
+  if (rate < 1) {
+    const inverse = 1 / rate;
+    const invFormatted =
+      inverse >= 100
+        ? Math.round(inverse).toLocaleString()
+        : inverse.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    return `1 ${secondaryCode} = ${invFormatted} ${baseCode}`;
+  }
+  const rateFormatted =
+    rate >= 100
+      ? Math.round(rate).toLocaleString()
+      : rate.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return `1 ${baseCode} = ${rateFormatted} ${secondaryCode}`;
+}
+
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 export function CloseRegister({
@@ -97,8 +148,8 @@ export function CloseRegister({
   const baseCurrency = config?.currencies?.find(
     (c) => c.code.toUpperCase() === baseCode
   );
-  const baseSymbol = baseCurrency?.symbol || "$";
-  const baseDecimals = baseCurrency?.decimalPlaces ?? 2;
+  const baseSymbol = baseCurrency?.symbol || (baseCode === "KHR" ? "៛" : "$");
+  const baseDecimals = baseCode === "KHR" ? 0 : (baseCurrency?.decimalPlaces ?? 2);
 
   // Currencies configured in BO that are not the base currency
   const nonBaseCurrencies = (config?.currencies || []).filter(
@@ -141,7 +192,50 @@ export function CloseRegister({
   const secondarySymbol = activeSecondaryCurrency?.symbol || "";
   const boRate = Number(activeSecondaryCurrency?.exchangeRate);
   const secondaryExchangeRate = boRate && boRate > 0 ? boRate : (secondaryExchangeRateProp || 1);
-  const secondaryDecimals = activeSecondaryCurrency?.decimalPlaces ?? 0;
+  const secondaryDecimals =
+    activeSecondaryCurrency?.code === "KHR"
+      ? 0
+      : (activeSecondaryCurrency?.decimalPlaces ?? (activeSecondaryCurrency?.code === "USD" ? 2 : 0));
+
+  const hasSecondaryOpening = Boolean(
+    secondaryOpeningAmount != null &&
+      secondaryOpeningAmount > 0 &&
+      (secondaryCurrencyProp || activeSecondaryCurrency)
+  );
+
+  const resolvedBaseOpening =
+    baseOpeningAmount != null
+      ? baseOpeningAmount
+      : hasSecondaryOpening && secondaryExchangeRate > 0
+      ? Math.max(
+          0,
+          openingAmount -
+            Number(secondaryOpeningAmount) / secondaryExchangeRate
+        )
+      : openingAmount;
+
+  const openingSecondaryCode =
+    secondaryCurrencyProp?.toUpperCase() ||
+    activeSecondaryCurrency?.code ||
+    "";
+  const openingSecondarySymbol =
+    openingSecondaryCode === "KHR"
+      ? "៛"
+      : activeSecondaryCurrency?.symbol || openingSecondaryCode;
+  const openingSecondaryDecimals =
+    openingSecondaryCode === "KHR"
+      ? 0
+      : activeSecondaryCurrency?.decimalPlaces ?? 2;
+
+  const formattedOpeningBreakdown = hasSecondaryOpening
+    ? `${baseSymbol}${Number(resolvedBaseOpening).toFixed(
+        baseDecimals
+      )} ${baseCode} + ${openingSecondarySymbol}${
+        openingSecondaryDecimals > 0
+          ? Number(secondaryOpeningAmount).toFixed(openingSecondaryDecimals)
+          : Math.round(Number(secondaryOpeningAmount)).toLocaleString()
+      } ${openingSecondaryCode}`
+    : null;
 
   const [activeField, setActiveField] = useState<"base" | "secondary">("base");
   const [baseAmount, setBaseAmount] = useState("");
@@ -187,6 +281,19 @@ export function CloseRegister({
   const totalCounted = numBase + convertedSecondaryToBase;
   const totalExpected = openingAmount + revenue;
   const totalDifferent = totalCounted - totalExpected;
+
+  const formattedCountedBreakdown =
+    hasSecondary && (numBase > 0 || numSecondary > 0) && activeSecondaryCurrency
+      ? `${baseSymbol}${
+          baseDecimals > 0
+            ? numBase.toFixed(baseDecimals)
+            : Math.round(numBase).toLocaleString()
+        } ${baseCode} + ${secondarySymbol}${
+          secondaryDecimals > 0
+            ? numSecondary.toFixed(secondaryDecimals)
+            : Math.round(numSecondary).toLocaleString()
+        } ${activeSecondaryCurrency.code}`
+      : null;
 
   const handleDigit = useCallback(
     (digit: string) => {
@@ -266,9 +373,15 @@ export function CloseRegister({
     if (isProcessing) return;
     if (!baseAmount && !secondaryAmount) return;
 
+    const rateSummary = getExchangeRateSummary(
+      baseCode,
+      activeSecondaryCurrency!.code,
+      secondaryExchangeRate
+    );
+
     const noteBreakdown =
       hasSecondary && numSecondary > 0
-        ? `Closing Count: ${baseSymbol}${numBase.toFixed(baseDecimals)} ${baseCode} + ${secondarySymbol}${numSecondary.toLocaleString()} ${activeSecondaryCurrency!.code} (@ ${secondaryExchangeRate})`
+        ? `Closing Count: ${baseSymbol}${numBase.toFixed(baseDecimals)} ${baseCode} + ${secondarySymbol}${numSecondary.toLocaleString()} ${activeSecondaryCurrency!.code} (@ ${rateSummary})`
         : undefined;
 
     const fullClosingNote = [noteBreakdown, closingNotes.trim()]
@@ -394,13 +507,11 @@ export function CloseRegister({
             <div className="flex justify-between items-start text-gray-600">
               <div className="flex flex-col">
                 <span>Opening Cash</span>
-                {secondaryOpeningAmount != null &&
-                  secondaryOpeningAmount > 0 &&
-                  secondaryCurrencyProp && (
-                    <span className="text-[10px] text-gray-400">
-                      inc. {format(secondaryOpeningAmount, secondaryCurrencyProp)}
-                    </span>
-                  )}
+                {formattedOpeningBreakdown && (
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {formattedOpeningBreakdown}
+                  </span>
+                )}
               </div>
               <span className="font-semibold text-gray-900">
                 {format(openingAmount, currency)}
@@ -444,9 +555,6 @@ export function CloseRegister({
                     {baseCode} ({baseSymbol})
                   </span>
                 </div>
-                <span className="text-[11px] font-medium text-gray-400">
-                  Primary Cash
-                </span>
               </div>
 
               <div className="mt-1 flex items-center justify-between gap-2">
@@ -548,10 +656,6 @@ export function CloseRegister({
                       </span>
                     </div>
                   )}
-
-                  <span className="text-[11px] font-medium text-gray-400">
-                    Secondary Cash
-                  </span>
                 </div>
 
                 <div className="mt-1 flex items-center justify-between gap-2">
@@ -577,12 +681,14 @@ export function CloseRegister({
 
                 {/* Conversion Subtext */}
                 <div className="mt-1 flex items-center justify-between border-t border-gray-100 pt-1 text-[11px] text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <ArrowRightLeft className="size-3 text-gray-400" />
-                    Rate: 1 {baseCode} = {secondaryExchangeRate.toLocaleString()}{" "}
-                    {activeSecondaryCurrency.code}
+                  <span
+                    className="flex items-center gap-1 min-w-0"
+                    title={getExchangeRateText(baseCode, activeSecondaryCurrency.code, secondaryExchangeRate)}
+                  >
+                    <ArrowRightLeft className="size-3 text-gray-400 shrink-0" />
+                    <span className="truncate">Rate: {getExchangeRateText(baseCode, activeSecondaryCurrency.code, secondaryExchangeRate)}</span>
                   </span>
-                  <span className="font-semibold text-gray-700">
+                  <span className="font-semibold text-gray-700 shrink-0 ml-2">
                     ≈ {baseSymbol}
                     {convertedSecondaryToBase.toFixed(baseDecimals)} {baseCode}
                   </span>
@@ -596,10 +702,20 @@ export function CloseRegister({
                 <span className="text-xs font-semibold text-gray-500">
                   Total Counted Cash
                 </span>
-                <span className="text-base font-bold text-primary tabular-nums">
-                  {baseSymbol}
-                  {totalCounted.toFixed(baseDecimals)} {baseCode}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className="text-base font-bold text-primary tabular-nums">
+                    {baseSymbol}
+                    {baseDecimals > 0
+                      ? totalCounted.toFixed(baseDecimals)
+                      : Math.round(totalCounted).toLocaleString()}{" "}
+                    {baseCode}
+                  </span>
+                  {formattedCountedBreakdown && (
+                    <span className="text-[11px] font-medium text-gray-400 tabular-nums">
+                      {formattedCountedBreakdown}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs">
                 <span className="text-gray-500 font-medium">Difference</span>
@@ -697,7 +813,11 @@ export function CloseRegister({
             <Calculator className="h-4 w-4" />
             {isProcessing
               ? "Closing Register..."
-              : `Close Register (${baseSymbol}${totalCounted.toFixed(baseDecimals)})`}
+              : `Close Register (${baseSymbol}${
+                  baseDecimals > 0
+                    ? totalCounted.toFixed(baseDecimals)
+                    : Math.round(totalCounted).toLocaleString()
+                })`}
           </button>
         </div>
       </div>
