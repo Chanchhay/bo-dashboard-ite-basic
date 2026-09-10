@@ -4,15 +4,15 @@ export type PosOrderItem = {
     id: string;
     itemId: string;
     variantId: string | null;
-    
+
     variantName?: string | null;
-    
+
     unitId?: string | null;
     unitName?: string | null;
     unitFactor?: number | null;
-    
+
     addOns?: { addOnId: string | null; name: string; unitPrice: number }[];
-    
+
     selections?: { attributeName: string; value: string; label: string }[];
     itemName: string;
     quantity: number;
@@ -40,10 +40,13 @@ export type PosOrder = {
     customerPhone?: string | null;
     invoiceNumber: string | null;
     channel: "POS" | "TELEGRAM" | "MESSENGER" | "WEB";
-    
+
     status: "PENDING" | "CONFIRMED" | "PAID" | "FAILED" | "CANCELLED";
-    
+
     paymentMethod?: "CASH" | "DIGITAL" | "PAY_LATER" | null;
+    paidAmount?: number | null;
+    changeAmount?: number | null;
+    tenderNote?: string | null;
     subtotal: number;
     discountAmount: number;
     discountId?: string | null;
@@ -54,11 +57,11 @@ export type PosOrder = {
     taxInclusionType?: TaxInclusionType | null;
     total: number;
     currency: string | null;
-    
+
     displayCurrency: string | null;
     displayExchangeRate: number | null;
     note: string | null;
-    
+
     awaitingPayLaterApproval?: boolean;
     items: PosOrderItem[];
     createdDate: string | null;
@@ -81,7 +84,7 @@ export type OrderSummary = {
         paid: number;
         pending: number;
     };
-    
+
     truncated: boolean;
 };
 
@@ -91,7 +94,7 @@ export type OrderChannelFilter = PosOrder["channel"] | "ALL";
 export type OrderHistoryQuery = {
     status?: OrderStatusFilter;
     channel?: OrderChannelFilter;
-    
+
     from?: string;
     to?: string;
 };
@@ -120,7 +123,7 @@ export type PosReceipt = {
 
 export type PosReceiptDetail = {
     order: PosOrder;
-    
+
     receipt: PosReceipt | null;
 };
 
@@ -140,9 +143,9 @@ export const POS_ORDER_COOKIE = "pos_order_id";
 export const addOrderItemSchema = z.object({
     itemId: z.uuid("Select a valid item."),
     variantId: z.uuid().optional(),
-    
+
     unitId: z.uuid().optional(),
-    
+
     addOnIds: z.array(z.uuid()).optional(),
     quantity: z.coerce
         .number()
@@ -154,8 +157,8 @@ export const addOrderItemSchema = z.object({
 });
 
 export const updateOrderItemSchema = z.object({
-    
-    
+
+
     quantity: z.coerce
         .number()
         .int("Quantity must be a whole number.")
@@ -167,7 +170,7 @@ export type UpdateOrderItemInput = z.infer<typeof updateOrderItemSchema>;
 
 export const payOrderSchema = z.object({
     paymentMethod: z.enum(["CASH", "DIGITAL", "PAY_LATER"]),
-    
+
     receivedAmount: z.coerce.number().nonnegative().optional(),
     note: z.string().trim().max(200).optional(),
     isTaxActive: z.boolean().optional(),
@@ -196,15 +199,15 @@ export type SetOrderCustomerInput = z.infer<typeof setOrderCustomerSchema>;
 export type SetOrderDiscountInput = z.infer<typeof setOrderDiscountSchema>;
 
 export type Khqr = {
-    
+
     qr: string | null;
     md5: string | null;
     amount: number;
     currency: string;
     billNumber: string | null;
-    
+
     expiresAt: string | null;
-    
+
     qrImage: string | null;
 };
 
@@ -223,7 +226,7 @@ export type Sale = {
     orderId: string;
     invoiceNumber: string | null;
     cashierId: string | null;
-    
+
     customerId: string | null;
     customerName: string | null;
     customerPhone: string | null;
@@ -237,10 +240,10 @@ export type Sale = {
     taxInclusionType?: TaxInclusionType | null;
     totalAmount: number;
     paidAmount: number;
-    
+
     changeAmount: number;
     currency: string | null;
-    
+
     displayCurrency: string | null;
     displayExchangeRate: number | null;
     paymentMethod: "CASH" | "DIGITAL" | "PAY_LATER";

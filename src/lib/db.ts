@@ -58,8 +58,8 @@ class PosDatabase extends Dexie {
 export const db = new PosDatabase();
 
 if (typeof window !== "undefined") {
-    db.on("versionchange", () => {
-        db.close();
-        window.location.reload();
-    });
+  db.on("versionchange", () => {
+    db.close();
+    window.location.reload();
+  });
 }

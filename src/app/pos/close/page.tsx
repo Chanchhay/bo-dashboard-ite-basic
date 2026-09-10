@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck } from "lucide-react";
 
-import { CloseRegister } from "@/components/pos/close-register";
+import { CloseRegister, type CloseRegisterData } from "@/components/pos/close-register";
 import { useToast } from "@/components/ui/toast";
 import type { RegisterSession } from "@/lib/api/pos-session";
 import { useMoney } from "@/hooks/useMoney";
@@ -45,14 +45,16 @@ export default function PosCloseRegisterPage() {
     };
   }, [router]);
 
-  async function handleConfirm(totalCounted: number) {
+  async function handleConfirm(data: number | CloseRegisterData) {
     setIsClosing(true);
+
+    const body = typeof data === "number" ? { actualAmount: data } : data;
 
     try {
       const response = await fetch("/api/register/close", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualAmount: totalCounted }),
+        body: JSON.stringify(body),
       });
 
       const payload = await response.json().catch(() => null);
@@ -98,6 +100,11 @@ export default function PosCloseRegisterPage() {
       joinedCashiers={(session!.cashierNames ?? []).slice(1)}
       openedAt={formatOpenedAt(session!.openedAt)}
       openingAmount={session!.openingBalance}
+      baseOpeningAmount={session!.baseOpeningBalance}
+      secondaryCurrency={session!.secondaryCurrency}
+      secondaryOpeningAmount={session!.secondaryOpeningBalance}
+      secondaryExchangeRate={session!.secondaryExchangeRate}
+      note={session!.note}
       revenue={session!.totalCashSales}
       currency={session!.currency ?? undefined}
       orderCount={session!.orderCount ?? 0}
@@ -119,49 +126,109 @@ function Reconciliation({ session }: { session: RegisterSession }) {
         ? "text-brand-red"
         : "text-primary";
 
+  const formatSecondaryBreakdown = (
+    baseVal: number | null | undefined,
+    secondaryVal: number | null | undefined,
+    secondaryCurr: string | null | undefined,
+    baseCurr: string | null | undefined
+  ) => {
+    if (secondaryVal == null || secondaryVal <= 0 || !secondaryCurr) return null;
+
+    const getSymbol = (code: string) => {
+      const c = code.toUpperCase();
+      if (c === "KHR") return "៛";
+      if (c === "USD") return "$";
+      if (c === "EUR") return "€";
+      if (c === "THB") return "฿";
+      if (c === "GBP") return "£";
+      return "";
+    };
+
+    const formatVal = (val: number, code: string) => {
+      const c = code.toUpperCase();
+      const sym = getSymbol(c);
+      if (c === "KHR") {
+        return `${sym}${Math.round(val).toLocaleString()} ${c}`;
+      }
+      const numStr = Number(val).toLocaleString(undefined, {
+        minimumFractionDigits: val % 1 === 0 ? 0 : 2,
+        maximumFractionDigits: 2,
+      });
+      return `${sym}${numStr} ${c}`;
+    };
+
+    const secStr = formatVal(secondaryVal, secondaryCurr);
+    const baseStr =
+      baseVal != null && baseCurr
+        ? `${formatVal(baseVal, baseCurr)} + `
+        : "";
+
+    return `(${baseStr}${secStr})`;
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f4f5] p-6">
-      <div className="w-full max-w-95 rounded-3xl bg-white p-6 shadow-sm">
-        <div className="flex flex-col items-center gap-2 pb-5 text-center">
-          <CircleCheck className="h-10 w-10 text-primary" aria-hidden="true" />
-          <h1 className="text-base font-bold text-gray-900">
-            Register closed
-          </h1>
-          <p className="text-sm text-gray-500">
-            {[session.registerName, session.cashierName]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f4f5] p-4 sm:p-6">
+      <div className="w-full max-w-[500px] min-h-[540px] rounded-[28px] sm:rounded-3xl bg-white p-6 sm:p-8 shadow-sm border border-gray-100 flex flex-col justify-between">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col items-center gap-2 pb-3 text-center">
+            <CircleCheck className="h-11 w-11 text-primary" aria-hidden="true" />
+            <h1 className="text-lg font-bold text-gray-900">
+              Register closed
+            </h1>
+            <p className="text-sm text-gray-500 font-medium">
+              {[session.registerName, session.cashierName]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+
+          <dl className="flex flex-col border-t border-gray-100 pt-3 text-sm">
+            <Row
+              label="Opening amount"
+              value={format(session.openingBalance, session.currency ?? undefined)}
+              subtext={formatSecondaryBreakdown(
+                session.baseOpeningBalance,
+                session.secondaryOpeningBalance,
+                session.secondaryCurrency,
+                session.currency
+              )}
+            />
+            <Row label="Orders" value={String(session.orderCount ?? 0)} />
+            <Row label="Cash sales" value={format(session.totalCashSales, session.currency ?? undefined)} />
+            <Row label="Paid in" value={format(session.totalPaidIn, session.currency ?? undefined)} />
+            <Row label="Paid out" value={format(session.totalPaidOut, session.currency ?? undefined)} />
+            <Row label="Expected" value={format(session.expectedAmount, session.currency ?? undefined)} />
+            <Row
+              label="Counted"
+              value={format(session.actualAmount, session.currency ?? undefined)}
+              subtext={formatSecondaryBreakdown(
+                session.baseActualAmount,
+                session.secondaryActualAmount,
+                session.secondaryCurrency,
+                session.currency
+              )}
+            />
+          </dl>
+
+          <div className="flex items-center justify-between border-t border-gray-100 pt-3.5">
+            <dt className="text-sm font-bold text-gray-900">Difference</dt>
+            <dd className={`text-xl font-black tabular-nums ${tone}`}>
+              {difference > 0 ? "+" : difference < 0 ? "−" : ""}
+              {format(Math.abs(difference), session.currency ?? undefined)}
+            </dd>
+          </div>
+
+          {session.reconciliationStatus && (
+            <p className="text-right text-xs font-bold tracking-wide text-gray-500">
+              {session.reconciliationStatus}
+            </p>
+          )}
         </div>
-
-        <dl className="flex flex-col gap-2 border-t border-gray-100 pt-4 text-sm">
-          <Row label="Opening amount" value={format(session.openingBalance, session.currency ?? undefined)} />
-          <Row label="Orders" value={String(session.orderCount ?? 0)} />
-          <Row label="Cash sales" value={format(session.totalCashSales, session.currency ?? undefined)} />
-          <Row label="Paid in" value={format(session.totalPaidIn, session.currency ?? undefined)} />
-          <Row label="Paid out" value={format(session.totalPaidOut, session.currency ?? undefined)} />
-          <Row label="Expected" value={format(session.expectedAmount, session.currency ?? undefined)} />
-          <Row label="Counted" value={format(session.actualAmount, session.currency ?? undefined)} />
-        </dl>
-
-        <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
-          <dt className="text-sm font-semibold text-gray-900">Difference</dt>
-          <dd className={`text-lg font-bold tabular-nums ${tone}`}>
-            {difference > 0 ? "+" : difference < 0 ? "−" : ""}
-            {format(Math.abs(difference), session.currency ?? undefined)}
-          </dd>
-        </div>
-
-        {session.reconciliationStatus && (
-          <p className="pt-1 text-right text-xs font-semibold tracking-wide text-gray-500">
-            {session.reconciliationStatus}
-          </p>
-        )}
 
         <button
           type="button"
           onClick={() => router.replace(POS_ROUTES.openRegister)}
-          className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-bold text-white outline-none transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-bold text-white outline-none transition-transform active:scale-[0.98] hover:bg-primary/90 cursor-pointer shadow-sm"
         >
           Done
         </button>
@@ -170,11 +237,26 @@ function Reconciliation({ session }: { session: RegisterSession }) {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  subtext,
+}: {
+  label: string;
+  value: string;
+  subtext?: string | null;
+}) {
   return (
-    <div className="flex justify-between">
-      <dt className="text-gray-500">{label}</dt>
-      <dd className="font-semibold tabular-nums text-gray-800">{value}</dd>
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
+      <dt className="text-gray-500 font-medium text-xs sm:text-sm shrink-0 pt-0.5">{label}</dt>
+      <div className="flex flex-col items-end text-right min-w-0">
+        <dd className="font-semibold tabular-nums text-gray-900 text-xs sm:text-sm">{value}</dd>
+        {subtext && (
+          <span className="text-[11px] font-medium text-gray-400 tabular-nums break-words mt-0.5">
+            {subtext}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -187,10 +269,10 @@ function formatOpenedAt(value: string | null) {
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleString(undefined, {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 }

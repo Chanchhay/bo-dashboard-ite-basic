@@ -220,6 +220,38 @@ export function ReceiptTicket({
   const displayTotal =
     getRecordedSecondaryAmount(total, record, currencies) ??
     getSecondaryAmount(total, currencyCode, currencies);
+
+  // Resolve cash paid amount and change: prefer sale record, then order fields, then tender note
+  const tenderNote = sale?.note || order.tenderNote || order.note;
+  const parsedTendered = useMemo(() => {
+    if (!tenderNote?.startsWith("Tendered:")) return null;
+    const match = tenderNote.match(/Tendered:\s*[^0-9]*([0-9,]+(?:\.[0-9]+)?)/);
+    if (!match) return null;
+    const cleanNum = parseFloat(match[1].replace(/,/g, ""));
+    return isNaN(cleanNum) ? null : cleanNum;
+  }, [tenderNote]);
+
+  const rawPaidAmount =
+    sale?.paidAmount ?? order.paidAmount ?? parsedTendered;
+  const rawChangeAmount =
+    sale?.changeAmount ?? order.changeAmount ?? (rawPaidAmount != null && rawPaidAmount >= total ? rawPaidAmount - total : null);
+
+  const effectivePaidAmount =
+    paymentMethod === "CASH" && rawPaidAmount != null
+      ? rawPaidAmount
+      : total;
+
+  const effectiveChangeAmount =
+    paymentMethod === "CASH" && rawChangeAmount != null
+      ? Math.max(0, rawChangeAmount)
+      : rawPaidAmount != null && rawPaidAmount >= total
+        ? Math.max(0, rawPaidAmount - total)
+        : 0;
+
+  const showChange =
+    paymentMethod === "CASH" &&
+    (Boolean(sale) || order.paidAmount != null || order.changeAmount != null || parsedTendered != null);
+
   const locationStr = [business?.address, business?.cityOrProvince]
     .filter(Boolean)
     .join(", ");
@@ -336,6 +368,14 @@ export function ReceiptTicket({
         <dd className="truncate text-right text-[#0e140e]">
           {order.note?.trim() || order.channel}
         </dd>
+        {receipt?.printedBy && (
+          <>
+            <dt>Cashier / បេឡា</dt>
+            <dd className="truncate text-right font-medium text-[#0e140e]">
+              {receipt.printedBy}
+            </dd>
+          </>
+        )}
       </dl>
 
       <div className="border-t border-dashed border-[#9aa79a]">
@@ -519,24 +559,49 @@ export function ReceiptTicket({
             <div className="flex justify-between gap-4">
               <dt>Paid · {paymentMethodLabel}</dt>
               <dd className="font-mono text-[#0e140e]">
-                {formatMoney(
-                  sale?.paymentMethod === "CASH" ? sale.paidAmount : total,
-                  currency,
-                )}
+                {formatMoney(effectivePaidAmount, currency)}
               </dd>
             </div>
-            {paymentMethod === "CASH" && sale && (
-              <div className="flex justify-between gap-4">
-                <dt>Change / អាប់</dt>
-                <dd className="font-mono text-[#0e140e]">
+            {tenderNote?.startsWith("Tendered:") ? (
+              <div className="flex justify-between gap-4 text-xs text-[#52605b]">
+                <dt>Tendered / ទទួល</dt>
+                <dd className="font-mono font-medium text-[#0e140e]">
+                  {tenderNote.replace(/^Tendered:\s*/i, "")}
+                </dd>
+              </div>
+            ) : displayTotal && paymentMethod === "CASH" && effectivePaidAmount > 0 ? (
+              <div className="flex justify-between gap-4 text-xs text-[#6d7a77]">
+                <dt>ទទួល ({displayTotal.currency.code})</dt>
+                <dd className="font-mono">
                   {formatMoney(
-                    sale.paidAmount != null && sale.paidAmount >= total
-                      ? Math.max(0, sale.paidAmount - total)
-                      : (sale.changeAmount ?? 0),
-                    currency,
+                    effectivePaidAmount * displayTotal.rate,
+                    displayTotal.currency,
                   )}
                 </dd>
               </div>
+            ) : null}
+            {showChange && (
+              <>
+                <div className="flex justify-between gap-4">
+                  <dt>Change / អាប់</dt>
+                  <dd className="font-mono text-[#0e140e]">
+                    {formatMoney(effectiveChangeAmount, currency)}
+                  </dd>
+                </div>
+                {displayTotal &&
+                  effectiveChangeAmount > 0 &&
+                  displayTotal.rate > 0 && (
+                    <div className="flex justify-between gap-4 text-xs text-[#6d7a77]">
+                      <dt>អាប់ ({displayTotal.currency.code})</dt>
+                      <dd className="font-mono">
+                        {formatMoney(
+                          effectiveChangeAmount * displayTotal.rate,
+                          displayTotal.currency,
+                        )}
+                      </dd>
+                    </div>
+                  )}
+              </>
             )}
           </>
         )}

@@ -93,9 +93,9 @@ async function captureChartImage(selector: string): Promise<CapturedChart | null
     const canvas = await html2canvas(el as HTMLElement, {
         scale: 1.5,
         logging: false,
-        onclone: (clonedDoc) => {
-            clonedDoc.querySelectorAll("[filter]").forEach((node) => node.removeAttribute("filter"));
-            clonedDoc.querySelectorAll<HTMLElement>("[style*='filter']").forEach((node) => {
+        onclone: (clonedDoc: any) => {
+            clonedDoc.querySelectorAll("[filter]").forEach((node: any) => node.removeAttribute("filter"));
+            clonedDoc.querySelectorAll("[style*='filter']").forEach((node: any) => {
                 node.style.filter = "none";
             });
         },
@@ -375,7 +375,7 @@ export function OverviewDashboard() {
                 useCORS: true,
                 logging: false,
                 backgroundColor: "#ffffff",
-                onclone: (clonedDoc) => {
+                onclone: (clonedDoc: any) => {
                     const toolbar = clonedDoc.querySelector("[data-pdf-ignore='true']");
                     if (toolbar) {
                         (toolbar as HTMLElement).style.display = "none";
@@ -417,8 +417,8 @@ export function OverviewDashboard() {
                     }
 
              
-                    clonedDoc.querySelectorAll("[filter]").forEach((el) => el.removeAttribute("filter"));
-                    clonedDoc.querySelectorAll<HTMLElement>("[style*='filter']").forEach((el) => {
+                    clonedDoc.querySelectorAll("[filter]").forEach((el: any) => el.removeAttribute("filter"));
+                    clonedDoc.querySelectorAll("[style*='filter']").forEach((el: any) => {
                         el.style.filter = "none";
                     });
                 },
